@@ -106,7 +106,7 @@ func toTransaction(
 	}
 
 	if txIndex != nil {
-		res.TxIndex = ArgUintPtr(uint64(*txIndex))
+		res.TxIndex = argUintPtr(uint64(*txIndex))
 	}
 
 	if t.AccessList() != nil {
@@ -200,7 +200,7 @@ func toBlock(b *types.Block, fullTx bool) *block {
 				res.Transactions,
 				toTransaction(
 					txn,
-					ArgUintPtr(b.Number()),
+					argUintPtr(b.Number()),
 					argHashPtr(b.Hash()),
 					&idx,
 				),
@@ -316,7 +316,7 @@ func toLog(src *types.Log, logIdx, txIdx uint64, header *types.Header, txHash ty
 
 type argBig big.Int
 
-func ArgBigPtr(b *big.Int) *argBig {
+func argBigPtr(b *big.Int) *argBig {
 	v := argBig(*b)
 
 	return &v
@@ -351,7 +351,7 @@ func argHashPtr(h types.Hash) *types.Hash {
 
 type argUint64 uint64
 
-func ArgUintPtr(n uint64) *argUint64 {
+func argUintPtr(n uint64) *argUint64 {
 	v := argUint64(n)
 
 	return &v
@@ -384,7 +384,7 @@ func (u *argUint64) UnmarshalJSON(buffer []byte) error {
 
 type argBytes []byte
 
-func ArgBytesPtr(b []byte) *argBytes {
+func argBytesPtr(b []byte) *argBytes {
 	bb := argBytes(b)
 
 	return &bb
@@ -720,20 +720,4 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
-}
-
-type SendTxnArgs struct {
-	From       *types.MixedcaseAddress `json:"from"`
-	To         *types.MixedcaseAddress `json:"to"`
-	Gas        *argUint64              `json:"gas"`
-	GasPrice   *argBytes               `json:"gasPrice,omitempty"`
-	GasTipCap  *argBytes               `json:"maxFeePerGas,omitempty"`
-	GasFeeCap  *argBytes               `json:"maxPriorityFeePerGas,omitempty"`
-	Value      *argBytes               `json:"value"`
-	Data       *argBytes               `json:"data"`
-	Input      *argBytes               `json:"input"`
-	Nonce      *argUint64              `json:"nonce"`
-	Type       *argUint64              `json:"type"`
-	AccessList *types.TxAccessList     `json:"accessList,omitempty"`
-	ChainID    *argUint64              `json:"chainId,omitempty"`
 }

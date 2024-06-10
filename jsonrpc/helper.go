@@ -56,7 +56,7 @@ func GetTransactionByBlockAndIndex(block *types.Block, index argUint64) (interfa
 
 	return toTransaction(
 		block.Transactions[index],
-		ArgUintPtr(block.Number()),
+		argUintPtr(block.Number()),
 		argHashPtr(block.Hash()),
 		&idx,
 	), nil
@@ -188,7 +188,7 @@ func DecodeTxn(arg *txnArgs, blockNumber uint64, store nonceGetter, forceSetNonc
 	// set default values
 	if arg.From == nil {
 		arg.From = &types.ZeroAddress
-		arg.Nonce = ArgUintPtr(0)
+		arg.Nonce = argUintPtr(0)
 	} else if arg.Nonce == nil || forceSetNonce {
 		// get nonce from the pool
 		nonce, err := GetNextNonce(*arg.From, LatestBlockNumber, store)
@@ -196,23 +196,23 @@ func DecodeTxn(arg *txnArgs, blockNumber uint64, store nonceGetter, forceSetNonc
 			return nil, err
 		}
 
-		arg.Nonce = ArgUintPtr(nonce)
+		arg.Nonce = argUintPtr(nonce)
 	}
 
 	if arg.Value == nil {
-		arg.Value = ArgBytesPtr([]byte{})
+		arg.Value = argBytesPtr([]byte{})
 	}
 
 	if arg.GasPrice == nil {
-		arg.GasPrice = ArgBytesPtr([]byte{})
+		arg.GasPrice = argBytesPtr([]byte{})
 	}
 
 	if arg.GasTipCap == nil {
-		arg.GasTipCap = ArgBytesPtr([]byte{})
+		arg.GasTipCap = argBytesPtr([]byte{})
 	}
 
 	if arg.GasFeeCap == nil {
-		arg.GasFeeCap = ArgBytesPtr([]byte{})
+		arg.GasFeeCap = argBytesPtr([]byte{})
 	}
 
 	var input []byte
@@ -231,7 +231,7 @@ func DecodeTxn(arg *txnArgs, blockNumber uint64, store nonceGetter, forceSetNonc
 	}
 
 	if arg.Gas == nil {
-		arg.Gas = ArgUintPtr(0)
+		arg.Gas = argUintPtr(0)
 	}
 
 	txType := types.LegacyTxType
