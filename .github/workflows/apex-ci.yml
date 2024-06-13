@@ -3,10 +3,9 @@ name: ApexBridge CI
 on: # yamllint disable-line rule:truthy
   push:
     branches:
-      - feature/apex-bridge
+      - main
+      - develop
   pull_request:
-    branches:
-      - feature/apex-bridge
   workflow_dispatch:
     inputs:
       build_blade:
@@ -74,7 +73,7 @@ jobs:
     if: |
       inputs.build_blade || 
       github.event_name == 'pull_request' || 
-      github.event_name == 'push'
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
   lint:
     name: Lint
     uses: ./.github/workflows/lint.yml
@@ -82,7 +81,7 @@ jobs:
     if: |
       inputs.lint || 
       github.event_name == 'pull_request' || 
-      github.event_name == 'push'
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
   unit_test:
     name: Unit Tests
     uses: ./.github/workflows/unit-test.yml
@@ -90,7 +89,7 @@ jobs:
     if: |
       inputs.unit_test || 
       github.event_name == 'pull_request' || 
-      github.event_name == 'push'
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
   e2e_polybft_test:
     name: E2E PolyBFT Tests
     uses: ./.github/workflows/e2e-polybft-test.yml
@@ -98,7 +97,7 @@ jobs:
     if: |
       inputs.e2e_polybft_test || 
       github.event_name == 'pull_request' || 
-      github.event_name == 'push'
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_apex_test:
@@ -108,6 +107,6 @@ jobs:
     if: |
       inputs.e2e_polybft_test || 
       github.event_name == 'pull_request' || 
-      github.event_name == 'push'
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
