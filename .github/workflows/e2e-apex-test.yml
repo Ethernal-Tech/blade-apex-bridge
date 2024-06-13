@@ -5,7 +5,7 @@ on: # yamllint disable-line rule:truthy
     outputs:
       workflow_output:
         description: E2E ApexBridge Tests output
-        value: ${{ jobs.e2e_apex_bridge.outputs.e2e_apex_output_failure }} 
+        value: ${{ jobs.e2e_apex_bridge.outputs.e2e_apex_output_failure }}
     secrets:
       PERSONAL_ACCESS_TOKEN:
         required: true
