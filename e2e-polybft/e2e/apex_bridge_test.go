@@ -515,7 +515,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 	)
-	user := apex.CreateAndFundUser(t, ctx, uint64(1_000_000_000))
+	user := apex.CreateAndFundUser(t, ctx, uint64(20_000_000_000))
 
 	txProviderPrime := apex.GetPrimeTxProvider()
 	txProviderVector := apex.GetVectorTxProvider()

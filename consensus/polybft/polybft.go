@@ -101,9 +101,6 @@ type Polybft struct {
 	// runtime handles consensus runtime features like epoch, state and event management
 	runtime *consensusRuntime
 
-	// block time duration
-	blockTime time.Duration
-
 	// dataDir is the data directory to store the info
 	dataDir string
 
@@ -494,9 +491,6 @@ func (p *Polybft) Initialize() error {
 		return fmt.Errorf("cannot create topics: %w", err)
 	}
 
-	// set block time
-	p.blockTime = time.Duration(p.config.BlockTime)
-
 	// initialize polybft consensus data directory
 	p.dataDir = filepath.Join(p.config.Config.Path, "polybft")
 	// create the data dir if not exists
@@ -781,9 +775,13 @@ func (p *Polybft) GetValidatorsWithTx(blockNumber uint64, parents []*types.Heade
 func (p *Polybft) SetBlockTime(blockTime time.Duration) {
 	// if block time is greater than default base round timeout,
 	// set base round timeout as twice the block time
+	syncerBlockTimeout := blockTime * 10
 	if blockTime >= core.DefaultBaseRoundTimeout {
 		p.ibft.SetBaseRoundTimeout(blockTime * baseRoundTimeoutScaleFactor)
+		syncerBlockTimeout *= baseRoundTimeoutScaleFactor
 	}
+
+	p.syncer.UpdateBlockTimeout(syncerBlockTimeout)
 }
 
 // ProcessHeaders updates the snapshot based on the verified headers

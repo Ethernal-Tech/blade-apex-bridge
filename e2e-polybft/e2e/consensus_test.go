@@ -243,6 +243,11 @@ func TestE2E_Consensus_RegisterValidator(t *testing.T) {
 	// register the second validator with stake
 	require.NoError(t, secondValidator.RegisterValidatorWithStake(stakeAmount))
 
+	// get owner's latest block and wait for 1 block before checks
+	latestBlock, err := owner.JSONRPC().BlockNumber()
+	require.NoError(t, err)
+	require.NoError(t, cluster.WaitForBlock(latestBlock+1, 5*time.Second))
+
 	firstValidatorInfo, err := validatorHelper.GetValidatorInfo(firstValidatorAddr, relayer)
 	require.NoError(t, err)
 	require.True(t, firstValidatorInfo.IsActive)
@@ -253,11 +258,34 @@ func TestE2E_Consensus_RegisterValidator(t *testing.T) {
 	require.True(t, secondValidatorInfo.IsActive)
 	require.True(t, secondValidatorInfo.Stake.Cmp(stakeAmount) == 0)
 
+	// wait until both of the validators mine one block to check if they joined consensus
+	var (
+		firstMined  bool
+		secondMined bool
+	)
+
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		latestBlock, err := cluster.Servers[0].JSONRPC().GetBlockByNumber(jsonrpc.LatestBlockNumber, false)
+		require.NoError(t, err)
+
+		blockMiner := latestBlock.Header.Miner
+
+		if !firstMined {
+			firstMined = bytes.Equal(firstValidatorAddr.Bytes(), blockMiner)
+		}
+
+		if !secondMined {
+			secondMined = bytes.Equal(secondValidatorAddr.Bytes(), blockMiner)
+		}
+
+		return firstMined && secondMined
+	}))
+
 	currentBlock, err := owner.JSONRPC().GetBlockByNumber(jsonrpc.LatestBlockNumber, false)
 	require.NoError(t, err)
 
-	// wait for couple of epochs to have some rewards accumulated
-	require.NoError(t, cluster.WaitForBlock(currentBlock.Header.Number+(polybftConfig.EpochSize*2), time.Minute))
+	// wait 1 epoch to have some rewards accumulated
+	require.NoError(t, cluster.WaitForBlock(currentBlock.Header.Number+polybftConfig.EpochSize, time.Minute))
 
 	bigZero := big.NewInt(0)
 
@@ -270,17 +298,6 @@ func TestE2E_Consensus_RegisterValidator(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, secondValidatorInfo.IsActive)
 	require.True(t, secondValidatorInfo.WithdrawableRewards.Cmp(bigZero) > 0)
-
-	// wait until one of the validators mine one block to check if they joined consensus
-	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		latestBlock, err := cluster.Servers[0].JSONRPC().GetBlockByNumber(jsonrpc.LatestBlockNumber, false)
-		require.NoError(t, err)
-
-		blockMiner := latestBlock.Header.Miner
-
-		return bytes.Equal(firstValidatorAddr.Bytes(), blockMiner) ||
-			bytes.Equal(secondValidatorAddr.Bytes(), blockMiner)
-	}))
 }
 
 func TestE2E_Consensus_Validator_Unstake(t *testing.T) {

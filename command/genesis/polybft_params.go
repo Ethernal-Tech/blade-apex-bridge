@@ -67,10 +67,8 @@ const (
 var (
 	errNoGenesisValidators      = errors.New("genesis validators aren't provided")
 	errProxyAdminNotProvided    = errors.New("proxy contracts admin address must be set")
-	errProxyAdminIsZeroAddress  = errors.New("proxy contracts admin address must not be zero address")
 	errProxyAdminIsSystemCaller = errors.New("proxy contracts admin address must not be system caller address")
 	errBladeAdminNotProvided    = errors.New("blade admin address must be set")
-	errBladeAdminIsZeroAddress  = errors.New("blade admin address must not be zero address")
 	errBladeAdminIsSystemCaller = errors.New("blade admin address must not be system caller address")
 	errNoPremineAllowed         = errors.New("native token is not mintable" +
 		"so no premine is allowed except for zero address")

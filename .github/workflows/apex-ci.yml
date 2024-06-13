@@ -6,6 +6,8 @@ on: # yamllint disable-line rule:truthy
       - main
       - develop
   pull_request:
+    branches-ignore:
+      - feature/apex-bridge
   workflow_dispatch:
     inputs:
       build_blade:
