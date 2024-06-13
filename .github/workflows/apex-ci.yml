@@ -1,5 +1,5 @@
 ---
-name: ApexBridge CI
+name: ApexBridge CI # test CI
 on: # yamllint disable-line rule:truthy
   push:
     branches:
