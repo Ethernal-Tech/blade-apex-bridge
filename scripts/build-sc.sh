@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BRANCH=main # optimization-chain-registration
+BRANCH=APEX-192-delete # optimization-chain-registration
 
 cd ./apex-bridge-smartcontracts
 git checkout main
