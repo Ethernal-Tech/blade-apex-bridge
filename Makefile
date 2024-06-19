@@ -77,7 +77,7 @@ test-e2e-legacy: check-go
 test-e2e-polybft: check-go
 	go build -o artifacts/blade .
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
-	go test -v -timeout=5h ./e2e-polybft/e2e/...
+	go test -v -timeout=5h ./e2e-polybft/e2e/... -run "^(Test(?!.*ApexBridge).*)$"
 
 .PHONY: test-e2e-apex-bridge
 test-e2e-apex-bridge: check-go
