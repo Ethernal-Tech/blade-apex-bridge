@@ -168,8 +168,7 @@ func SetupAndRunApexBridge(
 
 	t.Cleanup(cleanupFunc)
 
-	require.NoError(t, cb.CardanoCreateWalletsAndAddresses(
-		primeCluster.Config.NetworkMagic, vectorCluster.Config.NetworkMagic))
+	require.NoError(t, cb.CardanoCreateWalletsAndAddresses())
 
 	fmt.Printf("Wallets and addresses created\n")
 
@@ -180,7 +179,7 @@ func SetupAndRunApexBridge(
 	require.NoError(t, err)
 
 	_, err = SendTx(ctx, txProviderPrime, primeGenesisWallet, sendAmount,
-		cb.PrimeMultisigAddr, primeCluster.Config.NetworkMagic, []byte{})
+		cb.PrimeMultisigAddr, primeCluster.Config.NetworkMagic, true, []byte{})
 	require.NoError(t, err)
 
 	err = wallet.WaitForAmount(context.Background(), txProviderPrime, cb.PrimeMultisigAddr, func(val *big.Int) bool {
@@ -191,7 +190,7 @@ func SetupAndRunApexBridge(
 	fmt.Printf("Prime multisig addr funded\n")
 
 	_, err = SendTx(ctx, txProviderPrime, primeGenesisWallet, sendAmount,
-		cb.PrimeMultisigFeeAddr, primeCluster.Config.NetworkMagic, []byte{})
+		cb.PrimeMultisigFeeAddr, primeCluster.Config.NetworkMagic, true, []byte{})
 	require.NoError(t, err)
 
 	err = wallet.WaitForAmount(context.Background(), txProviderPrime, cb.PrimeMultisigFeeAddr, func(val *big.Int) bool {
@@ -205,7 +204,7 @@ func SetupAndRunApexBridge(
 	require.NoError(t, err)
 
 	_, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, sendAmount,
-		cb.VectorMultisigAddr, vectorCluster.Config.NetworkMagic, []byte{})
+		cb.VectorMultisigAddr, vectorCluster.Config.NetworkMagic, false, []byte{})
 	require.NoError(t, err)
 
 	err = wallet.WaitForAmount(context.Background(), txProviderVector, cb.VectorMultisigAddr, func(val *big.Int) bool {
@@ -216,7 +215,7 @@ func SetupAndRunApexBridge(
 	fmt.Printf("Vector multisig addr funded\n")
 
 	_, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, sendAmount,
-		cb.VectorMultisigFeeAddr, vectorCluster.Config.NetworkMagic, []byte{})
+		cb.VectorMultisigFeeAddr, vectorCluster.Config.NetworkMagic, false, []byte{})
 	require.NoError(t, err)
 
 	err = wallet.WaitForAmount(context.Background(), txProviderVector, cb.VectorMultisigFeeAddr, func(val *big.Int) bool {
