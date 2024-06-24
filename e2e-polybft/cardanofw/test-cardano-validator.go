@@ -120,13 +120,13 @@ func (cv *TestCardanoValidator) RegisterChain(
 
 func (cv *TestCardanoValidator) GenerateConfigs(
 	primeNetworkAddress string,
-	primeNetworkMagic int,
-	primeNetworkID int,
+	primeNetworkMagic uint,
+	primeNetworkID uint,
 	primeOgmiosURL string,
 	primeTTLInc uint64,
 	vectorNetworkAddress string,
-	vectorNetworkMagic int,
-	vectorNetworkID int,
+	vectorNetworkMagic uint,
+	vectorNetworkID uint,
 	vectorOgmiosURL string,
 	vectorTTLInc uint64,
 	apiPort int,

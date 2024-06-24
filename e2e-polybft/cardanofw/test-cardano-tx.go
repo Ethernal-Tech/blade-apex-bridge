@@ -19,12 +19,11 @@ func SendTx(ctx context.Context,
 	cardanoWallet wallet.IWallet,
 	amount uint64,
 	receiver string,
-	testnetMagic int,
 	isPrimeSource bool,
 	metadata []byte,
 ) (res string, err error) {
 	err = ExecuteWithRetryIfNeeded(ctx, func() error {
-		res, err = sendTx(ctx, txProvider, cardanoWallet, amount, receiver, testnetMagic, isPrimeSource, metadata)
+		res, err = sendTx(ctx, txProvider, cardanoWallet, amount, receiver, isPrimeSource, metadata)
 
 		return err
 	})
@@ -37,7 +36,6 @@ func sendTx(ctx context.Context,
 	cardanoWallet wallet.IWallet,
 	amount uint64,
 	receiver string,
-	testnetMagic int,
 	isPrimeSource bool,
 	metadata []byte,
 ) (string, error) {
@@ -71,7 +69,7 @@ func sendTx(ctx context.Context,
 		return "", err
 	}
 
-	rawTx, txHash, err := CreateTx(uint(testnetMagic), protocolParams, qtd.Slot+ttlSlotNumberInc, metadata,
+	rawTx, txHash, err := CreateTx(GetNetworkMagic(isPrimeSource), protocolParams, qtd.Slot+ttlSlotNumberInc, metadata,
 		outputs, inputs, cardanoWalletAddr)
 	if err != nil {
 		return "", err

@@ -193,10 +193,8 @@ func (cb *TestCardanoBridge) RegisterChains(
 
 func (cb *TestCardanoBridge) GenerateConfigs(
 	primeNetworkAddress string,
-	primeNetworkMagic int,
 	primeOgmiosURL string,
 	vectorNetworkAddress string,
-	vectorNetworkMagic int,
 	vectorOgmiosURL string,
 ) error {
 	errs := make([]error, len(cb.validators))
@@ -215,13 +213,13 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 
 			errs[indx] = validator.GenerateConfigs(
 				primeNetworkAddress,
-				primeNetworkMagic,
-				int(GetNetworkID(true)),
+				GetNetworkMagic(true),
+				uint(GetNetworkID(true)),
 				primeOgmiosURL,
 				cb.primeTTLInc,
 				vectorNetworkAddress,
-				vectorNetworkMagic,
-				int(GetNetworkID(false)),
+				GetNetworkMagic(false),
+				uint(GetNetworkID(false)),
 				vectorOgmiosURL,
 				cb.vectorTTLInc,
 				cb.apiPortStart+indx,
