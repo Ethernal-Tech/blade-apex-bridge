@@ -1073,6 +1073,13 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			case <-time.After(startAgainAfter):
 				require.NoError(t, apex.Bridge.GetValidator(t, validatorStoppingIdx1).Start(ctx, false))
 			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(startAgainAfter * 2):
+				require.NoError(t, apex.Bridge.GetValidator(t, validatorStoppingIdx2).Start(ctx, false))
+			}
 		}()
 
 		var wg sync.WaitGroup
