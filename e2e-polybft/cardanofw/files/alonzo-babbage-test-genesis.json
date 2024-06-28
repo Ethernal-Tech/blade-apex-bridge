@@ -1,14 +1,8 @@
 {
     "lovelacePerUTxOWord": 34482,
     "executionPrices": {
-        "prSteps": {
-            "numerator": 721,
-            "denominator": 10000000
-        },
-        "prMem": {
-            "numerator": 577,
-            "denominator": 10000
-        }
+      "prMem": 0.0577,
+      "prSteps": 0.0000721
     },
     "maxTxExUnits": {
         "exUnitsMem": 16000000,

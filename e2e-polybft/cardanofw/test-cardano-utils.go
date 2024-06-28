@@ -340,7 +340,7 @@ func GetDestinationChainID(isSourcePrime bool) string {
 
 func GetNetworkID(isSourcePrime bool) wallet.CardanoNetworkType {
 	// if isSourcePrime { return wallet.TestNetNetwork } return wallet.VectorTestNetNetwork with apex cardano-node
-	return wallet.TestNetNetwork
+	return wallet.VectorTestNetNetwork
 }
 
 func GetNetworkMagic(isSourcePrime bool) uint {
