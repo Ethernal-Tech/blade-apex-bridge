@@ -170,7 +170,7 @@ func (cb *TestCardanoBridge) RegisterChains(
 
 			errs[indx] = validator.RegisterChain(
 				ChainIDPrime, cb.PrimeMultisigAddr, cb.PrimeMultisigFeeAddr,
-				primeTokenSupply, primeOgmiosURL,
+				primeTokenSupply,
 			)
 			if errs[indx] != nil {
 				return
@@ -178,7 +178,7 @@ func (cb *TestCardanoBridge) RegisterChains(
 
 			errs[indx] = validator.RegisterChain(
 				ChainIDVector, cb.VectorMultisigAddr, cb.VectorMultisigFeeAddr,
-				vectorTokenSupply, vectorOgmiosURL,
+				vectorTokenSupply,
 			)
 			if errs[indx] != nil {
 				return
