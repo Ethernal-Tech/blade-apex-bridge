@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
 	"net/http"
 	"os"
 	"os/exec"
@@ -290,7 +289,7 @@ type BridgingRequestStateResponse struct {
 }
 
 // GetTokenAmount returns token amount for address
-func GetTokenAmount(ctx context.Context, txProvider wallet.ITxProvider, addr string) (*big.Int, error) {
+func GetTokenAmount(ctx context.Context, txProvider wallet.ITxProvider, addr string) (uint64, error) {
 	var utxos []wallet.Utxo
 
 	err := ExecuteWithRetryIfNeeded(ctx, func() (err error) {
@@ -299,7 +298,7 @@ func GetTokenAmount(ctx context.Context, txProvider wallet.ITxProvider, addr str
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	return wallet.GetUtxosSum(utxos), nil
@@ -307,7 +306,7 @@ func GetTokenAmount(ctx context.Context, txProvider wallet.ITxProvider, addr str
 
 // WaitForAmount waits for address to have amount specified by cmpHandler
 func WaitForAmount(ctx context.Context, txRetriever wallet.IUTxORetriever,
-	addr string, cmpHandler func(*big.Int) bool, numRetries int, waitTime time.Duration,
+	addr string, cmpHandler func(uint64) bool, numRetries int, waitTime time.Duration,
 ) error {
 	return wallet.WaitForAmount(ctx, txRetriever, addr, cmpHandler, numRetries, waitTime, IsRecoverableError)
 }

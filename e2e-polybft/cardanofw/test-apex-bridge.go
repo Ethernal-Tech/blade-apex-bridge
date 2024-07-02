@@ -183,8 +183,8 @@ func SetupAndRunApexBridge(
 		cb.PrimeMultisigAddr, true, []byte{})
 	require.NoError(t, err)
 
-	err = wallet.WaitForAmount(context.Background(), txProviderPrime, cb.PrimeMultisigAddr, func(val *big.Int) bool {
-		return val.Cmp(new(big.Int).SetUint64(sendAmount)) == 0
+	err = wallet.WaitForAmount(context.Background(), txProviderPrime, cb.PrimeMultisigAddr, func(val uint64) bool {
+		return val == sendAmount
 	}, numOfRetries, waitTime, IsRecoverableError)
 	require.NoError(t, err)
 
@@ -194,8 +194,8 @@ func SetupAndRunApexBridge(
 		cb.PrimeMultisigFeeAddr, true, []byte{})
 	require.NoError(t, err)
 
-	err = wallet.WaitForAmount(context.Background(), txProviderPrime, cb.PrimeMultisigFeeAddr, func(val *big.Int) bool {
-		return val.Cmp(new(big.Int).SetUint64(sendAmount)) == 0
+	err = wallet.WaitForAmount(context.Background(), txProviderPrime, cb.PrimeMultisigFeeAddr, func(val uint64) bool {
+		return val == sendAmount
 	}, numOfRetries, waitTime, IsRecoverableError)
 	require.NoError(t, err)
 
@@ -208,8 +208,8 @@ func SetupAndRunApexBridge(
 		cb.VectorMultisigAddr, false, []byte{})
 	require.NoError(t, err)
 
-	err = wallet.WaitForAmount(context.Background(), txProviderVector, cb.VectorMultisigAddr, func(val *big.Int) bool {
-		return val.Cmp(new(big.Int).SetUint64(sendAmount)) == 0
+	err = wallet.WaitForAmount(context.Background(), txProviderVector, cb.VectorMultisigAddr, func(val uint64) bool {
+		return val == sendAmount
 	}, numOfRetries, waitTime, IsRecoverableError)
 	require.NoError(t, err)
 
@@ -219,8 +219,8 @@ func SetupAndRunApexBridge(
 		cb.VectorMultisigFeeAddr, false, []byte{})
 	require.NoError(t, err)
 
-	err = wallet.WaitForAmount(context.Background(), txProviderVector, cb.VectorMultisigFeeAddr, func(val *big.Int) bool {
-		return val.Cmp(new(big.Int).SetUint64(sendAmount)) == 0
+	err = wallet.WaitForAmount(context.Background(), txProviderVector, cb.VectorMultisigFeeAddr, func(val uint64) bool {
+		return val == sendAmount
 	}, numOfRetries, waitTime, IsRecoverableError)
 	require.NoError(t, err)
 

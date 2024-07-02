@@ -3,7 +3,6 @@ package cardanofw
 import (
 	"context"
 	"encoding/json"
-	"math/big"
 	"testing"
 	"time"
 
@@ -96,8 +95,8 @@ func (u *TestApexUser) SendToUser(
 	require.NoError(t, err)
 
 	err = wallet.WaitForAmount(
-		context.Background(), txProvider, addr, func(val *big.Int) bool {
-			return val.Cmp(prevAmount) > 0
+		context.Background(), txProvider, addr, func(val uint64) bool {
+			return val == prevAmount+sendAmount
 		}, 60, time.Second*2, IsRecoverableError)
 	require.NoError(t, err)
 }
@@ -118,8 +117,8 @@ func (u *TestApexUser) SendToAddress(
 	require.NoError(t, err)
 
 	err = wallet.WaitForAmount(
-		context.Background(), txProvider, receiver, func(val *big.Int) bool {
-			return val.Cmp(new(big.Int).SetUint64(prevAmount.Uint64()+sendAmount)) == 0
+		context.Background(), txProvider, receiver, func(val uint64) bool {
+			return val == prevAmount+sendAmount
 		}, 60, time.Second*2, IsRecoverableError)
 	require.NoError(t, err)
 }
