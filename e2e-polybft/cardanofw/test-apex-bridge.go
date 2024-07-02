@@ -23,20 +23,16 @@ type ApexSystem struct {
 	Bridge        *TestCardanoBridge
 }
 
-type ChainConfig struct {
-	Id int
-}
-
 func SetupAndRunApexCardanoChains(
 	t *testing.T,
 	ctx context.Context,
-	chainConfigs []ChainConfig,
+	chainIds []string,
 ) []*TestCardanoCluster {
 	t.Helper()
 
 	var (
-		clErrors    = make([]error, len(chainConfigs))
-		clusters    = make([]*TestCardanoCluster, len(chainConfigs))
+		clErrors    = make([]error, len(chainIds))
+		clusters    = make([]*TestCardanoCluster, len(chainIds))
 		wg          sync.WaitGroup
 		baseLogsDir = path.Join("../..", fmt.Sprintf("e2e-logs-cardano-%d", time.Now().UTC().Unix()), t.Name())
 	)
@@ -47,7 +43,7 @@ func SetupAndRunApexCardanoChains(
 		wg := sync.WaitGroup{}
 		stopErrs := []error(nil)
 
-		for i := 0; i < len(chainConfigs); i++ {
+		for i := 0; i < len(chainIds); i++ {
 			if clusters[i] != nil {
 				wg.Add(1)
 
@@ -66,10 +62,10 @@ func SetupAndRunApexCardanoChains(
 
 	t.Cleanup(cleanupFunc)
 
-	for i, config := range chainConfigs {
+	for i, chainName := range chainIds {
 		wg.Add(1)
 
-		go func(id int, chainConfig ChainConfig) {
+		go func(id int, chainName string) {
 			defer wg.Done()
 
 			checkAndSetError := func(err error) bool {
@@ -83,13 +79,6 @@ func SetupAndRunApexCardanoChains(
 			err := common.CreateDirSafe(logsDir, 0750)
 			if checkAndSetError(err) {
 				return
-			}
-
-			var genesisConfig string
-			if id == 0 {
-				genesisConfig = "genesis-configuration/prime"
-			} else if id == 1 {
-				genesisConfig = "genesis-configuration/vector"
 			}
 
 			cluster, err := NewCardanoTestCluster(t,
@@ -124,12 +113,12 @@ func SetupAndRunApexCardanoChains(
 			}
 
 			fmt.Printf("Cluster %d is ready\n", id)
-		}(i, config)
+		}(i, chainName)
 	}
 
 	wg.Wait()
 
-	for i := 0; i < len(chainConfigs); i++ {
+	for i := 0; i < len(chainIds); i++ {
 		assert.NoError(t, clErrors[i])
 	}
 
@@ -281,15 +270,12 @@ func RunApexBridge(
 		bladeValidatorsNum = 4
 	)
 
-	primeChainConfig := ChainConfig{Id: 1} // TODO: SASA define type and create it here
-	vectorChainConfig := ChainConfig{Id: 2}
-
 	clusters := SetupAndRunApexCardanoChains(
 		t,
 		ctx,
-		[]ChainConfig{
-			primeChainConfig,
-			vectorChainConfig,
+		[]string{
+			"prime",
+			"vector",
 		},
 	)
 

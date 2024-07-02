@@ -22,36 +22,8 @@ import (
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
-//go:embed files/*
+//go:embed genesis-configuration/*
 var cardanoFiles embed.FS
-
-type ClusterEnvConfig struct {
-	CardanoNodeBinary         string
-	CardanoNodeBinaryFallback string
-	CardanoCliBinary          string
-	CardanoCliBinaryFallback  string
-	OgmiosBinary              string
-	OgmiosBinaryFallback      string
-}
-
-var ClusterEnvConfigs = map[int]ClusterEnvConfig{
-	1: ClusterEnvConfig{
-		CardanoNodeBinary:         "CARDANO_NODE_PRIME_BINARY",
-		CardanoNodeBinaryFallback: "cardano-node",
-		CardanoCliBinary:          "CARDANO_CLI_PRIME_BINARY",
-		CardanoCliBinaryFallback:  "cardano-cli",
-		OgmiosBinary:              "OGMIOS_PRIME",
-		OgmiosBinaryFallback:      "ogmios",
-	},
-	2: ClusterEnvConfig{
-		CardanoNodeBinary:         "CARDANO_NODE_VECTOR_BINARY",
-		CardanoNodeBinaryFallback: "vector-node",
-		CardanoCliBinary:          "CARDANO_CLI_VECTOR_BINARY",
-		CardanoCliBinaryFallback:  "vector-cli",
-		OgmiosBinary:              "OGMIOS_VECTOR",
-		OgmiosBinaryFallback:      "vector-ogmios",
-	},
-}
 
 const hostIP = "127.0.0.1"
 
