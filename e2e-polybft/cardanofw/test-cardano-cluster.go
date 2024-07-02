@@ -25,6 +25,34 @@ import (
 //go:embed files/*
 var cardanoFiles embed.FS
 
+type ClusterEnvConfig struct {
+	CardanoNodeBinary         string
+	CardanoNodeBinaryFallback string
+	CardanoCliBinary          string
+	CardanoCliBinaryFallback  string
+	OgmiosBinary              string
+	OgmiosBinaryFallback      string
+}
+
+var ClusterEnvConfigs = map[int]ClusterEnvConfig{
+	1: ClusterEnvConfig{
+		CardanoNodeBinary:         "CARDANO_NODE_PRIME_BINARY",
+		CardanoNodeBinaryFallback: "cardano-node",
+		CardanoCliBinary:          "CARDANO_CLI_PRIME_BINARY",
+		CardanoCliBinaryFallback:  "cardano-cli",
+		OgmiosBinary:              "OGMIOS_PRIME",
+		OgmiosBinaryFallback:      "ogmios",
+	},
+	2: ClusterEnvConfig{
+		CardanoNodeBinary:         "CARDANO_NODE_VECTOR_BINARY",
+		CardanoNodeBinaryFallback: "vector-node",
+		CardanoCliBinary:          "CARDANO_CLI_VECTOR_BINARY",
+		CardanoCliBinaryFallback:  "vector-cli",
+		OgmiosBinary:              "OGMIOS_VECTOR",
+		OgmiosBinaryFallback:      "vector-ogmios",
+	},
+}
+
 const hostIP = "127.0.0.1"
 
 type TestCardanoClusterConfig struct {
@@ -40,6 +68,7 @@ type TestCardanoClusterConfig struct {
 	OgmiosPort     int
 	InitialSupply  *big.Int
 	BlockTimeMilis int
+	GenesisDir     string
 	StartTimeDelay time.Duration
 
 	WithLogs   bool
@@ -199,11 +228,11 @@ func NewCardanoTestCluster(t *testing.T, opts ...CardanoClusterOption) (*TestCar
 		OgmiosPort:     1337,
 	}
 
-	startTime := time.Now().UTC().Add(config.StartTimeDelay)
-
 	for _, opt := range opts {
 		opt(config)
 	}
+
+	config.Binary = ResolveCardanoCliBinary(config.ID)
 
 	config.TmpDir, err = os.MkdirTemp("/tmp", "cardano-")
 	if err != nil {
@@ -217,13 +246,15 @@ func NewCardanoTestCluster(t *testing.T, opts ...CardanoClusterOption) (*TestCar
 		once:    sync.Once{},
 	}
 
+	startTime := time.Now().UTC().Add(config.StartTimeDelay)
+
 	// init genesis
-	if err := cluster.InitGenesis(startTime.Unix()); err != nil {
+	if err := cluster.InitGenesis(startTime.Unix(), config.GenesisDir); err != nil {
 		return nil, err
 	}
 
 	// copy config files
-	if err := cluster.CopyConfigFilesStep1(); err != nil {
+	if err := cluster.CopyConfigFilesStep1(config.GenesisDir); err != nil {
 		return nil, err
 	}
 
@@ -475,10 +506,11 @@ func (c *TestCardanoCluster) WaitForBlockWithState(
 	})
 }
 
-func (c *TestCardanoCluster) StartOgmios(t *testing.T) error {
+func (c *TestCardanoCluster) StartOgmios(t *testing.T, id int) error {
 	t.Helper()
 
 	srv, err := NewOgmiosTestServer(t, &TestOgmiosServerConfig{
+		ID:         id,
 		ConfigFile: c.Servers[0].config.ConfigFile,
 		NetworkID:  c.Config.NetworkID,
 		Port:       c.Config.OgmiosPort,
@@ -504,10 +536,10 @@ func (c *TestCardanoCluster) StartOgmios(t *testing.T) error {
 	return err
 }
 
-func (c *TestCardanoCluster) InitGenesis(startTime int64) error {
+func (c *TestCardanoCluster) InitGenesis(startTime int64, genesisDir string) error {
 	var b bytes.Buffer
 
-	fnContent, err := cardanoFiles.ReadFile("files/byron.genesis.spec.json")
+	fnContent, err := cardanoFiles.ReadFile(path.Join(genesisDir, "byron.genesis.spec.json"))
 	if err != nil {
 		return err
 	}
@@ -543,14 +575,14 @@ func (c *TestCardanoCluster) InitGenesis(startTime int64) error {
 	return RunCommand(ResolveCardanoCliBinary(c.Config.NetworkID), args, stdOut)
 }
 
-func (c *TestCardanoCluster) CopyConfigFilesStep1() error {
+func (c *TestCardanoCluster) CopyConfigFilesStep1(genesisDir string) error {
 	items := [][2]string{
 		{"alonzo-babbage-test-genesis.json", "genesis.alonzo.spec.json"},
 		{"conway-babbage-test-genesis.json", "genesis.conway.spec.json"},
 		{"configuration.yaml", "configuration.yaml"},
 	}
 	for _, it := range items {
-		fnContent, err := cardanoFiles.ReadFile("files/" + it[0])
+		fnContent, err := cardanoFiles.ReadFile(path.Join(genesisDir, it[0]))
 		if err != nil {
 			return err
 		}

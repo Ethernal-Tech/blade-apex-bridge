@@ -23,16 +23,20 @@ type ApexSystem struct {
 	Bridge        *TestCardanoBridge
 }
 
+type ChainConfig struct {
+	Id int
+}
+
 func SetupAndRunApexCardanoChains(
 	t *testing.T,
 	ctx context.Context,
-	clusterCnt int,
+	chainConfigs []ChainConfig,
 ) []*TestCardanoCluster {
 	t.Helper()
 
 	var (
-		clErrors    = make([]error, clusterCnt)
-		clusters    = make([]*TestCardanoCluster, clusterCnt)
+		clErrors    = make([]error, len(chainConfigs))
+		clusters    = make([]*TestCardanoCluster, len(chainConfigs))
 		wg          sync.WaitGroup
 		baseLogsDir = path.Join("../..", fmt.Sprintf("e2e-logs-cardano-%d", time.Now().UTC().Unix()), t.Name())
 	)
@@ -43,7 +47,7 @@ func SetupAndRunApexCardanoChains(
 		wg := sync.WaitGroup{}
 		stopErrs := []error(nil)
 
-		for i := 0; i < clusterCnt; i++ {
+		for i := 0; i < len(chainConfigs); i++ {
 			if clusters[i] != nil {
 				wg.Add(1)
 
@@ -62,10 +66,10 @@ func SetupAndRunApexCardanoChains(
 
 	t.Cleanup(cleanupFunc)
 
-	for i := 0; i < clusterCnt; i++ {
+	for i, config := range chainConfigs {
 		wg.Add(1)
 
-		go func(id int) {
+		go func(id int, chainConfig ChainConfig) {
 			defer wg.Done()
 
 			checkAndSetError := func(err error) bool {
@@ -79,6 +83,13 @@ func SetupAndRunApexCardanoChains(
 			err := common.CreateDirSafe(logsDir, 0750)
 			if checkAndSetError(err) {
 				return
+			}
+
+			var genesisConfig string
+			if id == 0 {
+				genesisConfig = "genesis-configuration/prime"
+			} else if id == 1 {
+				genesisConfig = "genesis-configuration/vector"
 			}
 
 			cluster, err := NewCardanoTestCluster(t,
@@ -104,7 +115,7 @@ func SetupAndRunApexCardanoChains(
 				return
 			}
 
-			if checkAndSetError(cluster.StartOgmios(t)) {
+			if checkAndSetError(cluster.StartOgmios(t, id)) {
 				return
 			}
 
@@ -113,12 +124,12 @@ func SetupAndRunApexCardanoChains(
 			}
 
 			fmt.Printf("Cluster %d is ready\n", id)
-		}(i)
+		}(i, config)
 	}
 
 	wg.Wait()
 
-	for i := 0; i < clusterCnt; i++ {
+	for i := 0; i < len(chainConfigs); i++ {
 		assert.NoError(t, clErrors[i])
 	}
 
@@ -267,14 +278,19 @@ func RunApexBridge(
 	t.Helper()
 
 	const (
-		cardanoChainsCnt   = 2
 		bladeValidatorsNum = 4
 	)
+
+	primeChainConfig := ChainConfig{Id: 1} // TODO: SASA define type and create it here
+	vectorChainConfig := ChainConfig{Id: 2}
 
 	clusters := SetupAndRunApexCardanoChains(
 		t,
 		ctx,
-		cardanoChainsCnt,
+		[]ChainConfig{
+			primeChainConfig,
+			vectorChainConfig,
+		},
 	)
 
 	primeCluster := clusters[0]
