@@ -49,10 +49,10 @@ func NewTestApexUser(t *testing.T) *TestApexUser {
 func NewTestApexUserWithExistingWallets(t *testing.T, primePrivateKey, vectorPrivateKey string) *TestApexUser {
 	t.Helper()
 
-	primePrivateKeyBytes, err := (wallet.Key{Hex: primePrivateKey}).GetKeyBytes()
+	primePrivateKeyBytes, err := wallet.GetKeyBytes(primePrivateKey)
 	require.NoError(t, err)
 
-	vectorPrivateKeyBytes, err := (wallet.Key{Hex: vectorPrivateKey}).GetKeyBytes()
+	vectorPrivateKeyBytes, err := wallet.GetKeyBytes(vectorPrivateKey)
 	require.NoError(t, err)
 
 	primeWallet := wallet.NewWallet(

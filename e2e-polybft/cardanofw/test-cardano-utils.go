@@ -27,13 +27,44 @@ const (
 	retriesMaxCount = 10
 )
 
-func ResolveCardanoCliBinary() string {
-	bin := os.Getenv("CARDANO_CLI_BINARY")
+func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
+	return wallet.ResolveCardanoCliBinary(networkID)
+}
+
+func ResolveOgmiosBinary(networkID wallet.CardanoNetworkType) string {
+	if networkID == wallet.VectorMainNetNetwork || networkID == wallet.VectorTestNetNetwork {
+		bin := os.Getenv("OGMIOS_VECTOR")
+		if bin != "" {
+			return bin
+		}
+		// fallback
+		return "ogmios-vector"
+	}
+
+	bin := os.Getenv("OGMIOS")
 	if bin != "" {
 		return bin
 	}
 	// fallback
-	return "cardano-cli"
+	return "ogmios"
+}
+
+func ResolveCardanoNodeBinary(networkID wallet.CardanoNetworkType) string {
+	if networkID == wallet.VectorMainNetNetwork || networkID == wallet.VectorTestNetNetwork {
+		bin := os.Getenv("CARDANO_NODE_BINARY_VECTOR")
+		if bin != "" {
+			return bin
+		}
+		// fallback
+		return "cardano-node-vector"
+	}
+
+	bin := os.Getenv("CARDANO_NODE_BINARY")
+	if bin != "" {
+		return bin
+	}
+	// fallback
+	return "cardano-node"
 }
 
 func ResolveApexBridgeBinary() string {

@@ -89,6 +89,7 @@ func SetupAndRunApexCardanoChains(
 				WithOgmiosPort(1337+id),
 				WithLogsDir(logsDir),
 				WithNetworkMagic(GetNetworkMagic(id == 0)),
+				WithNetworkID(GetNetworkID(id == 0)),
 			)
 			if checkAndSetError(err) {
 				return
