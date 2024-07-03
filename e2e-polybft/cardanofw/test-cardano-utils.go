@@ -330,66 +330,6 @@ func IsRecoverableError(err error) bool {
 	return strings.Contains(err.Error(), "status code 500")
 }
 
-func ResolveCardanoNodeBinary(id int) string {
-	bin := os.Getenv(ClusterEnvConfigs[id].CardanoNodeBinary)
-	if bin != "" {
-		return bin
-	}
-
-	// default fallback
-	if ClusterEnvConfigs[id].CardanoNodeBinaryFallback != "" {
-		return ClusterEnvConfigs[id].CardanoNodeBinaryFallback
-	}
-	// fallback
-	return "cardano-node"
-}
-
-func ResolveCardanoCliBinary(id int) string {
-	bin := os.Getenv(ClusterEnvConfigs[id].CardanoCliBinary)
-	if bin != "" {
-		return bin
-	}
-
-	// default fallback
-	if ClusterEnvConfigs[id].CardanoCliBinaryFallback != "" {
-		return ClusterEnvConfigs[id].CardanoCliBinaryFallback
-	}
-	// fallback
-	return "cardano-cli"
-}
-
-func ResolveOgmiosBinary(id int) string {
-	bin := os.Getenv(ClusterEnvConfigs[id].OgmiosBinary)
-	if bin != "" {
-		return bin
-	}
-
-	// default fallback
-	if ClusterEnvConfigs[id].OgmiosBinaryFallback != "" {
-		return ClusterEnvConfigs[id].OgmiosBinaryFallback
-	}
-	// fallback
-	return "ogmios"
-}
-
-func ResolveApexBridgeBinary() string {
-	bin := os.Getenv("APEX_BRIDGE_BINARY")
-	if bin != "" {
-		return bin
-	}
-	// fallback
-	return "apex-bridge"
-}
-
-func ResolveBladeBinary() string {
-	bin := os.Getenv("BLADE_BINARY")
-	if bin != "" {
-		return bin
-	}
-	// fallback
-	return "blade"
-}
-
 func GetDestinationChainID(isSourcePrime bool) string {
 	if isSourcePrime {
 		return "vector"

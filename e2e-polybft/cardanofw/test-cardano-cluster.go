@@ -204,8 +204,6 @@ func NewCardanoTestCluster(t *testing.T, opts ...CardanoClusterOption) (*TestCar
 		opt(config)
 	}
 
-	config.Binary = ResolveCardanoCliBinary(config.ID)
-
 	config.TmpDir, err = os.MkdirTemp("/tmp", "cardano-")
 	if err != nil {
 		return nil, err
