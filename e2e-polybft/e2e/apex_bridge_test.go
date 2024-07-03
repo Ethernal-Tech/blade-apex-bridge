@@ -97,7 +97,7 @@ func TestE2E_ApexBridge_DoNothingWithSpecificUser(t *testing.T) {
 }
 
 func TestE2E_ApexBridge(t *testing.T) {
-	ctx, cncl := context.WithCancel(context.Background())
+	ctx, cncl := context.WithTimeout(context.Background(), time.Second*180)
 	defer cncl()
 
 	apex := cardanofw.RunApexBridge(t, ctx)
