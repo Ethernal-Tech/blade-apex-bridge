@@ -27,12 +27,23 @@ var cardanoFiles embed.FS
 
 const hostIP = "127.0.0.1"
 
+type TestCardanoNetworkConfig struct {
+	NetworkMagic uint
+	NetworkID    wallet.CardanoNetworkType
+}
+
+func (c *TestCardanoNetworkConfig) IsPrime() bool {
+	if c.NetworkID == wallet.MainNetNetwork || c.NetworkID == wallet.TestNetNetwork {
+		return true
+	}
+	return false
+}
+
 type TestCardanoClusterConfig struct {
 	t *testing.T
 
-	ID             int
-	NetworkMagic   uint
-	NetworkID      wallet.CardanoNetworkType
+	ID int
+	TestCardanoNetworkConfig
 	SecurityParam  int
 	NodesCount     int
 	StartNodeID    int
@@ -174,6 +185,12 @@ func WithID(id int) CardanoClusterOption {
 	}
 }
 
+func WithConfigGenesisDir(genesisDir string) CardanoClusterOption {
+	return func(h *TestCardanoClusterConfig) {
+		h.GenesisDir = genesisDir
+	}
+}
+
 func WithNetworkID(networkID wallet.CardanoNetworkType) CardanoClusterOption {
 	return func(h *TestCardanoClusterConfig) {
 		h.NetworkID = networkID
@@ -186,11 +203,13 @@ func NewCardanoTestCluster(t *testing.T, opts ...CardanoClusterOption) (*TestCar
 	var err error
 
 	config := &TestCardanoClusterConfig{
-		t:              t,
-		WithLogs:       true, // strings.ToLower(os.Getenv(e)) == "true"
-		WithStdout:     true, // strings.ToLower(os.Getenv(envStdoutEnabled)) == "true"
-		NetworkID:      wallet.TestNetNetwork,
-		NetworkMagic:   42,
+		t:          t,
+		WithLogs:   true, // strings.ToLower(os.Getenv(e)) == "true"
+		WithStdout: true, // strings.ToLower(os.Getenv(envStdoutEnabled)) == "true"
+		TestCardanoNetworkConfig: TestCardanoNetworkConfig{
+			NetworkID:    wallet.TestNetNetwork,
+			NetworkMagic: 42,
+		},
 		SecurityParam:  10,
 		NodesCount:     3,
 		InitialSupply:  new(big.Int).SetUint64(11_111_111_112_000_000),
@@ -324,6 +343,10 @@ func (c *TestCardanoCluster) OgmiosURL() string {
 
 func (c *TestCardanoCluster) NetworkURL() string {
 	return fmt.Sprintf("http://localhost:%d", c.Config.Port)
+}
+
+func (c *TestCardanoCluster) NetworkConfig() TestCardanoNetworkConfig {
+	return c.Config.TestCardanoNetworkConfig
 }
 
 func (c *TestCardanoCluster) Stats() ([]*wallet.QueryTipData, bool, error) {
@@ -509,7 +532,7 @@ func (c *TestCardanoCluster) StartOgmios(t *testing.T, id int) error {
 func (c *TestCardanoCluster) InitGenesis(startTime int64, genesisDir string) error {
 	var b bytes.Buffer
 
-	fnContent, err := cardanoFiles.ReadFile(path.Join(genesisDir, "byron.genesis.spec.json"))
+	fnContent, err := cardanoFiles.ReadFile(filepath.Join("genesis-configuration", genesisDir, "byron.genesis.spec.json"))
 	if err != nil {
 		return err
 	}
@@ -552,7 +575,7 @@ func (c *TestCardanoCluster) CopyConfigFilesStep1(genesisDir string) error {
 		{"configuration.yaml", "configuration.yaml"},
 	}
 	for _, it := range items {
-		fnContent, err := cardanoFiles.ReadFile(path.Join(genesisDir, it[0]))
+		fnContent, err := cardanoFiles.ReadFile(path.Join("genesis-configuration", genesisDir, it[0]))
 		if err != nil {
 			return err
 		}
