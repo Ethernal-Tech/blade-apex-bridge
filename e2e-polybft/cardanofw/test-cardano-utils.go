@@ -27,61 +27,56 @@ const (
 )
 
 func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
-	return wallet.ResolveCardanoCliBinary(networkID)
+	var env, name string
+
+	switch networkID {
+	case wallet.VectorMainNetNetwork, wallet.VectorTestNetNetwork:
+		env = "CARDANO_CLI_BINARY_VECTOR"
+		name = "vector-cli"
+	default:
+		env = "CARDANO_CLI_BINARY"
+		name = "cardano-cli"
+	}
+
+	return tryResolveFromEnv(env, name)
 }
 
 func ResolveOgmiosBinary(networkID wallet.CardanoNetworkType) string {
-	if networkID == wallet.VectorMainNetNetwork || networkID == wallet.VectorTestNetNetwork {
-		bin := os.Getenv("OGMIOS_VECTOR")
-		if bin != "" {
-			return bin
-		}
-		// fallback
-		return "ogmios-vector"
+	var env, name string
+
+	switch networkID {
+	case wallet.VectorMainNetNetwork, wallet.VectorTestNetNetwork:
+		env = "OGMIOS_BINARY_VECTOR"
+		name = "vector-ogmios"
+	default:
+		env = "OGMIOS"
+		name = "ogmios"
 	}
 
-	bin := os.Getenv("OGMIOS")
-	if bin != "" {
-		return bin
-	}
-	// fallback
-	return "ogmios"
+	return tryResolveFromEnv(env, name)
 }
 
 func ResolveCardanoNodeBinary(networkID wallet.CardanoNetworkType) string {
-	if networkID == wallet.VectorMainNetNetwork || networkID == wallet.VectorTestNetNetwork {
-		bin := os.Getenv("CARDANO_NODE_BINARY_VECTOR")
-		if bin != "" {
-			return bin
-		}
-		// fallback
-		return "cardano-node-vector"
+	var env, name string
+
+	switch networkID {
+	case wallet.VectorMainNetNetwork, wallet.VectorTestNetNetwork:
+		env = "CARDANO_NODE_BINARY_VECTOR"
+		name = "vector-node"
+	default:
+		env = "CARDANO_NODE_BINARY_VECTOR"
+		name = "cardano-node"
 	}
 
-	bin := os.Getenv("CARDANO_NODE_BINARY")
-	if bin != "" {
-		return bin
-	}
-	// fallback
-	return "cardano-node"
+	return tryResolveFromEnv(env, name)
 }
 
 func ResolveApexBridgeBinary() string {
-	bin := os.Getenv("APEX_BRIDGE_BINARY")
-	if bin != "" {
-		return bin
-	}
-	// fallback
-	return "apex-bridge"
+	return tryResolveFromEnv("APEX_BRIDGE_BINARY", "apex-bridge")
 }
 
 func ResolveBladeBinary() string {
-	bin := os.Getenv("BLADE_BINARY")
-	if bin != "" {
-		return bin
-	}
-	// fallback
-	return "blade"
+	return tryResolveFromEnv("BLADE_BINARY", "blade")
 }
 
 func RunCommandContext(
@@ -368,4 +363,12 @@ func GetTestNetMagicArgs(testnetMagic uint) []string {
 	}
 
 	return []string{"--testnet-magic", strconv.FormatUint(uint64(testnetMagic), 10)}
+}
+
+func tryResolveFromEnv(env, name string) string {
+	if bin := os.Getenv(env); bin != "" {
+		return bin
+	}
+	// fallback
+	return name
 }
