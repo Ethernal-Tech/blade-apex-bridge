@@ -39,14 +39,14 @@ func sendTx(ctx context.Context,
 	networkConfig TestCardanoNetworkConfig,
 	metadata []byte,
 ) (string, error) {
-	caddr, err := GetAddress(networkConfig.NetworkID, cardanoWallet)
+	caddr, err := GetAddress(networkConfig.NetworkType, cardanoWallet)
 	if err != nil {
 		return "", err
 	}
 
 	cardanoWalletAddr := caddr.String()
 	networkTestMagic := networkConfig.NetworkMagic
-	cardanoCliBinary := ResolveCardanoCliBinary(networkConfig.NetworkID)
+	cardanoCliBinary := ResolveCardanoCliBinary(networkConfig.NetworkType)
 
 	protocolParams, err := txProvider.GetProtocolParameters(ctx)
 	if err != nil {

@@ -197,7 +197,7 @@ func BridgeAmountFullMultipleReceivers(
 
 	const feeAmount = 1_100_000
 
-	senderAddr, err := GetAddress(networkConfig.NetworkID, sender)
+	senderAddr, err := GetAddress(networkConfig.NetworkType, sender)
 	require.NoError(t, err)
 
 	receivers := make(map[string]uint64, len(receiverAddrs)+1)

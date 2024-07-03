@@ -208,12 +208,12 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 			errs[indx] = validator.GenerateConfigs(
 				primeCluster.NetworkURL(),
 				primeCluster.Config.NetworkMagic,
-				uint(primeCluster.Config.NetworkID),
+				uint(primeCluster.Config.NetworkType),
 				primeCluster.OgmiosURL(),
 				cb.primeTTLInc,
 				vectorCluster.NetworkURL(),
 				vectorCluster.Config.NetworkMagic,
-				uint(vectorCluster.Config.NetworkID),
+				uint(vectorCluster.Config.NetworkType),
 				vectorCluster.OgmiosURL(),
 				cb.vectorTTLInc,
 				cb.apiPortStart+indx,
@@ -332,25 +332,25 @@ func (cb *TestCardanoBridge) cardanoCreateAddresses(
 	go func() {
 		defer wg.Done()
 
-		cb.PrimeMultisigAddr, errs[0] = cb.cardanoCreateAddress(primeNetworkConfig.NetworkID, cb.primeMultisigKeys)
+		cb.PrimeMultisigAddr, errs[0] = cb.cardanoCreateAddress(primeNetworkConfig.NetworkType, cb.primeMultisigKeys)
 	}()
 
 	go func() {
 		defer wg.Done()
 
-		cb.PrimeMultisigFeeAddr, errs[1] = cb.cardanoCreateAddress(primeNetworkConfig.NetworkID, cb.primeMultisigFeeKeys)
+		cb.PrimeMultisigFeeAddr, errs[1] = cb.cardanoCreateAddress(primeNetworkConfig.NetworkType, cb.primeMultisigFeeKeys)
 	}()
 
 	go func() {
 		defer wg.Done()
 
-		cb.VectorMultisigAddr, errs[2] = cb.cardanoCreateAddress(vectorNetworkConfig.NetworkID, cb.vectorMultisigKeys)
+		cb.VectorMultisigAddr, errs[2] = cb.cardanoCreateAddress(vectorNetworkConfig.NetworkType, cb.vectorMultisigKeys)
 	}()
 
 	go func() {
 		defer wg.Done()
 
-		cb.VectorMultisigFeeAddr, errs[3] = cb.cardanoCreateAddress(vectorNetworkConfig.NetworkID, cb.vectorMultisigFeeKeys)
+		cb.VectorMultisigFeeAddr, errs[3] = cb.cardanoCreateAddress(vectorNetworkConfig.NetworkType, cb.vectorMultisigFeeKeys)
 	}()
 
 	wg.Wait()

@@ -81,7 +81,7 @@ func SetupAndRunApexCardanoCluster(
 			WithOgmiosPort(1337+id),
 			WithLogsDir(logsDir),
 			WithNetworkMagic(networkMagic),
-			WithNetworkID(networkType),
+			WithNetworkType(networkType),
 			WithConfigGenesisDir(genesisConfigDir),
 		)
 		if checkAndSetError(err) {
@@ -261,6 +261,7 @@ func RunApexBridge(
 	primeCluster := SetupAndRunApexCardanoCluster(t, ctx, wallet.TestNetNetwork, GetNetworkMagic(wallet.TestNetNetwork, 0), 0, "prime", baseLogsDir)
 	require.NotNil(t, primeCluster)
 
+	time.Sleep(10000000 * time.Second)
 	vectorCluster := SetupAndRunApexCardanoCluster(t, ctx, wallet.VectorTestNetNetwork, GetNetworkMagic(wallet.VectorTestNetNetwork, 0), 1, "vector", baseLogsDir)
 	require.NotNil(t, vectorCluster)
 
@@ -314,7 +315,7 @@ func (a *ApexSystem) CreateAndFundUser(t *testing.T, ctx context.Context, sendAm
 ) *TestApexUser {
 	t.Helper()
 
-	user := NewTestApexUser(t, primeNetworkConfig.NetworkID, vectorNetworkConfig.NetworkID)
+	user := NewTestApexUser(t, primeNetworkConfig.NetworkType, vectorNetworkConfig.NetworkType)
 
 	txProviderPrime := a.GetPrimeTxProvider()
 	txProviderVector := a.GetVectorTxProvider()
@@ -342,7 +343,7 @@ func (a *ApexSystem) CreateAndFundExistingUser(
 ) *TestApexUser {
 	t.Helper()
 
-	user := NewTestApexUserWithExistingWallets(t, primePrivateKey, vectorPrivateKey, primeNetworkConfig.NetworkID, vectorNetworkConfig.NetworkID)
+	user := NewTestApexUserWithExistingWallets(t, primePrivateKey, vectorPrivateKey, primeNetworkConfig.NetworkType, vectorNetworkConfig.NetworkType)
 
 	txProviderPrime := a.GetPrimeTxProvider()
 	txProviderVector := a.GetVectorTxProvider()
