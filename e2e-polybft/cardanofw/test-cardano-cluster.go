@@ -616,7 +616,7 @@ func (c *TestCardanoCluster) CopyConfigFilesAndInitDirectoriesStep2(networkType 
 		return err
 	}
 
-	err = updateJSONFile( // TODO:SASA changes
+	err = updateJSONFile(
 		c.Config.Dir("genesis.conway.json"),
 		c.Config.Dir("genesis/shelley/genesis.conway.json"),
 		getConwayGenesis(networkType),

@@ -26,7 +26,6 @@ func SetupAndRunApexCardanoCluster(
 	t *testing.T,
 	ctx context.Context,
 	networkType wallet.CardanoNetworkType,
-	networkMagic uint,
 	num int,
 	genesisConfigDir string,
 	baseLogsDir string,
@@ -37,6 +36,8 @@ func SetupAndRunApexCardanoCluster(
 		clError error
 		cluster *TestCardanoCluster
 	)
+
+	networkMagic := GetNetworkMagic(networkType)
 
 	cleanupFunc := func() {
 		fmt.Printf("Cleaning up cardano chain %v %v", networkType.GetPrefix(), networkMagic)
@@ -256,11 +257,11 @@ func RunApexBridge(
 
 	baseLogsDir := path.Join("../..", fmt.Sprintf("e2e-logs-cardano-%d", time.Now().UTC().Unix()), t.Name())
 
-	primeCluster, err := SetupAndRunApexCardanoCluster(t, ctx, wallet.TestNetNetwork, GetNetworkMagic(wallet.TestNetNetwork, 0), 0, "prime", baseLogsDir)
+	primeCluster, err := SetupAndRunApexCardanoCluster(t, ctx, wallet.TestNetNetwork, 0, "prime", baseLogsDir)
 	require.NotNil(t, primeCluster)
 	require.NoError(t, err)
 
-	vectorCluster, err := SetupAndRunApexCardanoCluster(t, ctx, wallet.VectorTestNetNetwork, GetNetworkMagic(wallet.VectorTestNetNetwork, 0), 1, "vector", baseLogsDir)
+	vectorCluster, err := SetupAndRunApexCardanoCluster(t, ctx, wallet.VectorTestNetNetwork, 1, "vector", baseLogsDir)
 	require.NotNil(t, vectorCluster)
 	require.NoError(t, err)
 

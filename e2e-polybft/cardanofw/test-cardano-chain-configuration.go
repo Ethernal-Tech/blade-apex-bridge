@@ -20,12 +20,13 @@ func getShelleyGenesis(networkType wallet.CardanoNetworkType) func(mp map[string
 	}
 }
 
+// Still not in conway era so this be left with noChanges
 func getConwayGenesis(networkType wallet.CardanoNetworkType) func(mp map[string]interface{}) {
 	switch networkType {
 	case wallet.TestNetNetwork:
 		return noChanges
 	case wallet.VectorTestNetNetwork:
-		return noChanges // TODO:SASA
+		return noChanges
 	default:
 		return nil
 	}
@@ -48,22 +49,21 @@ func testPrimeShelleyGenesis(mp map[string]interface{}) {
 	prParams["tau"] = 0.1
 }
 
-// TODO:SASA check generated genesis
 func testVectorShelleyGenesis(mp map[string]interface{}) {
 	mp["slotLength"] = 1
-	mp["activeSlotsCoeff"] = 0.5
-	mp["securityParam"] = 2160
-	mp["epochLength"] = 500
+	mp["activeSlotsCoeff"] = 0.25
+	mp["securityParam"] = 216
+	mp["epochLength"] = 8640
 	mp["maxLovelaceSupply"] = 1000000000000
 	mp["updateQuorum"] = 2
 	prParams := getMapFromInterfaceKey(mp, "protocolParams")
 	getMapFromInterfaceKey(prParams, "protocolVersion")["major"] = 7
-	prParams["minFeeA"] = 44
-	prParams["minFeeB"] = 155381
+	prParams["minFeeA"] = 45
+	prParams["minFeeB"] = 156253
 	prParams["minUTxOValue"] = 1000000
 	prParams["decentralisationParam"] = 0.7
-	prParams["rho"] = 0.1
-	prParams["tau"] = 0.1
+	prParams["rho"] = 0.00001
+	prParams["tau"] = 0.000001
 }
 
 func updateJSON(content []byte, callback func(mp map[string]interface{})) ([]byte, error) {

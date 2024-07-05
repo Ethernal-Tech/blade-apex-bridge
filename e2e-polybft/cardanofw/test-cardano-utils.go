@@ -338,7 +338,7 @@ func GetDestinationChainID(networkConfig TestCardanoNetworkConfig) string {
 	return "prime"
 }
 
-func GetNetworkMagic(networkType wallet.CardanoNetworkType, offset uint) uint {
+func GetNetworkMagic(networkType wallet.CardanoNetworkType) uint {
 	switch networkType {
 	case wallet.VectorTestNetNetwork:
 		return wallet.VectorTestNetProtocolMagic
