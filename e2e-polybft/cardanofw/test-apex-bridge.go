@@ -13,7 +13,6 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,7 +30,7 @@ func SetupAndRunApexCardanoCluster(
 	num int,
 	genesisConfigDir string,
 	baseLogsDir string,
-) *TestCardanoCluster {
+) (*TestCardanoCluster, error) {
 	t.Helper()
 
 	var (
@@ -73,7 +72,7 @@ func SetupAndRunApexCardanoCluster(
 			return
 		}
 
-		cluster, err := NewCardanoTestCluster(t,
+		cluster, err = NewCardanoTestCluster(t,
 			WithID(id+1),
 			WithNodesCount(4),
 			WithStartTimeDelay(time.Second*5),
@@ -108,9 +107,8 @@ func SetupAndRunApexCardanoCluster(
 	}(num)
 
 	wg.Wait()
-	assert.NoError(t, clError)
 
-	return cluster
+	return cluster, clError
 }
 
 func SetupAndRunApexBridge(
@@ -258,12 +256,13 @@ func RunApexBridge(
 
 	baseLogsDir := path.Join("../..", fmt.Sprintf("e2e-logs-cardano-%d", time.Now().UTC().Unix()), t.Name())
 
-	primeCluster := SetupAndRunApexCardanoCluster(t, ctx, wallet.TestNetNetwork, GetNetworkMagic(wallet.TestNetNetwork, 0), 0, "prime", baseLogsDir)
+	primeCluster, err := SetupAndRunApexCardanoCluster(t, ctx, wallet.TestNetNetwork, GetNetworkMagic(wallet.TestNetNetwork, 0), 0, "prime", baseLogsDir)
 	require.NotNil(t, primeCluster)
+	require.NoError(t, err)
 
-	time.Sleep(10000000 * time.Second)
-	vectorCluster := SetupAndRunApexCardanoCluster(t, ctx, wallet.VectorTestNetNetwork, GetNetworkMagic(wallet.VectorTestNetNetwork, 0), 1, "vector", baseLogsDir)
+	vectorCluster, err := SetupAndRunApexCardanoCluster(t, ctx, wallet.VectorTestNetNetwork, GetNetworkMagic(wallet.VectorTestNetNetwork, 0), 1, "vector", baseLogsDir)
 	require.NotNil(t, vectorCluster)
+	require.NoError(t, err)
 
 	cb := SetupAndRunApexBridge(t,
 		ctx,

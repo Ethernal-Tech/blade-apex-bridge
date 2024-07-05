@@ -83,11 +83,10 @@ func (u *TestApexUser) SendToUser(
 ) {
 	t.Helper()
 
-	var addr string
-	if networkConfig.IsPrime() {
-		addr = u.PrimeAddress
+	addr := u.PrimeAddress
+	if !networkConfig.IsPrime() {
+		addr = u.VectorAddress
 	}
-	addr = u.VectorAddress
 
 	prevAmount, err := GetTokenAmount(ctx, txProvider, addr)
 	require.NoError(t, err)
@@ -133,17 +132,12 @@ func (u *TestApexUser) BridgeAmount(
 ) string {
 	t.Helper()
 
-	var (
-		sender       wallet.IWallet
-		receiverAddr string
-	)
-
-	if networkConfig.IsPrime() {
-		sender = u.PrimeWallet
-		receiverAddr = u.VectorAddress
+	sender := u.PrimeWallet
+	receiverAddr := u.VectorAddress
+	if !networkConfig.IsPrime() {
+		sender = u.VectorWallet
+		receiverAddr = u.PrimeAddress
 	}
-	sender = u.VectorWallet
-	receiverAddr = u.PrimeAddress
 
 	txHash := BridgeAmountFull(t, ctx, txProvider, networkConfig,
 		multisigAddr, feeAddr, sender, receiverAddr, sendAmount)
