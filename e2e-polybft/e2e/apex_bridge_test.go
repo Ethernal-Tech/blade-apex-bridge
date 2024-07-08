@@ -661,7 +661,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			require.NoError(t, err)
 
 			fundSendAmount := uint64(5_000_000)
-			user.SendToAddress(t, ctx, txProviderVector, vectorGenesisWallet, fundSendAmount, walletAddress.String(), apex.PrimeCluster.NetworkConfig())
+			user.SendToAddress(t, ctx, txProviderVector, vectorGenesisWallet, fundSendAmount, walletAddress.String(), apex.VectorCluster.NetworkConfig())
 		}
 
 		sendAmount := uint64(1_000_000)
