@@ -205,8 +205,8 @@ func NewCardanoTestCluster(t *testing.T, opts ...CardanoClusterOption) (*TestCar
 
 	config := &TestCardanoClusterConfig{
 		t:          t,
-		WithLogs:   true, // strings.ToLower(os.Getenv(e)) == "true"
-		WithStdout: true, // strings.ToLower(os.Getenv(envStdoutEnabled)) == "true"
+		WithLogs:   true,  // strings.ToLower(os.Getenv(e)) == "true"
+		WithStdout: false, // strings.ToLower(os.Getenv(envStdoutEnabled)) == "true"
 		TestCardanoNetworkConfig: TestCardanoNetworkConfig{
 			NetworkType:  wallet.TestNetNetwork,
 			NetworkMagic: 42,

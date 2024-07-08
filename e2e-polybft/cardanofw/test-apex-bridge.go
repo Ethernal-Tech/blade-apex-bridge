@@ -13,7 +13,6 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -84,7 +83,7 @@ func SetupAndRunApexCardanoChains(
 	wg.Wait()
 
 	for i := 0; i < clusterCount; i++ {
-		assert.NoError(t, clErrors[i])
+		require.NoError(t, clErrors[i])
 	}
 
 	return clusters
