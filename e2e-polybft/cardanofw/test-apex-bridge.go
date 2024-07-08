@@ -13,6 +13,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,96 +23,122 @@ type ApexSystem struct {
 	Bridge        *TestCardanoBridge
 }
 
-func SetupAndRunApexCardanoCluster(
+type CardanoChainConfig struct {
+	NetworkType      wallet.CardanoNetworkType
+	GenesisConfigDir string
+}
+
+func SetupAndRunApexCardanoChains(
 	t *testing.T,
 	ctx context.Context,
+	cardanoConfigs []CardanoChainConfig,
+) []*TestCardanoCluster {
+	t.Helper()
+
+	clusterCount := len(cardanoConfigs)
+
+	var (
+		clErrors    = make([]error, clusterCount)
+		clusters    = make([]*TestCardanoCluster, clusterCount)
+		wg          sync.WaitGroup
+		baseLogsDir = path.Join("../..", fmt.Sprintf("e2e-logs-cardano-%d", time.Now().UTC().Unix()), t.Name())
+	)
+
+	cleanupFunc := func() {
+		fmt.Printf("Cleaning up cardano chains")
+
+		wg := sync.WaitGroup{}
+		stopErrs := []error(nil)
+
+		for i := 0; i < clusterCount; i++ {
+			if clusters[i] != nil {
+				wg.Add(1)
+
+				go func(cl *TestCardanoCluster) {
+					defer wg.Done()
+
+					stopErrs = append(stopErrs, cl.Stop())
+				}(clusters[i])
+			}
+		}
+
+		wg.Wait()
+
+		fmt.Printf("Done cleaning up cardano chains: %v\n", errors.Join(stopErrs...))
+	}
+
+	t.Cleanup(cleanupFunc)
+
+	for i := 0; i < clusterCount; i++ {
+		wg.Add(1)
+
+		go func(id int) {
+			defer wg.Done()
+
+			clusters[id], clErrors[id] = RunCardanoCluster(t, ctx, id,
+				cardanoConfigs[id].NetworkType, cardanoConfigs[id].GenesisConfigDir,
+				baseLogsDir)
+		}(i)
+	}
+
+	wg.Wait()
+
+	for i := 0; i < clusterCount; i++ {
+		assert.NoError(t, clErrors[i])
+	}
+
+	return clusters
+}
+
+func RunCardanoCluster(
+	t *testing.T,
+	ctx context.Context,
+	id int,
 	networkType wallet.CardanoNetworkType,
-	num int,
 	genesisConfigDir string,
 	baseLogsDir string,
 ) (*TestCardanoCluster, error) {
 	t.Helper()
 
-	var (
-		clError error
-		cluster *TestCardanoCluster
-	)
-
 	networkMagic := GetNetworkMagic(networkType)
+	logsDir := fmt.Sprintf("%s/%d", baseLogsDir, id)
 
-	cleanupFunc := func() {
-		fmt.Printf("Cleaning up cardano chain %v %v", networkType.GetPrefix(), networkMagic)
-
-		stopErrs := []error(nil)
-
-		if cluster != nil {
-			go func(cl *TestCardanoCluster) {
-				stopErrs = append(stopErrs, cl.Stop())
-			}(cluster)
-		}
-
-		fmt.Printf("Done cleaning up cardano chain %v %v: %v\n",
-			networkType.GetPrefix(), networkMagic, errors.Join(stopErrs...))
+	if err := common.CreateDirSafe(logsDir, 0750); err != nil {
+		return nil, err
 	}
 
-	t.Cleanup(cleanupFunc)
+	cluster, err := NewCardanoTestCluster(t,
+		WithID(id+1),
+		WithNodesCount(4),
+		WithStartTimeDelay(time.Second*5),
+		WithPort(5100+id*100),
+		WithOgmiosPort(1337+id),
+		WithLogsDir(logsDir),
+		WithNetworkMagic(networkMagic),
+		WithNetworkType(networkType),
+		WithConfigGenesisDir(genesisConfigDir),
+	)
+	if err != nil {
+		return nil, err
+	}
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	fmt.Printf("Waiting for sockets to be ready\n")
 
-	go func(id int) {
-		defer wg.Done()
+	if err := cluster.WaitForReady(time.Minute * 2); err != nil {
+		return nil, err
+	}
 
-		checkAndSetError := func(err error) bool {
-			clError = err
+	if err := cluster.StartOgmios(t, id); err != nil {
+		return nil, err
+	}
 
-			return err != nil
-		}
+	if err := cluster.WaitForBlockWithState(10, time.Second*120); err != nil {
+		return nil, err
+	}
 
-		logsDir := fmt.Sprintf("%s/%d", baseLogsDir, id)
+	fmt.Printf("Cluster %d is ready\n", id)
 
-		err := common.CreateDirSafe(logsDir, 0750)
-		if checkAndSetError(err) {
-			return
-		}
-
-		cluster, err = NewCardanoTestCluster(t,
-			WithID(id+1),
-			WithNodesCount(4),
-			WithStartTimeDelay(time.Second*5),
-			WithPort(5100+id*100),
-			WithOgmiosPort(1337+id),
-			WithLogsDir(logsDir),
-			WithNetworkMagic(networkMagic),
-			WithNetworkType(networkType),
-			WithConfigGenesisDir(genesisConfigDir),
-		)
-		if checkAndSetError(err) {
-			return
-		}
-
-		cluster.Config.WithStdout = false
-
-		fmt.Printf("Waiting for sockets to be ready\n")
-
-		if checkAndSetError(cluster.WaitForReady(time.Minute * 2)) {
-			return
-		}
-
-		if checkAndSetError(cluster.StartOgmios(t, id)) {
-			return
-		}
-
-		if checkAndSetError(cluster.WaitForBlockWithState(10, time.Second*120)) {
-			return
-		}
-
-		fmt.Printf("Cluster %d is ready\n", id)
-	}(num)
-
-	wg.Wait()
-
-	return cluster, clError
+	return cluster, nil
 }
 
 func SetupAndRunApexBridge(
@@ -257,15 +284,16 @@ func RunApexBridge(
 		bladeValidatorsNum = 4
 	)
 
-	baseLogsDir := path.Join("../..", fmt.Sprintf("e2e-logs-cardano-%d", time.Now().UTC().Unix()), t.Name())
+	clusters := SetupAndRunApexCardanoChains(t, ctx, []CardanoChainConfig{
+		{NetworkType: wallet.TestNetNetwork, GenesisConfigDir: "prime"},
+		{NetworkType: wallet.VectorTestNetNetwork, GenesisConfigDir: "vector"},
+	})
 
-	primeCluster, err := SetupAndRunApexCardanoCluster(t, ctx, wallet.TestNetNetwork, 0, "prime", baseLogsDir)
+	primeCluster := clusters[0]
 	require.NotNil(t, primeCluster)
-	require.NoError(t, err)
 
-	vectorCluster, err := SetupAndRunApexCardanoCluster(t, ctx, wallet.VectorTestNetNetwork, 1, "vector", baseLogsDir)
+	vectorCluster := clusters[1]
 	require.NotNil(t, vectorCluster)
-	require.NoError(t, err)
 
 	cb := SetupAndRunApexBridge(t,
 		ctx,
