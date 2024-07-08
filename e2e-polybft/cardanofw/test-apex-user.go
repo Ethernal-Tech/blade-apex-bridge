@@ -3,9 +3,6 @@ package cardanofw
 import (
 	"context"
 	"encoding/json"
-	"math/big"
-	"os"
-	"path"
 	"testing"
 	"time"
 
@@ -14,14 +11,10 @@ import (
 )
 
 type TestApexUser struct {
-	basePath string
-
-	primeNetworkMagic  uint
-	vectorNetworkMagic uint
-	PrimeWallet        wallet.IWallet
-	VectorWallet       wallet.IWallet
-	PrimeAddress       string
-	VectorAddress      string
+	PrimeWallet   wallet.IWallet
+	VectorWallet  wallet.IWallet
+	PrimeAddress  string
+	VectorAddress string
 }
 
 type BridgingRequestMetadataTransaction struct {
@@ -29,49 +22,42 @@ type BridgingRequestMetadataTransaction struct {
 	Amount  uint64   `cbor:"m" json:"m"`
 }
 
-func NewTestApexUser(t *testing.T, primeNetworkMagic, vectorNetworkMagic uint) *TestApexUser {
-	t.Helper()
-
-	basePath, err := os.MkdirTemp("/tmp", "apex-user")
-	require.NoError(t, err)
-
-	primeWallet, err := wallet.NewStakeWalletManager().Create(
-		path.Join(basePath, "prime"), true)
-	require.NoError(t, err)
-
-	vectorWallet, err := wallet.NewStakeWalletManager().Create(
-		path.Join(basePath, "vector"), true)
-	require.NoError(t, err)
-
-	primeUserAddress, _, err := wallet.GetWalletAddressCli(primeWallet, primeNetworkMagic)
-	require.NoError(t, err)
-
-	vectorUserAddress, _, err := wallet.GetWalletAddressCli(vectorWallet, vectorNetworkMagic)
-	require.NoError(t, err)
-
-	return &TestApexUser{
-		basePath:           basePath,
-		PrimeWallet:        primeWallet,
-		VectorWallet:       vectorWallet,
-		PrimeAddress:       primeUserAddress,
-		VectorAddress:      vectorUserAddress,
-		primeNetworkMagic:  primeNetworkMagic,
-		vectorNetworkMagic: vectorNetworkMagic,
-	}
-}
-
-func NewTestApexUserWithExistingWallets(
-	t *testing.T, primePrivateKey, vectorPrivateKey string, primeNetworkMagic, vectorNetworkMagic uint,
+func NewTestApexUser(
+	t *testing.T,
+	primeNetworkType wallet.CardanoNetworkType,
+	vectorNetworkType wallet.CardanoNetworkType,
 ) *TestApexUser {
 	t.Helper()
 
-	basePath, err := os.MkdirTemp("/tmp", "apex-user")
+	primeWallet, err := wallet.GenerateWallet(false)
 	require.NoError(t, err)
 
-	primePrivateKeyBytes, err := (wallet.Key{Hex: primePrivateKey}).GetKeyBytes()
+	vectorWallet, err := wallet.GenerateWallet(false)
 	require.NoError(t, err)
 
-	vectorPrivateKeyBytes, err := (wallet.Key{Hex: vectorPrivateKey}).GetKeyBytes()
+	primeUserAddress, err := GetAddress(primeNetworkType, primeWallet)
+	require.NoError(t, err)
+
+	vectorUserAddress, err := GetAddress(vectorNetworkType, vectorWallet)
+	require.NoError(t, err)
+
+	return &TestApexUser{
+		PrimeWallet:   primeWallet,
+		VectorWallet:  vectorWallet,
+		PrimeAddress:  primeUserAddress.String(),
+		VectorAddress: vectorUserAddress.String(),
+	}
+}
+
+func NewTestApexUserWithExistingWallets(t *testing.T, primePrivateKey, vectorPrivateKey string,
+	primeNetworkType wallet.CardanoNetworkType, vectorNetworkType wallet.CardanoNetworkType,
+) *TestApexUser {
+	t.Helper()
+
+	primePrivateKeyBytes, err := wallet.GetKeyBytes(primePrivateKey)
+	require.NoError(t, err)
+
+	vectorPrivateKeyBytes, err := wallet.GetKeyBytes(vectorPrivateKey)
 	require.NoError(t, err)
 
 	primeWallet := wallet.NewWallet(
@@ -79,22 +65,17 @@ func NewTestApexUserWithExistingWallets(
 	vectorWallet := wallet.NewWallet(
 		wallet.GetVerificationKeyFromSigningKey(vectorPrivateKeyBytes), vectorPrivateKeyBytes)
 
-	primeUserAddress, err := wallet.NewEnterpriseAddress(
-		wallet.TestNetNetwork, primeWallet.GetVerificationKey())
+	primeUserAddress, err := GetAddress(primeNetworkType, primeWallet)
 	require.NoError(t, err)
 
-	vectorUserAddress, err := wallet.NewEnterpriseAddress(
-		wallet.TestNetNetwork, vectorWallet.GetVerificationKey())
+	vectorUserAddress, err := GetAddress(vectorNetworkType, vectorWallet)
 	require.NoError(t, err)
 
 	return &TestApexUser{
-		basePath:           basePath,
-		PrimeWallet:        primeWallet,
-		VectorWallet:       vectorWallet,
-		PrimeAddress:       primeUserAddress.String(),
-		VectorAddress:      vectorUserAddress.String(),
-		primeNetworkMagic:  primeNetworkMagic,
-		vectorNetworkMagic: vectorNetworkMagic,
+		PrimeWallet:   primeWallet,
+		VectorWallet:  vectorWallet,
+		PrimeAddress:  primeUserAddress.String(),
+		VectorAddress: vectorUserAddress.String(),
 	}
 }
 
@@ -102,15 +83,12 @@ func (u *TestApexUser) SendToUser(
 	t *testing.T,
 	ctx context.Context, txProvider wallet.ITxProvider,
 	sender wallet.IWallet, sendAmount uint64,
-	isPrime bool,
+	networkConfig TestCardanoNetworkConfig,
 ) {
 	t.Helper()
 
-	networkMagic := u.primeNetworkMagic
 	addr := u.PrimeAddress
-
-	if !isPrime {
-		networkMagic = u.vectorNetworkMagic
+	if !networkConfig.IsPrime() {
 		addr = u.VectorAddress
 	}
 
@@ -118,12 +96,12 @@ func (u *TestApexUser) SendToUser(
 	require.NoError(t, err)
 
 	_, err = SendTx(ctx, txProvider, sender,
-		sendAmount, addr, int(networkMagic), []byte{})
+		sendAmount, addr, networkConfig, []byte{})
 	require.NoError(t, err)
 
 	err = wallet.WaitForAmount(
-		context.Background(), txProvider, addr, func(val *big.Int) bool {
-			return val.Cmp(prevAmount) > 0
+		context.Background(), txProvider, addr, func(val uint64) bool {
+			return val == prevAmount+sendAmount
 		}, 60, time.Second*2, IsRecoverableError)
 	require.NoError(t, err)
 }
@@ -132,26 +110,20 @@ func (u *TestApexUser) SendToAddress(
 	t *testing.T,
 	ctx context.Context, txProvider wallet.ITxProvider,
 	sender wallet.IWallet, sendAmount uint64,
-	receiver string, isPrime bool,
+	receiver string, networkConfig TestCardanoNetworkConfig,
 ) {
 	t.Helper()
-
-	networkMagic := u.primeNetworkMagic
-
-	if !isPrime {
-		networkMagic = u.vectorNetworkMagic
-	}
 
 	prevAmount, err := GetTokenAmount(ctx, txProvider, receiver)
 	require.NoError(t, err)
 
 	_, err = SendTx(ctx, txProvider, sender,
-		sendAmount, receiver, int(networkMagic), []byte{})
+		sendAmount, receiver, networkConfig, []byte{})
 	require.NoError(t, err)
 
 	err = wallet.WaitForAmount(
-		context.Background(), txProvider, receiver, func(val *big.Int) bool {
-			return val.Cmp(new(big.Int).SetUint64(prevAmount.Uint64()+sendAmount)) == 0
+		context.Background(), txProvider, receiver, func(val uint64) bool {
+			return val == prevAmount+sendAmount
 		}, 60, time.Second*2, IsRecoverableError)
 	require.NoError(t, err)
 }
@@ -159,29 +131,23 @@ func (u *TestApexUser) SendToAddress(
 func (u *TestApexUser) BridgeAmount(
 	t *testing.T, ctx context.Context,
 	txProvider wallet.ITxProvider,
-	multisigAddr, feeAddr string, sendAmount uint64, isPrime bool,
+	multisigAddr, feeAddr string, sendAmount uint64,
+	networkConfig TestCardanoNetworkConfig,
 ) string {
 	t.Helper()
 
-	networkMagic := u.primeNetworkMagic
 	sender := u.PrimeWallet
 	receiverAddr := u.VectorAddress
 
-	if !isPrime {
-		networkMagic = u.vectorNetworkMagic
+	if !networkConfig.IsPrime() {
 		sender = u.VectorWallet
 		receiverAddr = u.PrimeAddress
 	}
 
-	txHash := BridgeAmountFull(t, ctx, txProvider, networkMagic,
-		multisigAddr, feeAddr, sender, receiverAddr, sendAmount, GetDestinationChainID(isPrime))
+	txHash := BridgeAmountFull(t, ctx, txProvider, networkConfig,
+		multisigAddr, feeAddr, sender, receiverAddr, sendAmount)
 
 	return txHash
-}
-
-func (u *TestApexUser) Dispose() {
-	_ = os.RemoveAll(u.basePath)
-	_ = os.Remove(u.basePath)
 }
 
 func CreateMetaData(sender string, receivers map[string]uint64, destinationChainID string) ([]byte, error) {
@@ -205,31 +171,23 @@ func CreateMetaData(sender string, receivers map[string]uint64, destinationChain
 	return json.Marshal(metadata)
 }
 
-func GetDestinationChainID(isSourcePrime bool) string {
-	if isSourcePrime {
-		return "vector"
-	} else {
-		return "prime"
-	}
-}
-
 func BridgeAmountFull(
-	t *testing.T, ctx context.Context, txProvider wallet.ITxProvider, networkMagic uint,
-	multisigAddr, feeAddr string, sender wallet.IWallet, receiverAddr string, sendAmount uint64,
-	destinationChainID string,
+	t *testing.T, ctx context.Context, txProvider wallet.ITxProvider,
+	networkConfig TestCardanoNetworkConfig, multisigAddr, feeAddr string, sender wallet.IWallet,
+	receiverAddr string, sendAmount uint64,
 ) string {
 	t.Helper()
 
 	return BridgeAmountFullMultipleReceivers(
-		t, ctx, txProvider, networkMagic, multisigAddr, feeAddr, sender,
-		[]string{receiverAddr}, sendAmount, destinationChainID,
+		t, ctx, txProvider, networkConfig, multisigAddr, feeAddr, sender,
+		[]string{receiverAddr}, sendAmount,
 	)
 }
 
 func BridgeAmountFullMultipleReceivers(
-	t *testing.T, ctx context.Context, txProvider wallet.ITxProvider, networkMagic uint,
-	multisigAddr, feeAddr string, sender wallet.IWallet, receiverAddrs []string, sendAmount uint64,
-	destinationChainID string,
+	t *testing.T, ctx context.Context, txProvider wallet.ITxProvider, networkConfig TestCardanoNetworkConfig,
+	multisigAddr, feeAddr string, sender wallet.IWallet,
+	receiverAddrs []string, sendAmount uint64,
 ) string {
 	t.Helper()
 
@@ -238,7 +196,7 @@ func BridgeAmountFullMultipleReceivers(
 
 	const feeAmount = 1_100_000
 
-	senderAddr, _, err := wallet.GetWalletAddressCli(sender, networkMagic)
+	senderAddr, err := GetAddress(networkConfig.NetworkType, sender)
 	require.NoError(t, err)
 
 	receivers := make(map[string]uint64, len(receiverAddrs)+1)
@@ -248,11 +206,11 @@ func BridgeAmountFullMultipleReceivers(
 		receivers[receiverAddr] = sendAmount
 	}
 
-	bridgingRequestMetadata, err := CreateMetaData(senderAddr, receivers, destinationChainID)
+	bridgingRequestMetadata, err := CreateMetaData(senderAddr.String(), receivers, GetDestinationChainID(networkConfig))
 	require.NoError(t, err)
 
 	txHash, err := SendTx(ctx, txProvider, sender,
-		uint64(len(receiverAddrs))*sendAmount+feeAmount, multisigAddr, int(networkMagic), bridgingRequestMetadata)
+		uint64(len(receiverAddrs))*sendAmount+feeAmount, multisigAddr, networkConfig, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	err = wallet.WaitForTxHashInUtxos(
