@@ -55,6 +55,7 @@ jobs:
           wget https://artifacts.apexfusion.org/vector-ogmios-v6.2.0-x86_64-linux.tar.gz
           tar xvzf vector-ogmios-v6.2.0-x86_64-linux.tar.gz
           sudo mv vector-ogmios-v6.2.0-x86_64-linux/bin/vector-ogmios /usr/local/bin/
+          sudo rm -rf vector-ogmios-v6.2.0-x86_64-linux
       - name: Checkout apex-bridge repo
         uses: actions/checkout@v4.1.1
         with:
