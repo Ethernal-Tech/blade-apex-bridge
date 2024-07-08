@@ -57,8 +57,6 @@ require (
 	pgregory.net/rapid v1.1.0
 )
 
-replace github.com/Ethernal-Tech/cardano-infrastructure => ../cardano-infrastructure
-
 require (
 	cloud.google.com/go/auth v0.4.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.2 // indirect

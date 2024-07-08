@@ -36,6 +36,7 @@ func (c *TestCardanoNetworkConfig) IsPrime() bool {
 	if c.NetworkType == wallet.MainNetNetwork || c.NetworkType == wallet.TestNetNetwork {
 		return true
 	}
+
 	return false
 }
 
@@ -546,7 +547,7 @@ func (c *TestCardanoCluster) InitGenesis(startTime int64, genesisDir string) err
 		"byron", "genesis", "genesis",
 		"--protocol-magic", strconv.FormatUint(uint64(c.Config.NetworkMagic), 10),
 		"--start-time", strconv.FormatInt(startTime, 10),
-		"--k", strconv.Itoa(c.Config.SecurityParam), // TODO: CONFIG
+		"--k", strconv.Itoa(c.Config.SecurityParam),
 		"--n-poor-addresses", "0",
 		"--n-delegate-addresses", strconv.Itoa(c.Config.NodesCount),
 		"--total-balance", c.Config.InitialSupply.String(),

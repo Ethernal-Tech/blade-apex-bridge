@@ -22,7 +22,11 @@ type BridgingRequestMetadataTransaction struct {
 	Amount  uint64   `cbor:"m" json:"m"`
 }
 
-func NewTestApexUser(t *testing.T, primeNetworkType wallet.CardanoNetworkType, vectorNetworkType wallet.CardanoNetworkType) *TestApexUser {
+func NewTestApexUser(
+	t *testing.T,
+	primeNetworkType wallet.CardanoNetworkType,
+	vectorNetworkType wallet.CardanoNetworkType,
+) *TestApexUser {
 	t.Helper()
 
 	primeWallet, err := wallet.GenerateWallet(false)
@@ -46,7 +50,7 @@ func NewTestApexUser(t *testing.T, primeNetworkType wallet.CardanoNetworkType, v
 }
 
 func NewTestApexUserWithExistingWallets(t *testing.T, primePrivateKey, vectorPrivateKey string,
-	primeNetworkId wallet.CardanoNetworkType, vectorNetworkId wallet.CardanoNetworkType,
+	primeNetworkType wallet.CardanoNetworkType, vectorNetworkType wallet.CardanoNetworkType,
 ) *TestApexUser {
 	t.Helper()
 
@@ -61,10 +65,10 @@ func NewTestApexUserWithExistingWallets(t *testing.T, primePrivateKey, vectorPri
 	vectorWallet := wallet.NewWallet(
 		wallet.GetVerificationKeyFromSigningKey(vectorPrivateKeyBytes), vectorPrivateKeyBytes)
 
-	primeUserAddress, err := GetAddress(primeNetworkId, primeWallet)
+	primeUserAddress, err := GetAddress(primeNetworkType, primeWallet)
 	require.NoError(t, err)
 
-	vectorUserAddress, err := GetAddress(vectorNetworkId, vectorWallet)
+	vectorUserAddress, err := GetAddress(vectorNetworkType, vectorWallet)
 	require.NoError(t, err)
 
 	return &TestApexUser{
@@ -134,6 +138,7 @@ func (u *TestApexUser) BridgeAmount(
 
 	sender := u.PrimeWallet
 	receiverAddr := u.VectorAddress
+
 	if !networkConfig.IsPrime() {
 		sender = u.VectorWallet
 		receiverAddr = u.PrimeAddress

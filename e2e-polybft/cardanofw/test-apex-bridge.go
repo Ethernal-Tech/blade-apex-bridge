@@ -50,19 +50,21 @@ func SetupAndRunApexCardanoCluster(
 			}(cluster)
 		}
 
-		fmt.Printf("Done cleaning up cardano chain %v %v: %v\n", networkType.GetPrefix(), networkMagic, errors.Join(stopErrs...))
+		fmt.Printf("Done cleaning up cardano chain %v %v: %v\n",
+			networkType.GetPrefix(), networkMagic, errors.Join(stopErrs...))
 	}
 
 	t.Cleanup(cleanupFunc)
 
 	wg := sync.WaitGroup{}
-
 	wg.Add(1)
+
 	go func(id int) {
 		defer wg.Done()
 
 		checkAndSetError := func(err error) bool {
 			clError = err
+
 			return err != nil
 		}
 
@@ -343,7 +345,8 @@ func (a *ApexSystem) CreateAndFundExistingUser(
 ) *TestApexUser {
 	t.Helper()
 
-	user := NewTestApexUserWithExistingWallets(t, primePrivateKey, vectorPrivateKey, primeNetworkConfig.NetworkType, vectorNetworkConfig.NetworkType)
+	user := NewTestApexUserWithExistingWallets(t, primePrivateKey, vectorPrivateKey,
+		primeNetworkConfig.NetworkType, vectorNetworkConfig.NetworkType)
 
 	txProviderPrime := a.GetPrimeTxProvider()
 	txProviderVector := a.GetVectorTxProvider()
