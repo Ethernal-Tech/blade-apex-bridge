@@ -137,8 +137,8 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 
 	apex := cardanofw.RunApexBridge(
 		t, ctx,
-		cardanofw.WithPrimeTTLInc(1),
-		cardanofw.WithVectorTTLInc(1),
+		cardanofw.WithPrimeTTL(20, 1),
+		cardanofw.WithVectorTTL(30, 1),
 		cardanofw.WithAPIKey(apiKey),
 	)
 	user := apex.CreateAndFundUser(t, ctx, uint64(5_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
@@ -201,8 +201,6 @@ for_loop:
 			break for_loop
 		}
 	}
-
-	fmt.Printf("wentFromFailedOnDestinationToIncludedInBatch = %v\n", wentFromFailedOnDestinationToIncludedInBatch)
 
 	require.True(t, wentFromFailedOnDestinationToIncludedInBatch)
 }
