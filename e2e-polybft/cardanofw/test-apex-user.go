@@ -207,7 +207,8 @@ func BridgeAmountFullMultipleReceivers(
 		receivers[receiverAddr] = sendAmount
 	}
 
-	bridgingRequestMetadata, err := CreateMetaData(senderAddr.String(), receivers, GetDestinationChainID(networkConfig), feeAmount)
+	bridgingRequestMetadata, err := CreateMetaData(
+		senderAddr.String(), receivers, GetDestinationChainID(networkConfig), feeAmount)
 	require.NoError(t, err)
 
 	txHash, err := SendTx(ctx, txProvider, sender,
