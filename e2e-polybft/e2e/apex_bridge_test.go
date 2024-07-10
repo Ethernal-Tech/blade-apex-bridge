@@ -194,7 +194,8 @@ for_loop:
 			fmt.Printf("currentStatus = %s\n", currentStatus)
 		}
 
-		if prevStatus == "FailedToExecuteOnDestination" && currentStatus == "IncludedInBatch" {
+		if prevStatus == "FailedToExecuteOnDestination" &&
+			(currentStatus == "IncludedInBatch" || currentStatus == "SubmittedToDestination") {
 			wentFromFailedOnDestinationToIncludedInBatch = true
 
 			break for_loop
