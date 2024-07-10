@@ -154,11 +154,10 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 	timeoutTimer := time.NewTimer(time.Second * 300)
 	defer timeoutTimer.Stop()
 
-	wentFromFailedOnDestinationToIncludedInBatch := false
-
 	var (
-		prevStatus    string
-		currentStatus string
+		wentFromFailedOnDestinationToIncludedInBatch bool
+		prevStatus                                   string
+		currentStatus                                string
 	)
 
 	apiURL, err := apex.Bridge.GetBridgingAPI()
