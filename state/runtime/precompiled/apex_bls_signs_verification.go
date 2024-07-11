@@ -35,7 +35,7 @@ type apexBLSSignatureVerification struct {
 
 // gas returns the gas required to execute the pre-compiled contract
 func (c *apexBLSSignatureVerification) gas(input []byte, _ *chain.ForksInTime) uint64 {
-	return 150000
+	return 50000
 }
 
 // Run runs the precompiled contract with the given input.
@@ -57,7 +57,7 @@ func (c *apexBLSSignatureVerification) run(input []byte, caller types.Address, h
 
 	rawData, err := abi.Decode(inputType, input[1:])
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to decode. single = %v: %w",
+		return nil, fmt.Errorf("%w: single = %v - %w",
 			errApexBLSSignatureVerificationInvalidInput, isSingle, err)
 	}
 
@@ -90,7 +90,7 @@ func (c *apexBLSSignatureVerification) run(input []byte, caller types.Address, h
 
 	signature, err := bls.UnmarshalSignature(signatureBytes)
 	if err != nil {
-		return nil, fmt.Errorf("%w: signature %w", errApexBLSSignatureVerificationInvalidInput, err)
+		return nil, fmt.Errorf("%w: signature - %w", errApexBLSSignatureVerificationInvalidInput, err)
 	}
 
 	blsPubKeys := make([]*bls.PublicKey, len(publicKeysSerialized))
@@ -98,7 +98,7 @@ func (c *apexBLSSignatureVerification) run(input []byte, caller types.Address, h
 	for i, pk := range publicKeysSerialized {
 		blsPubKey, err := bls.UnmarshalPublicKeyFromBigInt(pk)
 		if err != nil {
-			return nil, fmt.Errorf("%w: public key %w", errApexBLSSignatureVerificationInvalidInput, err)
+			return nil, fmt.Errorf("%w: public key - %w", errApexBLSSignatureVerificationInvalidInput, err)
 		}
 
 		blsPubKeys[i] = blsPubKey

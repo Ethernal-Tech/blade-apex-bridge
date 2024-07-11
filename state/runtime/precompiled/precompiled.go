@@ -86,7 +86,7 @@ func (p *Precompiled) setupContracts() {
 
 	// APEX BLS signatures verification precompile
 	p.register(contracts.ApexBLSSignaturesVerificationPrecompile.String(), &apexBLSSignatureVerification{
-		domain: signer.DomainStateReceiver,
+		domain: signer.DomainApexBridgeEVM,
 	})
 }
 
