@@ -269,6 +269,139 @@ func SetupAndRunApexBridge(
 	return cb
 }
 
+func SetupAndRunNexusBridge(
+	t *testing.T,
+	ctx context.Context,
+	dataDir string,
+	bladeValidatorsNum int,
+	primeCluster *TestCardanoCluster,
+	vectorCluster *TestCardanoCluster,
+	opts ...CardanoBridgeOption,
+) *TestCardanoBridge {
+	t.Helper()
+
+	const (
+		sendAmount     = uint64(100_000_000_000)
+		bladeEpochSize = 5
+		numOfRetries   = 90
+		waitTime       = time.Second * 2
+		apiPort        = 40000
+		apiKey         = "test_api_key"
+	)
+
+	cleanupDataDir := func() {
+		os.RemoveAll(dataDir)
+	}
+
+	cleanupDataDir()
+
+	opts = append(opts,
+		WithAPIPortStart(apiPort),
+		WithAPIKey(apiKey),
+	)
+
+	cb := NewTestCardanoBridge(dataDir, bladeValidatorsNum, opts...)
+
+	cleanupFunc := func() {
+		fmt.Printf("Cleaning up Nexus bridge\n")
+
+		// cleanupDataDir()
+		cb.StopValidators()
+
+		fmt.Printf("Done cleaning up Nexus bridge\n")
+	}
+
+	t.Cleanup(cleanupFunc)
+
+	require.NoError(t, cb.CardanoCreateWalletsAndAddresses(primeCluster.NetworkConfig(), vectorCluster.NetworkConfig()))
+
+	fmt.Printf("Nexus wallets and addresses created\n")
+
+	txProviderPrime := wallet.NewTxProviderOgmios(primeCluster.OgmiosURL())
+	txProviderVector := wallet.NewTxProviderOgmios(vectorCluster.OgmiosURL())
+
+	primeGenesisWallet, err := GetGenesisWalletFromCluster(primeCluster.Config.TmpDir, 1)
+	require.NoError(t, err)
+
+	_, err = SendTx(ctx, txProviderPrime, primeGenesisWallet, sendAmount,
+		cb.PrimeMultisigAddr, primeCluster.NetworkConfig(), []byte{})
+	require.NoError(t, err)
+
+	err = wallet.WaitForAmount(context.Background(), txProviderPrime, cb.PrimeMultisigAddr, func(val uint64) bool {
+		return val == sendAmount
+	}, numOfRetries, waitTime, IsRecoverableError)
+	require.NoError(t, err)
+
+	fmt.Printf("Nexus prime multisig addr funded\n")
+
+	_, err = SendTx(ctx, txProviderPrime, primeGenesisWallet, sendAmount,
+		cb.PrimeMultisigFeeAddr, primeCluster.NetworkConfig(), []byte{})
+	require.NoError(t, err)
+
+	err = wallet.WaitForAmount(context.Background(), txProviderPrime, cb.PrimeMultisigFeeAddr, func(val uint64) bool {
+		return val == sendAmount
+	}, numOfRetries, waitTime, IsRecoverableError)
+	require.NoError(t, err)
+
+	fmt.Printf("Nexus prime multisig fee addr funded\n")
+
+	vectorGenesisWallet, err := GetGenesisWalletFromCluster(vectorCluster.Config.TmpDir, 1)
+	require.NoError(t, err)
+
+	_, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, sendAmount,
+		cb.VectorMultisigAddr, vectorCluster.NetworkConfig(), []byte{})
+	require.NoError(t, err)
+
+	err = wallet.WaitForAmount(context.Background(), txProviderVector, cb.VectorMultisigAddr, func(val uint64) bool {
+		return val == sendAmount
+	}, numOfRetries, waitTime, IsRecoverableError)
+	require.NoError(t, err)
+
+	fmt.Printf("Nexus vector multisig addr funded\n")
+
+	_, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, sendAmount,
+		cb.VectorMultisigFeeAddr, vectorCluster.NetworkConfig(), []byte{})
+	require.NoError(t, err)
+
+	err = wallet.WaitForAmount(context.Background(), txProviderVector, cb.VectorMultisigFeeAddr, func(val uint64) bool {
+		return val == sendAmount
+	}, numOfRetries, waitTime, IsRecoverableError)
+	require.NoError(t, err)
+
+	fmt.Printf("Nexus vector multisig fee addr funded\n")
+
+	cb.StartValidators(t, bladeEpochSize)
+
+	fmt.Printf("Nexus validators started\n")
+
+	cb.WaitForValidatorsReady(t)
+
+	fmt.Printf("Nexus validators ready\n")
+
+	// need params for it to work properly
+	primeTokenSupply := big.NewInt(int64(sendAmount))
+	vectorTokenSupply := big.NewInt(int64(sendAmount))
+	require.NoError(t, cb.RegisterChains(primeTokenSupply, vectorTokenSupply))
+
+	fmt.Printf("Chain registered\n")
+
+	// need params for it to work properly
+	require.NoError(t, cb.GenerateConfigs(
+		primeCluster,
+		vectorCluster,
+	))
+
+	fmt.Printf("Configs generated\n")
+
+	require.NoError(t, cb.StartValidatorComponents(ctx))
+	fmt.Printf("Nexus validator components started\n")
+
+	require.NoError(t, cb.StartRelayer(ctx))
+	fmt.Printf("Nexus relayer started\n")
+
+	return cb
+}
+
 func RunApexBridge(
 	t *testing.T, ctx context.Context,
 	opts ...CardanoBridgeOption,
@@ -302,6 +435,16 @@ func RunApexBridge(
 	)
 
 	fmt.Printf("Apex bridge setup done\n")
+
+	// TODO: enable this
+	// SetupAndRunNexusBridge(t,
+	// 	ctx,
+	// 	"../../e2e-bridge-data-tmp-nexus-"+t.Name(),
+	// 	bladeValidatorsNum,
+	// 	primeCluster,
+	// 	vectorCluster,
+	// 	opts...,
+	// )
 
 	return &ApexSystem{
 		PrimeCluster:  primeCluster,
