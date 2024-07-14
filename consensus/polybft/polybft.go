@@ -211,9 +211,9 @@ func GenesisPostHookFactory(config *chain.Chain, engineName string) func(txn *st
 		}
 
 		// Initialize Nexus contracts
-		if err = initNexus(transition, polyBFTConfig.ProxyContractsAdmin, polyBFTConfig); err != nil {
-			return err
-		}
+		// if err = initNexus(transition, polyBFTConfig.ProxyContractsAdmin, polyBFTConfig); err != nil {
+		// 	return err
+		// }
 
 		bridgeCfg := polyBFTConfig.Bridge
 		if bridgeCfg != nil {
