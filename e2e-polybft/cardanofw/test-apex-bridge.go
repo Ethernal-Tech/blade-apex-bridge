@@ -303,7 +303,6 @@ func RunApexBridge(
 
 	fmt.Printf("Apex bridge setup done\n")
 
-	// TODO:Nexus upgrade this
 	SetupAndRunNexusBridge(t, bladeValidatorsNum)
 
 	return &ApexSystem{

@@ -28,6 +28,7 @@ func SetupAndRunNexusBridge(
 	t *testing.T,
 	bladeValidatorsNum int,
 ) *TestNexusBridge {
+	t.Helper()
 
 	admin, err := wallet.GenerateAccount()
 	require.NoError(t, err)
@@ -57,6 +58,8 @@ func DeployWithProxy(
 	contract string,
 	// aditional params?
 ) *ContractProxy {
+	t.Helper()
+
 	// deploy contract
 	testProxy, err := contractsapi.GetArtifactFromArtifactName(contract)
 	require.NoError(t, err)

@@ -22,6 +22,7 @@ const (
 func main() {
 	_, filename, _, _ := runtime.Caller(0) //nolint: dogsled
 	currentPath := path.Dir(filename)
+	//nolint: godox
 	// TODO:Nexus update path
 	proxyscpath := path.Join(currentPath, "../test-contracts")
 	nexusscpath := path.Join(currentPath, "../../../../apex-bridge-smartcontracts/artifacts/contracts/")
@@ -41,6 +42,7 @@ package contractsapi
 		},
 	}
 
+	//nolint: godox
 	// TODO:Nexus list all contracts here Path - artifact.json name, Name outputNameArtifact
 	nexusContracts := []struct {
 		Path string
