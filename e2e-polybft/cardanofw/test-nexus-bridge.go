@@ -14,9 +14,14 @@ import (
 type NexusBridgeOption func(*TestNexusBridge)
 
 type TestNexusBridge struct {
-	validatorCount int
-	cluster        *framework.TestCluster
-	contractAddr   types.Address
+	validatorCount   int
+	cluster          *framework.TestCluster
+	testContractAddr types.Address
+}
+
+type ContractProxy struct {
+	contractAddr types.Address
+	proxyAddr    types.Address
 }
 
 func SetupAndRunNexusBridge(
@@ -34,22 +39,58 @@ func SetupAndRunNexusBridge(
 	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(cluster.Servers[0].JSONRPC()))
 	require.NoError(t, err)
 
-	// deploy contract
-	receipt, err := txRelayer.SendTransaction(
-		types.NewTx(types.NewLegacyTx(
-			types.WithFrom(admin.Ecdsa.Address()),
-			types.WithInput(contractsapi.TestCardanoVerifySign.Bytecode),
-		)),
-		admin.Ecdsa)
-	require.NoError(t, err)
-
-	contractAddr := types.Address(receipt.ContractAddress)
+	testContractAddr := DeployWithProxy(t, txRelayer, admin, "ClaimsTest")
 
 	cv := &TestNexusBridge{
-		validatorCount: bladeValidatorsNum,
-		cluster:        cluster,
-		contractAddr:   contractAddr,
+		validatorCount:   bladeValidatorsNum,
+		cluster:          cluster,
+		testContractAddr: testContractAddr.proxyAddr,
 	}
 
 	return cv
+}
+
+func DeployWithProxy(
+	t *testing.T,
+	txRelayer txrelayer.TxRelayer,
+	admin *wallet.Account,
+	contract string,
+	// aditional params?
+) *ContractProxy {
+	// deploy contract
+	testProxy, err := contractsapi.GetArtifactFromArtifactName(contract)
+	require.NoError(t, err)
+
+	receipt, err := txRelayer.SendTransaction(
+		types.NewTx(types.NewLegacyTx(
+			types.WithFrom(admin.Ecdsa.Address()),
+			types.WithInput(testProxy.Bytecode),
+		)),
+		admin.Ecdsa)
+	require.NoError(t, err)
+	require.Equal(t, receipt.Status, uint64(1))
+
+	contractAddr := types.Address(receipt.ContractAddress)
+
+	// deploy proxy contract and call initialize
+	proxyContract, err := contractsapi.GetArtifactFromArtifactName("ERC1967Proxy")
+	require.NoError(t, err)
+
+	receipt, err = txRelayer.SendTransaction(
+		types.NewTx(types.NewLegacyTx(
+			types.WithFrom(admin.Ecdsa.Address()),
+			types.WithInput(proxyContract.Bytecode),
+			types.WithInput(contractAddr[:]),
+			types.WithInput([]byte("initialize")),
+		)),
+		admin.Ecdsa)
+	require.NoError(t, err)
+	require.Equal(t, receipt.Status, uint64(1))
+
+	proxyAddr := types.Address(receipt.ContractAddress)
+
+	return &ContractProxy{
+		contractAddr: contractAddr,
+		proxyAddr:    proxyAddr,
+	}
 }
