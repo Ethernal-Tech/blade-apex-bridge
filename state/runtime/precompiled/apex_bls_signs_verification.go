@@ -21,8 +21,8 @@ var (
 	errApexBLSSignatureVerificationInvalidInput     = errors.New("invalid input")
 	errApexBLSSignatureVerificationQuorumNotReached = errors.New("quorum not reached")
 	// apexBLSInputDataMultiABIType is the ABI signature of the precompiled contract input data
-	// (hash, signature, blsPublicKeys, bitmap, quorumCount)
-	apexBLSInputDataMultiABIType = abi.MustNewType("tuple(bytes32, bytes, uint256[4][], bytes, uint8)")
+	// (hash, signature, blsPublicKeys, bitmap)
+	apexBLSInputDataMultiABIType = abi.MustNewType("tuple(bytes32, bytes, uint256[4][], bytes)")
 	// (hash, signature, blsPublicKey)
 	apexBLSInputDataSingleABIType = abi.MustNewType("tuple(bytes32, bytes, uint256[4])")
 )
@@ -74,7 +74,6 @@ func (c *apexBLSSignatureVerification) run(input []byte, caller types.Address, h
 	} else {
 		allPublicKeys := data["2"].([][4]*big.Int) //nolint:forcetypeassert
 		bmp := bitmap.Bitmap(data["3"].([]byte))   //nolint:forcetypeassert
-		quorumCnt := data["4"].(uint8)             //nolint:forcetypeassert
 
 		for i, x := range allPublicKeys {
 			if bmp.IsSet(uint64(i)) {
@@ -82,8 +81,9 @@ func (c *apexBLSSignatureVerification) run(input []byte, caller types.Address, h
 			}
 		}
 
+		quorumCnt := (len(allPublicKeys)*2)/3 + 1
 		// ensure that the number of serialized public keys meets the required quorum count
-		if len(publicKeysSerialized) < int(quorumCnt) {
+		if len(publicKeysSerialized) < quorumCnt {
 			return nil, errApexBLSSignatureVerificationQuorumNotReached
 		}
 	}

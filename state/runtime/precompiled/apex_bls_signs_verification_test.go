@@ -25,10 +25,8 @@ func Test_apexBLSSignatureVerification(t *testing.T) {
 		return append([]byte{apexBLSSingleTypeByte}, encoded...)
 	}
 
-	encodeMulti := func(
-		hash []byte, signature []byte, publicKeys [][4]*big.Int, bmp bitmap.Bitmap, quorumCnt uint8,
-	) []byte {
-		encoded, err := abi.Encode([]interface{}{hash, signature, publicKeys, bmp, quorumCnt},
+	encodeMulti := func(hash []byte, signature []byte, publicKeys [][4]*big.Int, bmp bitmap.Bitmap) []byte {
+		encoded, err := abi.Encode([]interface{}{hash, signature, publicKeys, bmp},
 			apexBLSInputDataMultiABIType)
 		require.NoError(t, err)
 
@@ -96,41 +94,49 @@ func Test_apexBLSSignatureVerification(t *testing.T) {
 	t.Run("correct multi 1", func(t *testing.T) {
 		signature, bmp := aggregateSignatures(signatures, 0, 5, 4, 3, 6, 2)
 
-		out, err := b.run(encodeMulti(message, signature, pubKeys, bmp, 6), types.ZeroAddress, nil)
+		out, err := b.run(encodeMulti(message, signature, pubKeys, bmp), types.ZeroAddress, nil)
 		require.NoError(t, err)
 		require.Equal(t, abiBoolTrue, out)
 	})
 
 	t.Run("correct multi 2", func(t *testing.T) {
-		signature, bmp := aggregateSignatures(signatures, 4, 5, 1)
+		signature, bmp := aggregateSignatures(signatures, 4, 5, 1, 7, 0, 2, 6)
 
-		out, err := b.run(encodeMulti(message, signature, pubKeys, bmp, 1), types.ZeroAddress, nil)
+		out, err := b.run(encodeMulti(message, signature, pubKeys, bmp), types.ZeroAddress, nil)
 		require.NoError(t, err)
 		require.Equal(t, abiBoolTrue, out)
 	})
 
 	t.Run("correct multi 3", func(t *testing.T) {
-		signature, bmp := aggregateSignatures(signatures, 0, 1, 2, 3, 4, 7, 5)
+		signature, bmp := aggregateSignatures(signatures, 0, 1, 2, 3, 4, 7, 5, 6)
 
-		out, err := b.run(encodeMulti(message, signature, pubKeys, bmp, 1), types.ZeroAddress, nil)
+		out, err := b.run(encodeMulti(message, signature, pubKeys, bmp), types.ZeroAddress, nil)
 		require.NoError(t, err)
 		require.Equal(t, abiBoolTrue, out)
 	})
 
 	t.Run("correct multi 4", func(t *testing.T) {
-		signature, bmp := aggregateSignatures(signatures, 7, 6, 5, 1, 3)
+		signature, bmp := aggregateSignatures(signatures, 7, 6, 5, 1, 3, 2)
 
-		out, err := b.run(encodeMulti(message, signature, pubKeys, bmp, 1), types.ZeroAddress, nil)
+		out, err := b.run(encodeMulti(message, signature, pubKeys, bmp), types.ZeroAddress, nil)
 		require.NoError(t, err)
 		require.Equal(t, abiBoolTrue, out)
 	})
 
-	t.Run("wrong multi", func(t *testing.T) {
-		signature, bmp := aggregateSignatures(signatures, 7, 6, 5, 1, 3)
+	t.Run("wrong multi 1", func(t *testing.T) {
+		signature, bmp := aggregateSignatures(signatures, 7, 6, 5, 1, 3, 2)
+
+		out, err := b.run(encodeMulti(append([]byte{1}, message...), signature, pubKeys, bmp), types.ZeroAddress, nil)
+		require.NoError(t, err)
+		require.Equal(t, abiBoolTrue, out)
+	})
+
+	t.Run("wrong multi 2", func(t *testing.T) {
+		signature, bmp := aggregateSignatures(signatures, 7, 6, 5, 1, 3, 0)
 
 		bmp.Set(uint64(2))
 
-		out, err := b.run(encodeMulti(message, signature, pubKeys, bmp, 1), types.ZeroAddress, nil)
+		out, err := b.run(encodeMulti(message, signature, pubKeys, bmp), types.ZeroAddress, nil)
 		require.NoError(t, err)
 		require.Equal(t, abiBoolFalse, out)
 	})
@@ -138,7 +144,7 @@ func Test_apexBLSSignatureVerification(t *testing.T) {
 	t.Run("multi quorum not reached", func(t *testing.T) {
 		signature, bmp := aggregateSignatures(signatures, 7, 6, 5, 1, 3)
 
-		_, err := b.run(encodeMulti(message, signature, pubKeys, bmp, 7), types.ZeroAddress, nil)
+		_, err := b.run(encodeMulti(message, signature, pubKeys, bmp), types.ZeroAddress, nil)
 		require.ErrorIs(t, err, errApexBLSSignatureVerificationQuorumNotReached)
 	})
 }
