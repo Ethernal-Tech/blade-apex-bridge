@@ -1,6 +1,7 @@
 package cardanofw
 
 import (
+	"fmt"
 	"log"
 	"testing"
 
@@ -43,6 +44,16 @@ func SetupAndRunNexusBridge(
 	cluster := framework.NewTestCluster(t, bladeValidatorsNum,
 		framework.WithBladeAdmin(admin.Address().String()),
 	)
+
+	cleanupFunc := func() {
+		fmt.Printf("Stopping nexus bridge\n")
+
+		cluster.Stop()
+
+		fmt.Printf("Stopped nexus bridge\n")
+	}
+
+	t.Cleanup(cleanupFunc)
 
 	cluster.WaitForReady(t)
 
