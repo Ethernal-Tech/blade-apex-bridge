@@ -655,7 +655,7 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 		}
 
 		validators, err := genesis.ReadValidatorsByPrefix(
-			cluster.Config.TmpDir, cluster.Config.ValidatorPrefix, nil, true)
+			cluster.Config.TmpDir, cluster.Config.ValidatorPrefix, nil, true, config.InitialPort)
 		require.NoError(t, err)
 
 		if cluster.Config.BootnodeCount > 0 {
@@ -974,9 +974,8 @@ func (c *TestCluster) WaitForGeneric(dur time.Duration, fn func(*TestServer) boo
 func (c *TestCluster) getOpenPort() int64 {
 	if c.initialPort == 0 {
 		c.initialPort = c.Config.InitialPort
-	} else {
-		c.initialPort++
 	}
+	c.initialPort++
 
 	return c.initialPort
 }
