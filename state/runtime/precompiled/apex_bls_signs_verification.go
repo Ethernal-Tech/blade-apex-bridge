@@ -15,6 +15,7 @@ import (
 
 const (
 	apexBLSSingleTypeByte = 0
+	apexBLSMultiTypeByte  = 1
 )
 
 var (
@@ -41,7 +42,7 @@ func (c *apexBLSSignatureVerification) gas(input []byte, _ *chain.ForksInTime) u
 // Run runs the precompiled contract with the given input.
 // Input must be ABI encoded:
 // - if first byte is 0 then other bytes are decoded as tuple(bytes32, bytes, uint256[4])
-// - otherwise other input bytes are decoded as tuple(bytes32, bytes, uint256[4][], bytes, uint8)
+// - otherwise other input bytes are decoded as tuple(bytes32, bytes, uint256[4][], bytes)
 // Output could be an error or ABI encoded "bool" value
 func (c *apexBLSSignatureVerification) run(input []byte, caller types.Address, host runtime.Host) ([]byte, error) {
 	if len(input) == 0 {

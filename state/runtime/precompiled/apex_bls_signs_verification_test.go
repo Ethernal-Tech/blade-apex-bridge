@@ -30,7 +30,7 @@ func Test_apexBLSSignatureVerification(t *testing.T) {
 			apexBLSInputDataMultiABIType)
 		require.NoError(t, err)
 
-		return append([]byte{0x76}, encoded...)
+		return append([]byte{apexBLSMultiTypeByte}, encoded...)
 	}
 
 	aggregateSignatures := func(
