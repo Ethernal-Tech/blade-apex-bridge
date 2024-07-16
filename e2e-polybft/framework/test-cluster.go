@@ -151,6 +151,8 @@ type TestClusterConfig struct {
 	UseTLS      bool
 	TLSCertFile string
 	TLSKeyFile  string
+
+	InitialPort int64
 }
 
 func (c *TestClusterConfig) Dir(name string) string {
@@ -278,6 +280,12 @@ func WithValidatorSnapshot(validatorsLen uint64) ClusterOption {
 func WithBridge() ClusterOption {
 	return func(h *TestClusterConfig) {
 		h.HasBridge = true
+	}
+}
+
+func WithInitialPort(initialPort int64) ClusterOption {
+	return func(h *TestClusterConfig) {
+		h.InitialPort = initialPort
 	}
 }
 
@@ -514,6 +522,7 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 		HasBridge:     false,
 		VotingDelay:   10,
 		ApexBridge:    true,
+		InitialPort:   30300,
 	}
 
 	if config.ValidatorPrefix == "" {
@@ -539,11 +548,10 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 	require.NoError(t, err)
 
 	cluster := &TestCluster{
-		Servers:     []*TestServer{},
-		Config:      config,
-		initialPort: 30300,
-		failCh:      make(chan struct{}),
-		once:        sync.Once{},
+		Servers: []*TestServer{},
+		Config:  config,
+		failCh:  make(chan struct{}),
+		once:    sync.Once{},
 	}
 
 	// in case no validators are specified in opts, all nodes will be validators
@@ -964,7 +972,11 @@ func (c *TestCluster) WaitForGeneric(dur time.Duration, fn func(*TestServer) boo
 }
 
 func (c *TestCluster) getOpenPort() int64 {
-	c.initialPort++
+	if c.initialPort == 0 {
+		c.initialPort = c.Config.InitialPort
+	} else {
+		c.initialPort++
+	}
 
 	return c.initialPort
 }

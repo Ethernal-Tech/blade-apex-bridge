@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type NexusBridgeOption func(*TestNexusBridge)
+type NexusBridgeOption func(*TestEVMChain)
 
-type TestNexusBridge struct {
+type TestEVMChain struct {
 	validatorCount   int
 	cluster          *framework.TestCluster
 	testContractAddr types.Address
@@ -26,10 +26,11 @@ type ContractProxy struct {
 	proxyAddr    types.Address
 }
 
-func SetupAndRunNexusBridge(
+func SetupAndRunEVMChain(
 	t *testing.T,
 	bladeValidatorsNum int,
-) *TestNexusBridge {
+	initialPort int64,
+) *TestEVMChain {
 	t.Helper()
 
 	// Nexus contracts
@@ -42,6 +43,7 @@ func SetupAndRunNexusBridge(
 	require.NoError(t, err)
 
 	cluster := framework.NewTestCluster(t, bladeValidatorsNum,
+		framework.WithInitialPort(initialPort),
 		framework.WithBladeAdmin(admin.Address().String()),
 	)
 
@@ -62,13 +64,13 @@ func SetupAndRunNexusBridge(
 
 	testContractAddr := DeployWithProxy(t, txRelayer, admin, ClaimsTest, ERC1967Proxy)
 
-	cv := &TestNexusBridge{
+	fmt.Printf("EVM chain %d setup done\n", initialPort)
+
+	return &TestEVMChain{
 		validatorCount:   bladeValidatorsNum,
 		cluster:          cluster,
 		testContractAddr: testContractAddr.proxyAddr,
 	}
-
-	return cv
 }
 
 func DeployWithProxy(

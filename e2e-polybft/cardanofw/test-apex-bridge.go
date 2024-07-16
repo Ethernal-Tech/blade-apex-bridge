@@ -291,6 +291,8 @@ func RunApexBridge(
 	vectorCluster := clusters[1]
 	require.NotNil(t, vectorCluster)
 
+	SetupAndRunEVMChain(t, bladeValidatorsNum, int64(30400))
+
 	cb := SetupAndRunApexBridge(t,
 		ctx,
 		// path.Join(path.Dir(primeCluster.Config.TmpDir), "bridge"),
@@ -302,10 +304,6 @@ func RunApexBridge(
 	)
 
 	fmt.Printf("Apex bridge setup done\n")
-
-	SetupAndRunNexusBridge(t, bladeValidatorsNum)
-
-	fmt.Printf("Nexus bridge setup done\n")
 
 	return &ApexSystem{
 		PrimeCluster:  primeCluster,
