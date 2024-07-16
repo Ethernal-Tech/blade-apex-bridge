@@ -1,10 +1,11 @@
 package cardanofw
 
 import (
+	"log"
 	"testing"
 
-	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
+	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
@@ -30,6 +31,12 @@ func SetupAndRunNexusBridge(
 ) *TestNexusBridge {
 	t.Helper()
 
+	// Nexus contracts
+	err := InitNexusContracts()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	admin, err := wallet.GenerateAccount()
 	require.NoError(t, err)
 
@@ -37,10 +44,12 @@ func SetupAndRunNexusBridge(
 		framework.WithBladeAdmin(admin.Address().String()),
 	)
 
+	cluster.WaitForReady(t)
+
 	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(cluster.Servers[0].JSONRPC()))
 	require.NoError(t, err)
 
-	testContractAddr := DeployWithProxy(t, txRelayer, admin, "ClaimsTest")
+	testContractAddr := DeployWithProxy(t, txRelayer, admin, ClaimsTest, ERC1967Proxy)
 
 	cv := &TestNexusBridge{
 		validatorCount:   bladeValidatorsNum,
@@ -55,19 +64,17 @@ func DeployWithProxy(
 	t *testing.T,
 	txRelayer txrelayer.TxRelayer,
 	admin *wallet.Account,
-	contract string,
+	contract *contracts.Artifact,
+	proxy *contracts.Artifact,
 	// aditional params?
 ) *ContractProxy {
 	t.Helper()
 
 	// deploy contract
-	testProxy, err := contractsapi.GetArtifactFromArtifactName(contract)
-	require.NoError(t, err)
-
 	receipt, err := txRelayer.SendTransaction(
 		types.NewTx(types.NewLegacyTx(
 			types.WithFrom(admin.Ecdsa.Address()),
-			types.WithInput(testProxy.Bytecode),
+			types.WithInput(contract.Bytecode),
 		)),
 		admin.Ecdsa)
 	require.NoError(t, err)
@@ -76,13 +83,10 @@ func DeployWithProxy(
 	contractAddr := types.Address(receipt.ContractAddress)
 
 	// deploy proxy contract and call initialize
-	proxyContract, err := contractsapi.GetArtifactFromArtifactName("ERC1967Proxy")
-	require.NoError(t, err)
-
 	receipt, err = txRelayer.SendTransaction(
 		types.NewTx(types.NewLegacyTx(
 			types.WithFrom(admin.Ecdsa.Address()),
-			types.WithInput(proxyContract.Bytecode),
+			types.WithInput(proxy.Bytecode),
 			types.WithInput(contractAddr[:]),
 			types.WithInput([]byte("initialize")),
 		)),

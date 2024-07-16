@@ -305,6 +305,8 @@ func RunApexBridge(
 
 	SetupAndRunNexusBridge(t, bladeValidatorsNum)
 
+	fmt.Printf("Nexus bridge setup done\n")
+
 	return &ApexSystem{
 		PrimeCluster:  primeCluster,
 		VectorCluster: vectorCluster,

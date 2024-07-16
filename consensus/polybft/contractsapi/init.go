@@ -354,12 +354,6 @@ func init() {
 		log.Fatal(err)
 	}
 
-	// Nexus contracts
-	ClaimsTest, ERC1967Proxy, err = initNexusContracts()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	contractArtifacts = map[string]*contracts.Artifact{
 		"CheckpointManager":               CheckpointManager,
 		"ExitHelper":                      ExitHelper,
@@ -420,8 +414,6 @@ func init() {
 		"Slots":                           Slots,
 		"Validators":                      Validators,
 		"TestCardanoVerifySignature":      TestCardanoVerifySign,
-		"ERC1967Proxy":                    ERC1967Proxy,
-		"ClaimsTest":                      ClaimsTest,
 	}
 }
 
