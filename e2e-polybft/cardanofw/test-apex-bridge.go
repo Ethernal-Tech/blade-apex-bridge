@@ -89,6 +89,7 @@ func SetupAndRunApexBridge(
 	t.Helper()
 
 	const (
+		sendAmount     = uint64(100_000_000_000)
 		bladeEpochSize = 5
 		numOfRetries   = 90
 		waitTime       = time.Second * 2
@@ -112,7 +113,7 @@ func SetupAndRunApexBridge(
 	primeGenesisWallet, err := GetGenesisWalletFromCluster(primeCluster.Config.TmpDir, 1)
 	require.NoError(t, err)
 
-	_, err = SendTx(ctx, txProviderPrime, primeGenesisWallet, FundTokenAmount,
+	res, err := SendTx(ctx, txProviderPrime, primeGenesisWallet, sendAmount,
 		cb.PrimeMultisigAddr, primeCluster.NetworkConfig(), []byte{})
 	require.NoError(t, err)
 
@@ -121,9 +122,9 @@ func SetupAndRunApexBridge(
 	}, numOfRetries, waitTime, IsRecoverableError)
 	require.NoError(t, err)
 
-	fmt.Printf("Prime multisig addr funded\n")
+	fmt.Printf("Prime multisig addr funded: %s\n", res)
 
-	_, err = SendTx(ctx, txProviderPrime, primeGenesisWallet, FundTokenAmount,
+	res, err = SendTx(ctx, txProviderPrime, primeGenesisWallet, sendAmount,
 		cb.PrimeMultisigFeeAddr, primeCluster.NetworkConfig(), []byte{})
 	require.NoError(t, err)
 
@@ -132,12 +133,12 @@ func SetupAndRunApexBridge(
 	}, numOfRetries, waitTime, IsRecoverableError)
 	require.NoError(t, err)
 
-	fmt.Printf("Prime multisig fee addr funded\n")
+	fmt.Printf("Prime multisig fee addr funded: %s\n", res)
 
 	vectorGenesisWallet, err := GetGenesisWalletFromCluster(vectorCluster.Config.TmpDir, 1)
 	require.NoError(t, err)
 
-	_, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, FundTokenAmount,
+	res, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, sendAmount,
 		cb.VectorMultisigAddr, vectorCluster.NetworkConfig(), []byte{})
 	require.NoError(t, err)
 
@@ -146,9 +147,9 @@ func SetupAndRunApexBridge(
 	}, numOfRetries, waitTime, IsRecoverableError)
 	require.NoError(t, err)
 
-	fmt.Printf("Vector multisig addr funded\n")
+	fmt.Printf("Vector multisig addr funded: %s\n", res)
 
-	_, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, FundTokenAmount,
+	res, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, sendAmount,
 		cb.VectorMultisigFeeAddr, vectorCluster.NetworkConfig(), []byte{})
 	require.NoError(t, err)
 
@@ -157,7 +158,7 @@ func SetupAndRunApexBridge(
 	}, numOfRetries, waitTime, IsRecoverableError)
 	require.NoError(t, err)
 
-	fmt.Printf("Vector multisig fee addr funded\n")
+	fmt.Printf("Vector multisig fee addr funded: %s\n", res)
 
 	cb.StartValidators(t, bladeEpochSize)
 
