@@ -2,7 +2,6 @@ package cardanofw
 
 import (
 	"fmt"
-	"log"
 	"testing"
 
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
@@ -10,7 +9,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
-	"github.com/stretchr/testify/require"
 )
 
 type NexusBridgeOption func(*TestEVMChain)
@@ -19,8 +17,6 @@ type TestEVMChain struct {
 	Admin            *wallet.Account
 	Cluster          *framework.TestCluster
 	TestContractAddr types.Address
-
-	validatorCount int
 }
 
 type ContractProxy struct {
@@ -30,41 +26,38 @@ type ContractProxy struct {
 
 func SetupAndRunEVMChain(
 	t *testing.T,
-	bladeValidatorsNum int,
+	validatorsCount int,
 	initialPort int64,
-) *TestEVMChain {
+) (*TestEVMChain, error) {
 	t.Helper()
 
 	// Nexus contracts
 	err := InitNexusContracts()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	admin, err := wallet.GenerateAccount()
-	require.NoError(t, err)
+	if err != nil {
+		return nil, err
+	}
 
-	cluster := framework.NewTestCluster(t, bladeValidatorsNum,
+	cluster := framework.NewTestCluster(t, validatorsCount,
 		framework.WithInitialPort(initialPort),
 		framework.WithBladeAdmin(admin.Address().String()),
 	)
 
-	cleanupFunc := func() {
-		fmt.Printf("Stopping nexus bridge\n")
-
-		cluster.Stop()
-
-		fmt.Printf("Stopped nexus bridge\n")
-	}
-
-	t.Cleanup(cleanupFunc)
-
 	cluster.WaitForReady(t)
 
 	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(cluster.Servers[0].JSONRPC()))
-	require.NoError(t, err)
+	if err != nil {
+		return nil, err
+	}
 
-	testContractAddr := DeployWithProxy(t, txRelayer, admin, ClaimsTest, ERC1967Proxy)
+	testContractAddr, err := deployWithProxy(txRelayer, admin, ClaimsTest, ERC1967Proxy)
+	if err != nil {
+		return nil, err
+	}
 
 	fmt.Printf("EVM chain %d setup done\n", initialPort)
 
@@ -72,21 +65,16 @@ func SetupAndRunEVMChain(
 		Admin:            admin,
 		Cluster:          cluster,
 		TestContractAddr: testContractAddr.proxyAddr,
-
-		validatorCount: bladeValidatorsNum,
-	}
+	}, nil
 }
 
-func DeployWithProxy(
-	t *testing.T,
+func deployWithProxy(
 	txRelayer txrelayer.TxRelayer,
 	admin *wallet.Account,
 	contract *contracts.Artifact,
 	proxy *contracts.Artifact,
 	// aditional params?
-) *ContractProxy {
-	t.Helper()
-
+) (*ContractProxy, error) {
 	// deploy contract
 	receipt, err := txRelayer.SendTransaction(
 		types.NewTx(types.NewLegacyTx(
@@ -94,8 +82,11 @@ func DeployWithProxy(
 			types.WithInput(contract.Bytecode),
 		)),
 		admin.Ecdsa)
-	require.NoError(t, err)
-	require.Equal(t, receipt.Status, uint64(1))
+	if err != nil {
+		return nil, err
+	} else if receipt.Status != uint64(1) {
+		return nil, fmt.Errorf("deploying smart contract failed: %d", receipt.Status)
+	}
 
 	contractAddr := types.Address(receipt.ContractAddress)
 
@@ -108,13 +99,14 @@ func DeployWithProxy(
 			types.WithInput([]byte("initialize")),
 		)),
 		admin.Ecdsa)
-	require.NoError(t, err)
-	require.Equal(t, receipt.Status, uint64(1))
-
-	proxyAddr := types.Address(receipt.ContractAddress)
+	if err != nil {
+		return nil, err
+	} else if receipt.Status != uint64(1) {
+		return nil, fmt.Errorf("deploying proxy smart contract failed: %d", receipt.Status)
+	}
 
 	return &ContractProxy{
 		contractAddr: contractAddr,
-		proxyAddr:    proxyAddr,
-	}
+		proxyAddr:    types.Address(receipt.ContractAddress),
+	}, nil
 }
