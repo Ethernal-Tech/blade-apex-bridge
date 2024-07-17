@@ -199,7 +199,6 @@ func TestE2E_ApexBridge(t *testing.T) {
 }
 
 func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
-	t.Skip()
 	const (
 		apiKey = "test_api_key"
 	)
@@ -278,7 +277,6 @@ for_loop:
 }
 
 func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
-	t.Skip()
 	const (
 		apiKey = "test_api_key"
 	)
@@ -571,7 +569,6 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 }
 
 func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
-	t.Skip()
 	const (
 		apiKey = "test_api_key"
 	)

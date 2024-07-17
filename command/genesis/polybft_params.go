@@ -117,7 +117,7 @@ func (p *genesisParams) generateChainConfig(o command.OutputFormatter) (*chain.C
 		rewardTokenAddr = contracts.RewardTokenContract
 	}
 
-	initialValidators, err := p.getValidatorAccounts(bootnodePortStart)
+	initialValidators, err := p.getValidatorAccounts(p.bootnodeStartingPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve genesis validators: %w", err)
 	}

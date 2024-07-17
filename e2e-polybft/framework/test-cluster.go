@@ -750,6 +750,10 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 			args = append(args, "--apex=false")
 		}
 
+		if config.InitialPort != 0 {
+			args = append(args, "--bootnode-port", fmt.Sprint(config.InitialPort+1))
+		}
+
 		// run genesis command with all the arguments
 		err = cluster.cmdRun(args...)
 		require.NoError(t, err)
