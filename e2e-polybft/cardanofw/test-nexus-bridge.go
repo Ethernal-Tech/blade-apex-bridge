@@ -16,9 +16,11 @@ import (
 type NexusBridgeOption func(*TestEVMChain)
 
 type TestEVMChain struct {
-	validatorCount   int
-	cluster          *framework.TestCluster
-	testContractAddr types.Address
+	Admin            *wallet.Account
+	Cluster          *framework.TestCluster
+	TestContractAddr types.Address
+
+	validatorCount int
 }
 
 type ContractProxy struct {
@@ -67,9 +69,11 @@ func SetupAndRunEVMChain(
 	fmt.Printf("EVM chain %d setup done\n", initialPort)
 
 	return &TestEVMChain{
-		validatorCount:   bladeValidatorsNum,
-		cluster:          cluster,
-		testContractAddr: testContractAddr.proxyAddr,
+		Admin:            admin,
+		Cluster:          cluster,
+		TestContractAddr: testContractAddr.proxyAddr,
+
+		validatorCount: bladeValidatorsNum,
 	}
 }
 

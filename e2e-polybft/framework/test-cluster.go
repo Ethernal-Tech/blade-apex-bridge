@@ -236,7 +236,7 @@ type TestCluster struct {
 	Config      *TestClusterConfig
 	Servers     []*TestServer
 	Bridge      *TestBridge
-	initialPort int64
+	currentPort int64
 
 	once         sync.Once
 	failCh       chan struct{}
@@ -548,10 +548,11 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 	require.NoError(t, err)
 
 	cluster := &TestCluster{
-		Servers: []*TestServer{},
-		Config:  config,
-		failCh:  make(chan struct{}),
-		once:    sync.Once{},
+		Servers:     []*TestServer{},
+		Config:      config,
+		failCh:      make(chan struct{}),
+		once:        sync.Once{},
+		currentPort: config.InitialPort,
 	}
 
 	// in case no validators are specified in opts, all nodes will be validators
@@ -750,9 +751,7 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 			args = append(args, "--apex=false")
 		}
 
-		if config.InitialPort != 0 {
-			args = append(args, "--bootnode-port", fmt.Sprint(config.InitialPort+1))
-		}
+		args = append(args, "--bootnode-port", fmt.Sprint(config.InitialPort))
 
 		// run genesis command with all the arguments
 		err = cluster.cmdRun(args...)
@@ -976,12 +975,10 @@ func (c *TestCluster) WaitForGeneric(dur time.Duration, fn func(*TestServer) boo
 }
 
 func (c *TestCluster) getOpenPort() int64 {
-	if c.initialPort == 0 {
-		c.initialPort = c.Config.InitialPort
-	}
-	c.initialPort++
+	port := c.currentPort
+	c.currentPort++
 
-	return c.initialPort
+	return port
 }
 
 // runCommand executes command with given arguments

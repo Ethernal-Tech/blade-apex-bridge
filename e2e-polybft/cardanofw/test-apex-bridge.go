@@ -21,6 +21,7 @@ const FundTokenAmount = uint64(100_000_000_000)
 type ApexSystem struct {
 	PrimeCluster  *TestCardanoCluster
 	VectorCluster *TestCardanoCluster
+	Nexus         *TestEVMChain
 	Bridge        *TestCardanoBridge
 }
 
@@ -291,7 +292,7 @@ func RunApexBridge(
 	vectorCluster := clusters[1]
 	require.NotNil(t, vectorCluster)
 
-	SetupAndRunEVMChain(t, bladeValidatorsNum, int64(30400))
+	nexus := SetupAndRunEVMChain(t, bladeValidatorsNum, int64(30400))
 
 	cb := SetupAndRunApexBridge(t,
 		ctx,
@@ -308,6 +309,7 @@ func RunApexBridge(
 	return &ApexSystem{
 		PrimeCluster:  primeCluster,
 		VectorCluster: vectorCluster,
+		Nexus:         nexus,
 		Bridge:        cb,
 	}
 }
