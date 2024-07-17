@@ -269,6 +269,8 @@ func RunApexBridge(
 			wg.Add(1)
 
 			go func() {
+				defer wg.Done()
+
 				fmt.Printf("Cleaning up apex bridge\n")
 				apexSystem.Bridge.StopValidators()
 				fmt.Printf("Done cleaning up apex bridge\n")
