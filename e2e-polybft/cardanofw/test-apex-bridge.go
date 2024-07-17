@@ -102,17 +102,6 @@ func SetupAndRunApexBridge(
 
 	cb := NewTestCardanoBridge(dataDir, bladeValidatorsNum, opts...)
 
-	cleanupFunc := func() {
-		fmt.Printf("Cleaning up apex bridge\n")
-
-		// cleanupDataDir()
-		cb.StopValidators()
-
-		fmt.Printf("Done cleaning up apex bridge\n")
-	}
-
-	t.Cleanup(cleanupFunc)
-
 	require.NoError(t, cb.CardanoCreateWalletsAndAddresses(primeCluster.NetworkConfig(), vectorCluster.NetworkConfig()))
 
 	fmt.Printf("Wallets and addresses created\n")
@@ -223,8 +212,6 @@ func RunApexBridge(
 
 	wg.Add(3)
 
-	fmt.Println("Starting chains...")
-
 	go func() {
 		defer wg.Done()
 
@@ -245,39 +232,61 @@ func RunApexBridge(
 		apexSystem.Nexus, errorsContainer[2] = SetupAndRunEVMChain(t, nexusValidatorsNum, nexusStartingPort)
 	}()
 
-	wg.Wait()
-
-	fmt.Println("Chains has been started...")
-
-	require.NoError(t, errors.Join(errorsContainer[:]...))
-
 	t.Cleanup(func() {
-		wg.Add(3)
-
 		fmt.Println("Stopping chains...")
 
-		go func() {
-			defer wg.Done()
+		if apexSystem.PrimeCluster != nil {
+			wg.Add(1)
 
-			errorsContainer[0] = apexSystem.PrimeCluster.Stop()
-		}()
+			go func() {
+				defer wg.Done()
 
-		go func() {
-			defer wg.Done()
+				errorsContainer[0] = apexSystem.PrimeCluster.Stop()
+			}()
+		}
 
-			errorsContainer[1] = apexSystem.VectorCluster.Stop()
-		}()
+		if apexSystem.VectorCluster != nil {
+			wg.Add(1)
 
-		go func() {
-			defer wg.Done()
+			go func() {
+				defer wg.Done()
 
-			apexSystem.Nexus.Cluster.Stop()
-		}()
+				errorsContainer[1] = apexSystem.VectorCluster.Stop()
+			}()
+		}
+
+		if apexSystem.Nexus != nil {
+			wg.Add(1)
+
+			go func() {
+				defer wg.Done()
+
+				apexSystem.Nexus.Cluster.Stop()
+			}()
+		}
+
+		if apexSystem.Bridge != nil {
+			wg.Add(1)
+
+			go func() {
+				fmt.Printf("Cleaning up apex bridge\n")
+				apexSystem.Bridge.StopValidators()
+				fmt.Printf("Done cleaning up apex bridge\n")
+			}()
+		}
 
 		wg.Wait()
 
 		fmt.Printf("Chains has been stopped...%v\n", errors.Join(errorsContainer[:]...))
 	})
+
+	fmt.Println("Starting chains...")
+
+	wg.Wait()
+
+	fmt.Println("Chains has been started...")
+
+	require.NoError(t, errors.Join(errorsContainer[:]...))
 
 	//nolint: godox
 	// TODO: apex bridge should receive nexus too, even better whole ApexSystem struct

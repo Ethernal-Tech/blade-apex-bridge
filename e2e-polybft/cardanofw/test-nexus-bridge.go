@@ -44,6 +44,7 @@ func SetupAndRunEVMChain(
 
 	cluster := framework.NewTestCluster(t, validatorsCount,
 		framework.WithInitialPort(initialPort),
+		framework.WithLogsDirSuffix("nexus"),
 		framework.WithBladeAdmin(admin.Address().String()),
 	)
 

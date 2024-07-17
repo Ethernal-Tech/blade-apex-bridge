@@ -152,7 +152,8 @@ type TestClusterConfig struct {
 	TLSCertFile string
 	TLSKeyFile  string
 
-	InitialPort int64
+	InitialPort   int64
+	LogsDirSuffix string
 }
 
 func (c *TestClusterConfig) Dir(name string) string {
@@ -198,7 +199,7 @@ func (c *TestClusterConfig) GetStdout(name string, custom ...io.Writer) io.Write
 }
 
 func (c *TestClusterConfig) initLogsDir() {
-	logsDir := path.Join("../..", fmt.Sprintf("e2e-logs-%d", startTime), c.t.Name())
+	logsDir := path.Join("../..", fmt.Sprintf("e2e-logs-%d%s", startTime, c.LogsDirSuffix), c.t.Name())
 	if c.IsPropertyTest {
 		// property tests run cluster multiple times, so each cluster run will be in the main folder
 		// e2e-logs-{someNumber}/NameOfPropertyTest/NameOfPropertyTest-{someNumber}
@@ -286,6 +287,12 @@ func WithBridge() ClusterOption {
 func WithInitialPort(initialPort int64) ClusterOption {
 	return func(h *TestClusterConfig) {
 		h.InitialPort = initialPort
+	}
+}
+
+func WithLogsDirSuffix(suffix string) ClusterOption {
+	return func(h *TestClusterConfig) {
+		h.LogsDirSuffix = suffix
 	}
 }
 
