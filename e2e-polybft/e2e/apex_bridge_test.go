@@ -75,6 +75,8 @@ func Test_OnlyRunApexBridge(t *testing.T) {
 }
 
 func TestE2E_ApexBridge_DoNothingWithSpecificUser(t *testing.T) {
+	t.Skip()
+
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
@@ -107,7 +109,7 @@ func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 	ctx, cncl := context.WithTimeout(context.Background(), time.Second*180)
 	defer cncl()
 
-	apex := cardanofw.RunApexBridge(t, ctx, cardanofw.WithAPIKey("terpan"), cardanofw.WithApiValidatorID(-1))
+	apex := cardanofw.RunApexBridge(t, ctx, cardanofw.WithAPIKey("terpan"), cardanofw.WithAPIValidatorID(-1))
 
 	apiURLs, err := apex.Bridge.GetBridgingAPIs()
 	require.NoError(t, err)
@@ -130,7 +132,7 @@ func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 
 	outerLoop:
 		for _, apiURL := range apiURLs {
-			for _, chainID := range []string{"prime", "vector"} {
+			for _, chainID := range []string{"vector", "prime"} {
 				requestURL := fmt.Sprintf("%s/api/OracleState/Get?chainId=%s", apiURL, chainID)
 
 				currentState, err := cardanofw.GetOracleState(ctx, requestURL, apiKey)

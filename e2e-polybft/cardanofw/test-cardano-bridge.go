@@ -60,7 +60,7 @@ type TestCardanoBridge struct {
 	apiValidatorID int // -1 all validators
 }
 
-func WithApiValidatorID(apiValidatorID int) CardanoBridgeOption {
+func WithAPIValidatorID(apiValidatorID int) CardanoBridgeOption {
 	return func(h *TestCardanoBridge) {
 		h.apiValidatorID = apiValidatorID
 	}
@@ -248,9 +248,9 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 
 func (cb *TestCardanoBridge) StartValidatorComponents(ctx context.Context) (err error) {
 	for _, validator := range cb.validators {
-		hasApi := cb.apiValidatorID == -1 || validator.ID == cb.apiValidatorID
+		hasAPI := cb.apiValidatorID == -1 || validator.ID == cb.apiValidatorID
 
-		if err = validator.Start(ctx, hasApi); err != nil {
+		if err = validator.Start(ctx, hasAPI); err != nil {
 			return err
 		}
 	}
@@ -295,9 +295,9 @@ func (cb *TestCardanoBridge) GetBridgingAPI() (string, error) {
 
 func (cb *TestCardanoBridge) GetBridgingAPIs() (res []string, err error) {
 	for _, validator := range cb.validators {
-		hasApi := cb.apiValidatorID == -1 || validator.ID == cb.apiValidatorID
+		hasAPI := cb.apiValidatorID == -1 || validator.ID == cb.apiValidatorID
 
-		if hasApi {
+		if hasAPI {
 			if validator.APIPort == 0 {
 				return nil, fmt.Errorf("api port not defined")
 			}
