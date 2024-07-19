@@ -233,12 +233,14 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 				primeNetworkID = uint(primeCluster.Config.NetworkType)
 				vectorNetworkID = uint(vectorCluster.Config.NetworkType)
 			} else {
-				primeNetworkURL = primeCluster.Servers[indx].NetworkURL()
-				vectorNetworkURL = vectorCluster.Servers[indx].NetworkURL()
-				primeNetworkMagic = primeCluster.Servers[indx].config.NetworkMagic
-				vectorNetworkMagic = vectorCluster.Servers[indx].config.NetworkMagic
-				primeNetworkID = uint(primeCluster.Servers[indx].config.NetworkID)
-				vectorNetworkID = uint(vectorCluster.Servers[indx].config.NetworkID)
+				primeServer := primeCluster.Servers[indx%len(primeCluster.Servers)]
+				vectorServer := vectorCluster.Servers[indx%len(vectorCluster.Servers)]
+				primeNetworkURL = primeServer.NetworkURL()
+				vectorNetworkURL = vectorServer.NetworkURL()
+				primeNetworkMagic = primeServer.config.NetworkMagic
+				vectorNetworkMagic = vectorServer.config.NetworkMagic
+				primeNetworkID = uint(primeServer.config.NetworkID)
+				vectorNetworkID = uint(vectorServer.config.NetworkID)
 			}
 
 			errs[indx] = validator.GenerateConfigs(
