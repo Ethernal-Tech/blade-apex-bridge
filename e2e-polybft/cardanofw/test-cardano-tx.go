@@ -90,8 +90,6 @@ func sendTx(ctx context.Context,
 		return "", err
 	}
 
-	fmt.Printf("TX: Magic: %v, Sender: %v, Receiver: %v, Amount: %v, TxHash: %v\n", networkTestMagic, caddr, receiver, amount, txHash)
-
 	return txHash, txProvider.SubmitTx(ctx, signedTx)
 }
 
