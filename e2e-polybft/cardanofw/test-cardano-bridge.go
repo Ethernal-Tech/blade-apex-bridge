@@ -101,6 +101,11 @@ func WithTelemetryConfig(tc string) CardanoBridgeOption {
 func NewTestCardanoBridge(
 	dataDirPath string, validatorCount int, opts ...CardanoBridgeOption,
 ) *TestCardanoBridge {
+	const (
+		apiPortStart = 40000
+		apiKey       = "test_api_key"
+	)
+
 	validators := make([]*TestCardanoValidator, validatorCount)
 
 	for i := 0; i < validatorCount; i++ {
@@ -112,6 +117,8 @@ func NewTestCardanoBridge(
 		validatorCount: validatorCount,
 		validators:     validators,
 		apiValidatorID: 1,
+		apiPortStart:   apiPortStart,
+		apiKey:         apiKey,
 	}
 
 	for _, opt := range opts {

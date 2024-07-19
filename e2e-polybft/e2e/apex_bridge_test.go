@@ -103,13 +103,13 @@ func TestE2E_ApexBridge_DoNothingWithSpecificUser(t *testing.T) {
 
 func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 	const (
-		apiKey = "test_api_key"
+		apiKey = "my_api_key"
 	)
 
 	ctx, cncl := context.WithTimeout(context.Background(), time.Second*180)
 	defer cncl()
 
-	apex := cardanofw.RunApexBridge(t, ctx, cardanofw.WithAPIKey("terpan"), cardanofw.WithAPIValidatorID(-1))
+	apex := cardanofw.RunApexBridge(t, ctx, cardanofw.WithAPIKey(apiKey), cardanofw.WithAPIValidatorID(-1))
 
 	apiURLs, err := apex.Bridge.GetBridgingAPIs()
 	require.NoError(t, err)

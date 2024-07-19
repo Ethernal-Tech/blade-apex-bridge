@@ -157,8 +157,6 @@ func SetupAndRunApexBridge(
 		bladeEpochSize = 5
 		numOfRetries   = 90
 		waitTime       = time.Second * 2
-		apiPort        = 40000
-		apiKey         = "test_api_key"
 	)
 
 	cleanupDataDir := func() {
@@ -166,11 +164,6 @@ func SetupAndRunApexBridge(
 	}
 
 	cleanupDataDir()
-
-	opts = append(opts,
-		WithAPIPortStart(apiPort),
-		WithAPIKey(apiKey),
-	)
 
 	cb := NewTestCardanoBridge(dataDir, bladeValidatorsNum, opts...)
 
