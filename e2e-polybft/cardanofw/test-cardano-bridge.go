@@ -24,7 +24,6 @@ const (
 
 	BridgeSCAddr = "0xABEF000000000000000000000000000000000000"
 
-	RunAPIOnValidatorID     = 1
 	RunRelayerOnValidatorID = 1
 )
 
@@ -49,14 +48,23 @@ type TestCardanoBridge struct {
 
 	cluster *framework.TestCluster
 
-	apiPortStart    int
-	apiKey          string
-	telemetryConfig string
+	apiPortStart                  int
+	apiKey                        string
+	telemetryConfig               string
+	targetOneCardanoClusterServer bool
 
 	vectorTTLInc                uint64
 	vectorSlotRoundingThreshold uint64
 	primeTTLInc                 uint64
 	primeSlotRoundingThreshold  uint64
+
+	apiValidatorID int // -1 all validators
+}
+
+func WithAPIValidatorID(apiValidatorID int) CardanoBridgeOption {
+	return func(h *TestCardanoBridge) {
+		h.apiValidatorID = apiValidatorID
+	}
 }
 
 func WithAPIPortStart(apiPortStart int) CardanoBridgeOption {
@@ -91,9 +99,20 @@ func WithTelemetryConfig(tc string) CardanoBridgeOption {
 	}
 }
 
+func WithTargetOneCardanoClusterServer(targetOneCardanoClusterServer bool) CardanoBridgeOption {
+	return func(h *TestCardanoBridge) {
+		h.targetOneCardanoClusterServer = targetOneCardanoClusterServer
+	}
+}
+
 func NewTestCardanoBridge(
 	dataDirPath string, validatorCount int, opts ...CardanoBridgeOption,
 ) *TestCardanoBridge {
+	const (
+		apiPortStart = 40000
+		apiKey       = "test_api_key"
+	)
+
 	validators := make([]*TestCardanoValidator, validatorCount)
 
 	for i := 0; i < validatorCount; i++ {
@@ -104,6 +123,9 @@ func NewTestCardanoBridge(
 		dataDirPath:    dataDirPath,
 		validatorCount: validatorCount,
 		validators:     validators,
+		apiValidatorID: 1,
+		apiPortStart:   apiPortStart,
+		apiKey:         apiKey,
 	}
 
 	for _, opt := range opts {
@@ -159,6 +181,10 @@ func (cb *TestCardanoBridge) StopValidators() {
 	}
 }
 
+func (cb *TestCardanoBridge) GetValidatorsCount() int {
+	return len(cb.validators)
+}
+
 func (cb *TestCardanoBridge) RegisterChains(
 	primeTokenSupply *big.Int,
 	vectorTokenSupply *big.Int,
@@ -209,16 +235,43 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 				telemetryConfig = cb.telemetryConfig
 			}
 
+			var (
+				primeNetworkURL    string
+				vectorNetworkURL   string
+				primeNetworkMagic  uint
+				vectorNetworkMagic uint
+				primeNetworkID     uint
+				vectorNetworkID    uint
+			)
+
+			if cb.targetOneCardanoClusterServer {
+				primeNetworkURL = primeCluster.NetworkURL()
+				vectorNetworkURL = vectorCluster.NetworkURL()
+				primeNetworkMagic = primeCluster.Config.NetworkMagic
+				vectorNetworkMagic = vectorCluster.Config.NetworkMagic
+				primeNetworkID = uint(primeCluster.Config.NetworkType)
+				vectorNetworkID = uint(vectorCluster.Config.NetworkType)
+			} else {
+				primeServer := primeCluster.Servers[indx%len(primeCluster.Servers)]
+				vectorServer := vectorCluster.Servers[indx%len(vectorCluster.Servers)]
+				primeNetworkURL = primeServer.NetworkURL()
+				vectorNetworkURL = vectorServer.NetworkURL()
+				primeNetworkMagic = primeServer.config.NetworkMagic
+				vectorNetworkMagic = vectorServer.config.NetworkMagic
+				primeNetworkID = uint(primeServer.config.NetworkID)
+				vectorNetworkID = uint(vectorServer.config.NetworkID)
+			}
+
 			errs[indx] = validator.GenerateConfigs(
-				primeCluster.NetworkURL(),
-				primeCluster.Config.NetworkMagic,
-				uint(primeCluster.Config.NetworkType),
+				primeNetworkURL,
+				primeNetworkMagic,
+				primeNetworkID,
 				primeCluster.OgmiosURL(),
 				cb.primeSlotRoundingThreshold,
 				cb.primeTTLInc,
-				vectorCluster.NetworkURL(),
-				vectorCluster.Config.NetworkMagic,
-				uint(vectorCluster.Config.NetworkType),
+				vectorNetworkURL,
+				vectorNetworkMagic,
+				vectorNetworkID,
 				vectorCluster.OgmiosURL(),
 				cb.vectorSlotRoundingThreshold,
 				cb.vectorTTLInc,
@@ -236,7 +289,9 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 
 func (cb *TestCardanoBridge) StartValidatorComponents(ctx context.Context) (err error) {
 	for _, validator := range cb.validators {
-		if err = validator.Start(ctx, RunAPIOnValidatorID == validator.ID); err != nil {
+		hasAPI := cb.apiValidatorID == -1 || validator.ID == cb.apiValidatorID
+
+		if err = validator.Start(ctx, hasAPI); err != nil {
 			return err
 		}
 	}
@@ -271,17 +326,32 @@ func (cb TestCardanoBridge) StopRelayer() error {
 }
 
 func (cb *TestCardanoBridge) GetBridgingAPI() (string, error) {
+	apis, err := cb.GetBridgingAPIs()
+	if err != nil {
+		return "", err
+	}
+
+	return apis[0], nil
+}
+
+func (cb *TestCardanoBridge) GetBridgingAPIs() (res []string, err error) {
 	for _, validator := range cb.validators {
-		if validator.ID == RunAPIOnValidatorID {
+		hasAPI := cb.apiValidatorID == -1 || validator.ID == cb.apiValidatorID
+
+		if hasAPI {
 			if validator.APIPort == 0 {
-				return "", fmt.Errorf("api port not defined")
+				return nil, fmt.Errorf("api port not defined")
 			}
 
-			return fmt.Sprintf("http://localhost:%d", validator.APIPort), nil
+			res = append(res, fmt.Sprintf("http://localhost:%d", validator.APIPort))
 		}
 	}
 
-	return "", fmt.Errorf("not running API")
+	if len(res) == 0 {
+		return nil, fmt.Errorf("not running API")
+	}
+
+	return res, nil
 }
 
 func (cb *TestCardanoBridge) cardanoCreateWallets() (err error) {
