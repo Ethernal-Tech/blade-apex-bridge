@@ -17,6 +17,7 @@ import (
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/umbracle/ethgo"
 )
 
 // Download Cardano executables from https://github.com/IntersectMBO/cardano-node/releases/tag/8.7.3 and unpack tar.gz file
@@ -36,8 +37,10 @@ func Test_OnlyRunApexBridge(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	runOpts := cardanofw.NewApexSystemRunOpts()
+
 	apex := cardanofw.RunApexBridge(
-		t, ctx,
+		t, ctx, runOpts,
 		cardanofw.WithAPIKey(apiKey),
 	)
 
@@ -80,7 +83,9 @@ func TestE2E_ApexBridge_DoNothingWithSpecificUser(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex := cardanofw.RunApexBridge(t, ctx)
+	runOpts := cardanofw.NewApexSystemRunOpts()
+
+	apex := cardanofw.RunApexBridge(t, ctx, runOpts)
 	user := apex.CreateAndFundExistingUser(
 		t, ctx,
 		"58201825bce09711e1563fc1702587da6892d1d869894386323bd4378ea5e3d6cba0",
@@ -109,7 +114,13 @@ func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 	ctx, cncl := context.WithTimeout(context.Background(), time.Second*180)
 	defer cncl()
 
-	apex := cardanofw.RunApexBridge(t, ctx, cardanofw.WithAPIKey(apiKey), cardanofw.WithAPIValidatorID(-1))
+	runOpts := cardanofw.NewApexSystemRunOpts()
+
+	apex := cardanofw.RunApexBridge(
+		t, ctx, runOpts,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithAPIValidatorID(-1),
+	)
 
 	apiURLs, err := apex.Bridge.GetBridgingAPIs()
 	require.NoError(t, err)
@@ -178,7 +189,9 @@ func TestE2E_ApexBridge(t *testing.T) {
 	ctx, cncl := context.WithTimeout(context.Background(), time.Second*180)
 	defer cncl()
 
-	apex := cardanofw.RunApexBridge(t, ctx)
+	runOpts := cardanofw.NewApexSystemRunOpts()
+
+	apex := cardanofw.RunApexBridge(t, ctx, runOpts)
 	user := apex.CreateAndFundUser(t, ctx, uint64(5_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
 
 	txProviderPrime := apex.GetPrimeTxProvider()
@@ -208,8 +221,12 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	runOpts := cardanofw.NewApexSystemRunOpts(
+		cardanofw.WithEvmEnabled(true),
+	)
+
 	apex := cardanofw.RunApexBridge(
-		t, ctx,
+		t, ctx, runOpts,
 		cardanofw.WithPrimeTTL(20, 1),
 		cardanofw.WithVectorTTL(30, 1),
 		cardanofw.WithAPIKey(apiKey),
@@ -286,8 +303,10 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	runOpts := cardanofw.NewApexSystemRunOpts()
+
 	apex := cardanofw.RunApexBridge(
-		t, ctx,
+		t, ctx, runOpts,
 		cardanofw.WithAPIKey(apiKey),
 	)
 	user := apex.CreateAndFundUser(t, ctx, uint64(50_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
@@ -578,8 +597,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	runOpts := cardanofw.NewApexSystemRunOpts()
+
 	apex := cardanofw.RunApexBridge(
-		t, ctx,
+		t, ctx, runOpts,
 		cardanofw.WithAPIKey(apiKey),
 	)
 	user := apex.CreateAndFundUser(t, ctx, uint64(20_000_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
@@ -1349,8 +1370,10 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	runOpts := cardanofw.NewApexSystemRunOpts()
+
 	apex := cardanofw.RunApexBridge(
-		t, ctx,
+		t, ctx, runOpts,
 		cardanofw.WithAPIKey(apiKey),
 	)
 	user := apex.CreateAndFundUser(t, ctx, uint64(20_000_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
@@ -1690,4 +1713,37 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Printf("Success count: %v. prevAmount: %v. newAmount: %v. expectedAmount: %v\n", succeededCountVector, prevAmountVector, newAmountVector, expectedAmountVector)
 	})
+}
+
+func Test_NexusSanityCheck(t *testing.T) {
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	// TODO: Disable vector
+	runOpts := cardanofw.NewApexSystemRunOpts(cardanofw.WithEvmEnabled(true))
+
+	apex := cardanofw.RunApexBridge(
+		t, ctx, runOpts,
+		cardanofw.WithAPIKey(apiKey),
+	)
+
+	sendAmount := uint64(1)
+
+	expectedAmount := ethgo.Ether(sendAmount).Uint64()
+
+	user := apex.CreateAndFundNexusUser(t, ctx, sendAmount)
+	require.NotNil(t, user)
+
+	ethBalance, err := cardanofw.GetEthAmount(ctx, apex.Nexus, user)
+	require.NoError(t, err)
+	require.NotZero(t, ethBalance)
+
+	err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, user, func(val uint64) bool {
+		return val == expectedAmount
+	}, 10, 10)
+	require.NoError(t, err)
 }

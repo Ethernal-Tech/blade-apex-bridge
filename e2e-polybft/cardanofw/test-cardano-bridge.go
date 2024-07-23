@@ -30,6 +30,9 @@ const (
 type CardanoBridgeOption func(*TestCardanoBridge)
 
 type TestCardanoBridge struct {
+	vectorDisabled bool
+	evmEnabled     bool
+
 	validatorCount int
 	dataDirPath    string
 
@@ -120,6 +123,8 @@ func NewTestCardanoBridge(
 	}
 
 	bridge := &TestCardanoBridge{
+		vectorDisabled: false,
+		evmEnabled:     false,
 		dataDirPath:    dataDirPath,
 		validatorCount: validatorCount,
 		validators:     validators,
