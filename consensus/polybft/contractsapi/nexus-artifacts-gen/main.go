@@ -22,10 +22,8 @@ const (
 func main() {
 	_, filename, _, _ := runtime.Caller(0) //nolint: dogsled
 	currentPath := path.Dir(filename)
-	//nolint: godox
-	// TODO:Nexus update path
 	proxyscpath := path.Join(currentPath, "../test-contracts")
-	nexusscpath := path.Join(currentPath, "../../../../apex-bridge-smartcontracts/artifacts/contracts/")
+	nexusscpath := path.Join(currentPath, "../../../../apex-evm-gateway/artifacts/contracts/")
 
 	str := `// This is auto-generated file. DO NOT EDIT.
 package contractsapi
@@ -42,15 +40,25 @@ package contractsapi
 		},
 	}
 
-	//nolint: godox
-	// TODO:Nexus list all contracts here Path - artifact.json name, Name outputNameArtifact
 	nexusContracts := []struct {
 		Path string
 		Name string
 	}{
 		{
-			"Claims.sol",
-			"ClaimsTest",
+			"ERC20TokenPredicate.sol",
+			"Nexus_ERC20TokenPredicate",
+		},
+		{
+			"Gateway.sol",
+			"Nexus_Gateway",
+		},
+		{
+			"NativeERC20Mintable.sol",
+			"Nexus_NativeERC20Mintable",
+		},
+		{
+			"Validators.sol",
+			"Nexus_Validators",
 		},
 	}
 
