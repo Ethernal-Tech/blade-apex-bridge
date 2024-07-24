@@ -30,11 +30,7 @@ const (
 type CardanoBridgeOption func(*TestCardanoBridge)
 
 type TestCardanoBridge struct {
-	vectorDisabled bool
-	evmEnabled     bool
-
-	validatorCount int
-	dataDirPath    string
+	dataDirPath string
 
 	validators  []*TestCardanoValidator
 	relayerNode *framework.Node
@@ -51,90 +47,23 @@ type TestCardanoBridge struct {
 
 	cluster *framework.TestCluster
 
-	apiPortStart                  int
-	apiKey                        string
-	telemetryConfig               string
-	targetOneCardanoClusterServer bool
-
-	vectorTTLInc                uint64
-	vectorSlotRoundingThreshold uint64
-	primeTTLInc                 uint64
-	primeSlotRoundingThreshold  uint64
-
-	apiValidatorID int // -1 all validators
-}
-
-func WithAPIValidatorID(apiValidatorID int) CardanoBridgeOption {
-	return func(h *TestCardanoBridge) {
-		h.apiValidatorID = apiValidatorID
-	}
-}
-
-func WithAPIPortStart(apiPortStart int) CardanoBridgeOption {
-	return func(h *TestCardanoBridge) {
-		h.apiPortStart = apiPortStart
-	}
-}
-
-func WithAPIKey(apiKey string) CardanoBridgeOption {
-	return func(h *TestCardanoBridge) {
-		h.apiKey = apiKey
-	}
-}
-
-func WithVectorTTL(threshold, ttlInc uint64) CardanoBridgeOption {
-	return func(h *TestCardanoBridge) {
-		h.vectorSlotRoundingThreshold = threshold
-		h.vectorTTLInc = ttlInc
-	}
-}
-
-func WithPrimeTTL(threshold, ttlInc uint64) CardanoBridgeOption {
-	return func(h *TestCardanoBridge) {
-		h.primeSlotRoundingThreshold = threshold
-		h.primeTTLInc = ttlInc
-	}
-}
-
-func WithTelemetryConfig(tc string) CardanoBridgeOption {
-	return func(h *TestCardanoBridge) {
-		h.telemetryConfig = tc // something like "0.0.0.0:5001,localhost:8126"
-	}
-}
-
-func WithTargetOneCardanoClusterServer(targetOneCardanoClusterServer bool) CardanoBridgeOption {
-	return func(h *TestCardanoBridge) {
-		h.targetOneCardanoClusterServer = targetOneCardanoClusterServer
-	}
+	config *ApexSystemConfig
 }
 
 func NewTestCardanoBridge(
-	dataDirPath string, validatorCount int, opts ...CardanoBridgeOption,
+	dataDirPath string, apexSystemConfig *ApexSystemConfig,
 ) *TestCardanoBridge {
-	const (
-		apiPortStart = 40000
-		apiKey       = "test_api_key"
-	)
 
-	validators := make([]*TestCardanoValidator, validatorCount)
+	validators := make([]*TestCardanoValidator, apexSystemConfig.BladeValidatorCount)
 
-	for i := 0; i < validatorCount; i++ {
+	for i := 0; i < apexSystemConfig.BladeValidatorCount; i++ {
 		validators[i] = NewTestCardanoValidator(dataDirPath, i+1)
 	}
 
 	bridge := &TestCardanoBridge{
-		vectorDisabled: false,
-		evmEnabled:     false,
-		dataDirPath:    dataDirPath,
-		validatorCount: validatorCount,
-		validators:     validators,
-		apiValidatorID: 1,
-		apiPortStart:   apiPortStart,
-		apiKey:         apiKey,
-	}
-
-	for _, opt := range opts {
-		opt(bridge)
+		dataDirPath: dataDirPath,
+		validators:  validators,
+		config:      apexSystemConfig,
 	}
 
 	return bridge
@@ -157,7 +86,7 @@ func (cb *TestCardanoBridge) CardanoCreateWalletsAndAddresses(
 func (cb *TestCardanoBridge) StartValidators(t *testing.T, epochSize int) {
 	t.Helper()
 
-	cb.cluster = framework.NewTestCluster(t, cb.validatorCount,
+	cb.cluster = framework.NewTestCluster(t, cb.config.BladeValidatorCount,
 		framework.WithEpochSize(epochSize),
 	)
 
@@ -237,7 +166,7 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 
 			telemetryConfig := ""
 			if indx == 0 {
-				telemetryConfig = cb.telemetryConfig
+				telemetryConfig = cb.config.TelemetryConfig
 			}
 
 			var (
@@ -249,7 +178,7 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 				vectorNetworkID    uint
 			)
 
-			if cb.targetOneCardanoClusterServer {
+			if cb.config.TargetOneCardanoClusterServer {
 				primeNetworkURL = primeCluster.NetworkURL()
 				vectorNetworkURL = vectorCluster.NetworkURL()
 				primeNetworkMagic = primeCluster.Config.NetworkMagic
@@ -272,16 +201,16 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 				primeNetworkMagic,
 				primeNetworkID,
 				primeCluster.OgmiosURL(),
-				cb.primeSlotRoundingThreshold,
-				cb.primeTTLInc,
+				cb.config.PrimeSlotRoundingThreshold,
+				cb.config.PrimeTTLInc,
 				vectorNetworkURL,
 				vectorNetworkMagic,
 				vectorNetworkID,
 				vectorCluster.OgmiosURL(),
-				cb.vectorSlotRoundingThreshold,
-				cb.vectorTTLInc,
-				cb.apiPortStart+indx,
-				cb.apiKey,
+				cb.config.VectorSlotRoundingThreshold,
+				cb.config.VectorTTLInc,
+				cb.config.ApiPortStart+indx,
+				cb.config.ApiKey,
 				telemetryConfig,
 			)
 		}(validator, i)
@@ -294,7 +223,7 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 
 func (cb *TestCardanoBridge) StartValidatorComponents(ctx context.Context) (err error) {
 	for _, validator := range cb.validators {
-		hasAPI := cb.apiValidatorID == -1 || validator.ID == cb.apiValidatorID
+		hasAPI := cb.config.ApiValidatorID == -1 || validator.ID == cb.config.ApiValidatorID
 
 		if err = validator.Start(ctx, hasAPI); err != nil {
 			return err
@@ -341,7 +270,7 @@ func (cb *TestCardanoBridge) GetBridgingAPI() (string, error) {
 
 func (cb *TestCardanoBridge) GetBridgingAPIs() (res []string, err error) {
 	for _, validator := range cb.validators {
-		hasAPI := cb.apiValidatorID == -1 || validator.ID == cb.apiValidatorID
+		hasAPI := cb.config.ApiValidatorID == -1 || validator.ID == cb.config.ApiValidatorID
 
 		if hasAPI {
 			if validator.APIPort == 0 {
@@ -376,10 +305,11 @@ func (cb *TestCardanoBridge) cardanoCreateWallets() (err error) {
 }
 
 func (cb *TestCardanoBridge) cardanoPrepareKeys() (err error) {
-	cb.primeMultisigKeys = make([]string, cb.validatorCount)
-	cb.primeMultisigFeeKeys = make([]string, cb.validatorCount)
-	cb.vectorMultisigKeys = make([]string, cb.validatorCount)
-	cb.vectorMultisigFeeKeys = make([]string, cb.validatorCount)
+	validatorCount := cb.config.BladeValidatorCount
+	cb.primeMultisigKeys = make([]string, validatorCount)
+	cb.primeMultisigFeeKeys = make([]string, validatorCount)
+	cb.vectorMultisigKeys = make([]string, validatorCount)
+	cb.vectorMultisigFeeKeys = make([]string, validatorCount)
 
 	for idx, validator := range cb.validators {
 		primeWallet, err := validator.GetCardanoWallet(ChainIDPrime)

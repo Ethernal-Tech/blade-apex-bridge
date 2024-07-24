@@ -37,10 +37,8 @@ func Test_OnlyRunApexBridge(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	runOpts := cardanofw.NewApexSystemRunOpts()
-
 	apex := cardanofw.RunApexBridge(
-		t, ctx, runOpts,
+		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 	)
 
@@ -83,9 +81,7 @@ func TestE2E_ApexBridge_DoNothingWithSpecificUser(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	runOpts := cardanofw.NewApexSystemRunOpts()
-
-	apex := cardanofw.RunApexBridge(t, ctx, runOpts)
+	apex := cardanofw.RunApexBridge(t, ctx)
 	user := apex.CreateAndFundExistingUser(
 		t, ctx,
 		"58201825bce09711e1563fc1702587da6892d1d869894386323bd4378ea5e3d6cba0",
@@ -114,10 +110,8 @@ func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 	ctx, cncl := context.WithTimeout(context.Background(), time.Second*180)
 	defer cncl()
 
-	runOpts := cardanofw.NewApexSystemRunOpts()
-
 	apex := cardanofw.RunApexBridge(
-		t, ctx, runOpts,
+		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithAPIValidatorID(-1),
 	)
@@ -189,9 +183,7 @@ func TestE2E_ApexBridge(t *testing.T) {
 	ctx, cncl := context.WithTimeout(context.Background(), time.Second*180)
 	defer cncl()
 
-	runOpts := cardanofw.NewApexSystemRunOpts()
-
-	apex := cardanofw.RunApexBridge(t, ctx, runOpts)
+	apex := cardanofw.RunApexBridge(t, ctx)
 	user := apex.CreateAndFundUser(t, ctx, uint64(5_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
 
 	txProviderPrime := apex.GetPrimeTxProvider()
@@ -221,12 +213,8 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	runOpts := cardanofw.NewApexSystemRunOpts(
-		cardanofw.WithEvmEnabled(true),
-	)
-
 	apex := cardanofw.RunApexBridge(
-		t, ctx, runOpts,
+		t, ctx,
 		cardanofw.WithPrimeTTL(20, 1),
 		cardanofw.WithVectorTTL(30, 1),
 		cardanofw.WithAPIKey(apiKey),
@@ -303,10 +291,8 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	runOpts := cardanofw.NewApexSystemRunOpts()
-
 	apex := cardanofw.RunApexBridge(
-		t, ctx, runOpts,
+		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 	)
 	user := apex.CreateAndFundUser(t, ctx, uint64(50_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
@@ -597,10 +583,8 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	runOpts := cardanofw.NewApexSystemRunOpts()
-
 	apex := cardanofw.RunApexBridge(
-		t, ctx, runOpts,
+		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 	)
 	user := apex.CreateAndFundUser(t, ctx, uint64(20_000_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
@@ -1370,10 +1354,8 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	runOpts := cardanofw.NewApexSystemRunOpts()
-
 	apex := cardanofw.RunApexBridge(
-		t, ctx, runOpts,
+		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 	)
 	user := apex.CreateAndFundUser(t, ctx, uint64(20_000_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
@@ -1723,12 +1705,10 @@ func Test_NexusSanityCheck(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	// TODO: Disable vector
-	runOpts := cardanofw.NewApexSystemRunOpts(cardanofw.WithEvmEnabled(true))
-
 	apex := cardanofw.RunApexBridge(
-		t, ctx, runOpts,
+		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithNexusEnabled(true),
 	)
 
 	sendAmount := uint64(1)
