@@ -90,11 +90,86 @@ func TestE2E_ApexBridge_DoNothingWithSpecificUser(t *testing.T) {
 	fmt.Println("Prime multisig", apex.Bridge.PrimeMultisigAddr)
 	fmt.Println("Prime fee", apex.Bridge.PrimeMultisigFeeAddr)
 	fmt.Println("Prime User", user.PrimeAddress)
+	fmt.Println("Prime testnet", apex.PrimeCluster.Config.NetworkMagic)
+	fmt.Println("Prime ogmios", apex.PrimeCluster.OgmiosServer.Port())
 	fmt.Println("Vector multisig", apex.Bridge.VectorMultisigAddr)
 	fmt.Println("Vector fee", apex.Bridge.VectorMultisigFeeAddr)
 	fmt.Println("Vector User", user.VectorAddress)
+	fmt.Println("Vector testnet", apex.VectorCluster.Config.NetworkMagic)
+	fmt.Println("Vector ogmios", apex.VectorCluster.OgmiosServer.Port())
 
 	time.Sleep(time.Second * 60 * 60) // one hour sleep :)
+}
+
+func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
+	const (
+		apiKey = "my_api_key"
+	)
+
+	ctx, cncl := context.WithTimeout(context.Background(), time.Second*180)
+	defer cncl()
+
+	apex := cardanofw.RunApexBridge(t, ctx, cardanofw.WithAPIKey(apiKey), cardanofw.WithAPIValidatorID(-1))
+
+	apiURLs, err := apex.Bridge.GetBridgingAPIs()
+	require.NoError(t, err)
+
+	require.Equal(t, apex.Bridge.GetValidatorsCount(), len(apiURLs))
+
+	ticker := time.NewTicker(time.Second * 4)
+	defer ticker.Stop()
+
+	goodOraclesCount := 0
+
+	for goodOraclesCount < apex.Bridge.GetValidatorsCount() {
+		select {
+		case <-ctx.Done():
+			t.Fatal("timeout")
+		case <-ticker.C:
+		}
+
+		goodOraclesCount = 0
+
+	outerLoop:
+		for _, apiURL := range apiURLs {
+			for _, chainID := range []string{"vector", "prime"} {
+				requestURL := fmt.Sprintf("%s/api/OracleState/Get?chainId=%s", apiURL, chainID)
+
+				currentState, err := cardanofw.GetOracleState(ctx, requestURL, apiKey)
+				if err != nil || currentState == nil {
+					continue
+				}
+
+				multisigAddr, feeAddr := "", ""
+				sumMultisig, sumFee := uint64(0), uint64(0)
+
+				switch chainID {
+				case "prime":
+					multisigAddr, feeAddr = apex.Bridge.PrimeMultisigAddr, apex.Bridge.PrimeMultisigFeeAddr
+				case "vector":
+					multisigAddr, feeAddr = apex.Bridge.VectorMultisigAddr, apex.Bridge.VectorMultisigFeeAddr
+				}
+
+				for _, utxo := range currentState.Utxos[multisigAddr] {
+					sumMultisig += utxo.Output.Amount
+				}
+
+				for _, utxo := range currentState.Utxos[feeAddr] {
+					sumFee += utxo.Output.Amount
+				}
+
+				if sumMultisig != 0 || sumFee != 0 {
+					fmt.Printf("%s sums: %d, %d\n", requestURL, sumMultisig, sumFee)
+				}
+
+				if sumMultisig != cardanofw.FundTokenAmount || sumFee != cardanofw.FundTokenAmount {
+					break outerLoop
+				} else {
+					goodOraclesCount++
+				}
+			}
+		}
+	}
 }
 
 func TestE2E_ApexBridge(t *testing.T) {
@@ -133,8 +208,8 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 
 	apex := cardanofw.RunApexBridge(
 		t, ctx,
-		cardanofw.WithPrimeTTLInc(1),
-		cardanofw.WithVectorTTLInc(1),
+		cardanofw.WithPrimeTTL(20, 1),
+		cardanofw.WithVectorTTL(30, 1),
 		cardanofw.WithAPIKey(apiKey),
 	)
 	user := apex.CreateAndFundUser(t, ctx, uint64(5_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
@@ -150,11 +225,10 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 	timeoutTimer := time.NewTimer(time.Second * 300)
 	defer timeoutTimer.Stop()
 
-	wentFromFailedOnDestinationToIncludedInBatch := false
-
 	var (
-		prevStatus    string
-		currentStatus string
+		wentFromFailedOnDestinationToIncludedInBatch bool
+		prevStatus                                   string
+		currentStatus                                string
 	)
 
 	apiURL, err := apex.Bridge.GetBridgingAPI()
@@ -191,14 +265,13 @@ for_loop:
 			fmt.Printf("currentStatus = %s\n", currentStatus)
 		}
 
-		if prevStatus == "FailedToExecuteOnDestination" && currentStatus == "IncludedInBatch" {
+		if prevStatus == "FailedToExecuteOnDestination" &&
+			(currentStatus == "IncludedInBatch" || currentStatus == "SubmittedToDestination") {
 			wentFromFailedOnDestinationToIncludedInBatch = true
 
 			break for_loop
 		}
 	}
-
-	fmt.Printf("wentFromFailedOnDestinationToIncludedInBatch = %v\n", wentFromFailedOnDestinationToIncludedInBatch)
 
 	require.True(t, wentFromFailedOnDestinationToIncludedInBatch)
 }
@@ -224,12 +297,11 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		feeAmount := uint64(1_100_000)
 
 		receivers := map[string]uint64{
-			user.VectorAddress:                sendAmount * 10, // 10Ada
-			apex.Bridge.VectorMultisigFeeAddr: feeAmount,
+			user.VectorAddress: sendAmount * 10, // 10Ada
 		}
 
 		bridgingRequestMetadata, err := cardanofw.CreateMetaData(
-			user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()))
+			user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()), feeAmount)
 		require.NoError(t, err)
 
 		txHash, err := cardanofw.SendTx(
@@ -248,12 +320,11 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 			feeAmount := uint64(1_100_000)
 
 			receivers := map[string]uint64{
-				user.VectorAddress:                sendAmount * 10, // 10Ada
-				apex.Bridge.VectorMultisigFeeAddr: feeAmount,
+				user.VectorAddress: sendAmount * 10, // 10Ada
 			}
 
 			bridgingRequestMetadata, err := cardanofw.CreateMetaData(
-				user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()))
+				user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()), feeAmount)
 			require.NoError(t, err)
 
 			txHash, err := cardanofw.SendTx(
@@ -299,12 +370,11 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		for i := 0; i < instances; i++ {
 			idx := i
 			receivers := map[string]uint64{
-				user.VectorAddress:                sendAmount * 10, // 10Ada
-				apex.Bridge.VectorMultisigFeeAddr: feeAmount,
+				user.VectorAddress: sendAmount * 10, // 10Ada
 			}
 
 			bridgingRequestMetadata, err := cardanofw.CreateMetaData(
-				user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()))
+				user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()), feeAmount)
 			require.NoError(t, err)
 
 			wg.Add(1)
@@ -333,12 +403,11 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		feeAmount := uint64(1_100_000)
 
 		receivers := map[string]uint64{
-			user.VectorAddress:                sendAmount,
-			apex.Bridge.VectorMultisigFeeAddr: feeAmount,
+			user.VectorAddress: sendAmount,
 		}
 
 		bridgingRequestMetadata, err := cardanofw.CreateMetaData(
-			user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()))
+			user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()), feeAmount)
 		require.NoError(t, err)
 
 		// Send only half bytes of metadata making it invalid
@@ -1355,12 +1424,11 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 				} else {
 					feeAmount := uint64(1_100_000)
 					receivers := map[string]uint64{
-						user.VectorAddress:                sendAmount * 10, // 10Ada
-						apex.Bridge.VectorMultisigFeeAddr: feeAmount,
+						user.VectorAddress: sendAmount * 10, // 10Ada
 					}
 
 					bridgingRequestMetadata, err := cardanofw.CreateMetaData(
-						user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()))
+						user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()), feeAmount)
 					require.NoError(t, err)
 
 					_, err = cardanofw.SendTx(
@@ -1442,12 +1510,11 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 				} else {
 					feeAmount := uint64(1_100_000)
 					receivers := map[string]uint64{
-						user.VectorAddress:                sendAmount * 10, // 10Ada+
-						apex.Bridge.VectorMultisigFeeAddr: feeAmount,
+						user.VectorAddress: sendAmount * 10, // 10Ada+
 					}
 
 					bridgingRequestMetadata, err := cardanofw.CreateMetaData(
-						user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()))
+						user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()), feeAmount)
 					require.NoError(t, err)
 
 					_, err = cardanofw.SendTx(
@@ -1547,12 +1614,11 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 				} else {
 					feeAmount := uint64(1_100_000)
 					receivers := map[string]uint64{
-						user.VectorAddress:                sendAmount * 10, // 10Ada+
-						apex.Bridge.VectorMultisigFeeAddr: feeAmount,
+						user.VectorAddress: sendAmount * 10, // 10Ada+
 					}
 
 					bridgingRequestMetadata, err := cardanofw.CreateMetaData(
-						user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()))
+						user.PrimeAddress, receivers, cardanofw.GetDestinationChainID(apex.PrimeCluster.NetworkConfig()), feeAmount)
 					require.NoError(t, err)
 
 					_, err = cardanofw.SendTx(
@@ -1576,12 +1642,11 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 				} else {
 					feeAmount := uint64(1_100_000)
 					receivers := map[string]uint64{
-						user.PrimeAddress:                sendAmount * 10, // 10Ada+
-						apex.Bridge.PrimeMultisigFeeAddr: feeAmount,
+						user.PrimeAddress: sendAmount * 10, // 10Ada+
 					}
 
 					bridgingRequestMetadata, err := cardanofw.CreateMetaData(
-						user.VectorAddress, receivers, cardanofw.GetDestinationChainID(apex.VectorCluster.NetworkConfig()))
+						user.VectorAddress, receivers, cardanofw.GetDestinationChainID(apex.VectorCluster.NetworkConfig()), feeAmount)
 					require.NoError(t, err)
 
 					_, err = cardanofw.SendTx(
