@@ -24,7 +24,7 @@ require (
 	github.com/hashicorp/golang-lru v1.0.2
 	github.com/hashicorp/hcl v1.0.1-vault-5
 	github.com/hashicorp/vault/api v1.14.0
-	github.com/holiman/uint256 v1.2.4
+	github.com/holiman/uint256 v1.3.0
 	github.com/json-iterator/go v1.1.12
 	github.com/libp2p/go-libp2p v0.33.2
 	github.com/libp2p/go-libp2p-kbucket v0.6.3
@@ -45,27 +45,31 @@ require (
 	github.com/umbracle/go-eth-bn256 v0.0.0-20230125114011-47cb310d9b0b
 	github.com/valyala/fastjson v1.6.4
 	go.etcd.io/bbolt v1.3.10
-	golang.org/x/crypto v0.23.0
+	golang.org/x/crypto v0.25.0
 	golang.org/x/sync v0.7.0
-	golang.org/x/tools v0.21.0
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d
 	google.golang.org/genproto v0.0.0-20240401170217-c3f982113cda
 	google.golang.org/grpc v1.64.0
-	google.golang.org/protobuf v1.34.1
+	google.golang.org/protobuf v1.34.2
 	gopkg.in/DataDog/dd-trace-go.v1 v1.64.0
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
 	gopkg.in/yaml.v3 v3.0.1
 	pgregory.net/rapid v1.1.0
 )
 
+// TODO:Sasa revert back to cardano-infra after merge
+replace github.com/Ethernal-Tech/cardano-infrastructure => ../cardano-infrastructure
+
 require (
 	cloud.google.com/go/auth v0.4.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.2 // indirect
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	cloud.google.com/go/iam v1.1.8 // indirect
-	github.com/blinklabs-io/gouroboros v0.79.0 // indirect
-	github.com/fxamacker/cbor/v2 v2.6.0 // indirect
+	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/blinklabs-io/gouroboros v0.90.0 // indirect
+	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
-	github.com/utxorpc/go-codegen v0.5.0 // indirect
+	github.com/utxorpc/go-codegen v0.7.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 )
 
@@ -79,7 +83,7 @@ require (
 	github.com/DataDog/go-tuf v1.0.2-0.5.2 // indirect
 	github.com/DataDog/gostackparse v0.7.0 // indirect
 	github.com/DataDog/sketches-go v1.4.2 // indirect
-	github.com/Microsoft/go-winio v0.6.1 // indirect
+	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
@@ -89,7 +93,7 @@ require (
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
-	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/containerd/continuity v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
@@ -102,6 +106,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.6.0-alpha.5 // indirect
 	github.com/elastic/gosigar v0.14.2 // indirect
+	github.com/ethereum/go-ethereum v1.14.7
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/flynn/noise v1.1.0 // indirect
@@ -115,7 +120,7 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/snappy v0.0.4 // indirect
+	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5 // indirect
@@ -231,9 +236,9 @@ require (
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/oauth2 v0.20.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/term v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/term v0.22.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.180.0 // indirect

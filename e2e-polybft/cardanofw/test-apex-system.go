@@ -14,7 +14,7 @@ import (
 type ApexSystem struct {
 	PrimeCluster  *TestCardanoCluster
 	VectorCluster *TestCardanoCluster
-	Nexus         *TestEVMChain
+	Nexus         *TestEVMBridge
 	Bridge        *TestCardanoBridge
 	EvmBridge     *TestCardanoBridge // TODO:Sasa - type za ovo
 
@@ -183,8 +183,8 @@ func RunApexBridge(
 		go func() {
 			defer wg.Done()
 
-			apexSystem.Nexus, errorsContainer[2] = SetupAndRunEVMChain(
-				t, apexConfig.NexusValidatorCount, apexConfig.NexusStartingPort)
+			apexSystem.Nexus, errorsContainer[2] = RunEVMChain(
+				t, "../../evm-bridge-data-tmp-"+t.Name(), apexConfig)
 		}()
 	}
 
@@ -250,6 +250,11 @@ func RunApexBridge(
 		t, ctx,
 		// path.Join(path.Dir(primeCluster.Config.TmpDir), "bridge"),
 		"../../e2e-bridge-data-tmp-"+t.Name(),
+		apexSystem,
+	)
+
+	SetupAndRunNexusBridge(
+		t, ctx,
 		apexSystem,
 	)
 

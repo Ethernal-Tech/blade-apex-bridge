@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
 	ci "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/stretchr/testify/require"
 	"github.com/umbracle/ethgo/abi"
 )
 
@@ -21,144 +22,266 @@ var (
 	tokenName = "TEST"
 )
 
-type NexusBridgeOption func(*TestEVMChain)
+type NexusBridgeOption func(*TestEVMBridge)
 
-type TestEVMChain struct {
-	Admin            *wallet.Account
-	Validators       []*wallet.Account
-	Cluster          *framework.TestCluster
-	TestContractAddr types.Address
+type TestEVMBridge struct {
+	Admin      *wallet.Account
+	Validators []*TestNexusValidator
+	Cluster    *framework.TestCluster
+
+	validatorWallets []*EthTxWallet
+	relayerWallet    *EthTxWallet
+
+	contracts *ContractsAddrs
+
+	Config *ApexSystemConfig
 }
 
-type ContractProxy struct {
-	contractAddr types.Address
-	proxyAddr    types.Address
+type ContractsAddrs struct {
+	erc20Predicate      types.Address
+	nativeErc20Mintable types.Address
+	validators          types.Address
+	gateway             types.Address
 }
 
-func SetupAndRunEVMChain(
+func RunEVMChain(
 	t *testing.T,
-	validatorsCount int,
-	initialPort int64,
-) (*TestEVMChain, error) {
+	dataDirPath string,
+	config *ApexSystemConfig,
+) (*TestEVMBridge, error) {
 	t.Helper()
-
-	// Nexus contracts
-	err := InitNexusContracts()
-	if err != nil {
-		return nil, err
-	}
-
-	premineAddrs := make([]types.Address, validatorsCount+1)
 
 	admin, err := wallet.GenerateAccount()
 	if err != nil {
 		return nil, err
 	}
-	premineAddrs[validatorsCount] = admin.Address()
 
-	validators := make([]*wallet.Account, validatorsCount)
-	for i := 0; i < validatorsCount; i++ {
-		validator, err := wallet.GenerateAccount()
-		if err != nil {
-			return nil, err
-		}
-
-		validators[i] = validator
-		premineAddrs[i] = validator.Address()
-	}
-
-	cluster := framework.NewTestCluster(t, validatorsCount,
-		framework.WithPremine(premineAddrs...),
-		framework.WithInitialPort(initialPort),
+	cluster := framework.NewTestCluster(t, config.NexusValidatorCount,
+		framework.WithPremine(admin.Address()),
+		framework.WithInitialPort(config.NexusStartingPort),
 		framework.WithLogsDirSuffix("nexus"),
 		framework.WithBladeAdmin(admin.Address().String()),
 	)
 
+	validators := make([]*TestNexusValidator, config.NexusValidatorCount)
+
+	for i := 0; i < config.NexusValidatorCount; i++ {
+		validators[i] = NewTestNexusValidator(dataDirPath, i+1)
+	}
+
 	cluster.WaitForReady(t)
 
-	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(cluster.Servers[0].JSONRPC()))
+	fmt.Printf("EVM chain %d setup done\n", config.NexusStartingPort)
+
+	return &TestEVMBridge{
+		Admin:      admin,
+		Cluster:    cluster,
+		Validators: validators,
+
+		Config: config,
+	}, nil
+}
+
+func SetupAndRunNexusBridge(
+	t *testing.T,
+	ctx context.Context,
+	apexSystem *ApexSystem,
+) {
+	nexus := apexSystem.Nexus
+
+	err := nexus.nexusCreateWalletsAndAddresses()
+	require.NoError(t, err)
+
+	nexus.deployContracts()
+
+	// Generate configs
+
+	// Start
+}
+
+func GetEthAmount(ctx context.Context, evmChain *TestEVMBridge, wallet *wallet.Account) (uint64, error) {
+	ethAmount, err := evmChain.Cluster.Servers[0].JSONRPC().GetBalance(wallet.Address(), jsonrpc.LatestBlockNumberOrHash)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	// TODO: create cardano validator wallets (need to pass prime)
-	// ^ do this outside, like start apex bridge or w/e
+	return ethAmount.Uint64(), err
+}
 
-	// TODO: relayerAddr
-	relayerAddr := types.Address{}
+func WaitForEthAmount(ctx context.Context, evmChain *TestEVMBridge, wallet *wallet.Account, cmpHandler func(uint64) bool, numRetries int, waitTime time.Duration,
+	isRecoverableError ...ci.IsRecoverableErrorFn,
+) error {
+	return ci.ExecuteWithRetry(ctx, numRetries, waitTime, func() (bool, error) {
+		ethers, err := GetEthAmount(ctx, evmChain, wallet)
 
-	erc20PredicateProxy, err := deployWithProxy(txRelayer, admin, ERC20TokenPredicate, ERC1967Proxy, InitializeNoParams())
-	if err != nil {
-		return nil, err
+		return err == nil && cmpHandler(ethers), err
+	}, isRecoverableError...)
+}
+
+func (ec *TestEVMBridge) nexusCreateWalletsAndAddresses() error {
+	var err error
+	for idx, validator := range ec.Validators {
+		err = validator.NexusWalletCreate("evm")
+		if err != nil {
+			return err
+		}
+
+		if idx == 0 {
+			err = validator.NexusWalletCreate("relayer-evm")
+			if err != nil {
+				return err
+			}
+		}
 	}
 
-	nativeErc20MintableProxy, err := deployWithProxy(txRelayer, admin, NativeERC20Mintable, ERC1967Proxy, InitializeNoParams())
-	if err != nil {
-		return nil, err
+	ec.validatorWallets = make([]*EthTxWallet, len(ec.Validators))
+
+	for idx, validator := range ec.Validators {
+		batcherWallet, err := validator.GetNexusWallet("batcher_evm_key")
+		if err != nil {
+			return err
+		}
+
+		ec.validatorWallets[idx] = batcherWallet
+
+		if idx == 0 {
+			relayerWallet, err := validator.GetNexusWallet("relayer_evm_key")
+			if err != nil {
+				return err
+			}
+
+			ec.relayerWallet = relayerWallet
+		}
 	}
 
-	validatorsTypeApi := abi.MustNewType("address[]")
-	data, err := validatorsTypeApi.Encode(premineAddrs[:validatorsCount])
+	return err
+}
+
+func (ec *TestEVMBridge) deployContracts() error {
+	err := InitNexusContracts()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	validatorsProxy, err := deployWithProxy(txRelayer, admin, Validators, ERC1967Proxy, InitializeWithParams(data))
+	ec.contracts = &ContractsAddrs{}
+
+	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(ec.Cluster.Servers[0].JSONRPC()))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	gatewayProxy, err := deployWithProxy(txRelayer, admin, Gateway, ERC1967Proxy, InitializeNoParams())
+	// Deploy contracts with proxy & call "initialize"
+	ec.contracts.erc20Predicate, err = deployContractWithProxy(txRelayer, ec.Admin, ERC20TokenPredicate, InitializeNoParams())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = gatewaySetDependencies(txRelayer, admin, gatewayProxy.proxyAddr,
-		erc20PredicateProxy.proxyAddr, validatorsProxy.proxyAddr, relayerAddr)
+	ec.contracts.nativeErc20Mintable, err = deployContractWithProxy(txRelayer, ec.Admin, NativeERC20Mintable, InitializeNoParams())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = erc20predicateSetDependencies(txRelayer, admin, erc20PredicateProxy.proxyAddr,
-		gatewayProxy.proxyAddr, nativeErc20MintableProxy.proxyAddr)
-	if err != nil {
-		return nil, err
+	getAddrs := func(wallets []*EthTxWallet) []types.Address {
+		addresses := make([]types.Address, len(wallets))
+		for idx, validator := range wallets {
+			addresses[idx] = types.Address(validator.Addres)
+		}
+		return addresses
 	}
 
-	err = nativeErc20SetDependencies(txRelayer, admin, nativeErc20MintableProxy.proxyAddr,
-		erc20PredicateProxy.proxyAddr, tokenName, tokenName, 18, 0)
+	data, err := abi.MustNewType("address[]").Encode(getAddrs(ec.validatorWallets))
 	if err != nil {
-		return nil, err
+		return err
+	}
+
+	ec.contracts.validators, err = deployContractWithProxy(txRelayer, ec.Admin, Validators, InitializeWithParams(data))
+	if err != nil {
+		return err
+	}
+
+	ec.contracts.gateway, err = deployContractWithProxy(txRelayer, ec.Admin, Gateway, InitializeNoParams())
+	if err != nil {
+		return err
+	}
+
+	// Call "setDependencies"
+	relayerAddr := types.Address(ec.relayerWallet.Addres)
+	err = ec.contracts.gatewaySetDependencies(txRelayer, ec.Admin, relayerAddr)
+	if err != nil {
+		return err
+	}
+
+	err = ec.contracts.erc20predicateSetDependencies(txRelayer, ec.Admin)
+	if err != nil {
+		return err
+	}
+
+	err = ec.contracts.nativeErc20SetDependencies(txRelayer, ec.Admin, tokenName, tokenName, 18, 0)
+	if err != nil {
+		return err
 	}
 
 	// TODO cardano validator data
 	// validators.setdepend(gateway.addr, valAddrCardData) {v.address, valCardData}
-	err = validatorsSetDependencies(txRelayer, admin, validatorsProxy.proxyAddr,
-		gatewayProxy.proxyAddr, validators)
+	err = ec.contracts.validatorsSetDependencies(txRelayer, ec.Admin, ec.validatorWallets)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	fmt.Printf("EVM chain %d setup done\n", initialPort)
-
-	return &TestEVMChain{
-		Admin:      admin,
-		Cluster:    cluster,
-		Validators: validators,
-	}, nil
+	return nil
 }
 
-func gatewaySetDependencies(
+func deployContractWithProxy(
 	txRelayer txrelayer.TxRelayer,
 	admin *wallet.Account,
-	gatewayProxyAddr types.Address,
-	erc20PredicateAddr types.Address,
-	validatorsAddr types.Address,
+	contract *contracts.Artifact,
+	initParams []byte,
+) (types.Address, error) {
+	addr := types.Address{}
+
+	// deploy contract
+	receipt, err := txRelayer.SendTransaction(
+		types.NewTx(types.NewLegacyTx(
+			types.WithFrom(admin.Ecdsa.Address()),
+			types.WithInput(contract.Bytecode),
+		)),
+		admin.Ecdsa)
+	if err != nil {
+		return addr, err
+	} else if receipt.Status != uint64(1) {
+		return addr, fmt.Errorf("deploying smart contract failed: %d", receipt.Status)
+	}
+
+	contractAddr := types.Address(receipt.ContractAddress)
+
+	// deploy proxy contract and call initialize
+	receipt, err = txRelayer.SendTransaction(
+		types.NewTx(types.NewLegacyTx(
+			types.WithFrom(admin.Ecdsa.Address()),
+			types.WithInput(ERC1967Proxy.Bytecode),
+			types.WithInput(contractAddr[:]),
+			types.WithInput(initParams),
+		)),
+		admin.Ecdsa)
+	if err != nil {
+		return addr, err
+	} else if receipt.Status != uint64(1) {
+		return addr, fmt.Errorf("deploying proxy smart contract failed: %d", receipt.Status)
+	}
+
+	addr = types.Address(receipt.ContractAddress)
+
+	return addr, nil
+}
+
+func (ca *ContractsAddrs) gatewaySetDependencies(
+	txRelayer txrelayer.TxRelayer,
+	admin *wallet.Account,
 	relayerAddr types.Address,
 ) error {
 	gateway := GatewaySetDependenciesFn{
-		ERC20_:      erc20PredicateAddr,
-		Validators_: validatorsAddr,
+		ERC20_:      ca.erc20Predicate,
+		Validators_: ca.validators,
 		Relayer_:    relayerAddr,
 	}
 
@@ -170,7 +293,7 @@ func gatewaySetDependencies(
 	receipt, err := txRelayer.SendTransaction(
 		types.NewTx(types.NewLegacyTx(
 			types.WithFrom(admin.Address()),
-			types.WithTo(&gatewayProxyAddr),
+			types.WithTo(&ca.gateway),
 			types.WithInput(encoded),
 		)), admin.Ecdsa)
 	if err != nil {
@@ -182,16 +305,13 @@ func gatewaySetDependencies(
 	return nil
 }
 
-func erc20predicateSetDependencies(
+func (ca *ContractsAddrs) erc20predicateSetDependencies(
 	txRelayer txrelayer.TxRelayer,
 	admin *wallet.Account,
-	erc20PredicateProxyAddr types.Address,
-	gatewayAddr types.Address,
-	nativeTokenAddr types.Address,
 ) error {
 	erc20Predicate := ERC20PredicateSetDependenciesFn{
-		Gateway_:     gatewayAddr,
-		NativeToken_: nativeTokenAddr,
+		Gateway_:     ca.gateway,
+		NativeToken_: ca.nativeErc20Mintable,
 	}
 
 	encoded, err := erc20Predicate.EncodeAbi()
@@ -202,7 +322,7 @@ func erc20predicateSetDependencies(
 	receipt, err := txRelayer.SendTransaction(
 		types.NewTx(types.NewLegacyTx(
 			types.WithFrom(admin.Address()),
-			types.WithTo(&erc20PredicateProxyAddr),
+			types.WithTo(&ca.erc20Predicate),
 			types.WithInput(encoded),
 		)), admin.Ecdsa)
 	if err != nil {
@@ -214,19 +334,17 @@ func erc20predicateSetDependencies(
 	return nil
 }
 
-func nativeErc20SetDependencies(
+func (ca *ContractsAddrs) nativeErc20SetDependencies(
 	txRelayer txrelayer.TxRelayer,
 	admin *wallet.Account,
-	nativeErc20ProxyAddr types.Address,
-	predicateAddr types.Address,
-	name string, symbol string,
+	tokenName string, tokenSymbol string,
 	decimals uint8, tokenSupply int64,
 ) error {
 	nativeErc20 := NativeERC20SetDependenciesFn{
-		Predicate_: predicateAddr,
+		Predicate_: ca.erc20Predicate,
 		Owner_:     admin.Address(),
-		Name_:      name,
-		Symbol_:    symbol,
+		Name_:      tokenName,
+		Symbol_:    tokenSymbol,
 		Decimals_:  decimals,
 		Supply_:    big.NewInt(tokenSupply),
 	}
@@ -239,7 +357,7 @@ func nativeErc20SetDependencies(
 	receipt, err := txRelayer.SendTransaction(
 		types.NewTx(types.NewLegacyTx(
 			types.WithFrom(admin.Address()),
-			types.WithTo(&nativeErc20ProxyAddr),
+			types.WithTo(&ca.nativeErc20Mintable),
 			types.WithInput(encoded),
 		)), admin.Ecdsa)
 	if err != nil {
@@ -251,17 +369,15 @@ func nativeErc20SetDependencies(
 	return nil
 }
 
-func validatorsSetDependencies(
+func (ca *ContractsAddrs) validatorsSetDependencies(
 	txRelayer txrelayer.TxRelayer,
 	admin *wallet.Account,
-	validatorsProxyAddr types.Address,
-	gatewayAddr types.Address,
-	validators []*wallet.Account,
+	validators []*EthTxWallet,
 ) error {
 	// TODO: Make this with validators
 	chainData := []ValidatorAddressChainData{
 		{
-			Address_: validators[0].Address(),
+			Address_: types.Address(validators[0].Addres),
 			Data_: ValidatorChainData{
 				Key_: []*big.Int{
 					big.NewInt(0),
@@ -272,7 +388,7 @@ func validatorsSetDependencies(
 			},
 		},
 		{
-			Address_: validators[1].Address(),
+			Address_: types.Address(validators[1].Addres),
 			Data_: ValidatorChainData{
 				Key_: []*big.Int{
 					big.NewInt(0),
@@ -283,7 +399,7 @@ func validatorsSetDependencies(
 			},
 		},
 		{
-			Address_: validators[2].Address(),
+			Address_: types.Address(validators[2].Addres),
 			Data_: ValidatorChainData{
 				Key_: []*big.Int{
 					big.NewInt(0),
@@ -294,7 +410,7 @@ func validatorsSetDependencies(
 			},
 		},
 		{
-			Address_: validators[3].Address(),
+			Address_: types.Address(validators[3].Addres),
 			Data_: ValidatorChainData{
 				Key_: []*big.Int{
 					big.NewInt(0),
@@ -307,7 +423,7 @@ func validatorsSetDependencies(
 	}
 
 	validatorsData := ValidatorsSetDependenciesFn{
-		Gateway_:   gatewayAddr,
+		Gateway_:   ca.gateway,
 		ChainData_: chainData,
 	}
 	_ = validators
@@ -320,7 +436,7 @@ func validatorsSetDependencies(
 	receipt, err := txRelayer.SendTransaction(
 		types.NewTx(types.NewLegacyTx(
 			types.WithFrom(admin.Address()),
-			types.WithTo(&validatorsProxyAddr),
+			types.WithTo(&ca.validators),
 			types.WithInput(encoded),
 		)), admin.Ecdsa)
 	if err != nil {
@@ -330,66 +446,4 @@ func validatorsSetDependencies(
 	}
 
 	return nil
-}
-
-func GetEthAmount(ctx context.Context, evmChain *TestEVMChain, wallet *wallet.Account) (uint64, error) {
-	ethAmount, err := evmChain.Cluster.Servers[1].JSONRPC().GetBalance(wallet.Address(), jsonrpc.LatestBlockNumberOrHash)
-	if err != nil {
-		return 0, err
-	}
-
-	return ethAmount.Uint64(), err
-}
-
-func WaitForEthAmount(ctx context.Context, evmChain *TestEVMChain, wallet *wallet.Account, cmpHandler func(uint64) bool, numRetries int, waitTime time.Duration,
-	isRecoverableError ...ci.IsRecoverableErrorFn,
-) error {
-	return ci.ExecuteWithRetry(ctx, numRetries, waitTime, func() (bool, error) {
-		ethers, err := GetEthAmount(ctx, evmChain, wallet)
-
-		return err == nil && cmpHandler(ethers), err
-	}, isRecoverableError...)
-}
-
-func deployWithProxy(
-	txRelayer txrelayer.TxRelayer,
-	admin *wallet.Account,
-	contract *contracts.Artifact,
-	proxy *contracts.Artifact,
-	initParams []byte,
-) (*ContractProxy, error) {
-	// deploy contract
-	receipt, err := txRelayer.SendTransaction(
-		types.NewTx(types.NewLegacyTx(
-			types.WithFrom(admin.Ecdsa.Address()),
-			types.WithInput(contract.Bytecode),
-		)),
-		admin.Ecdsa)
-	if err != nil {
-		return nil, err
-	} else if receipt.Status != uint64(1) {
-		return nil, fmt.Errorf("deploying smart contract failed: %d", receipt.Status)
-	}
-
-	contractAddr := types.Address(receipt.ContractAddress)
-
-	// deploy proxy contract and call initialize
-	receipt, err = txRelayer.SendTransaction(
-		types.NewTx(types.NewLegacyTx(
-			types.WithFrom(admin.Ecdsa.Address()),
-			types.WithInput(proxy.Bytecode),
-			types.WithInput(contractAddr[:]),
-			types.WithInput(initParams),
-		)),
-		admin.Ecdsa)
-	if err != nil {
-		return nil, err
-	} else if receipt.Status != uint64(1) {
-		return nil, fmt.Errorf("deploying proxy smart contract failed: %d", receipt.Status)
-	}
-
-	return &ContractProxy{
-		contractAddr: contractAddr,
-		proxyAddr:    types.Address(receipt.ContractAddress),
-	}, nil
 }
