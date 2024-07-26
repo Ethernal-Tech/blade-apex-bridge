@@ -21,6 +21,8 @@ const (
 	BridgingLogsDir    = "bridging-logs"
 	BridgingDBsDir     = "bridging-dbs"
 
+	NexusDir = "nexus-test-logs"
+
 	ValidatorComponentsConfigFileName = "vc_config.json"
 	RelayerConfigFileName             = "relayer_config.json"
 )
@@ -89,6 +91,10 @@ func (cv *TestCardanoValidator) GetValidatorComponentsConfig() string {
 
 func (cv *TestCardanoValidator) GetRelayerConfig() string {
 	return filepath.Join(cv.GetBridgingConfigsDir(), RelayerConfigFileName)
+}
+
+func (cv *TestCardanoValidator) GetNexusTestDir() string {
+	return filepath.Join(cv.dataDirPath, NexusDir)
 }
 
 func (cv *TestCardanoValidator) CardanoWalletCreate(chainID string) error {
@@ -160,6 +166,9 @@ func (cv *TestCardanoValidator) GenerateConfigs(
 	apiPort int,
 	apiKey string,
 	telemetryConfig string,
+	nexusGatewayAddr string,
+	nexusRelayerAddr string,
+	nexusNodeUrl string,
 ) error {
 	cv.APIPort = apiPort
 
@@ -179,6 +188,10 @@ func (cv *TestCardanoValidator) GenerateConfigs(
 		"--vector-ogmios-url", vectorOgmiosURL,
 		"--bridge-node-url", cv.server.JSONRPCAddr(),
 		"--bridge-sc-address", BridgeSCAddr,
+		"--nexus-sc-address", nexusGatewayAddr,
+		"--nexus-relayer-addr", nexusRelayerAddr,
+		"--nexus-node-url", nexusNodeUrl,
+		"--relayer-data-dir", cv.GetNexusTestDir(),
 		"--logs-path", filepath.Join(cv.dataDirPath, BridgingLogsDir),
 		"--dbs-path", filepath.Join(cv.dataDirPath, BridgingDBsDir),
 		"--api-port", fmt.Sprint(apiPort),

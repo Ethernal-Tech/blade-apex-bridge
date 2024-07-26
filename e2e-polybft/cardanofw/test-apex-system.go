@@ -246,19 +246,17 @@ func RunApexBridge(
 
 	require.NoError(t, errors.Join(errorsContainer[:]...))
 
+	SetupAndRunNexusBridge(
+		t, ctx,
+		apexSystem,
+	)
+
 	apexSystem.Bridge = SetupAndRunApexBridge(
 		t, ctx,
 		// path.Join(path.Dir(primeCluster.Config.TmpDir), "bridge"),
 		"../../e2e-bridge-data-tmp-"+t.Name(),
 		apexSystem,
 	)
-
-	SetupAndRunNexusBridge(
-		t, ctx,
-		apexSystem,
-	)
-
-	// SetupAndRunNexusBridge(apexSystem) // vaditi provider prime etc.. etc...
 
 	fmt.Printf("Apex bridge setup done\n")
 

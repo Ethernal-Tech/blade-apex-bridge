@@ -92,6 +92,7 @@ func SetupAndRunApexBridge(
 
 	primeCluster := apexSystem.PrimeCluster
 	vectorCluster := apexSystem.VectorCluster
+	nexus := apexSystem.Nexus
 
 	cb := NewTestCardanoBridge(dataDir, apexSystem.Config)
 
@@ -171,6 +172,7 @@ func SetupAndRunApexBridge(
 	require.NoError(t, cb.GenerateConfigs(
 		primeCluster,
 		vectorCluster,
+		nexus,
 	))
 
 	fmt.Printf("Configs generated\n")

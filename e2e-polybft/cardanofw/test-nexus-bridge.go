@@ -96,7 +96,7 @@ func SetupAndRunNexusBridge(
 
 	// Generate configs
 
-	// Start
+	// Start validators?
 }
 
 func GetEthAmount(ctx context.Context, evmChain *TestEVMBridge, wallet *wallet.Account) (uint64, error) {
@@ -116,6 +116,10 @@ func WaitForEthAmount(ctx context.Context, evmChain *TestEVMBridge, wallet *wall
 
 		return err == nil && cmpHandler(ethers), err
 	}, isRecoverableError...)
+}
+
+func (ec TestEVMBridge) NodeURL() string {
+	return fmt.Sprintf("http://localhost:%d", ec.Config.NexusStartingPort)
 }
 
 func (ec *TestEVMBridge) nexusCreateWalletsAndAddresses() error {

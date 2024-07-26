@@ -154,6 +154,7 @@ func (cb *TestCardanoBridge) RegisterChains(
 func (cb *TestCardanoBridge) GenerateConfigs(
 	primeCluster *TestCardanoCluster,
 	vectorCluster *TestCardanoCluster,
+	nexus *TestEVMBridge,
 ) error {
 	errs := make([]error, len(cb.validators))
 	wg := sync.WaitGroup{}
@@ -212,6 +213,9 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 				cb.config.ApiPortStart+indx,
 				cb.config.ApiKey,
 				telemetryConfig,
+				nexus.contracts.gateway.String(),
+				nexus.relayerWallet.Addres.String(),
+				nexus.NodeURL(),
 			)
 		}(validator, i)
 	}

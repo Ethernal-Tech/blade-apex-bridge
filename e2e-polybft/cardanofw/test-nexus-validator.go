@@ -13,30 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// import (
-// 	"context"
-// 	"encoding/json"
-// 	"errors"
-// 	"fmt"
-// 	"math/big"
-// 	"os"
-// 	"path/filepath"
-
-// 	"github.com/0xPolygon/polygon-edge/helper/common"
-// 	secretsCardano "github.com/Ethernal-Tech/cardano-infrastructure/secrets"
-// 	secretsHelper "github.com/Ethernal-Tech/cardano-infrastructure/secrets/helper"
-// 	cardanoWallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-// )
-
-// const (
-// 	BridgingConfigsDir = "bridging-configs"
-// 	BridgingLogsDir    = "bridging-logs"
-// 	BridgingDBsDir     = "bridging-dbs"
-
-// 	ValidatorComponentsConfigFileName = "vc_config.json"
-// 	RelayerConfigFileName             = "relayer_config.json"
-// )
-
 type EthTxWallet struct {
 	Addres     common.Address
 	PrivateKey *ecdsa.PrivateKey
@@ -91,22 +67,10 @@ func NewTestNexusValidator(
 // 	return nil
 // }
 
-// func (cv *TestCardanoValidator) GetBridgingConfigsDir() string {
-// 	return filepath.Join(cv.dataDirPath, BridgingConfigsDir)
-// }
-
-// func (cv *TestCardanoValidator) GetValidatorComponentsConfig() string {
-// 	return filepath.Join(cv.GetBridgingConfigsDir(), ValidatorComponentsConfigFileName)
-// }
-
-// func (cv *TestCardanoValidator) GetRelayerConfig() string {
-// 	return filepath.Join(cv.GetBridgingConfigsDir(), RelayerConfigFileName)
-// }
-
 func (cv *TestNexusValidator) NexusWalletCreate(walletType string) error {
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"wallet-create",
-		"--chain nexus",
+		"--chain", "nexus",
 		"--validator-data-dir", cv.dataDirPath,
 		"--type", walletType,
 	}, os.Stdout)
@@ -136,91 +100,6 @@ func (cv *TestNexusValidator) GetNexusWallet(keyType string) (*EthTxWallet, erro
 
 	return wallet, nil
 }
-
-// func (cv *TestCardanoValidator) RegisterChain(
-// 	chainID string,
-// 	multisigAddr string,
-// 	multisigFeeAddr string,
-// 	tokenSupply *big.Int,
-// 	chainType uint8,
-// ) error {
-// 	return RunCommand(ResolveApexBridgeBinary(), []string{
-// 		"register-chain",
-// 		"--chain", chainID,
-// 		"--type", fmt.Sprint(chainType),
-// 		"--validator-data-dir", cv.server.DataDir(),
-// 		"--addr", multisigAddr,
-// 		"--addr-fee", multisigFeeAddr,
-// 		"--token-supply", fmt.Sprint(tokenSupply),
-// 		"--bridge-url", cv.server.JSONRPCAddr(),
-// 		"--bridge-addr", BridgeSCAddr,
-// 	}, os.Stdout)
-// }
-
-// func (cv *TestCardanoValidator) GenerateConfigs(
-// 	primeNetworkAddress string,
-// 	primeNetworkMagic uint,
-// 	primeNetworkID uint,
-// 	primeOgmiosURL string,
-// 	primeSlotRoundingThreshold uint64,
-// 	primeTTLInc uint64,
-// 	vectorNetworkAddress string,
-// 	vectorNetworkMagic uint,
-// 	vectorNetworkID uint,
-// 	vectorOgmiosURL string,
-// 	vectorSlotRoundingThreshold uint64,
-// 	vectorTTLInc uint64,
-// 	apiPort int,
-// 	apiKey string,
-// 	telemetryConfig string,
-// ) error {
-// 	cv.APIPort = apiPort
-
-// 	args := []string{
-// 		"generate-configs",
-// 		"--validator-data-dir", cv.server.DataDir(),
-// 		"--output-dir", cv.GetBridgingConfigsDir(),
-// 		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
-// 		"--output-relayer-file-name", RelayerConfigFileName,
-// 		"--prime-network-address", primeNetworkAddress,
-// 		"--prime-network-magic", fmt.Sprint(primeNetworkMagic),
-// 		"--prime-network-id", fmt.Sprint(primeNetworkID),
-// 		"--prime-ogmios-url", primeOgmiosURL,
-// 		"--vector-network-address", vectorNetworkAddress,
-// 		"--vector-network-magic", fmt.Sprint(vectorNetworkMagic),
-// 		"--vector-network-id", fmt.Sprint(vectorNetworkID),
-// 		"--vector-ogmios-url", vectorOgmiosURL,
-// 		"--bridge-node-url", cv.server.JSONRPCAddr(),
-// 		"--bridge-sc-address", BridgeSCAddr,
-// 		"--logs-path", filepath.Join(cv.dataDirPath, BridgingLogsDir),
-// 		"--dbs-path", filepath.Join(cv.dataDirPath, BridgingDBsDir),
-// 		"--api-port", fmt.Sprint(apiPort),
-// 		"--api-keys", apiKey,
-// 		"--telemetry", telemetryConfig,
-// 	}
-
-// 	if primeTTLInc > 0 {
-// 		args = append(args,
-// 			"--prime-ttl-slot-inc", fmt.Sprint(primeTTLInc),
-// 		)
-// 	}
-
-// 	if vectorTTLInc > 0 {
-// 		args = append(args,
-// 			"--vector-ttl-slot-inc", fmt.Sprint(vectorTTLInc),
-// 		)
-// 	}
-
-// 	if primeSlotRoundingThreshold > 0 {
-// 		args = append(args, "--prime-slot-rounding-threshold", fmt.Sprint(primeSlotRoundingThreshold))
-// 	}
-
-// 	if vectorSlotRoundingThreshold > 0 {
-// 		args = append(args, "--vector-slot-rounding-threshold", fmt.Sprint(vectorSlotRoundingThreshold))
-// 	}
-
-// 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
-// }
 
 // func (cv *TestCardanoValidator) Start(ctx context.Context, runAPI bool) (err error) {
 // 	args := []string{
