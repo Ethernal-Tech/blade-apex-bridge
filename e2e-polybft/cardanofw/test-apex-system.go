@@ -16,7 +16,6 @@ type ApexSystem struct {
 	VectorCluster *TestCardanoCluster
 	Nexus         *TestEVMBridge
 	Bridge        *TestCardanoBridge
-	EvmBridge     *TestCardanoBridge // TODO:Sasa - type za ovo
 
 	Config *ApexSystemConfig
 }
@@ -246,10 +245,12 @@ func RunApexBridge(
 
 	require.NoError(t, errors.Join(errorsContainer[:]...))
 
-	SetupAndRunNexusBridge(
-		t, ctx,
-		apexSystem,
-	)
+	if apexConfig.NexusEnabled {
+		SetupAndRunNexusBridge(
+			t, ctx,
+			apexSystem,
+		)
+	}
 
 	apexSystem.Bridge = SetupAndRunApexBridge(
 		t, ctx,

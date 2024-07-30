@@ -117,13 +117,13 @@ type ValidatorChainData struct {
 }
 
 type ValidatorAddressChainData struct {
-	Address_ types.Address      `abi:"addr"`
-	Data_    ValidatorChainData `abi:"data"`
+	Address_ types.Address       `abi:"addr"`
+	Data_    *ValidatorChainData `abi:"data"`
 }
 
 type ValidatorsSetDependenciesFn struct {
-	Gateway_   types.Address               `abi:"_gatewayAddress"`
-	ChainData_ []ValidatorAddressChainData `abi:"_chainDatas"`
+	Gateway_   types.Address                `abi:"_gatewayAddress"`
+	ChainData_ []*ValidatorAddressChainData `abi:"_chainDatas"`
 }
 
 var ValidatorsABIType = abi.MustNewType("tuple(address _gatewayAddress, tuple(address addr, tuple(uint256[] key) data)[] _chainDatas)")

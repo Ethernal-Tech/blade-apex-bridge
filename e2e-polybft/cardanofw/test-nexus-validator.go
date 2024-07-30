@@ -2,20 +2,21 @@ package cardanofw
 
 import (
 	"crypto/ecdsa"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
+	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	secretsCardano "github.com/Ethernal-Tech/cardano-infrastructure/secrets"
 	secretsHelper "github.com/Ethernal-Tech/cardano-infrastructure/secrets/helper"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 type EthTxWallet struct {
-	Addres     common.Address
+	Address    types.Address
 	PrivateKey *ecdsa.PrivateKey
+	BN256      *bn256.PrivateKey
 }
 
 type TestNexusValidator struct {
@@ -76,7 +77,7 @@ func (cv *TestNexusValidator) NexusWalletCreate(walletType string) error {
 	}, os.Stdout)
 }
 
-func (cv *TestNexusValidator) GetNexusWallet(keyType string) (*EthTxWallet, error) {
+func (cv *TestNexusValidator) GetNexusWallet(keyType string) (*bn256.PrivateKey, error) {
 	secretsMngr, err := secretsHelper.CreateSecretsManager(&secretsCardano.SecretsManagerConfig{
 		Path: cv.dataDirPath,
 		Type: secretsCardano.Local,
@@ -92,13 +93,12 @@ func (cv *TestNexusValidator) GetNexusWallet(keyType string) (*EthTxWallet, erro
 		return nil, fmt.Errorf("failed to load wallet: %w", err)
 	}
 
-	var wallet *EthTxWallet
-
-	if err := json.Unmarshal(bytes, &wallet); err != nil {
-		return nil, fmt.Errorf("failed to load wallet: %w", err)
+	bn256, err := bn256.UnmarshalPrivateKey(bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal wallet: %w", err)
 	}
 
-	return wallet, nil
+	return bn256, nil
 }
 
 // func (cv *TestCardanoValidator) Start(ctx context.Context, runAPI bool) (err error) {

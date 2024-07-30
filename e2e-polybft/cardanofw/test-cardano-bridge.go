@@ -177,6 +177,10 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 				vectorNetworkMagic uint
 				primeNetworkID     uint
 				vectorNetworkID    uint
+
+				nexusContractAddr  string
+				nexusRelayerWallet string
+				nexusNodeUrl       string
 			)
 
 			if cb.config.TargetOneCardanoClusterServer {
@@ -197,6 +201,16 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 				vectorNetworkID = uint(vectorServer.config.NetworkID)
 			}
 
+			if cb.config.NexusEnabled {
+				nexusContractAddr = nexus.contracts.gateway.String()
+				nexusRelayerWallet = nexus.relayerWallet.Address.String() // TODO:Sasa da li je ovo ok?
+				nexusNodeUrl = nexus.NodeURL()
+			} else {
+				nexusContractAddr = ""
+				nexusRelayerWallet = ""
+				nexusNodeUrl = ""
+			}
+
 			errs[indx] = validator.GenerateConfigs(
 				primeNetworkURL,
 				primeNetworkMagic,
@@ -213,9 +227,9 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 				cb.config.ApiPortStart+indx,
 				cb.config.ApiKey,
 				telemetryConfig,
-				nexus.contracts.gateway.String(),
-				nexus.relayerWallet.Addres.String(),
-				nexus.NodeURL(),
+				nexusContractAddr,
+				nexusRelayerWallet,
+				nexusNodeUrl,
 			)
 		}(validator, i)
 	}
