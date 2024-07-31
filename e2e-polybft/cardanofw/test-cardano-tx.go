@@ -41,6 +41,8 @@ func SendTx_Eth(
 	amount *big.Int,
 	receiver *types.Address,
 ) (string, error) {
+	// TODO:Nexus - should call runCommand apex-bridge sendtx-eth...
+
 	receipt, err := relayer.SendTransaction(
 		types.NewTx(types.NewLegacyTx(
 			types.WithFrom(sender.Address()),

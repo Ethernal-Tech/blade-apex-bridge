@@ -22,7 +22,6 @@ func (w *EthTxWallet) Address() types.Address {
 
 type TestNexusValidator struct {
 	ID          int
-	APIPort     int
 	Wallet      *EthTxWallet
 	dataDirPath string
 }

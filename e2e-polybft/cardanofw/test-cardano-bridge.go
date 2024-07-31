@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
+	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -206,9 +207,9 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 				nexusRelayerWallet = nexus.relayerWallet.Address().String()
 				nexusNodeUrl = nexus.NodeURL()
 			} else {
-				nexusContractAddr = ""
-				nexusRelayerWallet = ""
-				nexusNodeUrl = ""
+				nexusContractAddr = types.ZeroAddress.String()
+				nexusRelayerWallet = types.ZeroAddress.String()
+				nexusNodeUrl = "localhost:5500"
 			}
 
 			errs[indx] = validator.GenerateConfigs(
