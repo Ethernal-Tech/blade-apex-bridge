@@ -57,7 +57,7 @@ require (
 	pgregory.net/rapid v1.1.0
 )
 
-// TODO:Sasa revert back to cardano-infra after merge
+// TODO:Nexus revert back and update cardano-infra and bn256 before merge
 replace github.com/Ethernal-Tech/cardano-infrastructure => ../cardano-infrastructure
 
 replace github.com/Ethernal-Tech/bn256 => ../bn256
@@ -109,7 +109,6 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.6.0-alpha.5 // indirect
 	github.com/elastic/gosigar v0.14.2 // indirect
-	github.com/ethereum/go-ethereum v1.14.7
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/flynn/noise v1.1.0 // indirect

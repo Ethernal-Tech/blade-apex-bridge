@@ -29,8 +29,7 @@ type TestEVMBridge struct {
 	Validators []*TestNexusValidator
 	Cluster    *framework.TestCluster
 
-	validatorWallets []*EthTxWallet
-	relayerWallet    *EthTxWallet
+	relayerWallet *EthTxWallet
 
 	contracts *ContractsAddrs
 
@@ -65,8 +64,8 @@ func RunEVMChain(
 
 	validators := make([]*TestNexusValidator, config.NexusValidatorCount)
 
-	for i := 0; i < config.NexusValidatorCount; i++ {
-		validators[i] = NewTestNexusValidator(dataDirPath, i+1)
+	for idx := 0; idx < config.NexusValidatorCount; idx++ {
+		validators[idx] = NewTestNexusValidator(dataDirPath, idx+1)
 	}
 
 	cluster.WaitForReady(t)
@@ -93,10 +92,6 @@ func SetupAndRunNexusBridge(
 	require.NoError(t, err)
 
 	nexus.deployContracts()
-
-	// Generate configs
-
-	// Start validators?
 }
 
 func GetEthAmount(ctx context.Context, evmChain *TestEVMBridge, wallet *wallet.Account) (uint64, error) {
@@ -125,7 +120,7 @@ func (ec TestEVMBridge) NodeURL() string {
 func (ec *TestEVMBridge) nexusCreateWalletsAndAddresses() error {
 	var err error
 	for idx, validator := range ec.Validators {
-		err = validator.NexusWalletCreate("evm")
+		err = validator.NexusWalletCreate("batcher-evm")
 		if err != nil {
 			return err
 		}
@@ -138,19 +133,16 @@ func (ec *TestEVMBridge) nexusCreateWalletsAndAddresses() error {
 		}
 	}
 
-	ec.validatorWallets = make([]*EthTxWallet, len(ec.Validators))
-
 	for idx, validator := range ec.Validators {
 		batcherWallet, err := validator.GetNexusWallet("batcher_evm_key")
 		if err != nil {
 			return err
 		}
 
-		// TODO:Sasa
-		// ec.validatorWallets[idx].PrivateKey = validator.
-		ec.validatorWallets[idx] = &EthTxWallet{
-			Address: types.ZeroAddress,
-			BN256:   batcherWallet,
+		batcherWallet.PublicKey().ToBigInt()
+
+		ec.Validators[idx].Wallet = &EthTxWallet{
+			BN256: batcherWallet,
 		}
 
 		if idx == 0 {
@@ -159,10 +151,8 @@ func (ec *TestEVMBridge) nexusCreateWalletsAndAddresses() error {
 				return err
 			}
 
-			// ec.relayerWallet.PrivateKey = validator.
 			ec.relayerWallet = &EthTxWallet{
-				Address: types.ZeroAddress,
-				BN256:   relayerWallet,
+				BN256: relayerWallet,
 			}
 		}
 	}
@@ -194,15 +184,15 @@ func (ec *TestEVMBridge) deployContracts() error {
 		return err
 	}
 
-	getAddrs := func(wallets []*EthTxWallet) []types.Address {
-		addresses := make([]types.Address, len(wallets))
-		for idx, validator := range wallets {
-			addresses[idx] = types.Address(validator.Address)
+	getAddrs := func(validators []*TestNexusValidator) []types.Address {
+		addresses := make([]types.Address, len(validators))
+		for idx, validator := range validators {
+			addresses[idx] = types.Address(validator.Wallet.Address())
 		}
 		return addresses
 	}
 
-	data, err := abi.MustNewType("address[]").Encode(getAddrs(ec.validatorWallets))
+	data, err := abi.MustNewType("address[]").Encode(getAddrs(ec.Validators))
 	if err != nil {
 		return err
 	}
@@ -218,7 +208,7 @@ func (ec *TestEVMBridge) deployContracts() error {
 	}
 
 	// Call "setDependencies"
-	relayerAddr := types.Address(ec.relayerWallet.Address)
+	relayerAddr := types.Address(ec.relayerWallet.Address())
 	err = ec.contracts.gatewaySetDependencies(txRelayer, ec.Admin, relayerAddr)
 	if err != nil {
 		return err
@@ -234,9 +224,7 @@ func (ec *TestEVMBridge) deployContracts() error {
 		return err
 	}
 
-	// TODO cardano validator data
-	// validators.setdepend(gateway.addr, valAddrCardData) {v.address, valCardData}
-	err = ec.contracts.validatorsSetDependencies(txRelayer, ec.Admin, ec.validatorWallets)
+	err = ec.contracts.validatorsSetDependencies(txRelayer, ec.Admin, ec.Validators)
 	if err != nil {
 		return err
 	}
@@ -385,7 +373,7 @@ func (ca *ContractsAddrs) nativeErc20SetDependencies(
 func (ca *ContractsAddrs) validatorsSetDependencies(
 	txRelayer txrelayer.TxRelayer,
 	admin *wallet.Account,
-	validators []*EthTxWallet,
+	validators []*TestNexusValidator,
 ) error {
 	chainData := makeValidatorChainData(validators)
 
@@ -414,14 +402,14 @@ func (ca *ContractsAddrs) validatorsSetDependencies(
 	return nil
 }
 
-func makeValidatorChainData(validators []*EthTxWallet) []*ValidatorAddressChainData {
+func makeValidatorChainData(validators []*TestNexusValidator) []*ValidatorAddressChainData {
 	validatorAddrChainData := make([]*ValidatorAddressChainData, 4)
 
 	for idx, val := range validators {
-		keyData := val.BN256.PublicKey().ToBigInt()
+		keyData := val.Wallet.BN256.PublicKey().ToBigInt()
 
 		validatorAddrChainData[idx] = &ValidatorAddressChainData{
-			Address_: types.Address(val.Address),
+			Address_: types.Address(val.Wallet.Address()),
 			Data_: &ValidatorChainData{
 				Key_: []*big.Int{
 					keyData[0],

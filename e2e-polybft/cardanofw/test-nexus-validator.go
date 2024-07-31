@@ -1,12 +1,10 @@
 package cardanofw
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/types"
 	bn256 "github.com/Ethernal-Tech/bn256"
 	secretsCardano "github.com/Ethernal-Tech/cardano-infrastructure/secrets"
@@ -14,18 +12,19 @@ import (
 )
 
 type EthTxWallet struct {
-	Address    types.Address
-	PrivateKey *ecdsa.PrivateKey
-	BN256      *bn256.PrivateKey
+	BN256 *bn256.PrivateKey
+}
+
+// TODO:Nexus - parse to get the address
+func (w *EthTxWallet) Address() types.Address {
+	return types.ZeroAddress
 }
 
 type TestNexusValidator struct {
 	ID          int
 	APIPort     int
+	Wallet      *EthTxWallet
 	dataDirPath string
-	cluster     *framework.TestCluster
-	server      *framework.TestServer
-	node        *framework.Node
 }
 
 func NewTestNexusValidator(
@@ -37,36 +36,6 @@ func NewTestNexusValidator(
 		ID:          id,
 	}
 }
-
-// func (cv *TestCardanoValidator) SetClusterAndServer(
-// 	cluster *framework.TestCluster, server *framework.TestServer,
-// ) error {
-// 	cv.cluster = cluster
-// 	cv.server = server
-// 	// move wallets files
-// 	srcPath := filepath.Join(cv.dataDirPath, secretsCardano.CardanoFolderLocal)
-// 	dstPath := filepath.Join(cv.server.DataDir(), secretsCardano.CardanoFolderLocal)
-
-// 	if err := common.CreateDirSafe(dstPath, 0750); err != nil {
-// 		return fmt.Errorf("failed to create dst directory: %w", err)
-// 	}
-
-// 	files, err := os.ReadDir(srcPath)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to read source directory: %w", err)
-// 	}
-
-// 	for _, file := range files {
-// 		sourcePath := filepath.Join(srcPath, file.Name())
-// 		destPath := filepath.Join(dstPath, file.Name())
-// 		// Move the file
-// 		if err := os.Rename(sourcePath, destPath); err != nil {
-// 			return fmt.Errorf("failed to move file %s: %w", file.Name(), err)
-// 		}
-// 	}
-
-// 	return nil
-// }
 
 func (cv *TestNexusValidator) NexusWalletCreate(walletType string) error {
 	return RunCommand(ResolveApexBridgeBinary(), []string{
@@ -100,26 +69,3 @@ func (cv *TestNexusValidator) GetNexusWallet(keyType string) (*bn256.PrivateKey,
 
 	return bn256, nil
 }
-
-// func (cv *TestCardanoValidator) Start(ctx context.Context, runAPI bool) (err error) {
-// 	args := []string{
-// 		"run-validator-components",
-// 		"--config", cv.GetValidatorComponentsConfig(),
-// 	}
-
-// 	if runAPI {
-// 		args = append(args, "--run-api")
-// 	}
-
-// 	cv.node, err = framework.NewNodeWithContext(ctx, ResolveApexBridgeBinary(), args, os.Stdout)
-
-// 	return err
-// }
-
-// func (cv *TestCardanoValidator) Stop() error {
-// 	if cv.node == nil {
-// 		return errors.New("validator not started")
-// 	}
-
-// 	return cv.node.Stop()
-// }

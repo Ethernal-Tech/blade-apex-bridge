@@ -110,7 +110,7 @@ func WithNexusStartintPort(port int64) ApexSystemOptions {
 	}
 }
 
-func (as *ApexSystemConfig) ServiceCount() int { // TODO:Sasa - prtvoriti u flagove po igorovom predlogu 1,2,4 prime,vector,nexus
+func (as *ApexSystemConfig) ServiceCount() int {
 	// Prime
 	count := 1
 
