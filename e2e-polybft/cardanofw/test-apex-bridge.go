@@ -92,7 +92,6 @@ func SetupAndRunApexBridge(
 
 	primeCluster := apexSystem.PrimeCluster
 	vectorCluster := apexSystem.VectorCluster
-	nexus := apexSystem.Nexus
 
 	cb := NewTestCardanoBridge(dataDir, apexSystem.Config)
 
@@ -161,29 +160,34 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Validators ready\n")
 
+	return cb
+}
+
+func (a *ApexSystem) SetupAndRunValidatorsAndRelayer(
+	t *testing.T,
+	ctx context.Context,
+) {
 	// need params for it to work properly
 	primeTokenSupply := new(big.Int).SetUint64(FundTokenAmount)
 	vectorTokenSupply := new(big.Int).SetUint64(FundTokenAmount)
-	require.NoError(t, cb.RegisterChains(primeTokenSupply, vectorTokenSupply))
+	require.NoError(t, a.Bridge.RegisterChains(primeTokenSupply, vectorTokenSupply))
 
 	fmt.Printf("Chain registered\n")
 
 	// need params for it to work properly
-	require.NoError(t, cb.GenerateConfigs(
-		primeCluster,
-		vectorCluster,
-		nexus,
+	require.NoError(t, a.Bridge.GenerateConfigs(
+		a.PrimeCluster,
+		a.VectorCluster,
+		a.Nexus,
 	))
 
 	fmt.Printf("Configs generated\n")
 
-	require.NoError(t, cb.StartValidatorComponents(ctx))
+	require.NoError(t, a.Bridge.StartValidatorComponents(ctx))
 	fmt.Printf("Validator components started\n")
 
-	require.NoError(t, cb.StartRelayer(ctx))
+	require.NoError(t, a.Bridge.StartRelayer(ctx))
 	fmt.Printf("Relayer started\n")
-
-	return cb
 }
 
 func (a *ApexSystem) GetPrimeGenesisWallet(t *testing.T) cardanowallet.IWallet {

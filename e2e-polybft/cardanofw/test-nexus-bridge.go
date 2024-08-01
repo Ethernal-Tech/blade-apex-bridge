@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
 	"github.com/0xPolygon/polygon-edge/contracts"
+	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
@@ -88,7 +91,15 @@ func SetupAndRunNexusBridge(
 ) {
 	nexus := apexSystem.Nexus
 
-	err := nexus.nexusCreateWalletsAndAddresses()
+	validatorDataDirs := func(servers []*framework.TestServer) []string {
+		dataDirs := make([]string, len(servers))
+		for idx, srv := range servers {
+			dataDirs[idx] = srv.DataDir()
+		}
+		return dataDirs
+	}
+
+	err := nexus.nexusCreateWalletsAndAddresses(validatorDataDirs(nexus.Cluster.Servers))
 	require.NoError(t, err)
 
 	nexus.deployContracts()
@@ -117,16 +128,16 @@ func (ec TestEVMBridge) NodeURL() string {
 	return fmt.Sprintf("http://localhost:%d", ec.Config.NexusStartingPort)
 }
 
-func (ec *TestEVMBridge) nexusCreateWalletsAndAddresses() error {
+func (ec *TestEVMBridge) nexusCreateWalletsAndAddresses(validatorDataDirs []string) error {
 	var err error
 	for idx, validator := range ec.Validators {
-		err = validator.NexusWalletCreate("batcher-evm")
+		err = validator.nexusWalletCreate("batcher-evm")
 		if err != nil {
 			return err
 		}
 
 		if idx == 0 {
-			err = validator.NexusWalletCreate("relayer-evm")
+			err = validator.nexusWalletCreate("relayer-evm")
 			if err != nil {
 				return err
 			}
@@ -134,19 +145,23 @@ func (ec *TestEVMBridge) nexusCreateWalletsAndAddresses() error {
 	}
 
 	for idx, validator := range ec.Validators {
-		batcherWallet, err := validator.GetNexusWallet("batcher_evm_key")
+		batcherWallet, err := validator.getNexusWallet("batcher_evm_key")
 		if err != nil {
 			return err
 		}
 
-		batcherWallet.PublicKey().ToBigInt()
+		pubKey, err := getAddressFromPrivateKeyFile(filepath.Join(validatorDataDirs[idx], "consesus", "validator.key"))
+		if err != nil {
+			return err
+		}
 
 		ec.Validators[idx].Wallet = &EthTxWallet{
-			BN256: batcherWallet,
+			ValidatorAddress: pubKey,
+			BN256:            batcherWallet,
 		}
 
 		if idx == 0 {
-			relayerWallet, err := validator.GetNexusWallet("relayer_evm_key")
+			relayerWallet, err := validator.getNexusWallet("relayer_evm_key")
 			if err != nil {
 				return err
 			}
@@ -187,7 +202,7 @@ func (ec *TestEVMBridge) deployContracts() error {
 	getAddrs := func(validators []*TestNexusValidator) []types.Address {
 		addresses := make([]types.Address, len(validators))
 		for idx, validator := range validators {
-			addresses[idx] = types.Address(validator.Wallet.Address())
+			addresses[idx] = types.Address(validator.Wallet.ValidatorAddress)
 		}
 		return addresses
 	}
@@ -208,7 +223,7 @@ func (ec *TestEVMBridge) deployContracts() error {
 	}
 
 	// Call "setDependencies"
-	relayerAddr := types.Address(ec.relayerWallet.Address())
+	relayerAddr := types.Address(ec.relayerWallet.ValidatorAddress)
 	err = ec.contracts.gatewaySetDependencies(txRelayer, ec.Admin, relayerAddr)
 	if err != nil {
 		return err
@@ -409,7 +424,7 @@ func makeValidatorChainData(validators []*TestNexusValidator) []*ValidatorAddres
 		keyData := val.Wallet.BN256.PublicKey().ToBigInt()
 
 		validatorAddrChainData[idx] = &ValidatorAddressChainData{
-			Address_: types.Address(val.Wallet.Address()),
+			Address_: types.Address(val.Wallet.ValidatorAddress),
 			Data_: &ValidatorChainData{
 				Key_: []*big.Int{
 					keyData[0],
@@ -422,4 +437,18 @@ func makeValidatorChainData(validators []*TestNexusValidator) []*ValidatorAddres
 	}
 
 	return validatorAddrChainData
+}
+
+func getAddressFromPrivateKeyFile(path string) (types.Address, error) {
+	keyBuff, err := os.ReadFile(path)
+	if err != nil {
+		return types.ZeroAddress, err
+	}
+
+	key, err := crypto.NewECDSAKeyFromRawPrivECDSA(keyBuff)
+	if err != nil {
+		return types.ZeroAddress, err
+	}
+
+	return key.Address(), nil
 }

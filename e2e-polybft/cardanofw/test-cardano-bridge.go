@@ -204,7 +204,7 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 
 			if cb.config.NexusEnabled {
 				nexusContractAddr = nexus.contracts.gateway.String()
-				nexusRelayerWallet = nexus.relayerWallet.Address().String()
+				nexusRelayerWallet = nexus.relayerWallet.ValidatorAddress.String()
 				nexusNodeUrl = nexus.NodeURL()
 			} else {
 				nexusContractAddr = types.ZeroAddress.String()

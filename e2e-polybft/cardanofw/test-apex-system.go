@@ -245,6 +245,13 @@ func RunApexBridge(
 
 	require.NoError(t, errors.Join(errorsContainer[:]...))
 
+	apexSystem.Bridge = SetupAndRunApexBridge(
+		t, ctx,
+		// path.Join(path.Dir(primeCluster.Config.TmpDir), "bridge"),
+		"../../e2e-bridge-data-tmp-"+t.Name(),
+		apexSystem,
+	)
+
 	if apexConfig.NexusEnabled {
 		SetupAndRunNexusBridge(
 			t, ctx,
@@ -252,12 +259,7 @@ func RunApexBridge(
 		)
 	}
 
-	apexSystem.Bridge = SetupAndRunApexBridge(
-		t, ctx,
-		// path.Join(path.Dir(primeCluster.Config.TmpDir), "bridge"),
-		"../../e2e-bridge-data-tmp-"+t.Name(),
-		apexSystem,
-	)
+	apexSystem.SetupAndRunValidatorsAndRelayer(t, ctx)
 
 	fmt.Printf("Apex bridge setup done\n")
 

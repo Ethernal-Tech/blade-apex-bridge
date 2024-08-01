@@ -12,12 +12,8 @@ import (
 )
 
 type EthTxWallet struct {
-	BN256 *bn256.PrivateKey
-}
-
-// TODO:Nexus - parse to get the address
-func (w *EthTxWallet) Address() types.Address {
-	return types.ZeroAddress
+	ValidatorAddress types.Address
+	BN256            *bn256.PrivateKey
 }
 
 type TestNexusValidator struct {
@@ -36,7 +32,7 @@ func NewTestNexusValidator(
 	}
 }
 
-func (cv *TestNexusValidator) NexusWalletCreate(walletType string) error {
+func (cv *TestNexusValidator) nexusWalletCreate(walletType string) error {
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"wallet-create",
 		"--chain", "nexus",
@@ -45,7 +41,7 @@ func (cv *TestNexusValidator) NexusWalletCreate(walletType string) error {
 	}, os.Stdout)
 }
 
-func (cv *TestNexusValidator) GetNexusWallet(keyType string) (*bn256.PrivateKey, error) {
+func (cv *TestNexusValidator) getNexusWallet(keyType string) (*bn256.PrivateKey, error) {
 	secretsMngr, err := secretsHelper.CreateSecretsManager(&secretsCardano.SecretsManagerConfig{
 		Path: cv.dataDirPath,
 		Type: secretsCardano.Local,
