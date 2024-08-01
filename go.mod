@@ -9,7 +9,7 @@ require (
 	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20240703091214-f6cce399955b
 	github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04
 	github.com/armon/go-metrics v0.4.1
-	github.com/aws/aws-sdk-go v1.53.14
+	github.com/aws/aws-sdk-go v1.55.5
 	github.com/btcsuite/btcd/btcec/v2 v2.3.3
 	github.com/docker/docker v26.1.3+incompatible
 	github.com/docker/go-connections v0.5.0
