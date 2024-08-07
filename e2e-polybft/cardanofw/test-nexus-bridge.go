@@ -105,6 +105,19 @@ func SetupAndRunNexusBridge(
 	nexus.deployContracts()
 }
 
+func (eb *TestEVMBridge) SendTxEvm(privateKey string, receiver string, amount uint64) error {
+	return RunCommand(ResolveApexBridgeBinary(), []string{
+		"sendtx",
+		"--tx-type", "evm",
+		"--gateway-addr", eb.contracts.gateway.String(),
+		"--nexus-url", eb.NodeURL(),
+		"--key", privateKey,
+		"--chain-dst", "prime",
+		"--receiver", fmt.Sprintf("%v:%v", receiver, amount),
+		// feeAmount     uint64
+	}, os.Stdout)
+}
+
 func GetEthAmount(ctx context.Context, evmChain *TestEVMBridge, wallet *wallet.Account) (uint64, error) {
 	ethAmount, err := evmChain.Cluster.Servers[0].JSONRPC().GetBalance(wallet.Address(), jsonrpc.LatestBlockNumberOrHash)
 	if err != nil {
@@ -150,7 +163,7 @@ func (ec *TestEVMBridge) nexusCreateWalletsAndAddresses(validatorDataDirs []stri
 			return err
 		}
 
-		pubKey, err := getAddressFromPrivateKeyFile(filepath.Join(validatorDataDirs[idx], "consesus", "validator.key"))
+		pubKey, err := getAddressFromPrivateKeyFile(filepath.Join(validatorDataDirs[idx], "consensus", "validator.key"))
 		if err != nil {
 			return err
 		}
