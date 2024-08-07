@@ -137,11 +137,18 @@ func (cv *TestCardanoValidator) RegisterChain(
 	tokenSupply *big.Int,
 	chainType uint8,
 ) error {
+
+	dataDir := cv.server.DataDir()
+	fmt.Printf("DN_LOG_TAG RegisterChain DataDir: %s\n", cv.server.DataDir())
+	if chainID == "nexus" {
+		dataDir = "/home/dejan/dev/sandbox/blade-apex-bridge/blade-apex-bridge/evm-bridge-data-tmp-Test_E2E_Nexus/validator_4/"
+	}
+
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"register-chain",
 		"--chain", chainID,
 		"--type", fmt.Sprint(chainType),
-		"--validator-data-dir", cv.server.DataDir(),
+		"--validator-data-dir", dataDir,
 		"--addr", multisigAddr,
 		"--addr-fee", multisigFeeAddr,
 		"--token-supply", fmt.Sprint(tokenSupply),

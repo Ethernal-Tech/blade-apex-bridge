@@ -27,12 +27,13 @@ func NewTestNexusValidator(
 	id int,
 ) *TestNexusValidator {
 	return &TestNexusValidator{
-		dataDirPath: filepath.Join(dataDirPath, fmt.Sprintf("validator_%d", id)),
+		dataDirPath: filepath.Join("/home/dejan/dev/sandbox/blade-apex-bridge/blade-apex-bridge/evm-bridge-data-tmp-Test_E2E_Nexus/", fmt.Sprintf("validator_%d", id)),
 		ID:          id,
 	}
 }
 
 func (cv *TestNexusValidator) nexusWalletCreate(walletType string) error {
+	fmt.Printf("DN_LOG_TAG nexusWalletCreate dataDir:  %s\n", cv.dataDirPath)
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"wallet-create",
 		"--chain", "nexus",

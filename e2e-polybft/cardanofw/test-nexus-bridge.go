@@ -39,6 +39,10 @@ type TestEVMBridge struct {
 	Config *ApexSystemConfig
 }
 
+func (ec *TestEVMBridge) GetGatewat() types.Address {
+	return (*ec.contracts).gateway
+}
+
 type ContractsAddrs struct {
 	erc20Predicate      types.Address
 	nativeErc20Mintable types.Address
@@ -91,9 +95,13 @@ func SetupAndRunNexusBridge(
 ) {
 	nexus := apexSystem.Nexus
 
+	fmt.Println("DN_LOG_TAG SetupAndRunNexusBridge")
+
 	validatorDataDirs := func(servers []*framework.TestServer) []string {
 		dataDirs := make([]string, len(servers))
 		for idx, srv := range servers {
+			fmt.Printf("%+v\n", srv.DataDir())
+			fmt.Printf("DN_LOG_TAG %+v\n", srv.DataDir())
 			dataDirs[idx] = srv.DataDir()
 		}
 		return dataDirs
@@ -150,7 +158,8 @@ func (ec *TestEVMBridge) nexusCreateWalletsAndAddresses(validatorDataDirs []stri
 			return err
 		}
 
-		pubKey, err := getAddressFromPrivateKeyFile(filepath.Join(validatorDataDirs[idx], "consesus", "validator.key"))
+		fmt.Printf("DN_LOG_TAG getAddressFromPrivateKeyFile dir: %s\n", filepath.Join(validatorDataDirs[idx], "consensus", "validator.key"))
+		pubKey, err := getAddressFromPrivateKeyFile(filepath.Join("/home/dejan/dev/sandbox/blade-apex-bridge/blade-apex-bridge/evm-bridge-data-tmp-Test_E2E_Nexus/validator_4/", "consensus", "validator.key"))
 		if err != nil {
 			return err
 		}

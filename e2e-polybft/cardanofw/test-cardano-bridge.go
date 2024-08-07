@@ -124,6 +124,7 @@ func (cb *TestCardanoBridge) RegisterChains(
 	primeTokenSupply *big.Int,
 	vectorTokenSupply *big.Int,
 ) error {
+	fmt.Printf("DN_LOG_TAG Register Chains")
 	errs := make([]error, len(cb.validators))
 	wg := sync.WaitGroup{}
 
@@ -141,6 +142,57 @@ func (cb *TestCardanoBridge) RegisterChains(
 
 			errs[indx] = validator.RegisterChain(
 				ChainIDVector, cb.VectorMultisigAddr, cb.VectorMultisigFeeAddr, vectorTokenSupply, ChainTypeCardano)
+			if errs[indx] != nil {
+				return
+			}
+
+			// errs[indx] = validator.RegisterChain(
+			// 	"nexus", cb.VectorMultisigAddr, cb.VectorMultisigFeeAddr, vectorTokenSupply, ChainTypeCardano)
+			// if errs[indx] != nil {
+			// 	return
+			// }
+		}(validator, i)
+	}
+
+	wg.Wait()
+
+	return errors.Join(errs...)
+}
+
+func (cb *TestCardanoBridge) RegisterChainsNexus(
+	primeTokenSupply *big.Int,
+	vectorTokenSupply *big.Int,
+	nexusTokenSupply *big.Int,
+	apex *ApexSystem,
+) error {
+	fmt.Println("DN_LOG_TAG RegisterChainsNexus")
+	errs := make([]error, len(cb.validators))
+	wg := sync.WaitGroup{}
+
+	wg.Add(len(cb.validators))
+
+	for i, validator := range cb.validators {
+		go func(validator *TestCardanoValidator, indx int) {
+			defer wg.Done()
+
+			errs[indx] = validator.RegisterChain(
+				ChainIDPrime, cb.PrimeMultisigAddr, cb.PrimeMultisigFeeAddr, primeTokenSupply, ChainTypeCardano)
+			if errs[indx] != nil {
+				return
+			}
+
+			errs[indx] = validator.RegisterChain(
+				ChainIDVector, cb.VectorMultisigAddr, cb.VectorMultisigFeeAddr, vectorTokenSupply, ChainTypeCardano)
+			if errs[indx] != nil {
+				return
+			}
+
+			nexusMultisigAddr := apex.Nexus.Validators[indx].Wallet.ValidatorAddress.String()
+			nexusMultisigFeeAddr := apex.Nexus.Validators[indx].Wallet.ValidatorAddress.String()
+			chainTypeNexus := uint8(1)
+
+			errs[indx] = validator.RegisterChain(
+				"nexus", nexusMultisigAddr, nexusMultisigFeeAddr, nexusTokenSupply, chainTypeNexus)
 			if errs[indx] != nil {
 				return
 			}
