@@ -273,7 +273,7 @@ func BridgeAmountFullMultipleReceiversNexus(
 	}
 
 	bridgingRequestMetadata, err := CreateMetaData(
-		senderAddr.String(), receivers, "nexus", feeAmount)
+		senderAddr.String(), receivers, ChainIDNexus, feeAmount)
 	require.NoError(t, err)
 
 	txHash, err := SendTx(ctx, txProvider, sender,

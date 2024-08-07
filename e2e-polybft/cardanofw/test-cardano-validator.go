@@ -11,6 +11,8 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/helper/common"
+	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	secretsCardano "github.com/Ethernal-Tech/cardano-infrastructure/secrets"
 	secretsHelper "github.com/Ethernal-Tech/cardano-infrastructure/secrets/helper"
 	cardanoWallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
@@ -33,12 +35,13 @@ type CardanoWallet struct {
 }
 
 type TestCardanoValidator struct {
-	ID          int
-	APIPort     int
-	dataDirPath string
-	cluster     *framework.TestCluster
-	server      *framework.TestServer
-	node        *framework.Node
+	ID                     int
+	APIPort                int
+	dataDirPath            string
+	cluster                *framework.TestCluster
+	server                 *framework.TestServer
+	node                   *framework.Node
+	BatcherBN256PrivateKey *bn256.PrivateKey
 }
 
 func NewTestCardanoValidator(
@@ -137,18 +140,11 @@ func (cv *TestCardanoValidator) RegisterChain(
 	tokenSupply *big.Int,
 	chainType uint8,
 ) error {
-
-	dataDir := cv.server.DataDir()
-	fmt.Printf("DN_LOG_TAG RegisterChain DataDir: %s\n", cv.server.DataDir())
-	if chainID == "nexus" {
-		dataDir = "/home/dejan/dev/sandbox/blade-apex-bridge/blade-apex-bridge/evm-bridge-data-tmp-Test_E2E_Nexus/validator_4/"
-	}
-
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"register-chain",
 		"--chain", chainID,
 		"--type", fmt.Sprint(chainType),
-		"--validator-data-dir", dataDir,
+		"--validator-data-dir", cv.server.DataDir(),
 		"--addr", multisigAddr,
 		"--addr-fee", multisigFeeAddr,
 		"--token-supply", fmt.Sprint(tokenSupply),
@@ -251,4 +247,41 @@ func (cv *TestCardanoValidator) Stop() error {
 	}
 
 	return cv.node.Stop()
+}
+
+func (cv *TestCardanoValidator) getValidatorEthAddress() (types.Address, error) {
+	return getAddressFromPrivateKeyFile(filepath.Join(cv.server.DataDir(), "consensus", "validator.key"))
+}
+
+func (cv *TestCardanoValidator) batcherWalletCreate() error {
+	return RunCommand(ResolveApexBridgeBinary(), []string{
+		"wallet-create",
+		"--chain", ChainIDNexus,
+		"--validator-data-dir", cv.server.DataDir(),
+		"--type", "batcher-evm",
+	}, os.Stdout)
+}
+
+func (cv *TestCardanoValidator) getBatcherWallet() (*bn256.PrivateKey, error) {
+	secretsMngr, err := secretsHelper.CreateSecretsManager(&secretsCardano.SecretsManagerConfig{
+		Path: cv.server.DataDir(),
+		Type: secretsCardano.Local,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to load wallet: %w", err)
+	}
+
+	keyName := fmt.Sprintf("%s%s_%s", secretsCardano.OtherKeyLocalPrefix, ChainIDNexus, "batcher_evm_key")
+
+	bytes, err := secretsMngr.GetSecret(keyName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load wallet: %w", err)
+	}
+
+	bn256, err := bn256.UnmarshalPrivateKey(bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal wallet: %w", err)
+	}
+
+	return bn256, nil
 }

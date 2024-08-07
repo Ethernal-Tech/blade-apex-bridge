@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"os"
 	"os/signal"
 	"syscall"
@@ -29,8 +30,11 @@ func Test_E2E_Nexus(t *testing.T) {
 	)
 
 	sendAmount := uint64(1)
+	sendAmountDfm := new(big.Int).SetUint64(sendAmount)
+	exp := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
+	sendAmountDfm.Mul(sendAmountDfm, exp)
 
-	expectedAmount := ethgo.Ether(sendAmount).Uint64()
+	expectedAmount := ethgo.Ether(sendAmount)
 
 	userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
 	require.NotNil(t, userPrime)
@@ -43,8 +47,8 @@ func Test_E2E_Nexus(t *testing.T) {
 	require.NoError(t, err)
 	require.NotZero(t, ethBalance)
 
-	err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, user, func(val uint64) bool {
-		return val == expectedAmount
+	err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, user, func(val *big.Int) bool {
+		return val.Cmp(expectedAmount) == 0
 	}, 10, 10)
 	require.NoError(t, err)
 
@@ -65,7 +69,7 @@ func Test_E2E_Nexus(t *testing.T) {
 	require.NoError(t, err)
 
 	txHash := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
-		nexusAddress.String(), sendAmount, apex.PrimeCluster.NetworkConfig(), receiverAddr)
+		nexusAddress.String(), sendAmountDfm.Uint64(), apex.PrimeCluster.NetworkConfig(), receiverAddr)
 
 	ethBalanceAfter, err := cardanofw.GetEthAmount(ctx, apex.Nexus, user)
 	fmt.Printf("ETH Amount AFTER  TX %d\n", ethBalanceAfter)
@@ -73,11 +77,11 @@ func Test_E2E_Nexus(t *testing.T) {
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
-	err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, user, func(val uint64) bool {
+	err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, user, func(val *big.Int) bool {
 		ethBalanceAfter, err := cardanofw.GetEthAmount(ctx, apex.Nexus, user)
 		require.NoError(t, err)
 
-		return ethBalanceBefore != ethBalanceAfter
+		return ethBalanceBefore.Cmp(ethBalanceAfter) != 0
 	}, 30, time.Second*30)
 	require.NoError(t, err)
 

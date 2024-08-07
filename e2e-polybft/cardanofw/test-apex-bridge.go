@@ -78,7 +78,6 @@ func SetupAndRunApexBridge(
 	t.Helper()
 
 	const (
-		sendAmount     = uint64(100_000_000_000)
 		bladeEpochSize = 5
 		numOfRetries   = 90
 		waitTime       = time.Second * 2
@@ -105,7 +104,7 @@ func SetupAndRunApexBridge(
 	primeGenesisWallet, err := GetGenesisWalletFromCluster(primeCluster.Config.TmpDir, 1)
 	require.NoError(t, err)
 
-	res, err := SendTx(ctx, txProviderPrime, primeGenesisWallet, sendAmount,
+	res, err := SendTx(ctx, txProviderPrime, primeGenesisWallet, FundTokenAmount,
 		cb.PrimeMultisigAddr, primeCluster.NetworkConfig(), []byte{})
 	require.NoError(t, err)
 
@@ -116,7 +115,7 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Prime multisig addr funded: %s\n", res)
 
-	res, err = SendTx(ctx, txProviderPrime, primeGenesisWallet, sendAmount,
+	res, err = SendTx(ctx, txProviderPrime, primeGenesisWallet, FundTokenAmount,
 		cb.PrimeMultisigFeeAddr, primeCluster.NetworkConfig(), []byte{})
 	require.NoError(t, err)
 
@@ -130,7 +129,7 @@ func SetupAndRunApexBridge(
 	vectorGenesisWallet, err := GetGenesisWalletFromCluster(vectorCluster.Config.TmpDir, 1)
 	require.NoError(t, err)
 
-	res, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, sendAmount,
+	res, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, FundTokenAmount,
 		cb.VectorMultisigAddr, vectorCluster.NetworkConfig(), []byte{})
 	require.NoError(t, err)
 
@@ -141,7 +140,7 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Vector multisig addr funded: %s\n", res)
 
-	res, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, sendAmount,
+	res, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, FundTokenAmount,
 		cb.VectorMultisigFeeAddr, vectorCluster.NetworkConfig(), []byte{})
 	require.NoError(t, err)
 
@@ -170,7 +169,7 @@ func (a *ApexSystem) SetupAndRunValidatorsAndRelayer(
 	// need params for it to work properly
 	primeTokenSupply := new(big.Int).SetUint64(FundTokenAmount)
 	vectorTokenSupply := new(big.Int).SetUint64(FundTokenAmount)
-	require.NoError(t, a.Bridge.RegisterChainsNexus(primeTokenSupply, vectorTokenSupply, vectorTokenSupply, a))
+	require.NoError(t, a.Bridge.RegisterChains(primeTokenSupply, vectorTokenSupply, ethgo.Ether(FundEthTokenAmount), a))
 
 	fmt.Printf("Chains registered\n")
 

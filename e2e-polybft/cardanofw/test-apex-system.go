@@ -183,7 +183,7 @@ func RunApexBridge(
 			defer wg.Done()
 
 			apexSystem.Nexus, errorsContainer[2] = RunEVMChain(
-				t, "../../evm-bridge-data-tmp-"+t.Name(), apexConfig)
+				t, apexConfig)
 		}()
 	}
 
