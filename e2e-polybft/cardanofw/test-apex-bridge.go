@@ -169,7 +169,10 @@ func (a *ApexSystem) SetupAndRunValidatorsAndRelayer(
 	// need params for it to work properly
 	primeTokenSupply := new(big.Int).SetUint64(FundTokenAmount)
 	vectorTokenSupply := new(big.Int).SetUint64(FundTokenAmount)
-	require.NoError(t, a.Bridge.RegisterChains(primeTokenSupply, vectorTokenSupply, ethgo.Ether(FundEthTokenAmount), a))
+	nexusTokenSupplyDfm := new(big.Int).SetUint64(FundEthTokenAmount)
+	exp := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
+	nexusTokenSupplyDfm.Mul(nexusTokenSupplyDfm, exp)
+	require.NoError(t, a.Bridge.RegisterChains(primeTokenSupply, vectorTokenSupply, nexusTokenSupplyDfm, a))
 
 	fmt.Printf("Chains registered\n")
 

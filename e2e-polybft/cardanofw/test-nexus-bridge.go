@@ -19,7 +19,7 @@ import (
 	"github.com/umbracle/ethgo/abi"
 )
 
-const FundEthTokenAmount = uint64(500)
+const FundEthTokenAmount = uint64(100_000)
 
 var (
 	tokenName = "TEST"
@@ -37,7 +37,7 @@ type TestEVMBridge struct {
 	Config *ApexSystemConfig
 }
 
-func (ec *TestEVMBridge) GetGatewat() types.Address {
+func (ec *TestEVMBridge) GetGateway() types.Address {
 	return (*ec.contracts).gateway
 }
 
@@ -99,7 +99,11 @@ func SetupAndRunNexusBridge(
 }
 
 func GetEthAmount(ctx context.Context, evmChain *TestEVMBridge, wallet *wallet.Account) (*big.Int, error) {
-	ethAmount, err := evmChain.Cluster.Servers[0].JSONRPC().GetBalance(wallet.Address(), jsonrpc.LatestBlockNumberOrHash)
+	return GetEthAmountAddr(ctx, evmChain, wallet.Address())
+}
+
+func GetEthAmountAddr(ctx context.Context, evmChain *TestEVMBridge, address types.Address) (*big.Int, error) {
+	ethAmount, err := evmChain.Cluster.Servers[0].JSONRPC().GetBalance(address, jsonrpc.LatestBlockNumberOrHash)
 	if err != nil {
 		return nil, err
 	}
