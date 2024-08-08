@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -1716,8 +1717,7 @@ func Test_NexusTests(t *testing.T) {
 
 	t.Run("Sanity check", func(t *testing.T) {
 		sendAmount := uint64(1)
-
-		expectedAmount := ethgo.Ether(sendAmount).Uint64()
+		expectedAmount := ethgo.Ether(sendAmount)
 
 		user := apex.CreateAndFundNexusUser(t, ctx, sendAmount)
 		require.NotNil(t, user)
@@ -1726,8 +1726,8 @@ func Test_NexusTests(t *testing.T) {
 		require.NoError(t, err)
 		require.NotZero(t, ethBalance)
 
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, user, func(val uint64) bool {
-			return val == expectedAmount
+		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, user, func(val *big.Int) bool {
+			return val.Cmp(expectedAmount) == 0
 		}, 10, 10)
 		require.NoError(t, err)
 	})

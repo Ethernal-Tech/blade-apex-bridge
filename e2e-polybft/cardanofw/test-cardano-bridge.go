@@ -3,6 +3,7 @@ package cardanofw
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -15,13 +16,18 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/types"
+	secretsCardano "github.com/Ethernal-Tech/cardano-infrastructure/secrets"
+	secretsHelper "github.com/Ethernal-Tech/cardano-infrastructure/secrets/helper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	goEthCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 )
 
 const (
 	ChainIDPrime  = "prime"
 	ChainIDVector = "vector"
+	ChainIDNexus  = "nexus"
 
 	BridgeSCAddr = "0xABEF000000000000000000000000000000000000"
 
@@ -45,6 +51,8 @@ type TestCardanoBridge struct {
 	PrimeMultisigFeeAddr  string
 	VectorMultisigAddr    string
 	VectorMultisigFeeAddr string
+
+	relayerWallet *ecdsa.PrivateKey
 
 	cluster *framework.TestCluster
 
@@ -94,6 +102,108 @@ func (cb *TestCardanoBridge) StartValidators(t *testing.T, epochSize int) {
 	for idx, validator := range cb.validators {
 		require.NoError(t, validator.SetClusterAndServer(cb.cluster, cb.cluster.Servers[idx]))
 	}
+
+	err := cb.nexusCreateWalletsAndAddresses()
+	require.NoError(t, err)
+}
+
+func (ec *TestCardanoBridge) nexusCreateWalletsAndAddresses() error {
+	var err error
+	for idx, validator := range ec.validators {
+		err = validator.batcherWalletCreate()
+		if err != nil {
+			return err
+		}
+
+		if idx == 0 {
+			err = ec.relayerWalletCreate()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	for idx, validator := range ec.validators {
+		batcherWallet, err := validator.getBatcherWallet()
+		if err != nil {
+			return err
+		}
+
+		ec.validators[idx].BatcherBN256PrivateKey = batcherWallet
+
+		if idx == 0 {
+			relayerWallet, err := ec.getRelayerWallet()
+			if err != nil {
+				return err
+			}
+
+			ec.relayerWallet = relayerWallet
+		}
+	}
+
+	return err
+}
+
+func (cv *TestCardanoBridge) relayerWalletCreate() error {
+	var dataDir string
+	for _, validator := range cv.validators {
+		if validator.ID == RunRelayerOnValidatorID {
+			dataDir = validator.server.DataDir()
+		}
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), []string{
+		"wallet-create",
+		"--chain", ChainIDNexus,
+		"--validator-data-dir", dataDir,
+		"--type", "relayer-evm",
+	}, os.Stdout)
+}
+
+func (cv *TestCardanoBridge) getRelayerWallet() (*ecdsa.PrivateKey, error) {
+	var dataDir string
+	for _, validator := range cv.validators {
+		if validator.ID == RunRelayerOnValidatorID {
+			dataDir = validator.server.DataDir()
+		}
+	}
+
+	secretsMngr, err := secretsHelper.CreateSecretsManager(&secretsCardano.SecretsManagerConfig{
+		Path: dataDir,
+		Type: secretsCardano.Local,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to load wallet: %w", err)
+	}
+
+	keyName := fmt.Sprintf("%s%s_%s", secretsCardano.OtherKeyLocalPrefix, ChainIDNexus, "relayer_evm_key")
+
+	strBytes, err := secretsMngr.GetSecret(keyName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load wallet: %w", err)
+	}
+
+	str := strings.Trim(strings.Trim(string(strBytes), "\n"), " ")
+
+	if strings.HasPrefix(str, "0x") || strings.HasPrefix(str, "0X") {
+		str = str[2:]
+	}
+
+	bytes, err := hex.DecodeString(str)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load wallet: %w", err)
+	}
+
+	pk, err := crypto.ToECDSA(bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal wallet: %w", err)
+	}
+
+	return pk, nil
+}
+
+func (cb *TestCardanoBridge) GetRelayerWalletAddr() goEthCommon.Address {
+	return crypto.PubkeyToAddress(cb.relayerWallet.PublicKey)
 }
 
 func (cb *TestCardanoBridge) GetValidator(t *testing.T, idx int) *TestCardanoValidator {
@@ -123,6 +233,8 @@ func (cb *TestCardanoBridge) GetValidatorsCount() int {
 func (cb *TestCardanoBridge) RegisterChains(
 	primeTokenSupply *big.Int,
 	vectorTokenSupply *big.Int,
+	nexusTokenSupply *big.Int,
+	apex *ApexSystem,
 ) error {
 	errs := make([]error, len(cb.validators))
 	wg := sync.WaitGroup{}
@@ -141,6 +253,17 @@ func (cb *TestCardanoBridge) RegisterChains(
 
 			errs[indx] = validator.RegisterChain(
 				ChainIDVector, cb.VectorMultisigAddr, cb.VectorMultisigFeeAddr, vectorTokenSupply, ChainTypeCardano)
+			if errs[indx] != nil {
+				return
+			}
+
+			nexusMultisigAddr := apex.Nexus.contracts.gateway.String()
+			nexusMultisigFeeAddr := cb.GetRelayerWalletAddr().Hex()
+
+			chainTypeNexus := uint8(1)
+
+			errs[indx] = validator.RegisterChain(
+				ChainIDNexus, nexusMultisigAddr, nexusMultisigFeeAddr, nexusTokenSupply, chainTypeNexus)
 			if errs[indx] != nil {
 				return
 			}
@@ -204,8 +327,12 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 
 			if cb.config.NexusEnabled {
 				nexusContractAddr = nexus.contracts.gateway.String()
-				nexusRelayerWallet = nexus.relayerWallet.ValidatorAddress.String()
-				nexusNodeUrl = nexus.NodeURL()
+				nexusRelayerWallet = cb.GetRelayerWalletAddr().Hex()
+				if cb.config.TargetOneCardanoClusterServer {
+					nexusNodeUrl = nexus.Validators[0].Server.JSONRPCAddr()
+				} else {
+					nexusNodeUrl = nexus.Validators[indx%len(nexus.Validators)].Server.JSONRPCAddr()
+				}
 			} else {
 				nexusContractAddr = types.ZeroAddress.String()
 				nexusRelayerWallet = types.ZeroAddress.String()
