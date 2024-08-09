@@ -52,7 +52,7 @@ func SendTx_Eth(
 		sender)
 	if err != nil {
 		return "", err
-	} else if receipt.Status != uint64(1) {
+	} else if receipt.Status != uint64(types.ReceiptSuccess) {
 		return "", fmt.Errorf("deploying proxy smart contract failed: %d", receipt.Status)
 	}
 

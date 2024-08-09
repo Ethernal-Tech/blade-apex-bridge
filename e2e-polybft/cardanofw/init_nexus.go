@@ -98,22 +98,20 @@ type NativeERC20SetDependenciesFn struct {
 	Supply_    *big.Int      `abi:"tokenSupply_"`
 }
 
-var NativeERC20ABIType = abi.MustNewType("tuple(address predicate_,address owner_,string name_,string symbol_,uint8 decimals_,uint256 tokenSupply_)")
-
 func (g *NativeERC20SetDependenciesFn) Sig() []byte {
-	return Gateway.Abi.Methods["setDependencies"].ID()
+	return NativeERC20Mintable.Abi.Methods["setDependencies"].ID()
 }
 
 func (g *NativeERC20SetDependenciesFn) EncodeAbi() ([]byte, error) {
-	return NativeERC20ABIType.Encode(g)
+	return NativeERC20Mintable.Abi.Methods["setDependencies"].Encode(g)
 }
 
 func (g *NativeERC20SetDependenciesFn) DecodeAbi(buf []byte) error {
-	return abi.DecodeStruct(NativeERC20ABIType, buf, &g)
+	return decodeMethod(NativeERC20Mintable.Abi.Methods["setDependencies"], buf, g)
 }
 
 type ValidatorChainData struct {
-	Key_ []*big.Int `abi:"key"`
+	Key_ [4]*big.Int `abi:"key"`
 }
 
 type ValidatorAddressChainData struct {
@@ -126,18 +124,16 @@ type ValidatorsSetDependenciesFn struct {
 	ChainData_ []*ValidatorAddressChainData `abi:"_chainDatas"`
 }
 
-var ValidatorsABIType = abi.MustNewType("tuple(address _gatewayAddress, tuple(address addr, tuple(uint256[] key) data)[] _chainDatas)")
-
 func (g *ValidatorsSetDependenciesFn) Sig() []byte {
-	return Gateway.Abi.Methods["setDependencies"].ID()
+	return Validators.Abi.Methods["setDependencies"].ID()
 }
 
 func (g *ValidatorsSetDependenciesFn) EncodeAbi() ([]byte, error) {
-	return ValidatorsABIType.Encode(g)
+	return Validators.Abi.Methods["setDependencies"].Encode(g)
 }
 
 func (g *ValidatorsSetDependenciesFn) DecodeAbi(buf []byte) error {
-	return abi.DecodeStruct(ValidatorsABIType, buf, &g)
+	return decodeMethod(Validators.Abi.Methods["setDependencies"], buf, g)
 }
 
 const abiMethodIDLength = 4

@@ -16,13 +16,12 @@ import (
 	"github.com/0xPolygon/polygon-edge/types"
 	ci "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
-	"github.com/umbracle/ethgo"
 )
 
 const FundEthTokenAmount = uint64(100_000)
 
 var (
-	tokenName = "TEST"
+	tokenName = "APEX"
 )
 
 type NexusBridgeOption func(*TestEVMBridge)
@@ -92,10 +91,6 @@ func SetupAndRunNexusBridge(
 ) {
 	err := apexSystem.Nexus.deployContracts(apexSystem)
 	require.NoError(t, err)
-
-	txRes := apexSystem.Nexus.Cluster.Transfer(t, apexSystem.Nexus.Admin.Ecdsa,
-		apexSystem.Nexus.contracts.gateway, ethgo.Ether(FundEthTokenAmount))
-	require.True(t, txRes.Succeed())
 }
 
 func (eb *TestEVMBridge) SendTxEvm(privateKey string, receiver string, amount uint64) error {
@@ -194,7 +189,7 @@ func (ec *TestEVMBridge) deployContracts(apexSystem *ApexSystem) error {
 		return err
 	}
 
-	err = ec.contracts.nativeErc20SetDependencies(txRelayer, ec.Admin, tokenName, tokenName, 18, 0)
+	err = ec.contracts.nativeErc20SetDependencies(txRelayer, ec.Admin, tokenName, tokenName, 18, big.NewInt(0))
 	if err != nil {
 		return err
 	}
@@ -224,7 +219,7 @@ func deployContractWithProxy(
 		admin.Ecdsa)
 	if err != nil {
 		return addr, err
-	} else if receipt.Status != uint64(1) {
+	} else if receipt.Status != uint64(types.ReceiptSuccess) {
 		return addr, fmt.Errorf("deploying smart contract failed: %d", receipt.Status)
 	}
 
@@ -246,7 +241,7 @@ func deployContractWithProxy(
 		admin.Ecdsa)
 	if err != nil {
 		return addr, err
-	} else if receipt.Status != uint64(1) {
+	} else if receipt.Status != uint64(types.ReceiptSuccess) {
 		return addr, fmt.Errorf("deploying proxy smart contract failed: %d", receipt.Status)
 	}
 
@@ -279,7 +274,7 @@ func (ca *ContractsAddrs) gatewaySetDependencies(
 		)), admin.Ecdsa)
 	if err != nil {
 		return err
-	} else if receipt.Status != uint64(1) {
+	} else if receipt.Status != uint64(types.ReceiptSuccess) {
 		return fmt.Errorf("calling setDependencies failed: %d", receipt.Status)
 	}
 
@@ -308,7 +303,7 @@ func (ca *ContractsAddrs) erc20predicateSetDependencies(
 		)), admin.Ecdsa)
 	if err != nil {
 		return err
-	} else if receipt.Status != uint64(1) {
+	} else if receipt.Status != uint64(types.ReceiptSuccess) {
 		return fmt.Errorf("calling setDependencies failed: %d", receipt.Status)
 	}
 
@@ -319,7 +314,7 @@ func (ca *ContractsAddrs) nativeErc20SetDependencies(
 	txRelayer txrelayer.TxRelayer,
 	admin *wallet.Account,
 	tokenName string, tokenSymbol string,
-	decimals uint8, tokenSupply int64,
+	decimals uint8, tokenSupply *big.Int,
 ) error {
 	nativeErc20 := NativeERC20SetDependenciesFn{
 		Predicate_: ca.erc20Predicate,
@@ -327,7 +322,7 @@ func (ca *ContractsAddrs) nativeErc20SetDependencies(
 		Name_:      tokenName,
 		Symbol_:    tokenSymbol,
 		Decimals_:  decimals,
-		Supply_:    big.NewInt(tokenSupply),
+		Supply_:    tokenSupply,
 	}
 
 	encoded, err := nativeErc20.EncodeAbi()
@@ -343,7 +338,7 @@ func (ca *ContractsAddrs) nativeErc20SetDependencies(
 		)), admin.Ecdsa)
 	if err != nil {
 		return err
-	} else if receipt.Status != uint64(1) {
+	} else if receipt.Status != uint64(types.ReceiptSuccess) {
 		return fmt.Errorf("calling setDependencies failed: %d", receipt.Status)
 	}
 
@@ -375,7 +370,7 @@ func (ca *ContractsAddrs) validatorsSetDependencies(
 		)), admin.Ecdsa)
 	if err != nil {
 		return err
-	} else if receipt.Status != uint64(1) {
+	} else if receipt.Status != uint64(types.ReceiptSuccess) {
 		return fmt.Errorf("calling setDependencies failed: %d", receipt.Status)
 	}
 
@@ -392,12 +387,7 @@ func makeValidatorChainData(validators []*TestCardanoValidator) []*ValidatorAddr
 		validatorAddrChainData[idx] = &ValidatorAddressChainData{
 			Address_: validatorAddr,
 			Data_: &ValidatorChainData{
-				Key_: []*big.Int{
-					keyData[0],
-					keyData[1],
-					keyData[2],
-					keyData[3],
-				},
+				Key_: keyData,
 			},
 		}
 	}
