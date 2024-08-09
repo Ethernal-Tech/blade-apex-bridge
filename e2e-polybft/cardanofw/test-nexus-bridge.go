@@ -230,13 +230,16 @@ func deployContractWithProxy(
 
 	contractAddr := types.Address(receipt.ContractAddress)
 
+	input, _ := ERC1967Proxy.Abi.Constructor.Inputs.Encode(map[string]interface{}{
+		"implementation": contractAddr,
+		"_data":          initParams,
+	})
+
 	// deploy proxy contract and call initialize
 	receipt, err = txRelayer.SendTransaction(
 		types.NewTx(types.NewLegacyTx(
 			types.WithFrom(admin.Ecdsa.Address()),
-			types.WithInput(ERC1967Proxy.Bytecode),
-			types.WithInput(contractAddr[:]),
-			types.WithInput(initParams),
+			types.WithInput(input),
 		)),
 		admin.Ecdsa)
 	if err != nil {

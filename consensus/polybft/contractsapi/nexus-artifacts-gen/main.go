@@ -22,7 +22,7 @@ const (
 func main() {
 	_, filename, _, _ := runtime.Caller(0) //nolint: dogsled
 	currentPath := path.Dir(filename)
-	proxyscpath := path.Join(currentPath, "../test-contracts")
+	proxyscpath := path.Join(currentPath, "../../../../apex-evm-gateway/artifacts/@openzeppelin/contracts/proxy/")
 	nexusscpath := path.Join(currentPath, "../../../../apex-evm-gateway/artifacts/contracts/")
 
 	str := `// This is auto-generated file. DO NOT EDIT.
@@ -35,7 +35,7 @@ package contractsapi
 		Name string
 	}{
 		{
-			"ERC1967Proxy",
+			"ERC1967/ERC1967Proxy.sol",
 			"ERC1967Proxy",
 		},
 	}
@@ -63,7 +63,7 @@ package contractsapi
 	}
 
 	for _, v := range proxyContracts {
-		artifactBytes, err := contracts.ReadRawArtifact(proxyscpath, "", getContractName(v.Path))
+		artifactBytes, err := contracts.ReadRawArtifact(proxyscpath, v.Path, getContractName(v.Path))
 		if err != nil {
 			log.Fatal(err)
 		}
