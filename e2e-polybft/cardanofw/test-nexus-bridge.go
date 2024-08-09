@@ -17,7 +17,6 @@ import (
 	ci "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 	"github.com/umbracle/ethgo"
-	"github.com/umbracle/ethgo/abi"
 )
 
 const FundEthTokenAmount = uint64(100_000)
@@ -149,12 +148,14 @@ func (ec *TestEVMBridge) deployContracts(apexSystem *ApexSystem) error {
 	}
 
 	// Deploy contracts with proxy & call "initialize"
-	ec.contracts.erc20Predicate, err = deployContractWithProxy(txRelayer, ec.Admin, ERC20TokenPredicate, InitializeNoParams())
+	erc20PredicateInit, _ := ERC20TokenPredicate.Abi.Methods["initialize"].Encode(map[string]interface{}{})
+	ec.contracts.erc20Predicate, err = deployContractWithProxy(txRelayer, ec.Admin, ERC20TokenPredicate, erc20PredicateInit)
 	if err != nil {
 		return err
 	}
 
-	ec.contracts.nativeErc20Mintable, err = deployContractWithProxy(txRelayer, ec.Admin, NativeERC20Mintable, InitializeNoParams())
+	nativeErc20MintableInit, _ := NativeERC20Mintable.Abi.Methods["initialize"].Encode(map[string]interface{}{})
+	ec.contracts.nativeErc20Mintable, err = deployContractWithProxy(txRelayer, ec.Admin, NativeERC20Mintable, nativeErc20MintableInit)
 	if err != nil {
 		return err
 	}
@@ -167,17 +168,16 @@ func (ec *TestEVMBridge) deployContracts(apexSystem *ApexSystem) error {
 		}
 	}
 
-	data, err := abi.MustNewType("address[]").Encode(validatorAddresses)
+	validatorsInit, _ := Validators.Abi.Methods["initialize"].Encode(map[string]interface{}{
+		"_validators": validatorAddresses,
+	})
+	ec.contracts.validators, err = deployContractWithProxy(txRelayer, ec.Admin, Validators, validatorsInit)
 	if err != nil {
 		return err
 	}
 
-	ec.contracts.validators, err = deployContractWithProxy(txRelayer, ec.Admin, Validators, InitializeWithParams(data))
-	if err != nil {
-		return err
-	}
-
-	ec.contracts.gateway, err = deployContractWithProxy(txRelayer, ec.Admin, Gateway, InitializeNoParams())
+	gatewayInit, _ := Gateway.Abi.Methods["initialize"].Encode(map[string]interface{}{})
+	ec.contracts.gateway, err = deployContractWithProxy(txRelayer, ec.Admin, Gateway, gatewayInit)
 	if err != nil {
 		return err
 	}
@@ -234,6 +234,8 @@ func deployContractWithProxy(
 		"implementation": contractAddr,
 		"_data":          initParams,
 	})
+
+	input = append(ERC1967Proxy.Bytecode, input...)
 
 	// deploy proxy contract and call initialize
 	receipt, err = txRelayer.SendTransaction(

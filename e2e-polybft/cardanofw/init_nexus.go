@@ -140,14 +140,6 @@ func (g *ValidatorsSetDependenciesFn) DecodeAbi(buf []byte) error {
 	return abi.DecodeStruct(ValidatorsABIType, buf, &g)
 }
 
-func InitializeNoParams() []byte {
-	return []byte("initialize")
-}
-
-func InitializeWithParams(params []byte) []byte {
-	return append([]byte("initialize"), params...)
-}
-
 const abiMethodIDLength = 4
 
 func decodeMethod(method *abi.Method, input []byte, out interface{}) error {
