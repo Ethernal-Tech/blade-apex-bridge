@@ -1735,7 +1735,6 @@ func Test_NexusTests(t *testing.T) {
 	t.Run("From Nexus to Prime", func(t *testing.T) {
 		// create and fund wallet on nexus
 		evmUser := apex.CreateAndFundNexusUser(t, ctx, 1)
-		require.NotNil(t, user)
 		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
 		require.NoError(t, err)
 

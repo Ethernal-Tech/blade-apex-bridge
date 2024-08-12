@@ -55,7 +55,7 @@ func InitNexusContracts() (
 }
 
 type GatewaySetDependenciesFn struct {
-	ERC20_      types.Address `abi:"_eRC20TokenPredicate"`
+	Erc20_      types.Address `abi:"_eRC20TokenPredicate"`
 	Validators_ types.Address `abi:"_validators"`
 	Relayer_    types.Address `abi:"_relayer"`
 }

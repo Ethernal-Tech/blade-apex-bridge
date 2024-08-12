@@ -35,8 +35,8 @@ type TestEVMBridge struct {
 	Config *ApexSystemConfig
 }
 
-func (ec *TestEVMBridge) GetGateway() types.Address {
-	return (*ec.contracts).gateway
+func (ec *TestEVMBridge) GetGatewayAddress() types.Address {
+	return ec.contracts.gateway
 }
 
 type ContractsAddrs struct {
@@ -81,16 +81,18 @@ func SetupAndRunNexusBridge(
 	ctx context.Context,
 	apexSystem *ApexSystem,
 ) {
+	t.Helper()
+
 	err := apexSystem.Nexus.deployContracts(apexSystem)
 	require.NoError(t, err)
 }
 
-func (eb *TestEVMBridge) SendTxEvm(privateKey string, receiver string, amount uint64) error {
+func (ec *TestEVMBridge) SendTxEvm(privateKey string, receiver string, amount uint64) error {
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"sendtx",
 		"--tx-type", "evm",
-		"--gateway-addr", eb.contracts.gateway.String(),
-		"--nexus-url", eb.NodeURL(),
+		"--gateway-addr", ec.contracts.gateway.String(),
+		"--nexus-url", ec.NodeURL(),
 		"--key", privateKey,
 		"--chain-dst", "prime",
 		"--receiver", fmt.Sprintf("%v:%v", receiver, amount),
@@ -107,7 +109,13 @@ func GetEthAmount(ctx context.Context, evmChain *TestEVMBridge, wallet *wallet.A
 	return ethAmount, err
 }
 
-func WaitForEthAmount(ctx context.Context, evmChain *TestEVMBridge, wallet *wallet.Account, cmpHandler func(*big.Int) bool, numRetries int, waitTime time.Duration,
+func WaitForEthAmount(
+	ctx context.Context,
+	evmChain *TestEVMBridge,
+	wallet *wallet.Account,
+	cmpHandler func(*big.Int) bool,
+	numRetries int,
+	waitTime time.Duration,
 	isRecoverableError ...ci.IsRecoverableErrorFn,
 ) error {
 	return ci.ExecuteWithRetry(ctx, numRetries, waitTime, func() (bool, error) {
@@ -136,13 +144,17 @@ func (ec *TestEVMBridge) deployContracts(apexSystem *ApexSystem) error {
 
 	// Deploy contracts with proxy & call "initialize"
 	erc20PredicateInit, _ := ERC20TokenPredicate.Abi.Methods["initialize"].Encode(map[string]interface{}{})
-	ec.contracts.erc20Predicate, err = deployContractWithProxy(txRelayer, ec.Admin, ERC20TokenPredicate, erc20PredicateInit)
+
+	ec.contracts.erc20Predicate, err =
+		deployContractWithProxy(txRelayer, ec.Admin, ERC20TokenPredicate, erc20PredicateInit)
 	if err != nil {
 		return err
 	}
 
 	nativeErc20MintableInit, _ := NativeERC20Mintable.Abi.Methods["initialize"].Encode(map[string]interface{}{})
-	ec.contracts.nativeErc20Mintable, err = deployContractWithProxy(txRelayer, ec.Admin, NativeERC20Mintable, nativeErc20MintableInit)
+
+	ec.contracts.nativeErc20Mintable, err =
+		deployContractWithProxy(txRelayer, ec.Admin, NativeERC20Mintable, nativeErc20MintableInit)
 	if err != nil {
 		return err
 	}
@@ -158,12 +170,14 @@ func (ec *TestEVMBridge) deployContracts(apexSystem *ApexSystem) error {
 	validatorsInit, _ := Validators.Abi.Methods["initialize"].Encode(map[string]interface{}{
 		"_validators": validatorAddresses,
 	})
+
 	ec.contracts.validators, err = deployContractWithProxy(txRelayer, ec.Admin, Validators, validatorsInit)
 	if err != nil {
 		return err
 	}
 
 	gatewayInit, _ := Gateway.Abi.Methods["initialize"].Encode(map[string]interface{}{})
+
 	ec.contracts.gateway, err = deployContractWithProxy(txRelayer, ec.Admin, Gateway, gatewayInit)
 	if err != nil {
 		return err
@@ -171,6 +185,7 @@ func (ec *TestEVMBridge) deployContracts(apexSystem *ApexSystem) error {
 
 	// Call "setDependencies"
 	relayerAddr := types.Address(apexSystem.Bridge.GetRelayerWalletAddr())
+
 	err = ec.contracts.gatewaySetDependencies(txRelayer, ec.Admin, relayerAddr)
 	if err != nil {
 		return err
@@ -248,7 +263,7 @@ func (ca *ContractsAddrs) gatewaySetDependencies(
 	relayerAddr types.Address,
 ) error {
 	gateway := GatewaySetDependenciesFn{
-		ERC20_:      ca.erc20Predicate,
+		Erc20_:      ca.erc20Predicate,
 		Validators_: ca.validators,
 		Relayer_:    relayerAddr,
 	}

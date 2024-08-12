@@ -24,9 +24,9 @@ type ApexSystemConfig struct {
 	// Apex
 	VectorEnabled bool
 
-	ApiValidatorID int // -1 all validators
-	ApiPortStart   int
-	ApiKey         string
+	APIValidatorID int // -1 all validators
+	APIPortStart   int
+	APIKey         string
 
 	VectorTTLInc                uint64
 	VectorSlotRoundingThreshold uint64
@@ -50,19 +50,19 @@ type ApexSystemOptions func(*ApexSystemConfig)
 
 func WithAPIValidatorID(apiValidatorID int) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
-		h.ApiValidatorID = apiValidatorID
+		h.APIValidatorID = apiValidatorID
 	}
 }
 
 func WithAPIPortStart(apiPortStart int) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
-		h.ApiPortStart = apiPortStart
+		h.APIPortStart = apiPortStart
 	}
 }
 
 func WithAPIKey(apiKey string) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
-		h.ApiKey = apiKey
+		h.APIKey = apiKey
 	}
 }
 
@@ -127,9 +127,9 @@ func (as *ApexSystemConfig) ServiceCount() int {
 
 func newApexSystemConfig(opts ...ApexSystemOptions) *ApexSystemConfig {
 	config := &ApexSystemConfig{
-		ApiValidatorID: 1,
-		ApiPortStart:   40000,
-		ApiKey:         "test_api_key",
+		APIValidatorID: 1,
+		APIPortStart:   40000,
+		APIKey:         "test_api_key",
 
 		CardanoNodesNum:     4,
 		BladeValidatorCount: 4,
@@ -234,7 +234,7 @@ func RunApexBridge(
 
 		wg.Wait()
 
-		fmt.Printf("Chains has been stopped...%v\n", errors.Join(errorsContainer[:]...))
+		fmt.Printf("Chains has been stopped...%v\n", errors.Join(errorsContainer...))
 	})
 
 	fmt.Println("Starting chains...")
@@ -243,7 +243,7 @@ func RunApexBridge(
 
 	fmt.Println("Chains have been started...")
 
-	require.NoError(t, errors.Join(errorsContainer[:]...))
+	require.NoError(t, errors.Join(errorsContainer...))
 
 	apexSystem.Bridge = SetupAndRunApexBridge(
 		t, ctx,

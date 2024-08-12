@@ -3,13 +3,9 @@ package cardanofw
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"path/filepath"
 	"strings"
 
-	"github.com/0xPolygon/polygon-edge/crypto"
-	"github.com/0xPolygon/polygon-edge/txrelayer"
-	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
@@ -33,30 +29,6 @@ func SendTx(ctx context.Context,
 	})
 
 	return res, err
-}
-
-func SendTx_Eth(
-	relayer txrelayer.TxRelayer,
-	sender *crypto.ECDSAKey,
-	amount *big.Int,
-	receiver *types.Address,
-) (string, error) {
-	// TODO:Nexus - should call runCommand apex-bridge sendtx-eth...
-
-	receipt, err := relayer.SendTransaction(
-		types.NewTx(types.NewLegacyTx(
-			types.WithFrom(sender.Address()),
-			types.WithTo(receiver),
-			types.WithValue(amount)),
-		),
-		sender)
-	if err != nil {
-		return "", err
-	} else if receipt.Status != uint64(types.ReceiptSuccess) {
-		return "", fmt.Errorf("deploying proxy smart contract failed: %d", receipt.Status)
-	}
-
-	return receipt.TransactionHash.String(), err
 }
 
 func sendTx(ctx context.Context,

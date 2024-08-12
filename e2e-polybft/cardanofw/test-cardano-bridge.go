@@ -146,6 +146,7 @@ func (ec *TestCardanoBridge) nexusCreateWalletsAndAddresses() error {
 
 func (cv *TestCardanoBridge) relayerWalletCreate() error {
 	var dataDir string
+
 	for _, validator := range cv.validators {
 		if validator.ID == RunRelayerOnValidatorID {
 			dataDir = validator.server.DataDir()
@@ -162,6 +163,7 @@ func (cv *TestCardanoBridge) relayerWalletCreate() error {
 
 func (cv *TestCardanoBridge) getRelayerWallet() (*ecdsa.PrivateKey, error) {
 	var dataDir string
+
 	for _, validator := range cv.validators {
 		if validator.ID == RunRelayerOnValidatorID {
 			dataDir = validator.server.DataDir()
@@ -304,7 +306,7 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 
 				nexusContractAddr  string
 				nexusRelayerWallet string
-				nexusNodeUrl       string
+				nexusNodeURL       string
 			)
 
 			if cb.config.TargetOneCardanoClusterServer {
@@ -334,11 +336,11 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 					nexusNodeUrlIndx = indx % len(nexus.Cluster.Servers)
 				}
 
-				nexusNodeUrl = nexus.Cluster.Servers[nexusNodeUrlIndx].JSONRPCAddr()
+				nexusNodeURL = nexus.Cluster.Servers[nexusNodeUrlIndx].JSONRPCAddr()
 			} else {
 				nexusContractAddr = types.ZeroAddress.String()
 				nexusRelayerWallet = types.ZeroAddress.String()
-				nexusNodeUrl = "localhost:5500"
+				nexusNodeURL = "localhost:5500"
 			}
 
 			errs[indx] = validator.GenerateConfigs(
@@ -354,12 +356,12 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 				vectorCluster.OgmiosURL(),
 				cb.config.VectorSlotRoundingThreshold,
 				cb.config.VectorTTLInc,
-				cb.config.ApiPortStart+indx,
-				cb.config.ApiKey,
+				cb.config.APIPortStart+indx,
+				cb.config.APIKey,
 				telemetryConfig,
 				nexusContractAddr,
 				nexusRelayerWallet,
-				nexusNodeUrl,
+				nexusNodeURL,
 			)
 		}(validator, i)
 	}
@@ -371,7 +373,7 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 
 func (cb *TestCardanoBridge) StartValidatorComponents(ctx context.Context) (err error) {
 	for _, validator := range cb.validators {
-		hasAPI := cb.config.ApiValidatorID == -1 || validator.ID == cb.config.ApiValidatorID
+		hasAPI := cb.config.APIValidatorID == -1 || validator.ID == cb.config.APIValidatorID
 
 		if err = validator.Start(ctx, hasAPI); err != nil {
 			return err
@@ -418,7 +420,7 @@ func (cb *TestCardanoBridge) GetBridgingAPI() (string, error) {
 
 func (cb *TestCardanoBridge) GetBridgingAPIs() (res []string, err error) {
 	for _, validator := range cb.validators {
-		hasAPI := cb.config.ApiValidatorID == -1 || validator.ID == cb.config.ApiValidatorID
+		hasAPI := cb.config.APIValidatorID == -1 || validator.ID == cb.config.APIValidatorID
 
 		if hasAPI {
 			if validator.APIPort == 0 {

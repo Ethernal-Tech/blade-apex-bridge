@@ -119,9 +119,10 @@ func SetupAndRunApexBridge(
 		cb.PrimeMultisigFeeAddr, primeCluster.NetworkConfig(), []byte{})
 	require.NoError(t, err)
 
-	err = cardanowallet.WaitForAmount(context.Background(), txProviderPrime, cb.PrimeMultisigFeeAddr, func(val uint64) bool {
-		return val == FundTokenAmount
-	}, numOfRetries, waitTime, IsRecoverableError)
+	err = cardanowallet.WaitForAmount(context.Background(), txProviderPrime,
+		cb.PrimeMultisigFeeAddr, func(val uint64) bool {
+			return val == FundTokenAmount
+		}, numOfRetries, waitTime, IsRecoverableError)
 	require.NoError(t, err)
 
 	fmt.Printf("Prime multisig fee addr funded: %s\n", res)
@@ -133,9 +134,10 @@ func SetupAndRunApexBridge(
 		cb.VectorMultisigAddr, vectorCluster.NetworkConfig(), []byte{})
 	require.NoError(t, err)
 
-	err = cardanowallet.WaitForAmount(context.Background(), txProviderVector, cb.VectorMultisigAddr, func(val uint64) bool {
-		return val == FundTokenAmount
-	}, numOfRetries, waitTime, IsRecoverableError)
+	err = cardanowallet.WaitForAmount(context.Background(), txProviderVector,
+		cb.VectorMultisigAddr, func(val uint64) bool {
+			return val == FundTokenAmount
+		}, numOfRetries, waitTime, IsRecoverableError)
 	require.NoError(t, err)
 
 	fmt.Printf("Vector multisig addr funded: %s\n", res)
@@ -144,9 +146,10 @@ func SetupAndRunApexBridge(
 		cb.VectorMultisigFeeAddr, vectorCluster.NetworkConfig(), []byte{})
 	require.NoError(t, err)
 
-	err = cardanowallet.WaitForAmount(context.Background(), txProviderVector, cb.VectorMultisigFeeAddr, func(val uint64) bool {
-		return val == FundTokenAmount
-	}, numOfRetries, waitTime, IsRecoverableError)
+	err = cardanowallet.WaitForAmount(context.Background(), txProviderVector,
+		cb.VectorMultisigFeeAddr, func(val uint64) bool {
+			return val == FundTokenAmount
+		}, numOfRetries, waitTime, IsRecoverableError)
 	require.NoError(t, err)
 
 	fmt.Printf("Vector multisig fee addr funded: %s\n", res)
@@ -166,6 +169,8 @@ func (a *ApexSystem) SetupAndRunValidatorsAndRelayer(
 	t *testing.T,
 	ctx context.Context,
 ) {
+	t.Helper()
+
 	// need params for it to work properly
 	primeTokenSupply := new(big.Int).SetUint64(FundTokenAmount)
 	vectorTokenSupply := new(big.Int).SetUint64(FundTokenAmount)
@@ -275,6 +280,8 @@ func (a *ApexSystem) CreateAndFundExistingUser(
 }
 
 func (a *ApexSystem) CreateAndFundNexusUser(t *testing.T, ctx context.Context, ethAmount uint64) *wallet.Account {
+	t.Helper()
+
 	user, err := wallet.GenerateAccount()
 	require.NoError(t, err)
 

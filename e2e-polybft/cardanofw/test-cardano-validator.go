@@ -171,7 +171,7 @@ func (cv *TestCardanoValidator) GenerateConfigs(
 	telemetryConfig string,
 	nexusGatewayAddr string,
 	nexusRelayerAddr string,
-	nexusNodeUrl string,
+	nexusNodeURL string,
 ) error {
 	cv.APIPort = apiPort
 
@@ -193,7 +193,7 @@ func (cv *TestCardanoValidator) GenerateConfigs(
 		"--bridge-sc-address", BridgeSCAddr,
 		"--nexus-sc-address", nexusGatewayAddr,
 		"--nexus-relayer-addr", nexusRelayerAddr,
-		"--nexus-node-url", nexusNodeUrl,
+		"--nexus-node-url", nexusNodeURL,
 		"--relayer-data-dir", cv.GetNexusTestDir(),
 		"--logs-path", filepath.Join(cv.dataDirPath, BridgingLogsDir),
 		"--dbs-path", filepath.Join(cv.dataDirPath, BridgingDBsDir),
