@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/secretmanager v1.13.1
 	github.com/0xPolygon/go-ibft v0.4.1-0.20240429085428-e2032115c799
 	github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20231202204931-b886edca635a
-	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20240703091214-f6cce399955b
+	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20240719115837-c737ddfbe04c
 	github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-sdk-go v1.53.14
@@ -56,11 +56,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	pgregory.net/rapid v1.1.0
 )
-
-// TODO:Nexus revert back and update cardano-infra and bn256 before merge
-replace github.com/Ethernal-Tech/cardano-infrastructure => ../cardano-infrastructure
-
-replace github.com/Ethernal-Tech/bn256 => ../bn256
 
 require (
 	cloud.google.com/go/auth v0.4.1 // indirect
@@ -239,7 +234,7 @@ require (
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/oauth2 v0.20.0 // indirect
-	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/term v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
