@@ -27,9 +27,8 @@ var (
 type NexusBridgeOption func(*TestEVMBridge)
 
 type TestEVMBridge struct {
-	Admin      *wallet.Account
-	Validators []*TestNexusValidator
-	Cluster    *framework.TestCluster
+	Admin   *wallet.Account
+	Cluster *framework.TestCluster
 
 	contracts *ContractsAddrs
 
@@ -65,20 +64,13 @@ func RunEVMChain(
 		framework.WithBladeAdmin(admin.Address().String()),
 	)
 
-	validators := make([]*TestNexusValidator, config.NexusValidatorCount)
-
-	for idx := 0; idx < config.NexusValidatorCount; idx++ {
-		validators[idx] = NewTestNexusValidator(cluster.Servers[idx], idx+1)
-	}
-
 	cluster.WaitForReady(t)
 
 	fmt.Printf("EVM chain %d setup done\n", config.NexusStartingPort)
 
 	return &TestEVMBridge{
-		Admin:      admin,
-		Cluster:    cluster,
-		Validators: validators,
+		Admin:   admin,
+		Cluster: cluster,
 
 		Config: config,
 	}, nil

@@ -328,11 +328,13 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 			if cb.config.NexusEnabled {
 				nexusContractAddr = nexus.contracts.gateway.String()
 				nexusRelayerWallet = cb.GetRelayerWalletAddr().Hex()
+
+				nexusNodeUrlIndx := 0
 				if cb.config.TargetOneCardanoClusterServer {
-					nexusNodeUrl = nexus.Validators[0].Server.JSONRPCAddr()
-				} else {
-					nexusNodeUrl = nexus.Validators[indx%len(nexus.Validators)].Server.JSONRPCAddr()
+					nexusNodeUrlIndx = indx % len(nexus.Cluster.Servers)
 				}
+
+				nexusNodeUrl = nexus.Cluster.Servers[nexusNodeUrlIndx].JSONRPCAddr()
 			} else {
 				nexusContractAddr = types.ZeroAddress.String()
 				nexusRelayerWallet = types.ZeroAddress.String()
