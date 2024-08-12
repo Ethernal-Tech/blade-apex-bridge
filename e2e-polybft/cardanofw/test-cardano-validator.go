@@ -112,7 +112,7 @@ func (cv *TestCardanoValidator) CardanoWalletCreate(chainID string) error {
 }
 
 func (cv *TestCardanoValidator) GetCardanoWallet(chainID string) (*CardanoWallet, error) {
-	secretsMngr, err := cv.getSecretsManager()
+	secretsMngr, err := cv.getSecretsManager(cv.dataDirPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load wallet: %w", err)
 	}
@@ -250,7 +250,7 @@ func (cv *TestCardanoValidator) Stop() error {
 }
 
 func (cv *TestCardanoValidator) getValidatorEthAddress() (types.Address, error) {
-	secretsMngr, err := cv.getSecretsManager()
+	secretsMngr, err := cv.getSecretsManager(cv.server.DataDir())
 	if err != nil {
 		return types.Address{}, fmt.Errorf("failed to create secrets manager: %w", err)
 	}
@@ -273,7 +273,7 @@ func (cv *TestCardanoValidator) createSpecificWallet(walletType string) error {
 }
 
 func (cv *TestCardanoValidator) getBatcherWallet() (*bn256.PrivateKey, error) {
-	secretsMngr, err := cv.getSecretsManager()
+	secretsMngr, err := cv.getSecretsManager(cv.server.DataDir())
 	if err != nil {
 		return nil, fmt.Errorf("failed to load wallet: %w", err)
 	}
@@ -294,7 +294,7 @@ func (cv *TestCardanoValidator) getBatcherWallet() (*bn256.PrivateKey, error) {
 }
 
 func (cv *TestCardanoValidator) getRelayerWallet() (*crypto.ECDSAKey, error) {
-	secretsMngr, err := cv.getSecretsManager()
+	secretsMngr, err := cv.getSecretsManager(cv.server.DataDir())
 	if err != nil {
 		return nil, fmt.Errorf("failed to load wallet: %w", err)
 	}
@@ -319,9 +319,9 @@ func (cv *TestCardanoValidator) getRelayerWallet() (*crypto.ECDSAKey, error) {
 	return pk, nil
 }
 
-func (cv *TestCardanoValidator) getSecretsManager() (secretsCardano.SecretsManager, error) {
+func (cv *TestCardanoValidator) getSecretsManager(path string) (secretsCardano.SecretsManager, error) {
 	return secretsHelper.CreateSecretsManager(&secretsCardano.SecretsManagerConfig{
-		Path: cv.server.DataDir(),
+		Path: path,
 		Type: secretsCardano.Local,
 	})
 }
