@@ -2,12 +2,15 @@ package cardanofw
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/helper/common"
@@ -16,6 +19,7 @@ import (
 	secretsCardano "github.com/Ethernal-Tech/cardano-infrastructure/secrets"
 	secretsHelper "github.com/Ethernal-Tech/cardano-infrastructure/secrets/helper"
 	cardanoWallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 const (
@@ -253,12 +257,12 @@ func (cv *TestCardanoValidator) getValidatorEthAddress() (types.Address, error) 
 	return getAddressFromPrivateKeyFile(filepath.Join(cv.server.DataDir(), "consensus", "validator.key"))
 }
 
-func (cv *TestCardanoValidator) batcherWalletCreate() error {
+func (cv *TestCardanoValidator) createSpecificWallet(walletType string) error {
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"wallet-create",
 		"--chain", ChainIDNexus,
 		"--validator-data-dir", cv.server.DataDir(),
-		"--type", "batcher-evm",
+		"--type", walletType,
 	}, os.Stdout)
 }
 
@@ -284,4 +288,39 @@ func (cv *TestCardanoValidator) getBatcherWallet() (*bn256.PrivateKey, error) {
 	}
 
 	return bn256, nil
+}
+
+func (cv *TestCardanoValidator) getRelayerWallet() (*ecdsa.PrivateKey, error) {
+	secretsMngr, err := secretsHelper.CreateSecretsManager(&secretsCardano.SecretsManagerConfig{
+		Path: cv.server.DataDir(),
+		Type: secretsCardano.Local,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to load wallet: %w", err)
+	}
+
+	keyName := fmt.Sprintf("%s%s_%s", secretsCardano.OtherKeyLocalPrefix, ChainIDNexus, "relayer_evm_key")
+
+	strBytes, err := secretsMngr.GetSecret(keyName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load wallet: %w", err)
+	}
+
+	str := strings.Trim(strings.Trim(string(strBytes), "\n"), " ")
+
+	if strings.HasPrefix(str, "0x") || strings.HasPrefix(str, "0X") {
+		str = str[2:]
+	}
+
+	bytes, err := hex.DecodeString(str)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load wallet: %w", err)
+	}
+
+	pk, err := crypto.ToECDSA(bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal wallet: %w", err)
+	}
+
+	return pk, nil
 }

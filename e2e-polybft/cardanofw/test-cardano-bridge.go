@@ -16,8 +16,6 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/types"
-	secretsCardano "github.com/Ethernal-Tech/cardano-infrastructure/secrets"
-	secretsHelper "github.com/Ethernal-Tech/cardano-infrastructure/secrets/helper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	goEthCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -107,101 +105,35 @@ func (cb *TestCardanoBridge) StartValidators(t *testing.T, epochSize int) {
 	require.NoError(t, err)
 }
 
-func (ec *TestCardanoBridge) nexusCreateWalletsAndAddresses() error {
-	var err error
-	for idx, validator := range ec.validators {
-		err = validator.batcherWalletCreate()
-		if err != nil {
-			return err
-		}
-
-		if idx == 0 {
-			err = ec.relayerWalletCreate()
-			if err != nil {
-				return err
-			}
-		}
+func (ec *TestCardanoBridge) nexusCreateWalletsAndAddresses() (err error) {
+	if !ec.config.NexusEnabled || len(ec.validators) == 0 {
+		return nil
 	}
 
-	for idx, validator := range ec.validators {
-		batcherWallet, err := validator.getBatcherWallet()
-		if err != nil {
+	// relayer is on the first validator only
+	relayerValidator := ec.validators[0]
+
+	if err = relayerValidator.createSpecificWallet("relayer-evm"); err != nil {
+		return err
+	}
+
+	ec.relayerWallet, err = relayerValidator.getRelayerWallet()
+	if err != nil {
+		return err
+	}
+
+	for _, validator := range ec.validators {
+		if err = validator.createSpecificWallet("batcher-evm"); err != nil {
 			return err
 		}
 
-		ec.validators[idx].BatcherBN256PrivateKey = batcherWallet
-
-		if idx == 0 {
-			relayerWallet, err := ec.getRelayerWallet()
-			if err != nil {
-				return err
-			}
-
-			ec.relayerWallet = relayerWallet
+		validator.BatcherBN256PrivateKey, err = validator.getBatcherWallet()
+		if err != nil {
+			return err
 		}
 	}
 
 	return err
-}
-
-func (cv *TestCardanoBridge) relayerWalletCreate() error {
-	var dataDir string
-
-	for _, validator := range cv.validators {
-		if validator.ID == RunRelayerOnValidatorID {
-			dataDir = validator.server.DataDir()
-		}
-	}
-
-	return RunCommand(ResolveApexBridgeBinary(), []string{
-		"wallet-create",
-		"--chain", ChainIDNexus,
-		"--validator-data-dir", dataDir,
-		"--type", "relayer-evm",
-	}, os.Stdout)
-}
-
-func (cv *TestCardanoBridge) getRelayerWallet() (*ecdsa.PrivateKey, error) {
-	var dataDir string
-
-	for _, validator := range cv.validators {
-		if validator.ID == RunRelayerOnValidatorID {
-			dataDir = validator.server.DataDir()
-		}
-	}
-
-	secretsMngr, err := secretsHelper.CreateSecretsManager(&secretsCardano.SecretsManagerConfig{
-		Path: dataDir,
-		Type: secretsCardano.Local,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to load wallet: %w", err)
-	}
-
-	keyName := fmt.Sprintf("%s%s_%s", secretsCardano.OtherKeyLocalPrefix, ChainIDNexus, "relayer_evm_key")
-
-	strBytes, err := secretsMngr.GetSecret(keyName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load wallet: %w", err)
-	}
-
-	str := strings.Trim(strings.Trim(string(strBytes), "\n"), " ")
-
-	if strings.HasPrefix(str, "0x") || strings.HasPrefix(str, "0X") {
-		str = str[2:]
-	}
-
-	bytes, err := hex.DecodeString(str)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load wallet: %w", err)
-	}
-
-	pk, err := crypto.ToECDSA(bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal wallet: %w", err)
-	}
-
-	return pk, nil
 }
 
 func (cb *TestCardanoBridge) GetRelayerWalletAddr() goEthCommon.Address {
@@ -253,21 +185,23 @@ func (cb *TestCardanoBridge) RegisterChains(
 				return
 			}
 
-			errs[indx] = validator.RegisterChain(
-				ChainIDVector, cb.VectorMultisigAddr, cb.VectorMultisigFeeAddr, vectorTokenSupply, ChainTypeCardano)
-			if errs[indx] != nil {
-				return
+			if cb.config.VectorEnabled {
+				errs[indx] = validator.RegisterChain(
+					ChainIDVector, cb.VectorMultisigAddr, cb.VectorMultisigFeeAddr, vectorTokenSupply, ChainTypeCardano)
+				if errs[indx] != nil {
+					return
+				}
 			}
 
-			nexusMultisigAddr := apex.Nexus.contracts.gateway.String()
-			nexusMultisigFeeAddr := cb.GetRelayerWalletAddr().Hex()
+			if cb.config.NexusEnabled {
+				nexusMultisigAddr := apex.Nexus.contracts.gateway.String()
+				nexusMultisigFeeAddr := cb.GetRelayerWalletAddr().Hex()
 
-			chainTypeNexus := uint8(1)
-
-			errs[indx] = validator.RegisterChain(
-				ChainIDNexus, nexusMultisigAddr, nexusMultisigFeeAddr, nexusTokenSupply, chainTypeNexus)
-			if errs[indx] != nil {
-				return
+				errs[indx] = validator.RegisterChain(
+					ChainIDNexus, nexusMultisigAddr, nexusMultisigFeeAddr, nexusTokenSupply, ChainTypeEVM)
+				if errs[indx] != nil {
+					return
+				}
 			}
 		}(validator, i)
 	}
