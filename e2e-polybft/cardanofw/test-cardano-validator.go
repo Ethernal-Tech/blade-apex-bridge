@@ -2,7 +2,6 @@ package cardanofw
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -10,8 +9,9 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
-	"strings"
 
+	polybftWallet "github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
+	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/0xPolygon/polygon-edge/types"
@@ -19,7 +19,6 @@ import (
 	secretsCardano "github.com/Ethernal-Tech/cardano-infrastructure/secrets"
 	secretsHelper "github.com/Ethernal-Tech/cardano-infrastructure/secrets/helper"
 	cardanoWallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 const (
@@ -113,10 +112,7 @@ func (cv *TestCardanoValidator) CardanoWalletCreate(chainID string) error {
 }
 
 func (cv *TestCardanoValidator) GetCardanoWallet(chainID string) (*CardanoWallet, error) {
-	secretsMngr, err := secretsHelper.CreateSecretsManager(&secretsCardano.SecretsManagerConfig{
-		Path: cv.dataDirPath,
-		Type: secretsCardano.Local,
-	})
+	secretsMngr, err := cv.getSecretsManager()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load wallet: %w", err)
 	}
@@ -254,7 +250,17 @@ func (cv *TestCardanoValidator) Stop() error {
 }
 
 func (cv *TestCardanoValidator) getValidatorEthAddress() (types.Address, error) {
-	return getAddressFromPrivateKeyFile(filepath.Join(cv.server.DataDir(), "consensus", "validator.key"))
+	secretsMngr, err := cv.getSecretsManager()
+	if err != nil {
+		return types.Address{}, fmt.Errorf("failed to create secrets manager: %w", err)
+	}
+
+	key, err := polybftWallet.GetEcdsaFromSecret(secretsMngr)
+	if err != nil {
+		return types.Address{}, fmt.Errorf("failed to load wallet: %w", err)
+	}
+
+	return key.Address(), nil
 }
 
 func (cv *TestCardanoValidator) createSpecificWallet(walletType string) error {
@@ -267,10 +273,7 @@ func (cv *TestCardanoValidator) createSpecificWallet(walletType string) error {
 }
 
 func (cv *TestCardanoValidator) getBatcherWallet() (*bn256.PrivateKey, error) {
-	secretsMngr, err := secretsHelper.CreateSecretsManager(&secretsCardano.SecretsManagerConfig{
-		Path: cv.server.DataDir(),
-		Type: secretsCardano.Local,
-	})
+	secretsMngr, err := cv.getSecretsManager()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load wallet: %w", err)
 	}
@@ -290,11 +293,8 @@ func (cv *TestCardanoValidator) getBatcherWallet() (*bn256.PrivateKey, error) {
 	return bn256, nil
 }
 
-func (cv *TestCardanoValidator) getRelayerWallet() (*ecdsa.PrivateKey, error) {
-	secretsMngr, err := secretsHelper.CreateSecretsManager(&secretsCardano.SecretsManagerConfig{
-		Path: cv.server.DataDir(),
-		Type: secretsCardano.Local,
-	})
+func (cv *TestCardanoValidator) getRelayerWallet() (*crypto.ECDSAKey, error) {
+	secretsMngr, err := cv.getSecretsManager()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load wallet: %w", err)
 	}
@@ -306,21 +306,22 @@ func (cv *TestCardanoValidator) getRelayerWallet() (*ecdsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to load wallet: %w", err)
 	}
 
-	str := strings.Trim(strings.Trim(string(strBytes), "\n"), " ")
-
-	if strings.HasPrefix(str, "0x") || strings.HasPrefix(str, "0X") {
-		str = str[2:]
+	ecdsaRaw, err := hex.DecodeString(string(strBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve ecdsa key: %w", err)
 	}
 
-	bytes, err := hex.DecodeString(str)
+	pk, err := crypto.NewECDSAKeyFromRawPrivECDSA(ecdsaRaw)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load wallet: %w", err)
-	}
-
-	pk, err := crypto.ToECDSA(bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal wallet: %w", err)
+		return nil, fmt.Errorf("failed to retrieve ecdsa key: %w", err)
 	}
 
 	return pk, nil
+}
+
+func (cv *TestCardanoValidator) getSecretsManager() (secretsCardano.SecretsManager, error) {
+	return secretsHelper.CreateSecretsManager(&secretsCardano.SecretsManagerConfig{
+		Path: cv.server.DataDir(),
+		Type: secretsCardano.Local,
+	})
 }

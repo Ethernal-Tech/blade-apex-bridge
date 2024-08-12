@@ -184,9 +184,7 @@ func (ec *TestEVMBridge) deployContracts(apexSystem *ApexSystem) error {
 	}
 
 	// Call "setDependencies"
-	relayerAddr := types.Address(apexSystem.Bridge.GetRelayerWalletAddr())
-
-	err = ec.contracts.gatewaySetDependencies(txRelayer, ec.Admin, relayerAddr)
+	err = ec.contracts.gatewaySetDependencies(txRelayer, ec.Admin, apexSystem.Bridge.GetRelayerWalletAddr())
 	if err != nil {
 		return err
 	}

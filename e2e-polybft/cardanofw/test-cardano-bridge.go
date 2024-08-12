@@ -3,7 +3,6 @@ package cardanofw
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -14,11 +13,10 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	goEthCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,7 +48,7 @@ type TestCardanoBridge struct {
 	VectorMultisigAddr    string
 	VectorMultisigFeeAddr string
 
-	relayerWallet *ecdsa.PrivateKey
+	relayerWallet *crypto.ECDSAKey
 
 	cluster *framework.TestCluster
 
@@ -136,8 +134,8 @@ func (ec *TestCardanoBridge) nexusCreateWalletsAndAddresses() (err error) {
 	return err
 }
 
-func (cb *TestCardanoBridge) GetRelayerWalletAddr() goEthCommon.Address {
-	return crypto.PubkeyToAddress(cb.relayerWallet.PublicKey)
+func (cb *TestCardanoBridge) GetRelayerWalletAddr() types.Address {
+	return cb.relayerWallet.Address()
 }
 
 func (cb *TestCardanoBridge) GetValidator(t *testing.T, idx int) *TestCardanoValidator {
@@ -195,7 +193,7 @@ func (cb *TestCardanoBridge) RegisterChains(
 
 			if cb.config.NexusEnabled {
 				nexusMultisigAddr := apex.Nexus.contracts.gateway.String()
-				nexusMultisigFeeAddr := cb.GetRelayerWalletAddr().Hex()
+				nexusMultisigFeeAddr := cb.GetRelayerWalletAddr().String()
 
 				errs[indx] = validator.RegisterChain(
 					ChainIDNexus, nexusMultisigAddr, nexusMultisigFeeAddr, nexusTokenSupply, ChainTypeEVM)
@@ -263,7 +261,7 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 
 			if cb.config.NexusEnabled {
 				nexusContractAddr = nexus.contracts.gateway.String()
-				nexusRelayerWallet = cb.GetRelayerWalletAddr().Hex()
+				nexusRelayerWallet = cb.GetRelayerWalletAddr().String()
 
 				nexusNodeURLIndx := 0
 				if cb.config.TargetOneCardanoClusterServer {

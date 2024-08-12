@@ -15,8 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/polygon-edge/crypto"
-	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -418,18 +416,4 @@ func tryResolveFromEnv(env, name string) string {
 	}
 	// fallback
 	return name
-}
-
-func getAddressFromPrivateKeyFile(path string) (types.Address, error) {
-	keyBuff, err := os.ReadFile(path)
-	if err != nil {
-		return types.ZeroAddress, err
-	}
-
-	key, err := crypto.NewECDSAKeyFromRawPrivECDSA(keyBuff)
-	if err != nil {
-		return types.ZeroAddress, err
-	}
-
-	return key.Address(), nil
 }
