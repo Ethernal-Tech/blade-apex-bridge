@@ -4,9 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"os"
-	"os/signal"
-	"syscall"
 	"testing"
 	"time"
 
@@ -60,7 +57,6 @@ func Test_E2E_Nexus(t *testing.T) {
 
 	nexusAddress := user.Address()
 
-	// receiverAddr := "0x537Fc153530Cd06f99FEf66474e5Ba1F8Cb69E03"
 	receiverAddr := user.Address().String()
 	fmt.Printf("ETH receiver Addr: %s\n", receiverAddr)
 
@@ -88,15 +84,4 @@ func Test_E2E_Nexus(t *testing.T) {
 	ethBalanceAfter, err = cardanofw.GetEthAmount(ctx, apex.Nexus, user)
 	fmt.Printf("ETH Amount AFTER AFTER TX %d\n", ethBalanceAfter)
 	require.NoError(t, err)
-
-	///////////////////////////////////////
-	//////////// END OF TEST //////////////
-	///////////////////////////////////////
-
-	signalChannel := make(chan os.Signal, 1)
-	// Notify the signalChannel when the interrupt signal is received (Ctrl+C)
-	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
-
-	<-signalChannel
-	fmt.Println("END OF THE TEST")
 }
