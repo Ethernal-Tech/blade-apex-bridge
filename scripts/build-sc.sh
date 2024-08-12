@@ -1,6 +1,7 @@
 #!/bin/bash
 
 BRANCH=evm_base_branch # optimization-chain-registration
+NEXUS_BRANCH=main
 
 # build Apex-bridge smartcontracts
 cd ./apex-bridge-smartcontracts
@@ -21,10 +22,10 @@ cd ./apex-evm-gateway
 git checkout main
 git fetch origin
 git pull origin
-if [ "$BRANCH" != "main" ]; then
-    echo "SWITCHING TO ${BRANCH}"
-    git branch -D ${BRANCH}
-    git switch ${BRANCH}
+if [ "$NEXUS_BRANCH" != "main" ]; then
+    echo "SWITCHING TO ${NEXUS_BRANCH}"
+    git branch -D ${NEXUS_BRANCH}
+    git switch ${NEXUS_BRANCH}
     git pull origin # this is not important but lets have it here
 fi
 npm i && npx hardhat compile
