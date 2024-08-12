@@ -62,8 +62,7 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.2 // indirect
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	cloud.google.com/go/iam v1.1.8 // indirect
-	filippo.io/edwards25519 v1.1.0 // indirect
-	github.com/blinklabs-io/gouroboros v0.90.0 // indirect
+	github.com/blinklabs-io/gouroboros v0.79.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/utxorpc/go-codegen v0.7.0 // indirect
