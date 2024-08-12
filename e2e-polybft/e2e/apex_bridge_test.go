@@ -1736,6 +1736,8 @@ func Test_NexusTests(t *testing.T) {
 		// create and fund wallet on nexus
 		evmUser := apex.CreateAndFundNexusUser(t, ctx, 1)
 		require.NotNil(t, user)
+		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+		require.NoError(t, err)
 
 		// create cardano wallet on prime
 		destinationWallet, err := wallet.GenerateWallet(false)
@@ -1749,7 +1751,7 @@ func Test_NexusTests(t *testing.T) {
 		sendAmount := uint64(1)
 
 		// call SendTx command
-		err = apex.Nexus.SendTxEvm(evmUser.Ecdsa.String(), walletAddress.String(), 1)
+		err = apex.Nexus.SendTxEvm(string(pkBytes), walletAddress.String(), 1)
 		require.NoError(t, err)
 
 		// check expected amount cardano
