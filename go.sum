@@ -45,8 +45,8 @@ github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20231202204931-b886edca
 github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20231202204931-b886edca635a/go.mod h1:IgWSrKhiPnqV6M68wQt8MyWNeWwA+3sYZQP6Y6STR2M=
 github.com/Ethernal-Tech/bn256 v0.0.0-20240711150404-47c82e53dd19 h1:a96KsZz67W/Nn6Kx55A4eaMngFNsm5A5A6MRYF2xu8U=
 github.com/Ethernal-Tech/bn256 v0.0.0-20240711150404-47c82e53dd19/go.mod h1:ikj6EuZ/ISPyR1DYKnqoE5F2geyI3KzVllndxg7vFs8=
-github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20240719115837-c737ddfbe04c h1:zTiJ5iCqh27+MHDHet3C+Mb+93CThqMoUuiuapwVEFk=
-github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20240719115837-c737ddfbe04c/go.mod h1:m3DIz2jbqTg7ky6jw4Iwu5xN1oPbWCXB64yjqXBEt3U=
+github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20240812154939-7bf28ecd91c8 h1:px/qsNcALiF7/coDc0jzpWjgpKu8shSKp1DCxL8VpCc=
+github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20240812154939-7bf28ecd91c8/go.mod h1:m3DIz2jbqTg7ky6jw4Iwu5xN1oPbWCXB64yjqXBEt3U=
 github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04 h1:DGIOHe3qAeU+mrRLNJ83mJWyH1t5SqN8XvTrwBUAXK4=
 github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04/go.mod h1:vwaNJ2xOVILZoOcD6CxswTg8XOCDvIhcRIp8xanmS3s=
 github.com/Microsoft/go-winio v0.5.0/go.mod h1:JPGBdM1cNvN/6ISo+n8V5iA4v8pBzdOpzfwIujj1a84=
@@ -169,8 +169,6 @@ github.com/envoyproxy/protoc-gen-validate v1.0.4 h1:gVPz/FMfvh57HdSJQyvBtF00j8JU
 github.com/envoyproxy/protoc-gen-validate v1.0.4/go.mod h1:qys6tmnRsYrQqIhm2bvKZH4Blx/1gTIZ2UKVY1M+Yew=
 github.com/erigontech/mdbx-go v0.38.0 h1:K64h6YHc2biN081DPEp/KP1TE+X0Jmxu8T+RJadNkXc=
 github.com/erigontech/mdbx-go v0.38.0/go.mod h1:FAMxbOgqOnRDx51j8HjuJZIgznbDwjX7LItd+/UWyA4=
-github.com/ethereum/go-ethereum v1.14.7 h1:EHpv3dE8evQmpVEQ/Ne2ahB06n2mQptdwqaMNhAT29g=
-github.com/ethereum/go-ethereum v1.14.7/go.mod h1:Mq0biU2jbdmKSZoqOj29017ygFrMnB5/Rifwp980W4o=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/color v1.13.0/go.mod h1:kLAiJbzzSOZDVNGyDpeOxJ47H46qBXwg5ILebYFFOfk=
 github.com/fatih/color v1.16.0 h1:zmkK9Ngbjj+K0yRhTVONQh1p/HknKYSlNT+vZCzyokM=

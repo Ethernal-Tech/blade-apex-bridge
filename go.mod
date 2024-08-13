@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/secretmanager v1.13.1
 	github.com/0xPolygon/go-ibft v0.4.1-0.20240429085428-e2032115c799
 	github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20231202204931-b886edca635a
-	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20240719115837-c737ddfbe04c
+	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20240812154939-7bf28ecd91c8
 	github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-sdk-go v1.53.14
@@ -103,7 +103,6 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.6.0-alpha.5 // indirect
 	github.com/elastic/gosigar v0.14.2 // indirect
-	github.com/ethereum/go-ethereum v1.14.7
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/flynn/noise v1.1.0 // indirect
