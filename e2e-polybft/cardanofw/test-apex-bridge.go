@@ -94,12 +94,12 @@ func SetupAndRunApexBridge(
 
 	cb := NewTestCardanoBridge(dataDir, apexSystem.Config)
 
-	require.NoError(t, cb.CardanoCreateWalletsAndAddresses(primeCluster.NetworkConfig(), vectorCluster.NetworkConfig()))
+	require.NoError(t, cb.CardanoCreateWalletsAndAddresses(
+		primeCluster.Config.NetworkType, apexSystem.GetVectorNetworkType()))
 
 	fmt.Printf("Wallets and addresses created\n")
 
 	txProviderPrime := cardanowallet.NewTxProviderOgmios(primeCluster.OgmiosURL())
-	txProviderVector := cardanowallet.NewTxProviderOgmios(vectorCluster.OgmiosURL())
 
 	primeGenesisWallet, err := GetGenesisWalletFromCluster(primeCluster.Config.TmpDir, 1)
 	require.NoError(t, err)
@@ -127,32 +127,36 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Prime multisig fee addr funded: %s\n", res)
 
-	vectorGenesisWallet, err := GetGenesisWalletFromCluster(vectorCluster.Config.TmpDir, 1)
-	require.NoError(t, err)
+	if cb.config.VectorEnabled {
+		txProviderVector := cardanowallet.NewTxProviderOgmios(vectorCluster.OgmiosURL())
 
-	res, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, FundTokenAmount,
-		cb.VectorMultisigAddr, vectorCluster.NetworkConfig(), []byte{})
-	require.NoError(t, err)
+		vectorGenesisWallet, err := GetGenesisWalletFromCluster(vectorCluster.Config.TmpDir, 1)
+		require.NoError(t, err)
 
-	err = cardanowallet.WaitForAmount(context.Background(), txProviderVector,
-		cb.VectorMultisigAddr, func(val uint64) bool {
-			return val == FundTokenAmount
-		}, numOfRetries, waitTime, IsRecoverableError)
-	require.NoError(t, err)
+		res, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, FundTokenAmount,
+			cb.VectorMultisigAddr, vectorCluster.NetworkConfig(), []byte{})
+		require.NoError(t, err)
 
-	fmt.Printf("Vector multisig addr funded: %s\n", res)
+		err = cardanowallet.WaitForAmount(context.Background(), txProviderVector,
+			cb.VectorMultisigAddr, func(val uint64) bool {
+				return val == FundTokenAmount
+			}, numOfRetries, waitTime, IsRecoverableError)
+		require.NoError(t, err)
 
-	res, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, FundTokenAmount,
-		cb.VectorMultisigFeeAddr, vectorCluster.NetworkConfig(), []byte{})
-	require.NoError(t, err)
+		fmt.Printf("Vector multisig addr funded: %s\n", res)
 
-	err = cardanowallet.WaitForAmount(context.Background(), txProviderVector,
-		cb.VectorMultisigFeeAddr, func(val uint64) bool {
-			return val == FundTokenAmount
-		}, numOfRetries, waitTime, IsRecoverableError)
-	require.NoError(t, err)
+		res, err = SendTx(ctx, txProviderVector, vectorGenesisWallet, FundTokenAmount,
+			cb.VectorMultisigFeeAddr, vectorCluster.NetworkConfig(), []byte{})
+		require.NoError(t, err)
 
-	fmt.Printf("Vector multisig fee addr funded: %s\n", res)
+		err = cardanowallet.WaitForAmount(context.Background(), txProviderVector,
+			cb.VectorMultisigFeeAddr, func(val uint64) bool {
+				return val == FundTokenAmount
+			}, numOfRetries, waitTime, IsRecoverableError)
+		require.NoError(t, err)
+
+		fmt.Printf("Vector multisig fee addr funded: %s\n", res)
+	}
 
 	cb.StartValidators(t, bladeEpochSize)
 
@@ -223,29 +227,30 @@ func (a *ApexSystem) GetVectorTxProvider() cardanowallet.ITxProvider {
 	return cardanowallet.NewTxProviderOgmios(a.VectorCluster.OgmiosURL())
 }
 
-func (a *ApexSystem) CreateAndFundUser(t *testing.T, ctx context.Context, sendAmount uint64,
-	primeNetworkConfig TestCardanoNetworkConfig, vectorNetworkConfig TestCardanoNetworkConfig,
-) *TestApexUser {
+func (a *ApexSystem) CreateAndFundUser(t *testing.T, ctx context.Context, sendAmount uint64) *TestApexUser {
 	t.Helper()
 
-	user := NewTestApexUser(t, primeNetworkConfig.NetworkType, vectorNetworkConfig.NetworkType)
+	user := NewTestApexUser(t, a.PrimeCluster.Config.NetworkType, a.GetVectorNetworkType())
 
 	txProviderPrime := a.GetPrimeTxProvider()
-	txProviderVector := a.GetVectorTxProvider()
-
 	// Fund prime address
 	primeGenesisWallet := a.GetPrimeGenesisWallet(t)
 
-	user.SendToUser(t, ctx, txProviderPrime, primeGenesisWallet, sendAmount, primeNetworkConfig)
+	user.SendToUser(
+		t, ctx, txProviderPrime, primeGenesisWallet, sendAmount, a.PrimeCluster.NetworkConfig())
 
 	fmt.Printf("Prime user address funded\n")
 
-	// Fund vector address
-	vectorGenesisWallet := a.GetVectorGenesisWallet(t)
+	if a.Config.VectorEnabled {
+		txProviderVector := a.GetVectorTxProvider()
+		// Fund vector address
+		vectorGenesisWallet := a.GetVectorGenesisWallet(t)
 
-	user.SendToUser(t, ctx, txProviderVector, vectorGenesisWallet, sendAmount, vectorNetworkConfig)
+		user.SendToUser(
+			t, ctx, txProviderVector, vectorGenesisWallet, sendAmount, a.VectorCluster.NetworkConfig())
 
-	fmt.Printf("Vector user address funded\n")
+		fmt.Printf("Vector user address funded\n")
+	}
 
 	return user
 }
@@ -289,6 +294,14 @@ func (a *ApexSystem) CreateAndFundNexusUser(t *testing.T, ctx context.Context, e
 	require.True(t, txRes.Succeed())
 
 	return user
+}
+
+func (a *ApexSystem) GetVectorNetworkType() cardanowallet.CardanoNetworkType {
+	if a.Config.VectorEnabled && a.VectorCluster != nil {
+		return a.VectorCluster.Config.NetworkType
+	}
+
+	return cardanowallet.TestNetNetwork // does not matter really
 }
 
 func getCardanoBaseLogsDir(t *testing.T, name string) string {

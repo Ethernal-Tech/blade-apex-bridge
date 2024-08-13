@@ -158,7 +158,7 @@ func RunApexBridge(
 	apexSystem := &ApexSystem{Config: apexConfig}
 	wg := &sync.WaitGroup{}
 	serviceCount := apexConfig.ServiceCount()
-	errorsContainer := make([]error, serviceCount)
+	errorsContainer := [3]error{}
 
 	wg.Add(serviceCount)
 
@@ -234,16 +234,16 @@ func RunApexBridge(
 
 		wg.Wait()
 
-		fmt.Printf("Chains has been stopped...%v\n", errors.Join(errorsContainer...))
+		fmt.Printf("Chains has been stopped...%v\n", errors.Join(errorsContainer[:]...))
 	})
 
 	fmt.Println("Starting chains...")
 
 	wg.Wait()
 
-	fmt.Println("Chains have been started...")
+	require.NoError(t, errors.Join(errorsContainer[:]...))
 
-	require.NoError(t, errors.Join(errorsContainer...))
+	fmt.Println("Chains have been started...")
 
 	apexSystem.Bridge = SetupAndRunApexBridge(
 		t, ctx,

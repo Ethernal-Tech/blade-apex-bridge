@@ -18,10 +18,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const FundEthTokenAmount = uint64(100_000)
-
-var (
-	tokenName = "APEX"
+const (
+	FundEthTokenAmount = uint64(100_000)
+	tokenName          = "APEX"
 )
 
 type NexusBridgeOption func(*TestEVMBridge)
@@ -212,9 +211,7 @@ func deployContractWithProxy(
 	admin *wallet.Account,
 	contract *contracts.Artifact,
 	initParams []byte,
-) (types.Address, error) {
-	addr := types.Address{}
-
+) (addr types.Address, err error) {
 	// deploy contract
 	receipt, err := txRelayer.SendTransaction(
 		types.NewTx(types.NewLegacyTx(
@@ -228,13 +225,10 @@ func deployContractWithProxy(
 		return addr, fmt.Errorf("deploying smart contract failed: %d", receipt.Status)
 	}
 
-	contractAddr := types.Address(receipt.ContractAddress)
-
 	input, _ := ERC1967Proxy.Abi.Constructor.Inputs.Encode(map[string]interface{}{
-		"implementation": contractAddr,
+		"implementation": types.Address(receipt.ContractAddress),
 		"_data":          initParams,
 	})
-
 	input = append(ERC1967Proxy.Bytecode, input...)
 
 	// deploy proxy contract and call initialize
@@ -250,9 +244,7 @@ func deployContractWithProxy(
 		return addr, fmt.Errorf("deploying proxy smart contract failed: %d", receipt.Status)
 	}
 
-	addr = types.Address(receipt.ContractAddress)
-
-	return addr, nil
+	return types.Address(receipt.ContractAddress), nil
 }
 
 func (ca *ContractsAddrs) gatewaySetDependencies(
@@ -355,11 +347,9 @@ func (ca *ContractsAddrs) validatorsSetDependencies(
 	admin *wallet.Account,
 	validators []*TestCardanoValidator,
 ) error {
-	chainData := makeValidatorChainData(validators)
-
 	validatorsData := ValidatorsSetDependenciesFn{
 		Gateway_:   ca.gateway,
-		ChainData_: chainData,
+		ChainData_: makeValidatorChainData(validators),
 	}
 
 	encoded, err := validatorsData.EncodeAbi()
@@ -386,13 +376,11 @@ func makeValidatorChainData(validators []*TestCardanoValidator) []*ValidatorAddr
 	validatorAddrChainData := make([]*ValidatorAddressChainData, len(validators))
 
 	for idx, validator := range validators {
-		keyData := validator.BatcherBN256PrivateKey.PublicKey().ToBigInt()
-
 		validatorAddr, _ := validator.getValidatorEthAddress()
 		validatorAddrChainData[idx] = &ValidatorAddressChainData{
 			Address_: validatorAddr,
 			Data_: &ValidatorChainData{
-				Key_: keyData,
+				Key_: validator.BatcherBN256PrivateKey.PublicKey().ToBigInt(),
 			},
 		}
 	}

@@ -57,7 +57,7 @@ func Test_OnlyRunApexBridge(t *testing.T) {
 	fmt.Printf("vector bridging addr: %s\n", apex.Bridge.VectorMultisigAddr)
 	fmt.Printf("vector fee addr: %s\n", apex.Bridge.VectorMultisigFeeAddr)
 
-	user := apex.CreateAndFundUser(t, ctx, uint64(500_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
+	user := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
 
 	primeUserSKHex := hex.EncodeToString(user.PrimeWallet.GetSigningKey())
 	vectorUserSKHex := hex.EncodeToString(user.VectorWallet.GetSigningKey())
@@ -183,7 +183,7 @@ func TestE2E_ApexBridge(t *testing.T) {
 	defer cncl()
 
 	apex := cardanofw.RunApexBridge(t, ctx)
-	user := apex.CreateAndFundUser(t, ctx, uint64(5_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
+	user := apex.CreateAndFundUser(t, ctx, uint64(5_000_000))
 
 	txProviderPrime := apex.GetPrimeTxProvider()
 	txProviderVector := apex.GetVectorTxProvider()
@@ -218,7 +218,7 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 		cardanofw.WithVectorTTL(30, 1),
 		cardanofw.WithAPIKey(apiKey),
 	)
-	user := apex.CreateAndFundUser(t, ctx, uint64(5_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
+	user := apex.CreateAndFundUser(t, ctx, uint64(5_000_000))
 
 	txProviderPrime := apex.GetPrimeTxProvider()
 
@@ -294,7 +294,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 	)
-	user := apex.CreateAndFundUser(t, ctx, uint64(50_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
+	user := apex.CreateAndFundUser(t, ctx, uint64(50_000_000))
 
 	txProviderPrime := apex.GetPrimeTxProvider()
 
@@ -586,7 +586,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 	)
-	user := apex.CreateAndFundUser(t, ctx, uint64(20_000_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
+	user := apex.CreateAndFundUser(t, ctx, uint64(20_000_000_000))
 
 	txProviderPrime := apex.GetPrimeTxProvider()
 	txProviderVector := apex.GetVectorTxProvider()
@@ -1357,7 +1357,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 	)
-	user := apex.CreateAndFundUser(t, ctx, uint64(20_000_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
+	user := apex.CreateAndFundUser(t, ctx, uint64(20_000_000_000))
 
 	txProviderPrime := apex.GetPrimeTxProvider()
 	txProviderVector := apex.GetVectorTxProvider()

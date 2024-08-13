@@ -24,6 +24,7 @@ func Test_E2E_Nexus(t *testing.T) {
 	apex := cardanofw.RunApexBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithVectorEnabled(false),
 		cardanofw.WithNexusEnabled(true),
 	)
 
@@ -45,7 +46,7 @@ func Test_E2E_Nexus(t *testing.T) {
 	})
 
 	t.Run("From Nexus to Prime", func(t *testing.T) {
-		user := apex.CreateAndFundUser(t, ctx, uint64(20_000_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
+		user := apex.CreateAndFundUser(t, ctx, uint64(20_000_000_000))
 
 		txProviderPrime := apex.GetPrimeTxProvider()
 
@@ -89,7 +90,7 @@ func Test_E2E_Nexus(t *testing.T) {
 
 		expectedAmount := ethgo.Ether(sendAmount)
 
-		userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000), apex.PrimeCluster.NetworkConfig(), apex.VectorCluster.NetworkConfig())
+		userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
 		require.NotNil(t, userPrime)
 
 		user := apex.CreateAndFundNexusUser(t, ctx, sendAmount)
