@@ -4,7 +4,6 @@ import (
 	"math/big"
 
 	"github.com/0xPolygon/polygon-edge/chain"
-	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/state/runtime"
 	"github.com/0xPolygon/polygon-edge/types"
 )
@@ -21,9 +20,9 @@ func (c *nativeTransfer) run(input []byte, caller types.Address, host runtime.Ho
 	}
 
 	// check if caller is native token contract
-	if caller != contracts.NativeERC20TokenContract {
-		return abiBoolFalse, runtime.ErrUnauthorizedCaller
-	}
+	// if caller != contracts.NativeERC20TokenContract {
+	// 	return abiBoolFalse, runtime.ErrUnauthorizedCaller
+	// }
 
 	from := types.BytesToAddress(input[0:32])
 	to := types.BytesToAddress(input[32:64])
