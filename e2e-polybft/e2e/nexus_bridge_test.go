@@ -13,7 +13,7 @@ import (
 	"github.com/umbracle/ethgo"
 )
 
-func Test_E2E_Nexus(t *testing.T) {
+func TestE2E_ApexBridge_Nexus(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
 	)
