@@ -2,12 +2,8 @@ package e2e
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math/big"
-	"os"
-	"os/signal"
-	"syscall"
 	"testing"
 	"time"
 
@@ -15,59 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/umbracle/ethgo"
 )
-
-func Test_OnlyRunNexusBridge(t *testing.T) {
-	if shouldRun := os.Getenv("ONLY_RUN_NEXUS_BRIDGE"); shouldRun != "true" {
-		t.Skip()
-	}
-
-	const (
-		apiKey = "test_api_key"
-	)
-
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	apex := cardanofw.RunApexBridge(
-		t, ctx,
-		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithVectorEnabled(false),
-		cardanofw.WithNexusEnabled(true),
-	)
-
-	oracleAPI, err := apex.Bridge.GetBridgingAPI()
-	require.NoError(t, err)
-
-	fmt.Printf("oracle API: %s\n", oracleAPI)
-	fmt.Printf("oracle API key: %s\n", apiKey)
-
-	fmt.Printf("prime network url: %s\n", apex.PrimeCluster.NetworkURL())
-	fmt.Printf("prime bridging addr: %s\n", apex.Bridge.PrimeMultisigAddr)
-	fmt.Printf("prime fee addr: %s\n", apex.Bridge.PrimeMultisigFeeAddr)
-
-	user := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
-
-	primeUserSKHex := hex.EncodeToString(user.PrimeWallet.GetSigningKey())
-
-	fmt.Printf("user prime addr: %s\n", user.PrimeAddress)
-	fmt.Printf("user prime signing key hex: %s\n", primeUserSKHex)
-
-	evmUser, err := apex.CreateAndFundNexusUser(t, ctx, 10)
-	require.NoError(t, err)
-	pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
-	require.NoError(t, err)
-
-	fmt.Println("evm user addr", evmUser.Address())
-	fmt.Println("evm user PK", hex.EncodeToString(pkBytes))
-	fmt.Println("nexus url", apex.Nexus.Cluster.Servers[0].JSONRPCAddr())
-	fmt.Println("sc addr", apex.Nexus.GetGatewayAddress().String())
-
-	signalChannel := make(chan os.Signal, 1)
-	// Notify the signalChannel when the interrupt signal is received (Ctrl+C)
-	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
-
-	<-signalChannel
-}
 
 func TestE2E_ApexBridge_Nexus(t *testing.T) {
 	const (
