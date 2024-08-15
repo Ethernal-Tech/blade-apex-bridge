@@ -56,13 +56,7 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
 		require.NoError(t, err)
 
-		// create cardano wallet on prime
-		// destinationWallet, err := wallet.GenerateWallet(false)
-		require.NoError(t, err)
-		walletAddress, err := cardanofw.GetAddress(apex.PrimeCluster.NetworkConfig().NetworkType, user.PrimeWallet)
-		require.NoError(t, err)
-
-		prevAmount, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), walletAddress.String())
+		prevAmount, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), user.PrimeAddress)
 		require.NoError(t, err)
 
 		sendAmountEth := uint64(1)
@@ -73,7 +67,7 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 		sendAmountWei := ethgo.Ether(sendAmountEth)
 
 		// call SendTx command
-		err = apex.Nexus.SendTxEvm(string(pkBytes), walletAddress.String(), sendAmountWei)
+		err = apex.Nexus.SendTxEvm(string(pkBytes), user.PrimeAddress, sendAmountWei)
 		require.NoError(t, err)
 
 		// check expected amount cardano
