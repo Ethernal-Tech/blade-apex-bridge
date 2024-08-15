@@ -286,7 +286,11 @@ func (a *ApexSystem) CreateAndFundExistingUser(
 	return user
 }
 
-func (a *ApexSystem) CreateAndFundNexusUser(t *testing.T, ctx context.Context, ethAmount uint64) (*wallet.Account, error) {
+func (a *ApexSystem) CreateAndFundNexusUser(
+	t *testing.T,
+	ctx context.Context,
+	ethAmount uint64,
+) (*wallet.Account, error) {
 	t.Helper()
 
 	user, err := wallet.GenerateAccount()
