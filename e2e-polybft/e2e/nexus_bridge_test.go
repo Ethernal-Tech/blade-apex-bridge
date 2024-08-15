@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
-	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 	"github.com/umbracle/ethgo"
 )
@@ -58,9 +57,9 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 		require.NoError(t, err)
 
 		// create cardano wallet on prime
-		destinationWallet, err := wallet.GenerateWallet(false)
+		// destinationWallet, err := wallet.GenerateWallet(false)
 		require.NoError(t, err)
-		walletAddress, err := cardanofw.GetAddress(apex.PrimeCluster.NetworkConfig().NetworkType, destinationWallet)
+		walletAddress, err := cardanofw.GetAddress(apex.PrimeCluster.NetworkConfig().NetworkType, user.PrimeWallet)
 		require.NoError(t, err)
 
 		prevAmount, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), walletAddress.String())
