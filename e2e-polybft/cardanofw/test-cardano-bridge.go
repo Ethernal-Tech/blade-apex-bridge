@@ -418,14 +418,6 @@ func (cb *TestCardanoBridge) cardanoPrepareKeys() (err error) {
 		}
 	}
 
-	fmt.Printf("Prime multisig keys: %s\n", strings.Join(cb.primeMultisigKeys, ","))
-	fmt.Printf("Prime fee keys: %s\n", strings.Join(cb.primeMultisigFeeKeys, ","))
-
-	if cb.config.VectorEnabled {
-		fmt.Printf("Vector multisig keys: %s\n", strings.Join(cb.vectorMultisigKeys, ","))
-		fmt.Printf("Vector fee keys: %s\n", strings.Join(cb.vectorMultisigFeeKeys, ","))
-	}
-
 	return err
 }
 
