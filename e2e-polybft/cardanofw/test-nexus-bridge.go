@@ -313,7 +313,6 @@ func (ca *ContractsAddrs) nativeErc20SetDependencies(
 ) error {
 	nativeErc20 := NativeERC20SetDependenciesFn{
 		Predicate_: ca.erc20Predicate,
-		Owner_:     admin.Address(),
 		Name_:      tokenName,
 		Symbol_:    tokenSymbol,
 		Decimals_:  decimals,
