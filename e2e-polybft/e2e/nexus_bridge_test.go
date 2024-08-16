@@ -31,7 +31,7 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 		sendAmount := uint64(1)
 		expectedAmount := ethgo.Ether(sendAmount)
 
-		user, err := apex.CreateAndFundNexusUser(t, ctx, sendAmount)
+		user, err := apex.CreateAndFundNexusUser(ctx, sendAmount)
 		require.NoError(t, err)
 		require.NotNil(t, user)
 
@@ -51,7 +51,7 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 		txProviderPrime := apex.GetPrimeTxProvider()
 
 		// create and fund wallet on nexus
-		evmUser, err := apex.CreateAndFundNexusUser(t, ctx, 10)
+		evmUser, err := apex.CreateAndFundNexusUser(ctx, 10)
 		require.NoError(t, err)
 		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
 		require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 		userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
 		require.NotNil(t, userPrime)
 
-		user, err := apex.CreateAndFundNexusUser(t, ctx, sendAmount)
+		user, err := apex.CreateAndFundNexusUser(ctx, sendAmount)
 		require.NoError(t, err)
 		require.NotNil(t, user)
 

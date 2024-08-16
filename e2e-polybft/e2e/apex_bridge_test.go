@@ -69,7 +69,7 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 	fmt.Printf("user vector addr: %s\n", user.VectorAddress)
 	fmt.Printf("user vector signing key hex: %s\n", vectorUserSKHex)
 
-	evmUser, err := apex.CreateAndFundNexusUser(t, ctx, 10)
+	evmUser, err := apex.CreateAndFundNexusUser(ctx, 10)
 	require.NoError(t, err)
 	pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
 	require.NoError(t, err)

@@ -286,15 +286,11 @@ func (a *ApexSystem) CreateAndFundExistingUser(
 	return user
 }
 
-func (a *ApexSystem) CreateAndFundNexusUser(
-	t *testing.T,
-	ctx context.Context,
-	ethAmount uint64,
-) (*wallet.Account, error) {
-	t.Helper()
-
+func (a *ApexSystem) CreateAndFundNexusUser(ctx context.Context, ethAmount uint64) (*wallet.Account, error) {
 	user, err := wallet.GenerateAccount()
-	require.NoError(t, err)
+	if err != nil {
+		return nil, err
+	}
 
 	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(a.Nexus.Cluster.Servers[0].JSONRPC()))
 	if err != nil {
