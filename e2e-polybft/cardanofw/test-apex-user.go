@@ -3,6 +3,7 @@ package cardanofw
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -172,16 +173,10 @@ func (u *TestApexUser) BridgeNexusAmount(
 	// txHash := BridgeAmountFull(t, ctx, txProvider, networkConfig,
 	// 	multisigAddr, nexusFeeAddr, sender, receiverAddr, sendAmount)
 
-	txHash, err := BridgeAmountFullMultipleReceiversNexus(
-		t, ctx, txProvider, networkConfig, multisigAddr, feeAddr, sender,
+	return BridgeAmountFullMultipleReceiversNexus(
+		ctx, txProvider, networkConfig, multisigAddr, feeAddr, sender,
 		[]string{receiverAddr}, sendAmount,
 	)
-
-	if err != nil {
-		return "", err
-	}
-
-	return txHash, nil
 }
 
 func CreateMetaData(
@@ -257,16 +252,18 @@ func BridgeAmountFullMultipleReceivers(
 }
 
 func BridgeAmountFullMultipleReceiversNexus(
-	t *testing.T, ctx context.Context, txProvider wallet.ITxProvider, networkConfig TestCardanoNetworkConfig,
+	ctx context.Context, txProvider wallet.ITxProvider, networkConfig TestCardanoNetworkConfig,
 	multisigAddr, feeAddr string, sender wallet.IWallet,
 	receiverAddrs []string, sendAmount uint64,
 ) (string, error) {
-	t.Helper()
+	const (
+		maxReceivers = 4
+		feeAmount    = 1_100_000
+	)
 
-	require.Greater(t, len(receiverAddrs), 0)
-	require.Less(t, len(receiverAddrs), 5)
-
-	const feeAmount = 1_100_000
+	if len(receiverAddrs) == 0 || len(receiverAddrs) > maxReceivers {
+		return "", fmt.Errorf("invalid receivers length, len: %d", len(receiverAddrs))
+	}
 
 	senderAddr, err := GetAddress(networkConfig.NetworkType, sender)
 	if err != nil {
@@ -290,11 +287,6 @@ func BridgeAmountFullMultipleReceiversNexus(
 		return "", err
 	}
 
-	err = wallet.WaitForTxHashInUtxos(
+	return txHash, wallet.WaitForTxHashInUtxos(
 		context.Background(), txProvider, multisigAddr, txHash, 60, time.Second*2, IsRecoverableError)
-	if err != nil {
-		return "", err
-	}
-
-	return txHash, nil
 }
