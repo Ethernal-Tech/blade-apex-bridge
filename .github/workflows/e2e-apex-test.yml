@@ -5,7 +5,7 @@ on: # yamllint disable-line rule:truthy
     inputs:
       e2e_apex_big_test:
         description: E2E ApexBridge Big Tests
-        type: boolean
+        type: string
         required: true
     outputs:
       workflow_output:

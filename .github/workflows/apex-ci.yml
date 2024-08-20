@@ -56,7 +56,7 @@ on: # yamllint disable-line rule:truthy
         required: true
       e2e_apex_big_test:
         description: E2E ApexBridge Big Tests
-        type: boolean
+        type: string
         required: true
     outputs:
       build_blade:
@@ -121,6 +121,6 @@ jobs:
       github.event_name == 'pull_request' || 
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
     with:
-      e2e_apex_big_test: ${{ inputs.e2e_apex_big_test || false }}
+      e2e_apex_big_test: ${{ inputs.e2e_apex_big_test || 'false' }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
