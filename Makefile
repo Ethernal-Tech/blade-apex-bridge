@@ -83,7 +83,7 @@ test-e2e-polybft: check-go
 .PHONY: test-e2e-apex-bridge
 test-e2e-apex-bridge: check-go
 	go build -o artifacts/blade .
-	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true RUN_E2E_BIG_TESTS=true \
 	go test -v -timeout=5h ./e2e-polybft/e2e/... -run "ApexBridge"
 
 .PHONY: test-property-polybft
