@@ -540,23 +540,12 @@ func TestE2E_ApexBridgeWithNexus_InvalidScenarios(t *testing.T) {
 	require.NotNil(t, userPrime)
 
 	txProviderPrime := apex.GetPrimeTxProvider()
-
-	userNexus, err := apex.CreateAndFundNexusUser(ctx, 0)
-	require.NoError(t, err)
-
-	fmt.Println("Nexus user created and funded")
-
-	receiverAddrNexus := userNexus.Address().String()
-	fmt.Printf("Nexus receiver Addr: %s\n", receiverAddrNexus)
+	receiverAddrNexus := "0x999999cf1046e68e36E1aA2E0E07105eDDD1f08E"
 
 	t.Run("Submitter not enough funds", func(t *testing.T) {
 		sendAmountDfm, _ := convertToEthValues(100)
 
-		ethBalanceBefore, err := cardanofw.GetEthAmount(ctx, apex.Nexus, userNexus)
-		fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
-		require.NoError(t, err)
-
-		_, err = userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
+		_, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
 			receiverAddrNexus, sendAmountDfm, apex.PrimeCluster.NetworkConfig(), receiverAddrNexus)
 		require.ErrorContains(t, err, "not enough funds")
 	})
@@ -567,11 +556,7 @@ func TestE2E_ApexBridgeWithNexus_InvalidScenarios(t *testing.T) {
 		for i := 0; i < submitters; i++ {
 			sendAmountDfm, _ := convertToEthValues(100)
 
-			ethBalanceBefore, err := cardanofw.GetEthAmount(ctx, apex.Nexus, userNexus)
-			fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
-			require.NoError(t, err)
-
-			_, err = userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
+			_, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
 				receiverAddrNexus, sendAmountDfm, apex.PrimeCluster.NetworkConfig(), receiverAddrNexus)
 			require.ErrorContains(t, err, "not enough funds")
 		}
@@ -579,10 +564,6 @@ func TestE2E_ApexBridgeWithNexus_InvalidScenarios(t *testing.T) {
 
 	t.Run("Multiple submitters - not enough funds parallel", func(t *testing.T) {
 		sendAmountDfm, _ := convertToEthValues(100)
-
-		ethBalanceBefore, err := cardanofw.GetEthAmount(ctx, apex.Nexus, userNexus)
-		fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
-		require.NoError(t, err)
 
 		// Fund wallets
 		instances := 5
