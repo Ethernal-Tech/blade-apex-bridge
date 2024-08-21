@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -73,7 +74,7 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 		sendAmountWei := ethgo.Ether(sendAmountEth)
 
 		// call SendTx command
-		err = apex.Nexus.SendTxEvm(string(pkBytes), user.PrimeAddress, sendAmountWei)
+		err = apex.Nexus.SendTxEvm(hex.EncodeToString(pkBytes), user.PrimeAddress, sendAmountWei)
 		require.NoError(t, err)
 
 		// check expected amount cardano
@@ -367,7 +368,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios(t *testing.T) {
 			receivers           = 4
 		)
 
-		startAmountNexus := uint64(1)
+		startAmountNexus := uint64(100)
 		startAmountNexusEth := ethgo.Ether(startAmountNexus)
 
 		sendAmountDfm, sendAmountEth := convertToEthValues(1)
@@ -810,7 +811,7 @@ func TestE2E_ApexBridgeWithNexus_InvalidScenarios(t *testing.T) {
 }
 
 func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
-	if shouldRun := os.Getenv("RUN_E2E_BIG_TEST"); shouldRun != "true" {
+	if shouldRun := os.Getenv("RUN_E2E_BIG_TESTS"); shouldRun != "true" {
 		t.Skip()
 	}
 
@@ -924,7 +925,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 
 		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, userNexus, func(val *big.Int) bool {
 			return val.Cmp(expectedAmount) >= 0
-		}, instances, 10)
+		}, 20, time.Second*6)
 		require.NoError(t, err)
 
 		fmt.Printf("Success count: %v. prevAmount: %v. newAmount: %v. expectedAmount: %v\n", succeededCount, ethBalanceBefore, newAmount, expectedAmount)
@@ -1005,10 +1006,501 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 
 		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, userNexus, func(val *big.Int) bool {
 			return val.Cmp(expectedAmount) >= 0
-		}, instances, 10)
+		}, 20, time.Second*6)
 		require.NoError(t, err)
 
 		fmt.Printf("Success count: %v. prevAmount: %v. newAmount: %v. expectedAmount: %v\n", succeededCount, ethBalanceBefore, newAmount, expectedAmount)
+	})
+
+	t.Run("Both directions sequential", func(t *testing.T) {
+		sendAmount := uint64(1)
+		sendAmountDfm, sendAmountEth := convertToEthValues(sendAmount)
+
+		// create and fund wallet on nexus
+		evmUser, err := apex.CreateAndFundNexusUser(ctx, 50)
+		require.NoError(t, err)
+
+		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		prevAmountNexus, err := cardanofw.GetEthAmount(ctx, apex.Nexus, evmUser)
+		require.NoError(t, err)
+		require.NotZero(t, prevAmountNexus)
+
+		// create and fund prime user
+		userPrime := apex.CreateAndFundUser(t, ctx, uint64(100_000_000))
+		require.NotNil(t, userPrime)
+
+		prevAmountPrime, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), userPrime.PrimeAddress)
+		require.NoError(t, err)
+
+		txProviderPrime := apex.GetPrimeTxProvider()
+
+		instances := 5
+
+		sendAmountWei := ethgo.Ether(uint64(1))
+
+		for i := 0; i < instances; i++ {
+			txHash, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
+				evmUser.Address().String(), sendAmountDfm, apex.PrimeCluster.NetworkConfig(), evmUser.Address().String())
+			require.NoError(t, err)
+
+			fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+			err = apex.Nexus.SendTxEvm(hex.EncodeToString(pkBytes), userPrime.PrimeAddress, sendAmountWei)
+			require.NoError(t, err)
+		}
+
+		transferedAmount := new(big.Int).SetInt64(int64(instances))
+		transferedAmount.Mul(transferedAmount, sendAmountEth)
+		ethExpectedBalance := big.NewInt(0).Add(prevAmountNexus, transferedAmount)
+		fmt.Printf("ETH ethExpectedBalance after Tx %d\n", ethExpectedBalance)
+
+		// check expected amount nexus
+		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, evmUser, func(val *big.Int) bool {
+			return val.Cmp(prevAmountNexus) != 0
+		}, 30, 30*time.Second)
+		require.NoError(t, err)
+
+		ethBalanceAfter, err := cardanofw.GetEthAmount(ctx, apex.Nexus, evmUser)
+		require.NoError(t, err)
+		fmt.Printf("ETH Amount after Tx %d\n", ethBalanceAfter)
+
+		// check expected amount prime
+		expectedAmountOnPrime := prevAmountPrime + sendAmount // * wei?
+		fmt.Printf("prime expectedAmountOnPrime after Tx %d\n", expectedAmountOnPrime)
+
+		err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, userPrime.PrimeAddress, func(val uint64) bool {
+			return val != prevAmountPrime
+		}, 100, time.Second*10)
+		require.NoError(t, err)
+
+		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, userPrime.PrimeAddress)
+		require.NoError(t, err)
+		require.NotZero(t, newAmountOnPrime)
+		fmt.Printf("Prime amount after Tx %d\n", newAmountOnPrime)
+	})
+
+	t.Run("Both directions sequential and parallel", func(t *testing.T) {
+		sequentialInstances := 5
+		parallelInstances := 6
+
+		sendAmount := uint64(1)
+		sendAmountDfm, sendAmountWei := convertToEthValues(sendAmount)
+
+		// create and fund wallet on nexus
+		evmUserReceiver, err := apex.CreateAndFundNexusUser(ctx, 100)
+		require.NoError(t, err)
+
+		prevAmountNexusReceiver, err := cardanofw.GetEthAmount(ctx, apex.Nexus, evmUserReceiver)
+		require.NoError(t, err)
+		require.NotZero(t, prevAmountNexusReceiver)
+
+		nexusUsers := make([]*ethwallet.Account, parallelInstances)
+		// pkBytesNexus := make([][]byte, parallelInstances)
+
+		for i := 0; i < parallelInstances; i++ {
+			nexusUsers[i], err = apex.CreateAndFundNexusUser(ctx, 100)
+			require.NoError(t, err)
+
+			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, nexusUsers[i], func(val *big.Int) bool {
+				return val.Cmp(big.NewInt(0)) != 0
+			}, 30, 10*time.Second)
+			require.NoError(t, err)
+		}
+
+		// create and fund prime user
+		primeUserReceiver := apex.CreateAndFundUser(t, ctx, uint64(1_000_000))
+		require.NotNil(t, primeUserReceiver)
+
+		prevAmountPrime, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), primeUserReceiver.PrimeAddress)
+		require.NoError(t, err)
+
+		primeUsers := make([]*cardanofw.TestApexUser, parallelInstances)
+
+		for i := 0; i < parallelInstances; i++ {
+			primeUsers[i] = apex.CreateAndFundUser(t, ctx, uint64(100_000_000))
+			require.NotNil(t, primeUsers[i])
+		}
+
+		txProviderPrime := apex.GetPrimeTxProvider()
+
+		for j := 0; j < sequentialInstances; j++ {
+			var wg sync.WaitGroup
+
+			for i := 0; i < parallelInstances; i++ {
+				wg.Add(1)
+
+				go func(run, idx int) {
+					defer wg.Done()
+
+					txHash, err := primeUsers[idx].BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
+						evmUserReceiver.Address().String(), sendAmountDfm, apex.PrimeCluster.NetworkConfig(), evmUserReceiver.Address().String())
+					require.NoError(t, err)
+
+					fmt.Printf("run: %v. Prime tx %v sent. hash: %s\n", run+1, idx+1, txHash)
+				}(j, i)
+			}
+
+			wg.Wait()
+
+			for i := 0; i < parallelInstances; i++ {
+				wg.Add(1)
+
+				go func(run, idx int) {
+					defer wg.Done()
+
+					pkBytesNexus, err := nexusUsers[idx].Ecdsa.MarshallPrivateKey()
+					require.NoError(t, err)
+
+					err = apex.Nexus.SendTxEvm(hex.EncodeToString(pkBytesNexus), primeUserReceiver.PrimeAddress, sendAmountWei)
+					require.NoError(t, err)
+
+					fmt.Printf("run: %v. Nexus tx %v sent.\n", run+1, idx+1)
+				}(j, i)
+			}
+
+			wg.Wait()
+		}
+
+		// check expected amount nexus
+		transferedAmount := new(big.Int).SetInt64(int64(sequentialInstances * parallelInstances))
+		transferedAmount.Mul(transferedAmount, sendAmountWei)
+		ethExpectedBalance := big.NewInt(0).Add(prevAmountNexusReceiver, transferedAmount)
+		fmt.Printf("ETH ethExpectedBalance after Tx %d\n", ethExpectedBalance)
+
+		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
+			return val.Cmp(ethExpectedBalance) == 0
+		}, 100, 30*time.Second)
+		require.NoError(t, err)
+
+		ethBalanceAfter, err := cardanofw.GetEthAmount(ctx, apex.Nexus, evmUserReceiver)
+		require.NoError(t, err)
+		fmt.Printf("ETH Amount after Tx %d\n", ethBalanceAfter)
+
+		// check expected amount prime
+		expectedAmountOnPrime := prevAmountPrime + uint64(sequentialInstances)*uint64(parallelInstances)*sendAmountDfm
+		fmt.Printf("prime expectedAmountOnPrime after Tx %d\n", expectedAmountOnPrime)
+
+		err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
+			return val == expectedAmountOnPrime
+		}, 100, time.Second*10)
+		require.NoError(t, err)
+
+		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, primeUserReceiver.PrimeAddress)
+		require.NoError(t, err)
+		require.NotZero(t, newAmountOnPrime)
+		fmt.Printf("Prime amount after Tx %d\n", newAmountOnPrime)
+	})
+
+	t.Run("Both directions sequential and parallel - one node goes off in the midle", func(t *testing.T) {
+		const (
+			sequentialInstances  = 5
+			parallelInstances    = 6
+			stopAfter            = time.Second * 60
+			validatorStoppingIdx = 1
+		)
+
+		sendAmount := uint64(1)
+		sendAmountDfm, sendAmountWei := convertToEthValues(sendAmount)
+
+		// create and fund wallet on nexus
+		evmUserReceiver, err := apex.CreateAndFundNexusUser(ctx, 100)
+		require.NoError(t, err)
+
+		prevAmountNexusReceiver, err := cardanofw.GetEthAmount(ctx, apex.Nexus, evmUserReceiver)
+		require.NoError(t, err)
+		require.NotZero(t, prevAmountNexusReceiver)
+
+		nexusUsers := make([]*ethwallet.Account, parallelInstances)
+
+		for i := 0; i < parallelInstances; i++ {
+			nexusUsers[i], err = apex.CreateAndFundNexusUser(ctx, 100)
+			require.NoError(t, err)
+
+			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, nexusUsers[i], func(val *big.Int) bool {
+				return val.Cmp(big.NewInt(0)) != 0
+			}, 30, 10*time.Second)
+			require.NoError(t, err)
+		}
+
+		// create and fund prime user
+		primeUserReceiver := apex.CreateAndFundUser(t, ctx, uint64(1_000_000))
+		require.NotNil(t, primeUserReceiver)
+
+		prevAmountPrime, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), primeUserReceiver.PrimeAddress)
+		require.NoError(t, err)
+
+		primeUsers := make([]*cardanofw.TestApexUser, parallelInstances)
+
+		for i := 0; i < parallelInstances; i++ {
+			primeUsers[i] = apex.CreateAndFundUser(t, ctx, uint64(100_000_000))
+			require.NotNil(t, primeUsers[i])
+		}
+
+		txProviderPrime := apex.GetPrimeTxProvider()
+
+		go func() {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(stopAfter):
+				require.NoError(t, apex.Bridge.GetValidator(t, validatorStoppingIdx).Stop())
+			}
+		}()
+
+		var wg sync.WaitGroup
+
+		for i := 0; i < parallelInstances; i++ {
+			wg.Add(2)
+
+			go func(idx int) {
+				defer wg.Done()
+
+				for j := 0; j < sequentialInstances; j++ {
+					txHash, err := primeUsers[idx].BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
+						evmUserReceiver.Address().String(), sendAmountDfm, apex.PrimeCluster.NetworkConfig(), evmUserReceiver.Address().String())
+					require.NoError(t, err)
+
+					fmt.Printf("run: %v. Prime tx %v sent. hash: %s\n", j+1, idx+1, txHash)
+				}
+			}(i)
+
+			go func(idx int) {
+				defer wg.Done()
+
+				for j := 0; j < sequentialInstances; j++ {
+					pkBytesNexus, err := nexusUsers[idx].Ecdsa.MarshallPrivateKey()
+					require.NoError(t, err)
+
+					err = apex.Nexus.SendTxEvm(hex.EncodeToString(pkBytesNexus), primeUserReceiver.PrimeAddress, sendAmountWei)
+					require.NoError(t, err)
+
+					fmt.Printf("run: %v. Nexus tx %v sent.\n", j+1, idx+1)
+				}
+			}(i)
+		}
+
+		wg.Wait()
+
+		wg.Add(2)
+
+		//nolint:dupl
+		go func() {
+			defer wg.Done()
+
+			// check expected amount nexus
+			transferedAmount := new(big.Int).SetInt64(int64(sequentialInstances * parallelInstances))
+			transferedAmount.Mul(transferedAmount, sendAmountWei)
+			ethExpectedBalance := big.NewInt(0).Add(prevAmountNexusReceiver, transferedAmount)
+			fmt.Printf("ETH ethExpectedBalance after Tx %d\n", ethExpectedBalance)
+
+			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
+				return val.Cmp(ethExpectedBalance) == 0
+			}, 100, 30*time.Second)
+			require.NoError(t, err)
+
+			ethBalanceAfter, err := cardanofw.GetEthAmount(ctx, apex.Nexus, evmUserReceiver)
+			require.NoError(t, err)
+			fmt.Printf("ETH Amount after Tx %d\n", ethBalanceAfter)
+
+			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
+				return val.Cmp(ethExpectedBalance) > 0
+			}, 12, 10*time.Second)
+			assert.ErrorIs(t, err, wallet.ErrWaitForTransactionTimeout, "more tokens than expected are on nexus")
+
+			fmt.Printf("TXs on nexus finished with success: %v\n", err != nil)
+		}()
+
+		go func() {
+			defer wg.Done()
+
+			// check expected amount prime
+			expectedAmountOnPrime := prevAmountPrime + uint64(sequentialInstances)*uint64(parallelInstances)*sendAmountDfm
+			fmt.Printf("prime expectedAmountOnPrime after Tx %d\n", expectedAmountOnPrime)
+
+			err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
+				return val == expectedAmountOnPrime
+			}, 100, time.Second*10)
+			require.NoError(t, err)
+
+			newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, primeUserReceiver.PrimeAddress)
+			require.NoError(t, err)
+			require.NotZero(t, newAmountOnPrime)
+			fmt.Printf("Prime amount after Tx %d\n", newAmountOnPrime)
+
+			fmt.Printf("TXs on prime expected amount received: %v\n", err)
+
+			// nothing else should be bridged for 2 minutes
+			err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
+				return val > expectedAmountOnPrime
+			}, 12, time.Second*10)
+			assert.ErrorIs(t, err, wallet.ErrWaitForTransactionTimeout, "more tokens than expected are on prime")
+
+			fmt.Printf("TXs on prime finished with success: %v\n", err != nil)
+		}()
+
+		wg.Wait()
+	})
+
+	t.Run("Both directions sequential and parallel - two nodes go off in the middle and then one comes back", func(t *testing.T) {
+		const (
+			sequentialInstances   = 5
+			parallelInstances     = 10
+			stopAfter             = time.Second * 60
+			startAgainAfter       = time.Second * 120
+			validatorStoppingIdx1 = 1
+			validatorStoppingIdx2 = 2
+		)
+
+		sendAmount := uint64(1)
+		sendAmountDfm, sendAmountWei := convertToEthValues(sendAmount)
+
+		// create and fund wallet on nexus
+		evmUserReceiver, err := apex.CreateAndFundNexusUser(ctx, 100)
+		require.NoError(t, err)
+
+		prevAmountNexusReceiver, err := cardanofw.GetEthAmount(ctx, apex.Nexus, evmUserReceiver)
+		require.NoError(t, err)
+		require.NotZero(t, prevAmountNexusReceiver)
+
+		nexusUsers := make([]*ethwallet.Account, parallelInstances)
+
+		for i := 0; i < parallelInstances; i++ {
+			nexusUsers[i], err = apex.CreateAndFundNexusUser(ctx, 100)
+			require.NoError(t, err)
+
+			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, nexusUsers[i], func(val *big.Int) bool {
+				return val.Cmp(big.NewInt(0)) != 0
+			}, 30, 10*time.Second)
+			require.NoError(t, err)
+		}
+
+		// create and fund prime user
+		primeUserReceiver := apex.CreateAndFundUser(t, ctx, uint64(1_000_000))
+		require.NotNil(t, primeUserReceiver)
+
+		prevAmountPrime, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), primeUserReceiver.PrimeAddress)
+		require.NoError(t, err)
+
+		primeUsers := make([]*cardanofw.TestApexUser, parallelInstances)
+
+		for i := 0; i < parallelInstances; i++ {
+			primeUsers[i] = apex.CreateAndFundUser(t, ctx, uint64(100_000_000))
+			require.NotNil(t, primeUsers[i])
+		}
+
+		txProviderPrime := apex.GetPrimeTxProvider()
+
+		go func() {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(stopAfter):
+				require.NoError(t, apex.Bridge.GetValidator(t, validatorStoppingIdx1).Stop())
+				require.NoError(t, apex.Bridge.GetValidator(t, validatorStoppingIdx2).Stop())
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(startAgainAfter):
+				require.NoError(t, apex.Bridge.GetValidator(t, validatorStoppingIdx1).Start(ctx, false))
+			}
+		}()
+
+		var wg sync.WaitGroup
+
+		for i := 0; i < parallelInstances; i++ {
+			wg.Add(2)
+
+			go func(idx int) {
+				defer wg.Done()
+
+				for j := 0; j < sequentialInstances; j++ {
+					txHash, err := primeUsers[idx].BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
+						evmUserReceiver.Address().String(), sendAmountDfm, apex.PrimeCluster.NetworkConfig(), evmUserReceiver.Address().String())
+					require.NoError(t, err)
+
+					fmt.Printf("run: %v. Prime tx %v sent. hash: %s\n", j+1, idx+1, txHash)
+				}
+			}(i)
+
+			go func(idx int) {
+				defer wg.Done()
+
+				for j := 0; j < sequentialInstances; j++ {
+					pkBytesNexus, err := nexusUsers[idx].Ecdsa.MarshallPrivateKey()
+					require.NoError(t, err)
+
+					err = apex.Nexus.SendTxEvm(hex.EncodeToString(pkBytesNexus), primeUserReceiver.PrimeAddress, sendAmountWei)
+					require.NoError(t, err)
+
+					fmt.Printf("run: %v. Nexus tx %v sent.\n", j+1, idx+1)
+				}
+			}(i)
+		}
+
+		wg.Wait()
+
+		wg.Add(2)
+
+		//nolint:dupl
+		go func() {
+			defer wg.Done()
+
+			// check expected amount nexus
+			transferedAmount := new(big.Int).SetInt64(int64(sequentialInstances * parallelInstances))
+			transferedAmount.Mul(transferedAmount, sendAmountWei)
+			ethExpectedBalance := big.NewInt(0).Add(prevAmountNexusReceiver, transferedAmount)
+			fmt.Printf("ETH ethExpectedBalance after Tx %d\n", ethExpectedBalance)
+
+			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
+				return val.Cmp(ethExpectedBalance) == 0
+			}, 100, 30*time.Second)
+			require.NoError(t, err)
+
+			ethBalanceAfter, err := cardanofw.GetEthAmount(ctx, apex.Nexus, evmUserReceiver)
+			require.NoError(t, err)
+			fmt.Printf("ETH Amount after Tx %d\n", ethBalanceAfter)
+
+			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
+				return val.Cmp(ethExpectedBalance) > 0
+			}, 12, 10*time.Second)
+			assert.ErrorIs(t, err, wallet.ErrWaitForTransactionTimeout, "more tokens than expected are on nexus")
+
+			fmt.Printf("TXs on nexus finished with success: %v\n", err != nil)
+		}()
+
+		go func() {
+			defer wg.Done()
+
+			// check expected amount prime
+			expectedAmountOnPrime := prevAmountPrime + uint64(sequentialInstances)*uint64(parallelInstances)*sendAmountDfm
+			fmt.Printf("prime expectedAmountOnPrime after Tx %d\n", expectedAmountOnPrime)
+
+			err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
+				return val == expectedAmountOnPrime
+			}, 100, time.Second*10)
+			require.NoError(t, err)
+
+			newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, primeUserReceiver.PrimeAddress)
+			require.NoError(t, err)
+			require.NotZero(t, newAmountOnPrime)
+			fmt.Printf("Prime amount after Tx %d\n", newAmountOnPrime)
+
+			fmt.Printf("TXs on prime expected amount received: %v\n", err)
+
+			// nothing else should be bridged for 2 minutes
+			err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
+				return val > expectedAmountOnPrime
+			}, 12, time.Second*10)
+			assert.ErrorIs(t, err, wallet.ErrWaitForTransactionTimeout, "more tokens than expected are on vector")
+
+			fmt.Printf("TXs on prime finished with success: %v\n", err != nil)
+		}()
+
+		wg.Wait()
 	})
 }
 
@@ -1017,7 +1509,5 @@ func convertToEthValues(sendAmount uint64) (uint64, *big.Int) {
 	exp := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
 	sendAmountDfm.Mul(sendAmountDfm, exp)
 
-	expectedAmount := ethgo.Ether(sendAmount)
-
-	return sendAmountDfm.Uint64(), expectedAmount
+	return sendAmountDfm.Uint64(), ethgo.Ether(sendAmount)
 }
