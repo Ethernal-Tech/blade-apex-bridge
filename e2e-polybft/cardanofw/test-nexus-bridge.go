@@ -124,7 +124,7 @@ func WaitForEthAmount(
 	}, isRecoverableError...)
 }
 
-func (ec TestEVMBridge) NodeURL() string {
+func (ec *TestEVMBridge) NodeURL() string {
 	return fmt.Sprintf("http://localhost:%d", ec.Config.NexusStartingPort)
 }
 

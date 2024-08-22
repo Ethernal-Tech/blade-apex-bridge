@@ -67,10 +67,7 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 		require.NoError(t, err)
 
 		sendAmountEth := uint64(1)
-		sendAmountDfm := new(big.Int).SetUint64(sendAmountEth)
-		expDfm := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
-		sendAmountDfm.Mul(sendAmountDfm, expDfm)
-
+		sendAmountDfm := ethToDfm(sendAmountEth)
 		sendAmountWei := ethgo.Ether(sendAmountEth)
 
 		// call SendTx command
@@ -141,6 +138,178 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 		ethBalanceAfter, err = cardanofw.GetEthAmount(ctx, apex.Nexus, user)
 		fmt.Printf("ETH Amount AFTER AFTER TX %d\n", ethBalanceAfter)
 		require.NoError(t, err)
+	})
+}
+
+func TestE2E_ApexBridge_Nexus_InvalidScenarios(t *testing.T) {
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex := cardanofw.RunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithVectorEnabled(false),
+		cardanofw.WithNexusEnabled(true),
+	)
+
+	fee := new(big.Int).SetUint64(1000010000000000000)
+
+	sendTxParams := func(txType, gatewayAddr, nexusUrl, privateKey, chainDst, receiver string, amount, fee *big.Int) error {
+		return cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
+			"sendtx",
+			"--tx-type", txType,
+			"--gateway-addr", gatewayAddr,
+			"--nexus-url", nexusUrl,
+			"--key", privateKey,
+			"--chain-dst", chainDst,
+			"--receiver", fmt.Sprintf("%s:%s", receiver, amount.String()),
+			"--fee", fee.String(),
+		}, os.Stdout)
+	}
+
+	t.Run("Wrong Tx-Type", func(t *testing.T) {
+		cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
+
+		// create and fund wallet on nexus
+		evmUser, err := apex.CreateAndFundNexusUser(ctx, 10)
+		require.NoError(t, err)
+		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		sendAmountEth := uint64(1)
+		sendAmountWei := ethgo.Ether(sendAmountEth)
+
+		// call SendTx command
+		err = sendTxParams("cardano", // "cardano" instead of "evm"
+			apex.Nexus.GetGatewayAddress().String(),
+			apex.Nexus.Cluster.Servers[0].JSONRPCAddr(),
+			hex.EncodeToString(pkBytes), "prime",
+			cardanoUser.PrimeAddress,
+			sendAmountWei, fee,
+		)
+		require.ErrorContains(t, err, "failed to execute command")
+	})
+
+	t.Run("Invalid Gateway address", func(t *testing.T) {
+		cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
+
+		// create and fund wallet on nexus
+		evmUser, err := apex.CreateAndFundNexusUser(ctx, 10)
+		require.NoError(t, err)
+		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		sendAmountEth := uint64(1)
+		sendAmountWei := ethgo.Ether(sendAmountEth)
+
+		// call SendTx command
+		err = sendTxParams("evm",
+			// evmUser.Address().String(), // User address instead of Gateway address
+			"0xAA", // TODO: apex-bridge accepts any EVM address
+			apex.Nexus.Cluster.Servers[0].JSONRPCAddr(),
+			hex.EncodeToString(pkBytes), "prime",
+			cardanoUser.PrimeAddress,
+			sendAmountWei, fee,
+		)
+		require.NoError(t, err)
+		// require.ErrorContains(t, err, "failed to execute command") // TODO: decline non-gateway address
+	})
+
+	t.Run("Wrong Nexus URL", func(t *testing.T) {
+		cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
+
+		// create and fund wallet on nexus
+		evmUser, err := apex.CreateAndFundNexusUser(ctx, 10)
+		require.NoError(t, err)
+		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		sendAmountEth := uint64(1)
+		sendAmountWei := ethgo.Ether(sendAmountEth)
+
+		// call SendTx command
+		err = sendTxParams("evm",
+			apex.Nexus.GetGatewayAddress().String(),
+			"localhost:1234", // TODO: Wrong address (neki drugi chain?)
+			hex.EncodeToString(pkBytes), "prime",
+			cardanoUser.PrimeAddress,
+			sendAmountWei, fee,
+		)
+		require.ErrorContains(t, err, "no known transport for URL scheme")
+	})
+
+	t.Run("Sender not enough funds", func(t *testing.T) {
+		cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
+
+		// create and fund wallet on nexus
+		evmUser, err := apex.CreateAndFundNexusUser(ctx, 1) // sendAmountEth = 2
+		require.NoError(t, err)
+		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		sendAmountEth := uint64(2)
+		sendAmountWei := ethgo.Ether(sendAmountEth)
+
+		// call SendTx command
+		err = sendTxParams("evm",
+			apex.Nexus.GetGatewayAddress().String(),
+			apex.Nexus.Cluster.Servers[0].JSONRPCAddr(),
+			hex.EncodeToString(pkBytes), "prime",
+			cardanoUser.PrimeAddress,
+			sendAmountWei, fee,
+		)
+		require.ErrorContains(t, err, "unable to apply transaction even for the highest gas limit")
+	})
+
+	t.Run("Wrong destrination chain", func(t *testing.T) {
+		cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
+
+		// create and fund wallet on nexus
+		evmUser, err := apex.CreateAndFundNexusUser(ctx, 10)
+		require.NoError(t, err)
+		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		sendAmountEth := uint64(1)
+		sendAmountWei := ethgo.Ether(sendAmountEth)
+
+		// call SendTx command
+		err = sendTxParams("evm",
+			apex.Nexus.GetGatewayAddress().String(),
+			apex.Nexus.Cluster.Servers[0].JSONRPCAddr(),
+			hex.EncodeToString(pkBytes), "vector", // "vector" instead of "prime"
+			cardanoUser.PrimeAddress,
+			sendAmountWei, fee,
+		)
+		require.NoError(t, err)
+		// require.ErrorContains(t, err, "") // TODO: decline vector tx
+	})
+
+	t.Run("Big receiver amount", func(t *testing.T) {
+		cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
+
+		// create and fund wallet on nexus
+		evmUser, err := apex.CreateAndFundNexusUser(ctx, 10)
+		require.NoError(t, err)
+		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		sendAmountEth := uint64(20) // Sender funded with 10 Eth
+		sendAmountWei := ethgo.Ether(sendAmountEth)
+
+		// call SendTx command
+		err = sendTxParams("evm",
+			apex.Nexus.GetGatewayAddress().String(),
+			apex.Nexus.Cluster.Servers[0].JSONRPCAddr(),
+			hex.EncodeToString(pkBytes), "prime",
+			cardanoUser.PrimeAddress,
+			sendAmountWei, fee,
+		)
+		require.ErrorContains(t, err, "unable to apply transaction even for the highest gas limit")
 	})
 }
 
@@ -1491,4 +1660,10 @@ func convertToEthValues(sendAmount uint64) (uint64, *big.Int) {
 	sendAmountDfm.Mul(sendAmountDfm, exp)
 
 	return sendAmountDfm.Uint64(), ethgo.Ether(sendAmount)
+}
+
+func ethToDfm(ethAmount uint64) (dfm *big.Int) {
+	expDfm := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
+	sendAmountDfm := new(big.Int).SetUint64(ethAmount)
+	return sendAmountDfm.Mul(sendAmountDfm, expDfm)
 }
