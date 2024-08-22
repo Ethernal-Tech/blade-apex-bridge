@@ -46,7 +46,7 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 		require.NoError(t, err)
 		require.NotZero(t, ethBalance)
 
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, user, func(val *big.Int) bool {
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, user, func(val *big.Int) bool {
 			return val.Cmp(expectedAmount) == 0
 		}, 10, 10)
 		require.NoError(t, err)
@@ -66,17 +66,15 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 		prevAmount, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), user.PrimeAddress)
 		require.NoError(t, err)
 
-		sendAmountEth := uint64(1)
-		sendAmountDfm := ethToDfm(sendAmountEth)
-		sendAmountWei := ethgo.Ether(sendAmountEth)
+		sendAmountDfm, sendAmountWei := convertToEthValues(uint64(1))
 
 		// call SendTx command
 		err = apex.Nexus.SendTxEvm(hex.EncodeToString(pkBytes), user.PrimeAddress, sendAmountWei)
 		require.NoError(t, err)
 
 		// check expected amount cardano
-		expectedAmountOnPrime := prevAmount + sendAmountDfm.Uint64()
-		err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, user.PrimeAddress, func(val uint64) bool {
+		expectedAmountOnPrime := prevAmount + sendAmountDfm
+		err = cardanofw.WaitForAmount(ctx, txProviderPrime, user.PrimeAddress, func(val uint64) bool {
 			return val == expectedAmountOnPrime
 		}, 100, time.Second*10)
 		require.NoError(t, err)
@@ -101,7 +99,7 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 		require.NoError(t, err)
 		require.NotZero(t, ethBalance)
 
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, user, func(val *big.Int) bool {
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, user, func(val *big.Int) bool {
 			return val.Cmp(sendAmountEth) == 0
 		}, 10, 10)
 		require.NoError(t, err)
@@ -127,7 +125,7 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
 
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, user, func(val *big.Int) bool {
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, user, func(val *big.Int) bool {
 			ethBalanceAfter, err := cardanofw.GetEthAmount(ctx, apex.Nexus, user)
 			require.NoError(t, err)
 
@@ -339,7 +337,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios(t *testing.T) {
 	userNexus, err := apex.CreateAndFundNexusUser(ctx, startAmountNexus)
 	require.NoError(t, err)
 
-	err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, userNexus, func(val *big.Int) bool {
+	err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
 		return val.Cmp(expectedAmountNexus) == 0
 	}, 10, 10)
 	require.NoError(t, err)
@@ -362,7 +360,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios(t *testing.T) {
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
 
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, userNexus, func(val *big.Int) bool {
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
 			return val.Cmp(ethBalanceBefore) != 0
 		}, 30, 30*time.Second)
 		require.NoError(t, err)
@@ -390,7 +388,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios(t *testing.T) {
 
 			ethExpectedBalance := big.NewInt(0).Add(ethBalanceBefore, sendAmountEth)
 
-			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, userNexus, func(val *big.Int) bool {
+			err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
 				return val.Cmp(ethExpectedBalance) == 0
 			}, 30, 30*time.Second)
 			require.NoError(t, err)
@@ -422,7 +420,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios(t *testing.T) {
 		transferedAmount.Mul(transferedAmount, sendAmountEth)
 		ethExpectedBalance := big.NewInt(0).Add(ethBalanceBefore, transferedAmount)
 
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, userNexus, func(val *big.Int) bool {
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
 			return val.Cmp(ethExpectedBalance) == 0
 		}, 30, 30*time.Second)
 		require.NoError(t, err)
@@ -469,7 +467,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios(t *testing.T) {
 		transferedAmount.Mul(transferedAmount, sendAmountEth)
 		ethExpectedBalance := big.NewInt(0).Add(ethBalanceBefore, transferedAmount)
 
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, userNexus, func(val *big.Int) bool {
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
 			return val.Cmp(ethExpectedBalance) == 0
 		}, 30, 30*time.Second)
 		require.NoError(t, err)
@@ -520,7 +518,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios(t *testing.T) {
 		ethExpectedBalance := big.NewInt(0).Add(ethBalanceBefore, transferedAmount)
 		fmt.Printf("Expected ETH Amount after Txs %d\n", ethExpectedBalance)
 
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, userNexus, func(val *big.Int) bool {
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
 			return val.Cmp(ethExpectedBalance) == 0
 		}, 60, 30*time.Second)
 		require.NoError(t, err)
@@ -554,7 +552,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios(t *testing.T) {
 			user, err := apex.CreateAndFundNexusUser(ctx, startAmountNexus)
 			require.NoError(t, err)
 
-			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, user, func(val *big.Int) bool {
+			err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, user, func(val *big.Int) bool {
 				return val.Cmp(startAmountNexusEth) == 0
 			}, 30, 30*time.Second)
 			require.NoError(t, err)
@@ -607,7 +605,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios(t *testing.T) {
 			go func(receiverIdx int) {
 				defer wgResults.Done()
 
-				err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, nexusUsers[receiverIdx],
+				err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, nexusUsers[receiverIdx],
 					func(val *big.Int) bool {
 						return val.Cmp(ethExpectedBalance) == 0
 					}, 60, 30*time.Second)
@@ -673,7 +671,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios(t *testing.T) {
 		ethExpectedBalance := big.NewInt(0).Add(ethBalanceBefore, transferedAmount)
 		fmt.Printf("Expected ETH Amount after Txs %d\n", ethExpectedBalance)
 
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, userNexus, func(val *big.Int) bool {
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
 			return val.Cmp(ethExpectedBalance) == 0
 		}, 60, 30*time.Second)
 		require.NoError(t, err)
@@ -681,7 +679,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios(t *testing.T) {
 		fmt.Printf("TXs on Nexus expected amount received, err: %v\n", err)
 
 		// nothing else should be bridged for 2 minutes
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, userNexus, func(val *big.Int) bool {
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
 			return val.Cmp(ethExpectedBalance) > 0
 		}, 12, 10*time.Second)
 		assert.ErrorIs(t, err, wallet.ErrWaitForTransactionTimeout, "more tokens than expected are on prime")
@@ -990,7 +988,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 	userNexus, err := apex.CreateAndFundNexusUser(ctx, startAmountNexus)
 	require.NoError(t, err)
 
-	err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, userNexus, func(val *big.Int) bool {
+	err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
 		return val.Cmp(expectedAmountNexus) == 0
 	}, 10, 10)
 	require.NoError(t, err)
@@ -1073,7 +1071,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 		expectedAmount.Mul(expectedAmount, sendAmountEth)
 		expectedAmount.Add(expectedAmount, ethBalanceBefore)
 
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, userNexus, func(val *big.Int) bool {
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
 			return val.Cmp(expectedAmount) >= 0
 		}, 20, time.Second*6)
 		require.NoError(t, err)
@@ -1154,7 +1152,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 		expectedAmount.Mul(expectedAmount, sendAmountEth)
 		expectedAmount.Add(expectedAmount, ethBalanceBefore)
 
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, userNexus, func(val *big.Int) bool {
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
 			return val.Cmp(expectedAmount) >= 0
 		}, 20, time.Second*6)
 		require.NoError(t, err)
@@ -1207,7 +1205,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 		fmt.Printf("ETH ethExpectedBalance after Tx %d\n", ethExpectedBalance)
 
 		// check expected amount nexus
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, evmUser, func(val *big.Int) bool {
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, evmUser, func(val *big.Int) bool {
 			return val.Cmp(prevAmountNexus) != 0
 		}, 30, 30*time.Second)
 		require.NoError(t, err)
@@ -1220,7 +1218,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 		expectedAmountOnPrime := prevAmountPrime + sendAmount // * wei?
 		fmt.Printf("prime expectedAmountOnPrime after Tx %d\n", expectedAmountOnPrime)
 
-		err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, userPrime.PrimeAddress, func(val uint64) bool {
+		err = cardanofw.WaitForAmount(ctx, txProviderPrime, userPrime.PrimeAddress, func(val uint64) bool {
 			return val != prevAmountPrime
 		}, 100, time.Second*10)
 		require.NoError(t, err)
@@ -1253,7 +1251,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 			nexusUsers[i], err = apex.CreateAndFundNexusUser(ctx, 100)
 			require.NoError(t, err)
 
-			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, nexusUsers[i], func(val *big.Int) bool {
+			err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, nexusUsers[i], func(val *big.Int) bool {
 				return val.Cmp(big.NewInt(0)) != 0
 			}, 30, 10*time.Second)
 			require.NoError(t, err)
@@ -1319,7 +1317,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 		ethExpectedBalance := big.NewInt(0).Add(prevAmountNexusReceiver, transferedAmount)
 		fmt.Printf("ETH ethExpectedBalance after Tx %d\n", ethExpectedBalance)
 
-		err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
 			return val.Cmp(ethExpectedBalance) == 0
 		}, 100, 30*time.Second)
 		require.NoError(t, err)
@@ -1332,7 +1330,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 		expectedAmountOnPrime := prevAmountPrime + uint64(sequentialInstances)*uint64(parallelInstances)*sendAmountDfm
 		fmt.Printf("prime expectedAmountOnPrime after Tx %d\n", expectedAmountOnPrime)
 
-		err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
+		err = cardanofw.WaitForAmount(ctx, txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
 			return val == expectedAmountOnPrime
 		}, 100, time.Second*10)
 		require.NoError(t, err)
@@ -1368,7 +1366,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 			nexusUsers[i], err = apex.CreateAndFundNexusUser(ctx, 100)
 			require.NoError(t, err)
 
-			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, nexusUsers[i], func(val *big.Int) bool {
+			err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, nexusUsers[i], func(val *big.Int) bool {
 				return val.Cmp(big.NewInt(0)) != 0
 			}, 30, 10*time.Second)
 			require.NoError(t, err)
@@ -1445,7 +1443,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 			ethExpectedBalance := big.NewInt(0).Add(prevAmountNexusReceiver, transferedAmount)
 			fmt.Printf("ETH ethExpectedBalance after Tx %d\n", ethExpectedBalance)
 
-			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
+			err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
 				return val.Cmp(ethExpectedBalance) == 0
 			}, 100, 30*time.Second)
 			require.NoError(t, err)
@@ -1454,7 +1452,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 			require.NoError(t, err)
 			fmt.Printf("ETH Amount after Tx %d\n", ethBalanceAfter)
 
-			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
+			err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
 				return val.Cmp(ethExpectedBalance) > 0
 			}, 12, 10*time.Second)
 			assert.ErrorIs(t, err, wallet.ErrWaitForTransactionTimeout, "more tokens than expected are on nexus")
@@ -1469,7 +1467,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 			expectedAmountOnPrime := prevAmountPrime + uint64(sequentialInstances)*uint64(parallelInstances)*sendAmountDfm
 			fmt.Printf("prime expectedAmountOnPrime after Tx %d\n", expectedAmountOnPrime)
 
-			err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
+			err = cardanofw.WaitForAmount(ctx, txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
 				return val == expectedAmountOnPrime
 			}, 100, time.Second*10)
 			require.NoError(t, err)
@@ -1482,7 +1480,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 			fmt.Printf("TXs on prime expected amount received: %v\n", err)
 
 			// nothing else should be bridged for 2 minutes
-			err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
+			err = cardanofw.WaitForAmount(ctx, txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
 				return val > expectedAmountOnPrime
 			}, 12, time.Second*10)
 			assert.ErrorIs(t, err, wallet.ErrWaitForTransactionTimeout, "more tokens than expected are on prime")
@@ -1520,7 +1518,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 			nexusUsers[i], err = apex.CreateAndFundNexusUser(ctx, 100)
 			require.NoError(t, err)
 
-			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, nexusUsers[i], func(val *big.Int) bool {
+			err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, nexusUsers[i], func(val *big.Int) bool {
 				return val.Cmp(big.NewInt(0)) != 0
 			}, 30, 10*time.Second)
 			require.NoError(t, err)
@@ -1605,7 +1603,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 			ethExpectedBalance := big.NewInt(0).Add(prevAmountNexusReceiver, transferedAmount)
 			fmt.Printf("ETH ethExpectedBalance after Tx %d\n", ethExpectedBalance)
 
-			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
+			err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
 				return val.Cmp(ethExpectedBalance) == 0
 			}, 100, 30*time.Second)
 			require.NoError(t, err)
@@ -1614,7 +1612,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 			require.NoError(t, err)
 			fmt.Printf("ETH Amount after Tx %d\n", ethBalanceAfter)
 
-			err = cardanofw.WaitForEthAmount(context.Background(), apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
+			err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, evmUserReceiver, func(val *big.Int) bool {
 				return val.Cmp(ethExpectedBalance) > 0
 			}, 12, 10*time.Second)
 			assert.ErrorIs(t, err, wallet.ErrWaitForTransactionTimeout, "more tokens than expected are on nexus")
@@ -1629,7 +1627,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 			expectedAmountOnPrime := prevAmountPrime + uint64(sequentialInstances)*uint64(parallelInstances)*sendAmountDfm
 			fmt.Printf("prime expectedAmountOnPrime after Tx %d\n", expectedAmountOnPrime)
 
-			err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
+			err = cardanofw.WaitForAmount(ctx, txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
 				return val == expectedAmountOnPrime
 			}, 100, time.Second*10)
 			require.NoError(t, err)
@@ -1642,7 +1640,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 			fmt.Printf("TXs on prime expected amount received: %v\n", err)
 
 			// nothing else should be bridged for 2 minutes
-			err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
+			err = cardanofw.WaitForAmount(ctx, txProviderPrime, primeUserReceiver.PrimeAddress, func(val uint64) bool {
 				return val > expectedAmountOnPrime
 			}, 12, time.Second*10)
 			assert.ErrorIs(t, err, wallet.ErrWaitForTransactionTimeout, "more tokens than expected are on vector")
@@ -1660,10 +1658,4 @@ func convertToEthValues(sendAmount uint64) (uint64, *big.Int) {
 	sendAmountDfm.Mul(sendAmountDfm, exp)
 
 	return sendAmountDfm.Uint64(), ethgo.Ether(sendAmount)
-}
-
-func ethToDfm(ethAmount uint64) (dfm *big.Int) {
-	expDfm := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
-	sendAmountDfm := new(big.Int).SetUint64(ethAmount)
-	return sendAmountDfm.Mul(sendAmountDfm, expDfm)
 }
