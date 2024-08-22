@@ -20,7 +20,7 @@ import (
 	"github.com/umbracle/ethgo"
 )
 
-func TestE2E_ApexBridge_Nexus(t *testing.T) {
+func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
 	)
@@ -139,7 +139,338 @@ func TestE2E_ApexBridge_Nexus(t *testing.T) {
 	})
 }
 
-func TestE2E_ApexBridge_Nexus_InvalidScenarios(t *testing.T) {
+func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex := cardanofw.RunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithVectorEnabled(false),
+		cardanofw.WithNexusEnabled(true),
+	)
+
+	txProviderPrime := apex.GetPrimeTxProvider()
+
+	sendAmountDfm, sendAmountWei := convertToEthValues(uint64(1))
+
+	cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(1_000_000))
+
+	t.Run("From Prime to Nexus one by one - wait for other side", func(t *testing.T) {
+		const (
+			instances = 5
+		)
+
+		// create and fund wallet on nexus
+		evmUser, err := apex.CreateAndFundNexusUser(ctx, 20)
+		require.NoError(t, err)
+		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		evmUserPk := hex.EncodeToString(pkBytes)
+
+		for i := 0; i < instances; i++ {
+			// check amount on prime
+			prevAmount, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), cardanoUser.PrimeAddress)
+			require.NoError(t, err)
+
+			// call SendTx command
+			err = apex.Nexus.SendTxEvm(evmUserPk, cardanoUser.PrimeAddress, sendAmountWei)
+			require.NoError(t, err)
+
+			// check expected amount cardano
+			expectedAmountOnPrime := prevAmount + sendAmountDfm
+			err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, cardanoUser.PrimeAddress, func(val uint64) bool {
+				return val == expectedAmountOnPrime
+			}, 100, time.Second*10)
+			require.NoError(t, err)
+		}
+
+		// check new amount on prime
+		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, cardanoUser.PrimeAddress)
+		require.NoError(t, err)
+		fmt.Printf("Amount on Prime after Tx %d\n", newAmountOnPrime)
+	})
+
+	t.Run("From Prime to Nexus one by one - don't wait", func(t *testing.T) {
+		const (
+			instances = 5
+		)
+
+		// create and fund wallet on nexus
+		evmUser, err := apex.CreateAndFundNexusUser(ctx, 20)
+		require.NoError(t, err)
+		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		evmUserPk := hex.EncodeToString(pkBytes)
+
+		// check amount on prime
+		prevAmount, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), cardanoUser.PrimeAddress)
+		require.NoError(t, err)
+
+		for i := 0; i < instances; i++ {
+			// call SendTx command
+			err = apex.Nexus.SendTxEvm(evmUserPk, cardanoUser.PrimeAddress, sendAmountWei)
+			require.NoError(t, err)
+		}
+
+		// check expected amount cardano
+		expectedAmountOnPrime := prevAmount + sendAmountDfm*uint64(instances)
+		err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, cardanoUser.PrimeAddress, func(val uint64) bool {
+			return val == expectedAmountOnPrime
+		}, 100, time.Second*10)
+		require.NoError(t, err)
+
+		// check new amount on prime
+		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, cardanoUser.PrimeAddress)
+		require.NoError(t, err)
+		fmt.Printf("Amount on Prime after Tx %d\n", newAmountOnPrime)
+	})
+
+	t.Run("From Prime to Nexus one by one - parallel", func(t *testing.T) {
+		const (
+			instances = 5
+		)
+
+		// check amount on prime
+		prevAmount, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), cardanoUser.PrimeAddress)
+		require.NoError(t, err)
+
+		evmUserPks := make([]string, instances)
+		for i := 0; i < instances; i++ {
+			// create and fund wallet on nexus
+			evmUser, err := apex.CreateAndFundNexusUser(ctx, 5)
+			require.NoError(t, err)
+			pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+			require.NoError(t, err)
+
+			evmUserPks[i] = hex.EncodeToString(pkBytes)
+		}
+
+		var wg sync.WaitGroup
+		for i := 0; i < instances; i++ {
+			wg.Add(1)
+
+			go func(idx int) {
+				defer wg.Done()
+
+				// call SendTx command
+				err = apex.Nexus.SendTxEvm(evmUserPks[idx], cardanoUser.PrimeAddress, sendAmountWei)
+				require.NoError(t, err)
+			}(i)
+		}
+
+		wg.Wait()
+
+		// check expected amount cardano
+		expectedAmountOnPrime := prevAmount + sendAmountDfm*uint64(instances)
+		err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, cardanoUser.PrimeAddress, func(val uint64) bool {
+			return val == expectedAmountOnPrime
+		}, 100, time.Second*10)
+		require.NoError(t, err)
+
+		// check new amount on prime
+		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, cardanoUser.PrimeAddress)
+		require.NoError(t, err)
+		fmt.Printf("Amount on Prime after Tx %d\n", newAmountOnPrime)
+	})
+
+	t.Run("From Prime to Nexus one by one - sequential and parallel", func(t *testing.T) {
+		const (
+			instances         = 5
+			parallelInstances = 10
+		)
+
+		// check amount on prime
+		prevAmount, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), cardanoUser.PrimeAddress)
+		require.NoError(t, err)
+
+		for sequenceIdx := 0; sequenceIdx < instances; sequenceIdx++ {
+
+			evmUserPks := make([]string, parallelInstances)
+			for i := 0; i < parallelInstances; i++ {
+				// create and fund wallet on nexus
+				evmUser, err := apex.CreateAndFundNexusUser(ctx, 5)
+				require.NoError(t, err)
+				pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+				require.NoError(t, err)
+
+				evmUserPks[i] = hex.EncodeToString(pkBytes)
+			}
+
+			var wg sync.WaitGroup
+			for i := 0; i < parallelInstances; i++ {
+				wg.Add(1)
+
+				go func(idx int) {
+					defer wg.Done()
+
+					// call SendTx command
+					err = apex.Nexus.SendTxEvm(evmUserPks[idx], cardanoUser.PrimeAddress, sendAmountWei)
+					require.NoError(t, err)
+				}(i)
+			}
+
+			wg.Wait()
+		}
+
+		// check expected amount cardano
+		expectedAmountOnPrime := prevAmount + sendAmountDfm*uint64(instances)*uint64(parallelInstances)
+		err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, cardanoUser.PrimeAddress, func(val uint64) bool {
+			return val == expectedAmountOnPrime
+		}, 100, time.Second*10)
+		require.NoError(t, err)
+
+		// check new amount on prime
+		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, cardanoUser.PrimeAddress)
+		require.NoError(t, err)
+		fmt.Printf("Amount on Prime after Tx %d\n", newAmountOnPrime)
+	})
+
+	t.Run("From Prime to Nexus one by one - sequential and parallel multiple receivers", func(t *testing.T) {
+		const (
+			instances         = 5
+			parallelInstances = 10
+			receivers         = 4
+		)
+
+		// create receivers and check their amount on prime
+		cardanoAddresses := make([]string, receivers)
+		prevAmounts := make([]uint64, receivers)
+		for i := 0; i < receivers; i++ {
+			cUser := apex.CreateAndFundUser(t, ctx, uint64(1_000_000))
+			cardanoAddresses[i] = cUser.PrimeAddress
+
+			prevAmount, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), cardanoAddresses[i])
+			require.NoError(t, err)
+
+			prevAmounts[i] = prevAmount
+		}
+
+		for sequenceIdx := 0; sequenceIdx < instances; sequenceIdx++ {
+
+			evmUserPks := make([]string, parallelInstances)
+			for i := 0; i < parallelInstances; i++ {
+				// create and fund wallet on nexus
+				evmUser, err := apex.CreateAndFundNexusUser(ctx, 20)
+				require.NoError(t, err)
+				pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+				require.NoError(t, err)
+
+				evmUserPks[i] = hex.EncodeToString(pkBytes)
+			}
+
+			var wg sync.WaitGroup
+			for i := 0; i < parallelInstances; i++ {
+				wg.Add(1)
+
+				go func(idx int) {
+					defer wg.Done()
+
+					// call SendTx command
+					err := apex.Nexus.SendTxEvmMultipleReceivers(evmUserPks[idx], cardanoAddresses, sendAmountWei)
+					require.NoError(t, err)
+				}(i)
+			}
+
+			wg.Wait()
+		}
+
+		// check expected amount cardano
+		expectedAmountOnPrime := prevAmounts[0] + sendAmountDfm*uint64(instances)*uint64(parallelInstances)
+
+		var wgResults sync.WaitGroup
+		for i := 0; i < receivers; i++ {
+			wgResults.Add(1)
+
+			go func(receiverIdx int) {
+				defer wgResults.Done()
+
+				err := cardanofw.WaitForAmount(context.Background(), txProviderPrime, cardanoAddresses[receiverIdx], func(val uint64) bool {
+					return val == expectedAmountOnPrime
+				}, 100, time.Second*10)
+				require.NoError(t, err)
+			}(i)
+		}
+
+		wgResults.Wait()
+
+		// check new amount on prime
+		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, cardanoAddresses[0])
+		require.NoError(t, err)
+		fmt.Printf("Amounts on Prime after Txs %d\n", newAmountOnPrime)
+	})
+
+	t.Run("From Prime to Nexus one by one - sequential and parallel, one node goes off in the middle", func(t *testing.T) {
+		const (
+			instances            = 5
+			parallelInstances    = 10
+			stopAfter            = time.Second * 60
+			validatorStoppingIdx = 1
+		)
+
+		go func() {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(stopAfter):
+				require.NoError(t, apex.Bridge.GetValidator(t, validatorStoppingIdx).Stop())
+			}
+		}()
+
+		// check amount on prime
+		prevAmount, err := cardanofw.GetTokenAmount(ctx, apex.GetPrimeTxProvider(), cardanoUser.PrimeAddress)
+		require.NoError(t, err)
+
+		for sequenceIdx := 0; sequenceIdx < instances; sequenceIdx++ {
+
+			evmUserPks := make([]string, parallelInstances)
+			for i := 0; i < parallelInstances; i++ {
+				// create and fund wallet on nexus
+				evmUser, err := apex.CreateAndFundNexusUser(ctx, 5)
+				require.NoError(t, err)
+				pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+				require.NoError(t, err)
+
+				evmUserPks[i] = hex.EncodeToString(pkBytes)
+			}
+
+			var wg sync.WaitGroup
+			for i := 0; i < parallelInstances; i++ {
+				wg.Add(1)
+
+				go func(idx int) {
+					defer wg.Done()
+
+					// call SendTx command
+					err = apex.Nexus.SendTxEvm(evmUserPks[idx], cardanoUser.PrimeAddress, sendAmountWei)
+					require.NoError(t, err)
+				}(i)
+			}
+
+			wg.Wait()
+		}
+
+		// check expected amount cardano
+		expectedAmountOnPrime := prevAmount + sendAmountDfm*uint64(instances)*uint64(parallelInstances)
+		err = cardanofw.WaitForAmount(context.Background(), txProviderPrime, cardanoUser.PrimeAddress, func(val uint64) bool {
+			return val == expectedAmountOnPrime
+		}, 100, time.Second*10)
+		require.NoError(t, err)
+
+		// check new amount on prime
+		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, cardanoUser.PrimeAddress)
+		require.NoError(t, err)
+		fmt.Printf("Amount on Prime after Tx %d\n", newAmountOnPrime)
+	})
+}
+
+func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
 	)
@@ -192,31 +523,6 @@ func TestE2E_ApexBridge_Nexus_InvalidScenarios(t *testing.T) {
 		require.ErrorContains(t, err, "failed to execute command")
 	})
 
-	t.Run("Invalid Gateway address", func(t *testing.T) {
-		cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
-
-		// create and fund wallet on nexus
-		evmUser, err := apex.CreateAndFundNexusUser(ctx, 10)
-		require.NoError(t, err)
-		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
-		require.NoError(t, err)
-
-		sendAmountEth := uint64(1)
-		sendAmountWei := ethgo.Ether(sendAmountEth)
-
-		// call SendTx command
-		err = sendTxParams("evm",
-			// evmUser.Address().String(), // User address instead of Gateway address
-			"0xAA", // TODO: apex-bridge accepts any EVM address
-			apex.Nexus.Cluster.Servers[0].JSONRPCAddr(),
-			hex.EncodeToString(pkBytes), "prime",
-			cardanoUser.PrimeAddress,
-			sendAmountWei, fee,
-		)
-		require.NoError(t, err)
-		// require.ErrorContains(t, err, "failed to execute command") // TODO: decline non-gateway address
-	})
-
 	t.Run("Wrong Nexus URL", func(t *testing.T) {
 		cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
 
@@ -232,7 +538,7 @@ func TestE2E_ApexBridge_Nexus_InvalidScenarios(t *testing.T) {
 		// call SendTx command
 		err = sendTxParams("evm",
 			apex.Nexus.GetGatewayAddress().String(),
-			"localhost:1234", // TODO: Wrong address (neki drugi chain?)
+			"localhost:1234",
 			hex.EncodeToString(pkBytes), "prime",
 			cardanoUser.PrimeAddress,
 			sendAmountWei, fee,
@@ -263,30 +569,6 @@ func TestE2E_ApexBridge_Nexus_InvalidScenarios(t *testing.T) {
 		require.ErrorContains(t, err, "unable to apply transaction even for the highest gas limit")
 	})
 
-	t.Run("Wrong destrination chain", func(t *testing.T) {
-		cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
-
-		// create and fund wallet on nexus
-		evmUser, err := apex.CreateAndFundNexusUser(ctx, 10)
-		require.NoError(t, err)
-		pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
-		require.NoError(t, err)
-
-		sendAmountEth := uint64(1)
-		sendAmountWei := ethgo.Ether(sendAmountEth)
-
-		// call SendTx command
-		err = sendTxParams("evm",
-			apex.Nexus.GetGatewayAddress().String(),
-			apex.Nexus.Cluster.Servers[0].JSONRPCAddr(),
-			hex.EncodeToString(pkBytes), "vector", // "vector" instead of "prime"
-			cardanoUser.PrimeAddress,
-			sendAmountWei, fee,
-		)
-		require.NoError(t, err)
-		// require.ErrorContains(t, err, "") // TODO: decline vector tx
-	})
-
 	t.Run("Big receiver amount", func(t *testing.T) {
 		cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
 
@@ -311,7 +593,7 @@ func TestE2E_ApexBridge_Nexus_InvalidScenarios(t *testing.T) {
 	})
 }
 
-func TestE2E_ApexBridgeWithNexus_ValidScenarios(t *testing.T) {
+func TestE2E_ApexBridgeWithNexus_PtN_ValidScenarios(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
 	)
@@ -688,7 +970,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios(t *testing.T) {
 	})
 }
 
-func TestE2E_ApexBridgeWithNexus_InvalidScenarios(t *testing.T) {
+func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
 	)
