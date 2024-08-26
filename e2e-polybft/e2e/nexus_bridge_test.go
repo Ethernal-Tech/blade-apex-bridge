@@ -242,6 +242,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		evmUserPks := make([]string, instances)
+
 		for i := 0; i < instances; i++ {
 			// create and fund wallet on nexus
 			evmUser, err := apex.CreateAndFundNexusUser(ctx, 5)
@@ -291,8 +292,8 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		for sequenceIdx := 0; sequenceIdx < instances; sequenceIdx++ {
-
 			evmUserPks := make([]string, parallelInstances)
+
 			for i := 0; i < parallelInstances; i++ {
 				// create and fund wallet on nexus
 				evmUser, err := apex.CreateAndFundNexusUser(ctx, 5)
@@ -342,6 +343,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 		// create receivers and check their amount on prime
 		cardanoAddresses := make([]string, receivers)
 		prevAmounts := make([]uint64, receivers)
+
 		for i := 0; i < receivers; i++ {
 			cUser := apex.CreateAndFundUser(t, ctx, uint64(1_000_000))
 			cardanoAddresses[i] = cUser.PrimeAddress
@@ -353,8 +355,8 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 		}
 
 		for sequenceIdx := 0; sequenceIdx < instances; sequenceIdx++ {
-
 			evmUserPks := make([]string, parallelInstances)
+
 			for i := 0; i < parallelInstances; i++ {
 				// create and fund wallet on nexus
 				evmUser, err := apex.CreateAndFundNexusUser(ctx, 20)
@@ -428,8 +430,8 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		for sequenceIdx := 0; sequenceIdx < instances; sequenceIdx++ {
-
 			evmUserPks := make([]string, parallelInstances)
+
 			for i := 0; i < parallelInstances; i++ {
 				// create and fund wallet on nexus
 				evmUser, err := apex.CreateAndFundNexusUser(ctx, 5)
