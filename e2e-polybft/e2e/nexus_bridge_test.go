@@ -160,7 +160,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 
 	cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(1_000_000))
 
-	t.Run("From Prime to Nexus one by one - wait for other side", func(t *testing.T) {
+	t.Run("From Nexus to Prime one by one - wait for other side", func(t *testing.T) {
 		const (
 			instances = 5
 		)
@@ -196,7 +196,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 		fmt.Printf("Amount on Prime after Tx %d\n", newAmountOnPrime)
 	})
 
-	t.Run("From Prime to Nexus one by one - don't wait", func(t *testing.T) {
+	t.Run("From Nexus to Prime one by one - don't wait", func(t *testing.T) {
 		const (
 			instances = 5
 		)
@@ -225,14 +225,9 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			return val == expectedAmountOnPrime
 		}, 100, time.Second*10)
 		require.NoError(t, err)
-
-		// check new amount on prime
-		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, cardanoUser.PrimeAddress)
-		require.NoError(t, err)
-		fmt.Printf("Amount on Prime after Tx %d\n", newAmountOnPrime)
 	})
 
-	t.Run("From Prime to Nexus one by one - parallel", func(t *testing.T) {
+	t.Run("From Nexus to Prime one by one - parallel", func(t *testing.T) {
 		const (
 			instances = 5
 		)
@@ -274,14 +269,9 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			return val == expectedAmountOnPrime
 		}, 100, time.Second*10)
 		require.NoError(t, err)
-
-		// check new amount on prime
-		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, cardanoUser.PrimeAddress)
-		require.NoError(t, err)
-		fmt.Printf("Amount on Prime after Tx %d\n", newAmountOnPrime)
 	})
 
-	t.Run("From Prime to Nexus one by one - sequential and parallel", func(t *testing.T) {
+	t.Run("From Nexus to Prime one by one - sequential and parallel", func(t *testing.T) {
 		const (
 			instances         = 5
 			parallelInstances = 10
@@ -326,14 +316,9 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			return val == expectedAmountOnPrime
 		}, 100, time.Second*10)
 		require.NoError(t, err)
-
-		// check new amount on prime
-		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, cardanoUser.PrimeAddress)
-		require.NoError(t, err)
-		fmt.Printf("Amount on Prime after Tx %d\n", newAmountOnPrime)
 	})
 
-	t.Run("From Prime to Nexus one by one - sequential and parallel multiple receivers", func(t *testing.T) {
+	t.Run("From Nexus to Prime one by one - sequential and parallel multiple receivers", func(t *testing.T) {
 		const (
 			instances         = 5
 			parallelInstances = 10
@@ -401,14 +386,9 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 		}
 
 		wgResults.Wait()
-
-		// check new amount on prime
-		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, cardanoAddresses[0])
-		require.NoError(t, err)
-		fmt.Printf("Amounts on Prime after Txs %d\n", newAmountOnPrime)
 	})
 
-	t.Run("From Prime to Nexus one by one - sequential and parallel, one node goes off in the middle", func(t *testing.T) {
+	t.Run("From Nexus to Prime one by one - sequential and parallel, one node goes off in the middle", func(t *testing.T) {
 		const (
 			instances            = 5
 			parallelInstances    = 10
@@ -464,11 +444,6 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			return val == expectedAmountOnPrime
 		}, 100, time.Second*10)
 		require.NoError(t, err)
-
-		// check new amount on prime
-		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, cardanoUser.PrimeAddress)
-		require.NoError(t, err)
-		fmt.Printf("Amount on Prime after Tx %d\n", newAmountOnPrime)
 	})
 }
 
