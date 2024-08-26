@@ -231,13 +231,13 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 				primeNetworkURL    string
 				primeNetworkMagic  uint
 				primeNetworkID     uint
-				vectorOgmiosURL    = "localhost:1000"
+				vectorOgmiosURL    = "http://localhost:1000"
 				vectorNetworkURL   = "localhost:5499"
 				vectorNetworkMagic = uint(0)
 				vectorNetworkID    = uint(0)
 				nexusContractAddr  = types.ZeroAddress.String()
 				nexusRelayerWallet = types.ZeroAddress.String()
-				nexusNodeURL       = "localhost:5500"
+				nexusNodeURL       = "http://localhost:5500"
 			)
 
 			if cb.config.TargetOneCardanoClusterServer {

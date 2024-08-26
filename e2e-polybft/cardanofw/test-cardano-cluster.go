@@ -343,7 +343,7 @@ func (c *TestCardanoCluster) OgmiosURL() string {
 }
 
 func (c *TestCardanoCluster) NetworkURL() string {
-	return fmt.Sprintf("http://localhost:%d", c.Config.Port)
+	return fmt.Sprintf("localhost:%d", c.Config.Port)
 }
 
 func (c *TestCardanoCluster) NetworkConfig() TestCardanoNetworkConfig {
