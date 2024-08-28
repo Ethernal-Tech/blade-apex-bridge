@@ -60,6 +60,9 @@ type TestCardanoClusterConfig struct {
 	LogsDir    string
 	TmpDir     string
 
+	InitialFundsKeys   []string
+	InitialFundsAmount uint64
+
 	logsDirOnce sync.Once
 }
 
@@ -198,6 +201,13 @@ func WithNetworkType(networkID wallet.CardanoNetworkType) CardanoClusterOption {
 	}
 }
 
+func WithInitialFunds(initialFundsKeys []string, initialFundsAmount uint64) CardanoClusterOption {
+	return func(h *TestCardanoClusterConfig) {
+		h.InitialFundsKeys = initialFundsKeys
+		h.InitialFundsAmount = initialFundsAmount
+	}
+}
+
 func NewCardanoTestCluster(t *testing.T, opts ...CardanoClusterOption) (*TestCardanoCluster, error) {
 	t.Helper()
 
@@ -224,7 +234,7 @@ func NewCardanoTestCluster(t *testing.T, opts ...CardanoClusterOption) (*TestCar
 		opt(config)
 	}
 
-	config.TmpDir, err = os.MkdirTemp("/tmp", "cardano-")
+	config.TmpDir, err = os.MkdirTemp("", "cardano-")
 	if err != nil {
 		return nil, err
 	}
@@ -604,7 +614,27 @@ func (c *TestCardanoCluster) CopyConfigFilesAndInitDirectoriesStep2(networkType 
 	err = updateJSONFile(
 		c.Config.Dir("genesis.json"),
 		c.Config.Dir("genesis/shelley/genesis.json"),
-		getShelleyGenesis(networkType),
+		func(mp map[string]interface{}) {
+			getShelleyGenesis(networkType)(mp)
+
+			funds := getMapFromInterfaceKey(mp, "initialFunds")
+
+			for _, addr := range c.Config.InitialFundsKeys {
+				funds[addr] = c.Config.InitialFundsAmount
+			}
+
+			var prevMax uint64
+
+			if v, exists := mp["maxLovelaceSupply"]; exists {
+				if parsed, ok := v.(uint64); ok {
+					prevMax = parsed
+				} else {
+					prevMax = uint64(v.(int)) //nolint:forcetypeassert
+				}
+			}
+
+			mp["maxLovelaceSupply"] = prevMax + uint64(len(c.Config.InitialFundsKeys))*c.Config.InitialFundsAmount
+		},
 		true)
 	if err != nil {
 		return err
