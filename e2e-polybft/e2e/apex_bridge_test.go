@@ -744,11 +744,6 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		}, 100, time.Second*10)
 		require.NoError(t, err)
 		fmt.Printf("%v TXs confirmed\n", instances)
-
-		newAmount, err := cardanofw.GetTokenAmount(ctx, txProviderVector, user.VectorAddress)
-		require.NoError(t, err)
-
-		fmt.Printf("prevAmount: %v. newAmount: %v\n", prevAmount, newAmount)
 	})
 
 	t.Run("From vector to prime one by one", func(t *testing.T) {
@@ -806,11 +801,6 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		}, 100, time.Second*10)
 		require.NoError(t, err)
 		fmt.Printf("%v TXs confirmed\n", instances)
-
-		newAmount, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, user.PrimeAddress)
-		require.NoError(t, err)
-
-		fmt.Printf("prevAmount: %v. newAmount: %v\n", prevAmount, newAmount)
 	})
 
 	t.Run("From prime to vector sequential and parallel", func(t *testing.T) {
@@ -850,11 +840,6 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		}, 100, time.Second*10)
 		require.NoError(t, err)
 		fmt.Printf("%v TXs confirmed\n", sequentialInstances*parallelInstances)
-
-		newAmount, err := cardanofw.GetTokenAmount(ctx, txProviderVector, user.VectorAddress)
-		require.NoError(t, err)
-
-		fmt.Printf("prevAmount: %v. newAmount: %v\n", prevAmount, newAmount)
 	})
 
 	t.Run("From prime to vector sequential and parallel with max receivers", func(t *testing.T) {
@@ -925,8 +910,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("Both directions sequential", func(t *testing.T) {
-		instances := 5
-		sendAmount := uint64(1_000_000)
+		const (
+			instances  = 5
+			sendAmount = uint64(1_000_000)
+		)
 
 		for i := 0; i < instances; i++ {
 			primeTxHash := user.BridgeAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
@@ -952,22 +939,12 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		}, 100, time.Second*10)
 		require.NoError(t, err)
 
-		newAmountOnVector, err := cardanofw.GetTokenAmount(ctx, txProviderVector, user.VectorAddress)
-		require.NoError(t, err)
-
-		fmt.Printf("on vector: prevAmount: %v. newAmount: %v\n", prevAmountOnVector, newAmountOnVector)
-
 		fmt.Printf("Waiting for %v TXs on prime\n", instances)
 		expectedAmountOnPrime := prevAmountOnPrime + uint64(instances)*sendAmount
 		err = cardanofw.WaitForAmount(ctx, txProviderPrime, user.PrimeAddress, func(val uint64) bool {
 			return val == expectedAmountOnPrime
 		}, 100, time.Second*10)
 		require.NoError(t, err)
-
-		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, user.PrimeAddress)
-		require.NoError(t, err)
-
-		fmt.Printf("on prime: prevAmount: %v. newAmount: %v\n", prevAmountOnPrime, newAmountOnPrime)
 	})
 
 	t.Run("Both directions sequential and parallel - one node goes off in the middle", func(t *testing.T) {
@@ -1252,11 +1229,6 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Printf("%v TXs on vector confirmed\n", sequentialInstances*parallelInstances)
 
-		newAmountOnVector, err := cardanofw.GetTokenAmount(ctx, txProviderVector, user.VectorAddress)
-		require.NoError(t, err)
-
-		fmt.Printf("on vector: prevAmount: %v. newAmount: %v\n", prevAmountOnVector, newAmountOnVector)
-
 		fmt.Printf("Waiting for %v TXs on prime\n", sequentialInstances*parallelInstances)
 
 		expectedAmountOnPrime := prevAmountOnPrime + uint64(sequentialInstances)*uint64(parallelInstances)*sendAmount
@@ -1265,11 +1237,6 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		}, 100, time.Second*10)
 		require.NoError(t, err)
 		fmt.Printf("%v TXs on prime confirmed\n", sequentialInstances*parallelInstances)
-
-		newAmountOnPrime, err := cardanofw.GetTokenAmount(ctx, txProviderPrime, user.PrimeAddress)
-		require.NoError(t, err)
-
-		fmt.Printf("on prime: prevAmount: %v. newAmount: %v\n", prevAmountOnPrime, newAmountOnPrime)
 	})
 }
 
