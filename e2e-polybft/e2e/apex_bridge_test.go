@@ -23,7 +23,7 @@ import (
 // Add directory where unpacked files are located to the $PATH (in example bellow `~/Apps/cardano`)
 // eq add line `export PATH=$PATH:~/Apps/cardano` to  `~/.bashrc`
 // cd e2e-polybft/e2e
-// ONLY_RUN_APEX_BRIDGE=true go test -v -timeout 0 -run ^Test_OnlyRunApexBridge$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e
+// ONLY_RUN_APEX_BRIDGE=true go test -v -timeout 0 -run ^Test_OnlyRunApexBridge_WithNexusAndVector$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e
 func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 	if shouldRun := os.Getenv("ONLY_RUN_APEX_BRIDGE"); shouldRun != "true" {
 		t.Skip()
@@ -69,15 +69,19 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 	fmt.Printf("user vector addr: %s\n", user.VectorAddress)
 	fmt.Printf("user vector signing key hex: %s\n", vectorUserSKHex)
 
-	evmUser, err := apex.CreateAndFundNexusUser(ctx, 10)
+	evmUser, err := apex.CreateAndFundNexusUser(ctx, 10_000)
 	require.NoError(t, err)
 	pkBytes, err := evmUser.Ecdsa.MarshallPrivateKey()
+	require.NoError(t, err)
+
+	chainID, err := apex.Nexus.Cluster.Servers[0].JSONRPC().ChainID()
 	require.NoError(t, err)
 
 	fmt.Printf("nexus user addr: %s\n", evmUser.Address())
 	fmt.Printf("nexus user signing key: %s\n", hex.EncodeToString(pkBytes))
 	fmt.Printf("nexus url: %s\n", apex.Nexus.Cluster.Servers[0].JSONRPCAddr())
 	fmt.Printf("nexus gateway sc addr: %s\n", apex.Nexus.GetGatewayAddress().String())
+	fmt.Printf("nexus chainID: %v\n", chainID)
 
 	signalChannel := make(chan os.Signal, 1)
 	// Notify the signalChannel when the interrupt signal is received (Ctrl+C)
