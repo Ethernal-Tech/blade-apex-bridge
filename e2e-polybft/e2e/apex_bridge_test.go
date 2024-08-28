@@ -49,12 +49,12 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 	fmt.Printf("oracle API: %s\n", oracleAPI)
 	fmt.Printf("oracle API key: %s\n", apiKey)
 
-	fmt.Printf("prime network url: %s\n", apex.PrimeCluster.NetworkURL())
+	fmt.Printf("prime network url: %s\n", apex.PrimeCluster.NetworkAddress())
 	fmt.Printf("prime ogmios url: %s\n", apex.PrimeCluster.OgmiosURL())
 	fmt.Printf("prime bridging addr: %s\n", apex.Bridge.PrimeMultisigAddr)
 	fmt.Printf("prime fee addr: %s\n", apex.Bridge.PrimeMultisigFeeAddr)
 
-	fmt.Printf("vector network url: %s\n", apex.VectorCluster.NetworkURL())
+	fmt.Printf("vector network url: %s\n", apex.VectorCluster.NetworkAddress())
 	fmt.Printf("vector ogmios url: %s\n", apex.VectorCluster.OgmiosURL())
 	fmt.Printf("vector bridging addr: %s\n", apex.Bridge.VectorMultisigAddr)
 	fmt.Printf("vector fee addr: %s\n", apex.Bridge.VectorMultisigFeeAddr)

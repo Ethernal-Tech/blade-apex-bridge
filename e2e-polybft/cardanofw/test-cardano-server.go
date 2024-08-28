@@ -109,7 +109,7 @@ func (t TestCardanoServer) Port() int {
 	return t.config.Port
 }
 
-func (c *TestCardanoServer) NetworkURL() string {
+func (c *TestCardanoServer) NetworkAddress() string {
 	return fmt.Sprintf("localhost:%d", c.config.Port)
 }
 
