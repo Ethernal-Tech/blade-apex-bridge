@@ -40,6 +40,14 @@ func setFlags(cmd *cobra.Command) {
 		apexBridgeDescriptionFlag,
 	)
 
+	// nexus flag
+	cmd.Flags().BoolVar(
+		&params.nexusBridge,
+		nexusBridgeFlag,
+		nexusBridgeFlagDefaultValue,
+		nexusBridgeDescriptionFlag,
+	)
+
 	cmd.Flags().Int64Var(
 		&params.bootnodeStartingPort,
 		bootnodeStartingPortFlag,
@@ -410,6 +418,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 
 		if chainConfig, err = params.generateChainConfig(outputter); err == nil {
 			params.processConfigApex(chainConfig)
+			params.processConfigNexus(chainConfig)
 
 			err = helper.WriteGenesisConfigToDisk(chainConfig, params.genesisPath)
 		}

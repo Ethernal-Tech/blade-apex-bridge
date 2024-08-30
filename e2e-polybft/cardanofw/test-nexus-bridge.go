@@ -61,6 +61,10 @@ func RunEVMChain(
 		framework.WithInitialPort(config.NexusStartingPort),
 		framework.WithLogsDirSuffix(ChainIDNexus),
 		framework.WithBladeAdmin(admin.Address().String()),
+		framework.WithNexusBridge(true),
+		framework.WithBlockGasLimit(0x500000),
+		framework.WithBurnContract(config.NexusBurnContractInfo),
+		framework.WithNativeTokenConfig("Blade:BLADE:18:true"),
 	)
 
 	cluster.WaitForReady(t)

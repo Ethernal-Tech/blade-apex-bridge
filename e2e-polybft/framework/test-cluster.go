@@ -117,6 +117,7 @@ type TestClusterConfig struct {
 	RewardWallet         string
 	PredeployContract    string
 	ApexBridge           bool
+	NexusBridge          bool
 
 	ContractDeployerAllowListAdmin   []types.Address
 	ContractDeployerAllowListEnabled []types.Address
@@ -249,6 +250,12 @@ type ClusterOption func(*TestClusterConfig)
 func WithApexBridge(useApex bool) ClusterOption {
 	return func(h *TestClusterConfig) {
 		h.ApexBridge = useApex
+	}
+}
+
+func WithNexusBridge(useNexus bool) ClusterOption {
+	return func(h *TestClusterConfig) {
+		h.NexusBridge = useNexus
 	}
 }
 
@@ -528,7 +535,8 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 		StakeAmounts:  []*big.Int{},
 		HasBridge:     false,
 		VotingDelay:   10,
-		ApexBridge:    true,
+		ApexBridge:    false,
+		NexusBridge:   false,
 		InitialPort:   30300,
 	}
 
@@ -753,9 +761,11 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 		}
 
 		if config.ApexBridge {
-			args = append(args, "--apex")
-		} else {
-			args = append(args, "--apex=false")
+			args = append(args, "--apex=true")
+		}
+
+		if config.NexusBridge {
+			args = append(args, "--nexus=true")
 		}
 
 		args = append(args, "--bootnode-port", fmt.Sprint(config.InitialPort))
