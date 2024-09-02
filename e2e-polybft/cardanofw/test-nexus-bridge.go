@@ -16,6 +16,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/types"
 	ci "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
+	"github.com/umbracle/ethgo"
 )
 
 const (
@@ -64,7 +65,6 @@ func RunEVMChain(
 		framework.WithNexusBridge(true),
 		framework.WithBlockGasLimit(0x500000),
 		framework.WithBurnContract(config.NexusBurnContractInfo),
-		framework.WithNativeTokenConfig("Blade:BLADE:18:true"),
 	)
 
 	cluster.WaitForReady(t)
@@ -88,6 +88,8 @@ func SetupAndRunNexusBridge(
 
 	err := apexSystem.Nexus.deployContracts(apexSystem)
 	require.NoError(t, err)
+
+	apexSystem.Nexus.Cluster.Transfer(t, apexSystem.Nexus.Admin.Ecdsa, apexSystem.Bridge.GetRelayerWalletAddr(), ethgo.Ether(1))
 }
 
 func (ec *TestEVMBridge) SendTxEvm(privateKey string, receiver string, amount *big.Int) error {

@@ -183,8 +183,6 @@ func newApexSystemConfig(opts ...ApexSystemOptions) *ApexSystemConfig {
 		NexusBurnContractInfo: &polybft.BurnContractInfo{
 			BlockNumber: 0,
 			Address:     types.ZeroAddress,
-			// Address:            types.StringToAddress("0x0000000000000000000000000000101010101010"),
-			// DestinationAddress: types.ZeroAddress,
 		},
 	}
 

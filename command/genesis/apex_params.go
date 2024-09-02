@@ -9,7 +9,7 @@ import (
 
 const (
 	apexBridgeFlag             = "apex"
-	apexBridgeFlagDefaultValue = true
+	apexBridgeFlagDefaultValue = false
 	apexBridgeDescriptionFlag  = "turn off London fork and some other settings needed for apex bridge"
 )
 

@@ -17,9 +17,7 @@ func (p *genesisParams) processConfigNexus(chainConfig *chain.Chain) {
 
 	chainConfig.Params.Forks.
 		RemoveFork(chain.Governance).
-		// RemoveFork(chain.London).
 		RemoveFork(chain.EIP3855).
 		RemoveFork(chain.Berlin).
 		RemoveFork(chain.EIP3607)
-	// chainConfig.Params.BurnContract = nil
 }
