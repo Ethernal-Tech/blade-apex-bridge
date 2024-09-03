@@ -57,6 +57,8 @@ type ApexSystemConfig struct {
 	NexusValidatorCount   int
 	NexusStartingPort     int64
 	NexusBurnContractInfo *polybft.BurnContractInfo
+
+	CustomConfigHandlerEnabled uint8
 }
 
 type ApexSystemOptions func(*ApexSystemConfig)
@@ -141,6 +143,12 @@ func WithVectorClusterConfig(config *RunCardanoClusterConfig) ApexSystemOptions 
 	}
 }
 
+func WithCustomConfigHandler(testMode uint8) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.CustomConfigHandlerEnabled = testMode
+	}
+}
+
 func (as *ApexSystemConfig) ServiceCount() int {
 	// Prime
 	count := 1
@@ -184,6 +192,8 @@ func newApexSystemConfig(opts ...ApexSystemOptions) *ApexSystemConfig {
 			BlockNumber: 0,
 			Address:     types.ZeroAddress,
 		},
+
+		CustomConfigHandlerEnabled: 1,
 	}
 
 	for _, opt := range opts {

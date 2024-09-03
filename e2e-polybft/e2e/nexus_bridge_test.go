@@ -1891,3 +1891,192 @@ func convertToEthValues(sendAmount uint64) (uint64, *big.Int) {
 
 	return sendAmountDfm.Uint64(), ethgo.Ether(sendAmount)
 }
+
+func TestE2E_ApexBridgeWithNexus_BatchFailed_Test1(t *testing.T) {
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	testMode := uint8(1)
+
+	apex := cardanofw.RunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithVectorEnabled(false),
+		cardanofw.WithNexusEnabled(true),
+		cardanofw.WithCustomConfigHandler(testMode),
+	)
+
+	userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
+	require.NotNil(t, userPrime)
+
+	txProviderPrime := apex.GetPrimeTxProvider()
+
+	startAmountNexus := uint64(1)
+	expectedAmountNexus := ethgo.Ether(startAmountNexus)
+
+	userNexus, err := apex.CreateAndFundNexusUser(ctx, startAmountNexus)
+	require.NoError(t, err)
+
+	err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
+		return val.Cmp(expectedAmountNexus) == 0
+	}, 10, 10)
+	require.NoError(t, err)
+
+	fmt.Println("Nexus user created and funded")
+
+	receiverAddrNexus := userNexus.Address().String()
+	fmt.Printf("Nexus receiver Addr: %s\n", receiverAddrNexus)
+
+	t.Run("Test failed batch - test 1", func(t *testing.T) {
+		sendAmountDfm, _ := convertToEthValues(1)
+
+		ethBalanceBefore, err := cardanofw.GetEthAmount(ctx, apex.Nexus, userNexus)
+		fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
+		require.NoError(t, err)
+
+		txHash, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
+			receiverAddrNexus, sendAmountDfm, apex.PrimeCluster.NetworkConfig(), receiverAddrNexus)
+		require.NoError(t, err)
+
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
+			return val.Cmp(ethBalanceBefore) != 0
+		}, 30, 30*time.Second)
+		require.NoError(t, err)
+	})
+}
+
+func TestE2E_ApexBridgeWithNexus_BatchFailed_Test2(t *testing.T) {
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	testMode := uint8(2)
+
+	apex := cardanofw.RunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithVectorEnabled(false),
+		cardanofw.WithNexusEnabled(true),
+		cardanofw.WithCustomConfigHandler(testMode),
+	)
+
+	userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
+	require.NotNil(t, userPrime)
+
+	txProviderPrime := apex.GetPrimeTxProvider()
+
+	startAmountNexus := uint64(1)
+	expectedAmountNexus := ethgo.Ether(startAmountNexus)
+
+	userNexus, err := apex.CreateAndFundNexusUser(ctx, startAmountNexus)
+	require.NoError(t, err)
+
+	err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
+		return val.Cmp(expectedAmountNexus) == 0
+	}, 10, 10)
+	require.NoError(t, err)
+
+	fmt.Println("Nexus user created and funded")
+
+	receiverAddrNexus := userNexus.Address().String()
+	fmt.Printf("Nexus receiver Addr: %s\n", receiverAddrNexus)
+
+	t.Run("Test multiple failed batches in a row", func(t *testing.T) {
+		sendAmountDfm, sendAmountEth := convertToEthValues(1)
+
+		instances := 5
+
+		for i := 0; i < instances; i++ {
+			ethBalanceBefore, err := cardanofw.GetEthAmount(ctx, apex.Nexus, userNexus)
+			fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
+			require.NoError(t, err)
+
+			txHash, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
+				receiverAddrNexus, sendAmountDfm, apex.PrimeCluster.NetworkConfig(), receiverAddrNexus)
+			require.NoError(t, err)
+
+			fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+			ethExpectedBalance := big.NewInt(0).Add(ethBalanceBefore, sendAmountEth)
+
+			err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
+				return val.Cmp(ethExpectedBalance) == 0
+			}, 30, 30*time.Second)
+			require.NoError(t, err)
+		}
+	})
+}
+
+func TestE2E_ApexBridgeWithNexus_BatchFailed_Test3(t *testing.T) {
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	testMode := uint8(3)
+
+	apex := cardanofw.RunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithVectorEnabled(false),
+		cardanofw.WithNexusEnabled(true),
+		cardanofw.WithCustomConfigHandler(testMode),
+	)
+
+	userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
+	require.NotNil(t, userPrime)
+
+	txProviderPrime := apex.GetPrimeTxProvider()
+
+	startAmountNexus := uint64(1)
+	expectedAmountNexus := ethgo.Ether(startAmountNexus)
+
+	userNexus, err := apex.CreateAndFundNexusUser(ctx, startAmountNexus)
+	require.NoError(t, err)
+
+	err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
+		return val.Cmp(expectedAmountNexus) == 0
+	}, 10, 10)
+	require.NoError(t, err)
+
+	fmt.Println("Nexus user created and funded")
+
+	receiverAddrNexus := userNexus.Address().String()
+	fmt.Printf("Nexus receiver Addr: %s\n", receiverAddrNexus)
+
+	t.Run("Test failed batches at random", func(t *testing.T) {
+		sendAmountDfm, sendAmountEth := convertToEthValues(1)
+
+		instances := 5
+
+		for i := 0; i < instances; i++ {
+			ethBalanceBefore, err := cardanofw.GetEthAmount(ctx, apex.Nexus, userNexus)
+			fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
+			require.NoError(t, err)
+
+			txHash, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
+				receiverAddrNexus, sendAmountDfm, apex.PrimeCluster.NetworkConfig(), receiverAddrNexus)
+			require.NoError(t, err)
+
+			fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+			ethExpectedBalance := big.NewInt(0).Add(ethBalanceBefore, sendAmountEth)
+
+			err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
+				return val.Cmp(ethExpectedBalance) == 0
+			}, 30, 30*time.Second)
+			require.NoError(t, err)
+		}
+	})
+}

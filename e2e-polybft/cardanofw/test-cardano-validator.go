@@ -241,6 +241,21 @@ func (cv *TestCardanoValidator) Start(ctx context.Context, runAPI bool) (err err
 	return err
 }
 
+func (cv *TestCardanoValidator) StartWithCustomConfig(ctx context.Context, runAPI bool, configFile string) (err error) {
+	args := []string{
+		"run-validator-components",
+		"--config", filepath.Join("../../e2e-polybft/cardanofw/batcher-test-configuration/bridging-configs", configFile),
+	}
+
+	if runAPI {
+		args = append(args, "--run-api")
+	}
+
+	cv.node, err = framework.NewNodeWithContext(ctx, ResolveApexBridgeBinary(), args, os.Stdout)
+
+	return err
+}
+
 func (cv *TestCardanoValidator) Stop() error {
 	if cv.node == nil {
 		return errors.New("validator not started")
