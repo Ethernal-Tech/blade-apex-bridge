@@ -89,7 +89,11 @@ func SetupAndRunNexusBridge(
 	err := apexSystem.Nexus.deployContracts(apexSystem)
 	require.NoError(t, err)
 
-	apexSystem.Nexus.Cluster.Transfer(t, apexSystem.Nexus.Admin.Ecdsa, apexSystem.Bridge.GetRelayerWalletAddr(), ethgo.Ether(1))
+	apexSystem.Nexus.Cluster.Transfer(t,
+		apexSystem.Nexus.Admin.Ecdsa,
+		apexSystem.Bridge.GetRelayerWalletAddr(),
+		ethgo.Ether(1),
+	)
 }
 
 func (ec *TestEVMBridge) SendTxEvm(privateKey string, receiver string, amount *big.Int) error {
