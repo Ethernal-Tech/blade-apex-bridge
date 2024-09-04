@@ -511,7 +511,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 			cardanoUser.PrimeAddress,
 			sendAmountWei, fee,
 		)
-		require.ErrorContains(t, err, "no known transport for URL scheme")
+		require.ErrorContains(t, err, "Error: invalid --nexus-url flag")
 	})
 
 	t.Run("Sender not enough funds", func(t *testing.T) {

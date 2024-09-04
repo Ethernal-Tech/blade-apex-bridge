@@ -93,7 +93,6 @@ func (cb *TestCardanoBridge) StartValidators(t *testing.T, epochSize int) {
 
 	cb.cluster = framework.NewTestCluster(t, cb.config.BladeValidatorCount,
 		framework.WithEpochSize(epochSize),
-		framework.WithApexBridge(true),
 	)
 
 	for idx, validator := range cb.validators {

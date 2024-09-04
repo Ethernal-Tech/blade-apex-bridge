@@ -116,8 +116,7 @@ type TestClusterConfig struct {
 	BladeAdmin           string
 	RewardWallet         string
 	PredeployContract    string
-	ApexBridge           bool
-	NexusBridge          bool
+	ApexConfig           uint8
 
 	ContractDeployerAllowListAdmin   []types.Address
 	ContractDeployerAllowListEnabled []types.Address
@@ -247,15 +246,9 @@ type TestCluster struct {
 
 type ClusterOption func(*TestClusterConfig)
 
-func WithApexBridge(useApex bool) ClusterOption {
+func WithApexConfig(apexConfig uint8) ClusterOption {
 	return func(h *TestClusterConfig) {
-		h.ApexBridge = useApex
-	}
-}
-
-func WithNexusBridge(useNexus bool) ClusterOption {
-	return func(h *TestClusterConfig) {
-		h.NexusBridge = useNexus
+		h.ApexConfig = apexConfig
 	}
 }
 
@@ -535,8 +528,7 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 		StakeAmounts:  []*big.Int{},
 		HasBridge:     false,
 		VotingDelay:   10,
-		ApexBridge:    false,
-		NexusBridge:   false,
+		ApexConfig:    genesis.ApexConfigDefault,
 		InitialPort:   30300,
 	}
 
@@ -760,13 +752,7 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 			args = append(args, "--stake-token", parts[0])
 		}
 
-		if config.ApexBridge {
-			args = append(args, "--apex=true")
-		}
-
-		if config.NexusBridge {
-			args = append(args, "--nexus=true")
-		}
+		args = append(args, "--apex-config", fmt.Sprint(config.ApexConfig))
 
 		args = append(args, "--bootnode-port", fmt.Sprint(config.InitialPort))
 
@@ -866,7 +852,7 @@ func (c *TestCluster) InitTestServer(t *testing.T,
 		config.TLSCertFile = c.Config.TLSCertFile
 		config.TLSKeyFile = c.Config.TLSKeyFile
 
-		if c.Config.ApexBridge {
+		if c.Config.ApexConfig == genesis.ApexConfigDefault {
 			priceLimit := uint64(0)
 			config.PriceLimit = &priceLimit
 		}

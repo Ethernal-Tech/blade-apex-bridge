@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygon/polygon-edge/command/genesis"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
@@ -62,8 +63,7 @@ func RunEVMChain(
 		framework.WithInitialPort(config.NexusStartingPort),
 		framework.WithLogsDirSuffix(ChainIDNexus),
 		framework.WithBladeAdmin(admin.Address().String()),
-		framework.WithNexusBridge(true),
-		framework.WithBlockGasLimit(0x500000),
+		framework.WithApexConfig(genesis.ApexConfigNexus),
 		framework.WithBurnContract(config.NexusBurnContractInfo),
 	)
 

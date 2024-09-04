@@ -32,20 +32,12 @@ func GetCommand() *cobra.Command {
 }
 
 func setFlags(cmd *cobra.Command) {
-	// apex flag
-	cmd.Flags().BoolVar(
-		&params.apexBridge,
-		apexBridgeFlag,
-		apexBridgeFlagDefaultValue,
-		apexBridgeDescriptionFlag,
-	)
-
-	// nexus flag
-	cmd.Flags().BoolVar(
-		&params.nexusBridge,
-		nexusBridgeFlag,
-		nexusBridgeFlagDefaultValue,
-		nexusBridgeDescriptionFlag,
+	// apex config flag
+	cmd.Flags().Uint8Var(
+		&params.apexConfig,
+		apexConfigFlag,
+		ApexConfigDefault,
+		apexConfigDescriptionFlag,
 	)
 
 	cmd.Flags().Int64Var(
@@ -418,7 +410,6 @@ func runCommand(cmd *cobra.Command, _ []string) {
 
 		if chainConfig, err = params.generateChainConfig(outputter); err == nil {
 			params.processConfigApex(chainConfig)
-			params.processConfigNexus(chainConfig)
 
 			err = helper.WriteGenesisConfigToDisk(chainConfig, params.genesisPath)
 		}
