@@ -27,7 +27,18 @@ func NewNode(binary string, args []string, stdout io.Writer) (*Node, error) {
 }
 
 func NewNodeWithContext(ctx context.Context, binary string, args []string, stdout io.Writer) (*Node, error) {
-	return newNode(exec.CommandContext(ctx, binary, args...), stdout)
+	node, err := newNode(exec.Command(binary, args...), stdout)
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		<-ctx.Done()
+
+		_ = node.Stop()
+	}()
+
+	return node, nil
 }
 
 func newNode(cmd *exec.Cmd, stdout io.Writer) (*Node, error) {
