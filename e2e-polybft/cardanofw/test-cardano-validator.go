@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 
 	polybftWallet "github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
 	"github.com/0xPolygon/polygon-edge/crypto"
@@ -241,10 +242,19 @@ func (cv *TestCardanoValidator) Start(ctx context.Context, runAPI bool) (err err
 	return err
 }
 
-func (cv *TestCardanoValidator) StartWithCustomConfig(ctx context.Context, runAPI bool, configFile string) (err error) {
+func (cv *TestCardanoValidator) StartWithCustomConfig(
+	ctx context.Context,
+	runAPI bool,
+	testMode uint8,
+) (err error) {
+	customConfig, err := cv.customConfigHandler(cv.GetValidatorComponentsConfig(), testMode)
+	if err != nil {
+		return err
+	}
+
 	args := []string{
 		"run-validator-components",
-		"--config", filepath.Join("../../e2e-polybft/cardanofw/batcher-test-configuration/bridging-configs", configFile),
+		"--config", customConfig,
 	}
 
 	if runAPI {
@@ -262,6 +272,41 @@ func (cv *TestCardanoValidator) Stop() error {
 	}
 
 	return cv.node.Stop()
+}
+
+func (cv *TestCardanoValidator) customConfigHandler(configPath string, testMode uint8) (string, error) {
+	testModeLine := fmt.Sprintf("    \"batcherTestMode\": %v", testMode)
+
+	config, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", err
+	}
+
+	lines := strings.Split(string(config), "\n")
+
+	batcherLineIdx := func(lines []string) int {
+		for idx, line := range lines {
+			if strings.Contains(line, "batcherTestMode") {
+				return idx
+			}
+		}
+
+		return -1
+	}(lines)
+	if batcherLineIdx == -1 {
+		return "", fmt.Errorf("invalid config file: %s", configPath)
+	}
+
+	lines = append(lines[:batcherLineIdx], append([]string{testModeLine}, lines[batcherLineIdx+1:]...)...)
+
+	testConfig := strings.Join(lines, "\n")
+
+	err = os.WriteFile(configPath, []byte(testConfig), 0600)
+	if err != nil {
+		return "", err
+	}
+
+	return configPath, nil
 }
 
 func (cv *TestCardanoValidator) getValidatorEthAddress() (types.Address, error) {

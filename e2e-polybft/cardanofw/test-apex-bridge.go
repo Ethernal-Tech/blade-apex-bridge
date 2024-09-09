@@ -195,14 +195,10 @@ func (a *ApexSystem) SetupAndRunValidatorsAndRelayer(
 		a.Nexus,
 	))
 
-	if a.Config.CustomConfigHandlerEnabled > 0 {
-		a.customConfigHandler()
-
+	if a.Config.CustomConfig > 0 {
 		fmt.Printf("Configs generated\n")
 
-		configFile := fmt.Sprintf("vc_config_test%d.json", a.Config.CustomConfigHandlerEnabled)
-
-		require.NoError(t, a.Bridge.StartValidatorComponentsWithCustomConfigs(ctx, configFile))
+		require.NoError(t, a.Bridge.StartValidatorComponentsWithCustomConfigs(ctx))
 	} else {
 		fmt.Printf("Configs generated\n")
 
@@ -333,10 +329,6 @@ func (a *ApexSystem) GetVectorNetworkType() cardanowallet.CardanoNetworkType {
 	}
 
 	return cardanowallet.TestNetNetwork // does not matter really
-}
-
-func (a *ApexSystem) customConfigHandler() {
-	// TODO: load predefined config .json file
 }
 
 func getCardanoBaseLogsDir(t *testing.T, name string) string {

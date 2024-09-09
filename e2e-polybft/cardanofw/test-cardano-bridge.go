@@ -321,11 +321,11 @@ func (cb *TestCardanoBridge) StartValidatorComponents(ctx context.Context) (err 
 	return err
 }
 
-func (cb *TestCardanoBridge) StartValidatorComponentsWithCustomConfigs(ctx context.Context, configFile string) (err error) {
+func (cb *TestCardanoBridge) StartValidatorComponentsWithCustomConfigs(ctx context.Context) (err error) {
 	for _, validator := range cb.validators {
 		hasAPI := cb.config.APIValidatorID == -1 || validator.ID == cb.config.APIValidatorID
 
-		if err = validator.StartWithCustomConfig(ctx, hasAPI, configFile); err != nil {
+		if err = validator.StartWithCustomConfig(ctx, hasAPI, cb.config.CustomConfig); err != nil {
 			return err
 		}
 	}
