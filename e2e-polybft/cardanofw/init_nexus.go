@@ -108,21 +108,20 @@ type ValidatorChainData struct {
 	Key_ [4]*big.Int `abi:"key"`
 }
 
-type ValidatorsSetDependenciesFn struct {
-	Gateway_   types.Address         `abi:"_gatewayAddress"`
+type ValidatorsSetValidatorsChainDataFn struct {
 	ChainData_ []*ValidatorChainData `abi:"_validatorsChainData"`
 }
 
-func (g *ValidatorsSetDependenciesFn) Sig() []byte {
-	return Validators.Abi.Methods["setDependencies"].ID()
+func (g *ValidatorsSetValidatorsChainDataFn) Sig() []byte {
+	return Validators.Abi.Methods["setValidatorsChainData"].ID()
 }
 
-func (g *ValidatorsSetDependenciesFn) EncodeAbi() ([]byte, error) {
-	return Validators.Abi.Methods["setDependencies"].Encode(g)
+func (g *ValidatorsSetValidatorsChainDataFn) EncodeAbi() ([]byte, error) {
+	return Validators.Abi.Methods["setValidatorsChainData"].Encode(g)
 }
 
-func (g *ValidatorsSetDependenciesFn) DecodeAbi(buf []byte) error {
-	return decodeMethod(Validators.Abi.Methods["setDependencies"], buf, g)
+func (g *ValidatorsSetValidatorsChainDataFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(Validators.Abi.Methods["setValidatorsChainData"], buf, g)
 }
 
 const abiMethodIDLength = 4

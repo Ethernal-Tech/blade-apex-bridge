@@ -359,8 +359,7 @@ func (ca *ContractsAddrs) validatorsSetDependencies(
 	admin *wallet.Account,
 	validators []*TestCardanoValidator,
 ) error {
-	validatorsData := ValidatorsSetDependenciesFn{
-		Gateway_:   ca.gateway,
+	validatorsData := ValidatorsSetValidatorsChainDataFn{
 		ChainData_: makeValidatorChainData(validators),
 	}
 
