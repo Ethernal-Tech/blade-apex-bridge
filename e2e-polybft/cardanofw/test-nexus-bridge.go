@@ -170,18 +170,14 @@ func (ec *TestEVMBridge) deployContracts(apexSystem *ApexSystem) error {
 	}
 
 	// Deploy contracts with proxy & call "initialize"
-	nativeTokenPredicateInit, _ := NativeTokenPredicate.Abi.Methods["initialize"].Encode(map[string]interface{}{})
-
 	ec.contracts.nativeTokenPredicate, err =
-		deployContractWithProxy(txRelayer, ec.Admin, NativeTokenPredicate, nativeTokenPredicateInit)
+		deployContractWithProxy(txRelayer, ec.Admin, NativeTokenPredicate, map[string]interface{}{})
 	if err != nil {
 		return err
 	}
 
-	nativeTokenWalletInit, _ := NativeTokenWallet.Abi.Methods["initialize"].Encode(map[string]interface{}{})
-
 	ec.contracts.nativeTokenWallet, err =
-		deployContractWithProxy(txRelayer, ec.Admin, NativeTokenWallet, nativeTokenWalletInit)
+		deployContractWithProxy(txRelayer, ec.Admin, NativeTokenWallet, map[string]interface{}{})
 	if err != nil {
 		return err
 	}
@@ -194,18 +190,14 @@ func (ec *TestEVMBridge) deployContracts(apexSystem *ApexSystem) error {
 		}
 	}
 
-	validatorsInit, _ := Validators.Abi.Methods["initialize"].Encode(map[string]interface{}{
+	ec.contracts.validators, err = deployContractWithProxy(txRelayer, ec.Admin, Validators, map[string]interface{}{
 		"_validators": validatorAddresses,
 	})
-
-	ec.contracts.validators, err = deployContractWithProxy(txRelayer, ec.Admin, Validators, validatorsInit)
 	if err != nil {
 		return err
 	}
 
-	gatewayInit, _ := Gateway.Abi.Methods["initialize"].Encode(map[string]interface{}{})
-
-	ec.contracts.gateway, err = deployContractWithProxy(txRelayer, ec.Admin, Gateway, gatewayInit)
+	ec.contracts.gateway, err = deployContractWithProxy(txRelayer, ec.Admin, Gateway, map[string]interface{}{})
 	if err != nil {
 		return err
 	}
@@ -238,7 +230,7 @@ func deployContractWithProxy(
 	txRelayer txrelayer.TxRelayer,
 	admin *wallet.Account,
 	contract *contracts.Artifact,
-	initParams []byte,
+	initParams map[string]interface{},
 ) (addr types.Address, err error) {
 	// deploy contract
 	receipt, err := txRelayer.SendTransaction(
@@ -253,10 +245,19 @@ func deployContractWithProxy(
 		return addr, fmt.Errorf("deploying smart contract failed: %d", receipt.Status)
 	}
 
-	input, _ := ERC1967Proxy.Abi.Constructor.Inputs.Encode(map[string]interface{}{
+	initializationData, err := contract.Abi.Methods["initialize"].Encode(initParams)
+	if err != nil {
+		return addr, err
+	}
+
+	input, err := ERC1967Proxy.Abi.Constructor.Inputs.Encode(map[string]interface{}{
 		"implementation": types.Address(receipt.ContractAddress),
-		"_data":          initParams,
+		"_data":          initializationData,
 	})
+	if err != nil {
+		return addr, err
+	}
+
 	input = append(ERC1967Proxy.Bytecode, input...)
 
 	// deploy proxy contract and call initialize

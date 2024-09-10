@@ -24,8 +24,7 @@ var (
 	Validators           *contracts.Artifact
 )
 
-func InitNexusContracts() (
-	err error) {
+func InitNexusContracts() (err error) {
 	ERC1967Proxy, err = contracts.DecodeArtifact([]byte(contractsapi.ERC1967ProxyArtifact))
 	if err != nil {
 		return
