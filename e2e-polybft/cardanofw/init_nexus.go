@@ -108,14 +108,9 @@ type ValidatorChainData struct {
 	Key_ [4]*big.Int `abi:"key"`
 }
 
-type ValidatorAddressChainData struct {
-	Address_ types.Address       `abi:"addr"`
-	Data_    *ValidatorChainData `abi:"data"`
-}
-
 type ValidatorsSetDependenciesFn struct {
-	Gateway_   types.Address                `abi:"_gatewayAddress"`
-	ChainData_ []*ValidatorAddressChainData `abi:"_chainDatas"`
+	Gateway_   types.Address         `abi:"_gatewayAddress"`
+	ChainData_ []*ValidatorChainData `abi:"_validatorsChainData"`
 }
 
 func (g *ValidatorsSetDependenciesFn) Sig() []byte {

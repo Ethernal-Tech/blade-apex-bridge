@@ -182,17 +182,7 @@ func (ec *TestEVMBridge) deployContracts(apexSystem *ApexSystem) error {
 		return err
 	}
 
-	validatorAddresses := make([]types.Address, len(apexSystem.Bridge.validators))
-	for idx, validator := range apexSystem.Bridge.validators {
-		validatorAddresses[idx], err = validator.getValidatorEthAddress()
-		if err != nil {
-			return err
-		}
-	}
-
-	ec.contracts.validators, err = deployContractWithProxy(txRelayer, ec.Admin, Validators, map[string]interface{}{
-		"_validators": validatorAddresses,
-	})
+	ec.contracts.validators, err = deployContractWithProxy(txRelayer, ec.Admin, Validators, map[string]interface{}{})
 	if err != nil {
 		return err
 	}
@@ -394,16 +384,12 @@ func (ca *ContractsAddrs) validatorsSetDependencies(
 	return nil
 }
 
-func makeValidatorChainData(validators []*TestCardanoValidator) []*ValidatorAddressChainData {
-	validatorAddrChainData := make([]*ValidatorAddressChainData, len(validators))
+func makeValidatorChainData(validators []*TestCardanoValidator) []*ValidatorChainData {
+	validatorAddrChainData := make([]*ValidatorChainData, len(validators))
 
 	for idx, validator := range validators {
-		validatorAddr, _ := validator.getValidatorEthAddress()
-		validatorAddrChainData[idx] = &ValidatorAddressChainData{
-			Address_: validatorAddr,
-			Data_: &ValidatorChainData{
-				Key_: validator.BatcherBN256PrivateKey.PublicKey().ToBigInt(),
-			},
+		validatorAddrChainData[idx] = &ValidatorChainData{
+			Key_: validator.BatcherBN256PrivateKey.PublicKey().ToBigInt(),
 		}
 	}
 
