@@ -195,10 +195,10 @@ func (a *ApexSystem) SetupAndRunValidatorsAndRelayer(
 		a.Nexus,
 	))
 
-	if a.Config.CustomConfig > 0 {
+	if a.Config.CustomConfigHandlerEnabled > 0 {
 		fmt.Printf("Configs generated\n")
 
-		require.NoError(t, a.Bridge.StartValidatorComponentsWithCustomConfigs(ctx))
+		require.NoError(t, a.Bridge.StartValidatorComponentsWithCustomConfigs(ctx, a.Config.CustomConfigHandlerEnabled))
 	} else {
 		fmt.Printf("Configs generated\n")
 

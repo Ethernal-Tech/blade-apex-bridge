@@ -1951,6 +1951,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed_Test1(t *testing.T) {
 	})
 }
 
+//nolint:dupl
 func TestE2E_ApexBridgeWithNexus_BatchFailed_Test2(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
@@ -1990,6 +1991,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed_Test2(t *testing.T) {
 	receiverAddrNexus := userNexus.Address().String()
 	fmt.Printf("Nexus receiver Addr: %s\n", receiverAddrNexus)
 
+	//nolint:dupl
 	t.Run("Test multiple failed batches in a row", func(t *testing.T) {
 		sendAmountDfm, sendAmountEth := convertToEthValues(1)
 
@@ -2016,6 +2018,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed_Test2(t *testing.T) {
 	})
 }
 
+//nolint:dupl
 func TestE2E_ApexBridgeWithNexus_BatchFailed_Test3(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
@@ -2055,6 +2058,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed_Test3(t *testing.T) {
 	receiverAddrNexus := userNexus.Address().String()
 	fmt.Printf("Nexus receiver Addr: %s\n", receiverAddrNexus)
 
+	//nolint:dupl
 	t.Run("Test failed batches at random", func(t *testing.T) {
 		sendAmountDfm, sendAmountEth := convertToEthValues(1)
 
