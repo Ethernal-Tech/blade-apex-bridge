@@ -9,13 +9,10 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
-	"strings"
 
-	polybftWallet "github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/helper/common"
-	"github.com/0xPolygon/polygon-edge/types"
 	bn256 "github.com/Ethernal-Tech/bn256"
 	secretsCardano "github.com/Ethernal-Tech/cardano-infrastructure/secrets"
 	secretsHelper "github.com/Ethernal-Tech/cardano-infrastructure/secrets/helper"
@@ -247,14 +244,23 @@ func (cv *TestCardanoValidator) StartWithCustomConfig(
 	runAPI bool,
 	testMode uint8,
 ) (err error) {
-	customConfig, err := cv.customConfigHandler(cv.GetValidatorComponentsConfig(), testMode)
+	configFile := cv.GetValidatorComponentsConfig()
+
+	err = updateJSONFile(
+		configFile,
+		configFile,
+		func(mp map[string]interface{}) {
+			mp["batcherTestMode"] = testMode
+		},
+		true,
+	)
 	if err != nil {
 		return err
 	}
 
 	args := []string{
 		"run-validator-components",
-		"--config", customConfig,
+		"--config", configFile,
 	}
 
 	if runAPI {
@@ -272,55 +278,6 @@ func (cv *TestCardanoValidator) Stop() error {
 	}
 
 	return cv.node.Stop()
-}
-
-func (cv *TestCardanoValidator) customConfigHandler(configPath string, testMode uint8) (string, error) {
-	testModeLine := fmt.Sprintf("    \"batcherTestMode\": %v", testMode)
-
-	config, err := os.ReadFile(configPath)
-	if err != nil {
-		return "", err
-	}
-
-	lines := strings.Split(string(config), "\n")
-
-	batcherLineIdx := func(lines []string) int {
-		for idx, line := range lines {
-			if strings.Contains(line, "batcherTestMode") {
-				return idx
-			}
-		}
-
-		return -1
-	}(lines)
-	if batcherLineIdx == -1 {
-		return "", fmt.Errorf("invalid config file: %s", configPath)
-	}
-
-	lines = append(lines[:batcherLineIdx], append([]string{testModeLine}, lines[batcherLineIdx+1:]...)...)
-
-	testConfig := strings.Join(lines, "\n")
-
-	err = os.WriteFile(configPath, []byte(testConfig), 0600)
-	if err != nil {
-		return "", err
-	}
-
-	return configPath, nil
-}
-
-func (cv *TestCardanoValidator) getValidatorEthAddress() (types.Address, error) {
-	secretsMngr, err := cv.getSecretsManager(cv.server.DataDir())
-	if err != nil {
-		return types.Address{}, fmt.Errorf("failed to create secrets manager: %w", err)
-	}
-
-	key, err := polybftWallet.GetEcdsaFromSecret(secretsMngr)
-	if err != nil {
-		return types.Address{}, fmt.Errorf("failed to load wallet: %w", err)
-	}
-
-	return key.Address(), nil
 }
 
 func (cv *TestCardanoValidator) createSpecificWallet(walletType string) error {
