@@ -25,9 +25,9 @@ import (
 // cd e2e-polybft/e2e
 // ONLY_RUN_APEX_BRIDGE=true go test -v -timeout 0 -run ^Test_OnlyRunApexBridge_WithNexusAndVector$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e
 func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
-	if shouldRun := os.Getenv("ONLY_RUN_APEX_BRIDGE"); shouldRun != "true" {
-		t.Skip()
-	}
+	// if shouldRun := os.Getenv("ONLY_RUN_APEX_BRIDGE"); shouldRun != "true" {
+	// 	t.Skip()
+	//	}
 
 	const (
 		apiKey = "test_api_key"
@@ -82,6 +82,8 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 	fmt.Printf("nexus url: %s\n", apex.Nexus.Cluster.Servers[0].JSONRPCAddr())
 	fmt.Printf("nexus gateway sc addr: %s\n", apex.Nexus.GetGatewayAddress().String())
 	fmt.Printf("nexus chainID: %v\n", chainID)
+
+	fmt.Printf("birdge url: %s\n", apex.Bridge.GetFirstServer().JSONRPCAddr())
 
 	signalChannel := make(chan os.Signal, 1)
 	// Notify the signalChannel when the interrupt signal is received (Ctrl+C)
