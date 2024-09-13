@@ -203,7 +203,7 @@ func (a *ApexSystem) SetupAndRunValidatorsAndRelayer(
 				func(mp map[string]interface{}) {
 					mp["batcherTestMode"] = a.Config.CustomConfigHandlerEnabled
 				},
-				true,
+				false,
 			)
 			require.NoError(t, err)
 		}
