@@ -25,9 +25,9 @@ import (
 // cd e2e-polybft/e2e
 // ONLY_RUN_APEX_BRIDGE=true go test -v -timeout 0 -run ^Test_OnlyRunApexBridge_WithNexusAndVector$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e
 func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
-	// if shouldRun := os.Getenv("ONLY_RUN_APEX_BRIDGE"); shouldRun != "true" {
-	// 	t.Skip()
-	//	}
+	if shouldRun := os.Getenv("ONLY_RUN_APEX_BRIDGE"); shouldRun != "true" {
+		t.Skip()
+	}
 
 	const (
 		apiKey = "test_api_key"
