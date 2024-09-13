@@ -239,39 +239,6 @@ func (cv *TestCardanoValidator) Start(ctx context.Context, runAPI bool) (err err
 	return err
 }
 
-func (cv *TestCardanoValidator) StartWithCustomConfig(
-	ctx context.Context,
-	runAPI bool,
-	testMode uint8,
-) (err error) {
-	configFile := cv.GetValidatorComponentsConfig()
-
-	err = updateJSONFile(
-		configFile,
-		configFile,
-		func(mp map[string]interface{}) {
-			mp["batcherTestMode"] = testMode
-		},
-		true,
-	)
-	if err != nil {
-		return err
-	}
-
-	args := []string{
-		"run-validator-components",
-		"--config", configFile,
-	}
-
-	if runAPI {
-		args = append(args, "--run-api")
-	}
-
-	cv.node, err = framework.NewNodeWithContext(ctx, ResolveApexBridgeBinary(), args, os.Stdout)
-
-	return err
-}
-
 func (cv *TestCardanoValidator) Stop() error {
 	if cv.node == nil {
 		return errors.New("validator not started")

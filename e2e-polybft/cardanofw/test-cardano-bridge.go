@@ -321,21 +321,6 @@ func (cb *TestCardanoBridge) StartValidatorComponents(ctx context.Context) (err 
 	return err
 }
 
-func (cb *TestCardanoBridge) StartValidatorComponentsWithCustomConfigs(
-	ctx context.Context,
-	testMode uint8,
-) (err error) {
-	for _, validator := range cb.validators {
-		hasAPI := cb.config.APIValidatorID == -1 || validator.ID == cb.config.APIValidatorID
-
-		if err = validator.StartWithCustomConfig(ctx, hasAPI, testMode); err != nil {
-			return err
-		}
-	}
-
-	return err
-}
-
 func (cb *TestCardanoBridge) StartRelayer(ctx context.Context) (err error) {
 	for _, validator := range cb.validators {
 		if RunRelayerOnValidatorID != validator.ID {
