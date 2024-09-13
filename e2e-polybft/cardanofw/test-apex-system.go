@@ -58,7 +58,7 @@ type ApexSystemConfig struct {
 	NexusStartingPort     int64
 	NexusBurnContractInfo *polybft.BurnContractInfo
 
-	CustomConfigHandlerEnabled uint8
+	CustomConfigHandler func(mp map[string]interface{})
 }
 
 type ApexSystemOptions func(*ApexSystemConfig)
@@ -143,9 +143,9 @@ func WithVectorClusterConfig(config *RunCardanoClusterConfig) ApexSystemOptions 
 	}
 }
 
-func WithCustomConfigHandler(testMode uint8) ApexSystemOptions {
+func WithCustomConfigHandler(callback func(mp map[string]interface{})) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
-		h.CustomConfigHandlerEnabled = testMode
+		h.CustomConfigHandler = callback
 	}
 }
 
@@ -193,7 +193,7 @@ func newApexSystemConfig(opts ...ApexSystemOptions) *ApexSystemConfig {
 			Address:     types.ZeroAddress,
 		},
 
-		CustomConfigHandlerEnabled: 0,
+		CustomConfigHandler: nil,
 	}
 
 	for _, opt := range opts {

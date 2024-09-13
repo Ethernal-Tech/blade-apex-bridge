@@ -195,20 +195,6 @@ func (a *ApexSystem) SetupAndRunValidatorsAndRelayer(
 		a.Nexus,
 	))
 
-	if a.Config.CustomConfigHandlerEnabled > 0 {
-		for _, val := range a.Bridge.validators {
-			err := updateJSONFile(
-				val.GetValidatorComponentsConfig(),
-				val.GetValidatorComponentsConfig(),
-				func(mp map[string]interface{}) {
-					mp["batcherTestMode"] = a.Config.CustomConfigHandlerEnabled
-				},
-				false,
-			)
-			require.NoError(t, err)
-		}
-	}
-
 	fmt.Printf("Configs generated\n")
 
 	require.NoError(t, a.Bridge.StartValidatorComponents(ctx))

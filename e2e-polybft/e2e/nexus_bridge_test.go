@@ -1901,14 +1901,14 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 	defer cncl()
 
 	t.Run("Test failed batch - test 1", func(t *testing.T) {
-		testMode := uint8(1)
-
 		apex := cardanofw.RunApexBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
-			cardanofw.WithCustomConfigHandler(testMode),
+			cardanofw.WithCustomConfigHandler(func(mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(1)
+			}),
 		)
 
 		userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
@@ -1952,14 +1952,14 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 	//nolint:dupl
 	t.Run("Test multiple failed batches in a row", func(t *testing.T) {
-		testMode := uint8(2)
-
 		apex := cardanofw.RunApexBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
-			cardanofw.WithCustomConfigHandler(testMode),
+			cardanofw.WithCustomConfigHandler(func(mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(2)
+			}),
 		)
 
 		userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
@@ -2009,14 +2009,14 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 	//nolint:dupl
 	t.Run("Test failed batches at random", func(t *testing.T) {
-		testMode := uint8(3)
-
 		apex := cardanofw.RunApexBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
-			cardanofw.WithCustomConfigHandler(testMode),
+			cardanofw.WithCustomConfigHandler(func(mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(3)
+			}),
 		)
 
 		userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
