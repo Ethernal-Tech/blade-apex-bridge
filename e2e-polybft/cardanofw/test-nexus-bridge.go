@@ -74,7 +74,7 @@ func (ec *TestEVMBridge) GetHotWalletAddress() types.Address {
 	return ec.NativeTokenWallet
 }
 
-func (ec *TestEVMBridge) InitSmartContracts(bridgeURL string) error {
+func (ec *TestEVMBridge) InitSmartContracts(blsKeys []string) error {
 	workingDirectory, err := os.MkdirTemp("", "deploy-evm")
 	if err != nil {
 		return err
@@ -90,16 +90,22 @@ func (ec *TestEVMBridge) InitSmartContracts(bridgeURL string) error {
 		return err
 	}
 
-	var b bytes.Buffer
+	var (
+		b      bytes.Buffer
+		params = []string{
+			"deploy-evm",
+			"--url", ec.Cluster.Servers[0].JSONRPCAddr(),
+			"--key", hex.EncodeToString(pk),
+			"--dir", workingDirectory,
+			"--clone",
+		}
+	)
 
-	err = RunCommand(ResolveApexBridgeBinary(), []string{
-		"deploy-evm",
-		"--bridge-url", bridgeURL,
-		"--url", ec.Cluster.Servers[0].JSONRPCAddr(),
-		"--key", hex.EncodeToString(pk),
-		"--dir", workingDirectory,
-		"--clone",
-	}, io.MultiWriter(os.Stdout, &b))
+	for _, x := range blsKeys {
+		params = append(params, "--bls-key", x)
+	}
+
+	err = RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
 	if err != nil {
 		return err
 	}
@@ -158,8 +164,13 @@ func SetupAndRunNexusBridge(
 ) {
 	t.Helper()
 
+	blsKeys := make([]string, len(apexSystem.Bridge.validators))
+	for i, valid := range apexSystem.Bridge.validators {
+		blsKeys[i] = hex.EncodeToString(valid.BatcherBN256PrivateKey.PublicKey().Marshal())
+	}
+
 	require.NoError(t,
-		apexSystem.Nexus.InitSmartContracts(apexSystem.Bridge.cluster.Servers[0].JSONRPCAddr()))
+		apexSystem.Nexus.InitSmartContracts(blsKeys))
 
 	apexSystem.Nexus.Cluster.Transfer(t,
 		apexSystem.Nexus.Admin.Ecdsa,
