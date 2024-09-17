@@ -175,7 +175,7 @@ func SetupAndRunNexusBridge(
 	apexSystem.Nexus.Cluster.Transfer(t,
 		apexSystem.Nexus.Admin.Ecdsa,
 		apexSystem.Nexus.GetHotWalletAddress(),
-		ethgo.Ether(FundTokenAmount),
+		ethgo.Ether(FundEthTokenAmount),
 	)
 
 	apexSystem.Nexus.Cluster.Transfer(t,
