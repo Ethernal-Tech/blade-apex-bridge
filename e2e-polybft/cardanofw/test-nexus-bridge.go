@@ -98,6 +98,7 @@ func (ec *TestEVMBridge) InitSmartContracts(blsKeys []string) error {
 			"--key", hex.EncodeToString(pk),
 			"--dir", workingDirectory,
 			"--clone",
+			"--branch", "feat/console_logs",
 		}
 	)
 
@@ -172,17 +173,21 @@ func SetupAndRunNexusBridge(
 	require.NoError(t,
 		apexSystem.Nexus.InitSmartContracts(blsKeys))
 
-	apexSystem.Nexus.Cluster.Transfer(t,
+	txn := apexSystem.Nexus.Cluster.Transfer(t,
 		apexSystem.Nexus.Admin.Ecdsa,
 		apexSystem.Nexus.GetHotWalletAddress(),
 		ethgo.Ether(FundEthTokenAmount),
 	)
+	require.NotNil(t, txn)
+	require.True(t, txn.Succeed())
 
-	apexSystem.Nexus.Cluster.Transfer(t,
+	txn = apexSystem.Nexus.Cluster.Transfer(t,
 		apexSystem.Nexus.Admin.Ecdsa,
 		apexSystem.Bridge.GetRelayerWalletAddr(),
 		ethgo.Ether(1),
 	)
+	require.NotNil(t, txn)
+	require.True(t, txn.Succeed())
 }
 
 func GetEthAmount(ctx context.Context, evmChain *TestEVMBridge, wallet *wallet.Account) (*big.Int, error) {
