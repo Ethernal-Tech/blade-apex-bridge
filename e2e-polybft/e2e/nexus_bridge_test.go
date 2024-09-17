@@ -1902,10 +1902,10 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		apiKey = "test_api_key"
 	)
 
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
+	t.Run("Test failed batch", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
 
-	t.Run("Test failed batch - test 1", func(t *testing.T) {
 		apex := cardanofw.RunApexBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
@@ -2003,7 +2003,111 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		require.True(t, includedInBatch)
 	})
 
+	t.Run("Test failed batch 5 times in a row", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		apex := cardanofw.RunApexBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithVectorEnabled(false),
+			cardanofw.WithNexusEnabled(true),
+			cardanofw.WithCustomConfigHandler(func(mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(2)
+			}),
+		)
+
+		userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
+		require.NotNil(t, userPrime)
+
+		txProviderPrime := apex.GetPrimeTxProvider()
+
+		startAmountNexus := uint64(1)
+		expectedAmountNexus := ethgo.Ether(startAmountNexus)
+
+		userNexus, err := apex.CreateAndFundNexusUser(ctx, startAmountNexus)
+		require.NoError(t, err)
+
+		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
+			return val.Cmp(expectedAmountNexus) == 0
+		}, 10, 10)
+		require.NoError(t, err)
+
+		fmt.Println("Nexus user created and funded")
+
+		receiverAddrNexus := userNexus.Address().String()
+		fmt.Printf("Nexus receiver Addr: %s\n", receiverAddrNexus)
+
+		sendAmountDfm, _ := convertToEthValues(1)
+
+		txHash, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
+			receiverAddrNexus, sendAmountDfm, apex.PrimeCluster.NetworkConfig(), receiverAddrNexus)
+		require.NoError(t, err)
+
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+		// Check batch failed
+		timeoutTimer := time.NewTimer(time.Second * 300)
+		defer timeoutTimer.Stop()
+
+		var (
+			failedToExecute int
+			includedInBatch bool
+			prevStatus      string
+			currentStatus   string
+		)
+
+		apiURL, err := apex.Bridge.GetBridgingAPI()
+		require.NoError(t, err)
+
+		requestURL := fmt.Sprintf(
+			"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, "prime", txHash)
+
+		fmt.Printf("Bridging request txHash = %s\n", txHash)
+
+	for_loop:
+		for {
+			select {
+			case <-timeoutTimer.C:
+				fmt.Printf("Timeout\n")
+
+				break for_loop
+			case <-ctx.Done():
+				break for_loop
+			case <-time.After(time.Millisecond * 500):
+			}
+
+			currentState, err := cardanofw.GetBridgingRequestState(ctx, requestURL, apiKey)
+			if err != nil || currentState == nil {
+				continue
+			}
+
+			prevStatus = currentStatus
+			currentStatus = currentState.Status
+
+			if prevStatus != currentStatus {
+				fmt.Printf("currentStatus = %s\n", currentStatus)
+
+				if currentStatus == BatchFailed {
+					failedToExecute++
+				}
+
+				if currentStatus == BatchSuccess {
+					includedInBatch = true
+
+					break for_loop
+				}
+			}
+		}
+
+		require.Equal(t, failedToExecute, 5)
+		require.True(t, includedInBatch)
+	})
+
 	t.Run("Test multiple failed batches in a row", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
 		var (
 			prevStatus    string
 			currentStatus string
@@ -2019,7 +2123,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithCustomConfigHandler(func(mp map[string]interface{}) {
-				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(2)
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(3)
 			}),
 		)
 
@@ -2055,6 +2159,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		apiURL, err := apex.Bridge.GetBridgingAPI()
 		require.NoError(t, err)
 
+		//nolint:dupl
 		for i := 0; i < instances; i++ {
 			txHash, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
 				receiverAddrNexus, sendAmountDfm, apex.PrimeCluster.NetworkConfig(), receiverAddrNexus)
@@ -2116,7 +2221,10 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("Test failed batches at random", func(t *testing.T) {
+	t.Run("Test failed batches at 'random'", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
 		var (
 			prevStatus    string
 			currentStatus string
@@ -2132,7 +2240,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithCustomConfigHandler(func(mp map[string]interface{}) {
-				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(3)
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(4)
 			}),
 		)
 
@@ -2168,6 +2276,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		apiURL, err := apex.Bridge.GetBridgingAPI()
 		require.NoError(t, err)
 
+		//nolint:dupl
 		for i := 0; i < instances; i++ {
 			txHash, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
 				receiverAddrNexus, sendAmountDfm, apex.PrimeCluster.NetworkConfig(), receiverAddrNexus)
