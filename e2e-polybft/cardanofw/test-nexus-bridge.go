@@ -98,7 +98,6 @@ func (ec *TestEVMBridge) InitSmartContracts(blsKeys []string) error {
 			"--key", hex.EncodeToString(pk),
 			"--dir", workingDirectory,
 			"--clone",
-			"--branch", "feat/console_logs",
 		}
 	)
 
