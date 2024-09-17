@@ -20,6 +20,11 @@ import (
 	"github.com/umbracle/ethgo"
 )
 
+const (
+	BatchFailed  = "FailedToExecuteOnDestination"
+	BatchSuccess = "ExecutedOnDestination"
+)
+
 func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
@@ -1982,13 +1987,11 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			if prevStatus != currentStatus {
 				fmt.Printf("currentStatus = %s\n", currentStatus)
 
-				if currentStatus == "FailedToExecuteOnDestination" {
+				if currentStatus == BatchFailed {
 					failedToExecute = true
 				}
 
-				if currentStatus == "IncludedInBatch" ||
-					currentStatus == "SubmittedToDestination" ||
-					currentStatus == "ExecutedOnDestination" {
+				if currentStatus == BatchSuccess {
 					includedInBatch = true
 
 					break for_loop
@@ -2001,8 +2004,14 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 	})
 
 	t.Run("Test multiple failed batches in a row", func(t *testing.T) {
+		var (
+			prevStatus    string
+			currentStatus string
+		)
+
 		instances := 5
-		txHashes := make([]string, instances)
+		failedToExecute := make([]bool, instances)
+		includedInBatch := make([]bool, instances)
 
 		apex := cardanofw.RunApexBridge(
 			t, ctx,
@@ -2043,6 +2052,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		ethExpectedBalance := big.NewInt(0).Add(ethBalanceBefore, sendAmountEth.Mul(sendAmountEth, big.NewInt(5)))
 
+		apiURL, err := apex.Bridge.GetBridgingAPI()
+		require.NoError(t, err)
+
 		for i := 0; i < instances; i++ {
 			txHash, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
 				receiverAddrNexus, sendAmountDfm, apex.PrimeCluster.NetworkConfig(), receiverAddrNexus)
@@ -2050,76 +2062,45 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 			fmt.Printf("Tx %v sent. hash: %s\n", i, txHash)
 
-			txHashes[i] = txHash
-		}
+			// Check batch failed
+			timeoutTimer := time.NewTimer(time.Second * 300)
+			defer timeoutTimer.Stop()
 
-		// Check batches failed
-		timeoutTimer := time.NewTimer(time.Second * 300)
-		defer timeoutTimer.Stop()
+			requestURL := fmt.Sprintf(
+				"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, "prime", txHash)
 
-		failedToExecute := make([]bool, instances)
-		includedInBatch := make([]bool, instances)
-		prevStatus := make([]string, instances)
-		currentStatus := make([]string, instances)
+		for_loop:
+			for {
+				select {
+				case <-timeoutTimer.C:
+					fmt.Printf("Timeout\n")
 
-		apiURL, err := apex.Bridge.GetBridgingAPI()
-		require.NoError(t, err)
-
-		allIncluded := func(values ...bool) bool {
-			for _, v := range values {
-				if !v {
-					return false
+					break for_loop
+				case <-ctx.Done():
+					break for_loop
+				case <-time.After(time.Millisecond * 500):
 				}
-			}
-
-			return true
-		}
-
-		//nolint:dupl
-	for_loop:
-		for {
-			select {
-			case <-timeoutTimer.C:
-				fmt.Printf("Timeout\n")
-
-				break for_loop
-			case <-ctx.Done():
-				break for_loop
-			case <-time.After(time.Millisecond * 500):
-			}
-
-			for i := 0; i < instances; i++ {
-				if includedInBatch[i] {
-					continue
-				}
-
-				requestURL := fmt.Sprintf(
-					"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, "prime", txHashes[i])
 
 				currentState, err := cardanofw.GetBridgingRequestState(ctx, requestURL, apiKey)
 				if err != nil || currentState == nil {
 					continue
 				}
 
-				prevStatus[i] = currentStatus[i]
-				currentStatus[i] = currentState.Status
+				prevStatus = currentStatus
+				currentStatus = currentState.Status
 
-				if prevStatus[i] != currentStatus[i] {
-					fmt.Printf("currentStatus %v = %s\n", i, currentStatus[i])
+				if prevStatus != currentStatus {
+					fmt.Printf("currentStatus %v = %s\n", i, currentStatus)
 
-					if currentStatus[i] == "FailedToExecuteOnDestination" {
+					if currentStatus == BatchFailed {
 						failedToExecute[i] = true
 					}
 
-					if currentStatus[i] == "IncludedInBatch" ||
-						currentStatus[i] == "SubmittedToDestination" ||
-						currentStatus[i] == "ExecutedOnDestination" {
+					if currentStatus == BatchSuccess {
 						includedInBatch[i] = true
-					}
-				}
 
-				if allIncluded(includedInBatch...) {
-					break for_loop
+						break for_loop
+					}
 				}
 			}
 		}
@@ -2136,8 +2117,14 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 	})
 
 	t.Run("Test failed batches at random", func(t *testing.T) {
+		var (
+			prevStatus    string
+			currentStatus string
+		)
+
 		instances := 5
-		txHashes := make([]string, instances)
+		failedToExecute := make([]bool, instances)
+		includedInBatch := make([]bool, instances)
 
 		apex := cardanofw.RunApexBridge(
 			t, ctx,
@@ -2178,89 +2165,61 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		ethExpectedBalance := big.NewInt(0).Add(ethBalanceBefore, sendAmountEth.Mul(sendAmountEth, big.NewInt(5)))
 
+		apiURL, err := apex.Bridge.GetBridgingAPI()
+		require.NoError(t, err)
+
 		for i := 0; i < instances; i++ {
 			txHash, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
 				receiverAddrNexus, sendAmountDfm, apex.PrimeCluster.NetworkConfig(), receiverAddrNexus)
 			require.NoError(t, err)
 
-			fmt.Printf("Tx sent. hash: %s\n", txHash)
+			fmt.Printf("Tx %v sent. hash: %s\n", i, txHash)
 
-			txHashes[i] = txHash
-		}
+			// Check batch failed
+			timeoutTimer := time.NewTimer(time.Second * 300)
+			defer timeoutTimer.Stop()
 
-		// Check batches failed
-		timeoutTimer := time.NewTimer(time.Second * 300)
-		defer timeoutTimer.Stop()
+			requestURL := fmt.Sprintf(
+				"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, "prime", txHash)
 
-		failedToExecute := make([]bool, instances)
-		includedInBatch := make([]bool, instances)
-		prevStatus := make([]string, instances)
-		currentStatus := make([]string, instances)
+		for_loop:
+			for {
+				select {
+				case <-timeoutTimer.C:
+					fmt.Printf("Timeout\n")
 
-		apiURL, err := apex.Bridge.GetBridgingAPI()
-		require.NoError(t, err)
-
-		allIncluded := func(values ...bool) bool {
-			for _, v := range values {
-				if !v {
-					return false
+					break for_loop
+				case <-ctx.Done():
+					break for_loop
+				case <-time.After(time.Millisecond * 500):
 				}
-			}
-
-			return true
-		}
-
-		//nolint:dupl
-	for_loop:
-		for {
-			select {
-			case <-timeoutTimer.C:
-				fmt.Printf("Timeout\n")
-
-				break for_loop
-			case <-ctx.Done():
-				break for_loop
-			case <-time.After(time.Millisecond * 500):
-			}
-
-			for i := 0; i < instances; i++ {
-				if includedInBatch[i] {
-					continue
-				}
-
-				requestURL := fmt.Sprintf(
-					"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, "prime", txHashes[i])
 
 				currentState, err := cardanofw.GetBridgingRequestState(ctx, requestURL, apiKey)
 				if err != nil || currentState == nil {
 					continue
 				}
 
-				prevStatus[i] = currentStatus[i]
-				currentStatus[i] = currentState.Status
+				prevStatus = currentStatus
+				currentStatus = currentState.Status
 
-				if prevStatus[i] != currentStatus[i] {
-					fmt.Printf("currentStatus %v = %s\n", i, currentStatus[i])
+				if prevStatus != currentStatus {
+					fmt.Printf("currentStatus %v = %s\n", i, currentStatus)
 
-					if currentStatus[i] == "FailedToExecuteOnDestination" {
+					if currentStatus == BatchFailed {
 						failedToExecute[i] = true
 					}
 
-					if currentStatus[i] == "IncludedInBatch" ||
-						currentStatus[i] == "SubmittedToDestination" ||
-						currentStatus[i] == "ExecutedOnDestination" {
+					if currentStatus == BatchSuccess {
 						includedInBatch[i] = true
-					}
-				}
 
-				if allIncluded(includedInBatch...) {
-					break for_loop
+						break for_loop
+					}
 				}
 			}
 		}
 
 		for i := 0; i < instances; i++ {
-			if i%2 == 0 { // or the other way around...
+			if i%2 == 0 {
 				require.True(t, failedToExecute[i])
 			}
 
