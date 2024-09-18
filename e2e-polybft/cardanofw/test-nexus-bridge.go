@@ -79,7 +79,7 @@ func (ec *TestEVMBridge) GetHotWalletAddress() types.Address {
 func (ec *TestEVMBridge) InitSmartContracts(blsKeys []string) error {
 	workingDirectory := filepath.Join(os.TempDir(), "deploy-apex-bridge-evm-gateway")
 	// do not remove directory, try to reuse it next time if still exists
-	if err := common.CreateDirSafe(workingDirectory, 0660); err != nil {
+	if err := common.CreateDirSafe(workingDirectory, 0750); err != nil {
 		return err
 	}
 
