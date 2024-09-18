@@ -1935,6 +1935,11 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
+		var (
+			failedToExecute int
+			timeout         bool
+		)
+
 		apex := cardanofw.RunApexBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
@@ -1957,19 +1962,12 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		timeoutTimer := time.NewTimer(time.Second * 300)
 		defer timeoutTimer.Stop()
 
-		var (
-			failedToExecute int
-			includedInBatch int
-			timeout         bool
-		)
-
 		apiURL, err := apex.Bridge.GetBridgingAPI()
 		require.NoError(t, err)
 
-		includedInBatch, failedToExecute, timeout = waitForBatchStatus(ctx, txHash, apiURL, apiKey, 0)
+		failedToExecute, timeout = waitForBatchSuccess(ctx, txHash, apiURL, apiKey, 0)
 
 		require.Equal(t, failedToExecute, 1)
-		require.Equal(t, includedInBatch, 1)
 		require.False(t, timeout)
 	})
 
@@ -1977,6 +1975,11 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 	t.Run("Test failed batch 5 times in a row", func(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
+
+		var (
+			failedToExecute int
+			timeout         bool
+		)
 
 		apex := cardanofw.RunApexBridge(
 			t, ctx,
@@ -2000,19 +2003,12 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		timeoutTimer := time.NewTimer(time.Second * 300)
 		defer timeoutTimer.Stop()
 
-		var (
-			failedToExecute int
-			includedInBatch int
-			timeout         bool
-		)
-
 		apiURL, err := apex.Bridge.GetBridgingAPI()
 		require.NoError(t, err)
 
-		includedInBatch, failedToExecute, timeout = waitForBatchStatus(ctx, txHash, apiURL, apiKey, 0)
+		failedToExecute, timeout = waitForBatchSuccess(ctx, txHash, apiURL, apiKey, 0)
 
 		require.Equal(t, failedToExecute, 5)
-		require.Equal(t, includedInBatch, 1)
 		require.False(t, timeout)
 	})
 
@@ -2022,7 +2018,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		instances := 5
 		failedToExecute := make([]int, instances)
-		includedInBatch := make([]int, instances)
 		timeout := make([]bool, instances)
 
 		apex := cardanofw.RunApexBridge(
@@ -2054,12 +2049,11 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			fmt.Printf("Tx %v sent. hash: %s\n", i, txHash)
 
 			// Check batch failed
-			includedInBatch[i], failedToExecute[i], timeout[i] = waitForBatchStatus(ctx, txHash, apiURL, apiKey, i)
+			failedToExecute[i], timeout[i] = waitForBatchSuccess(ctx, txHash, apiURL, apiKey, i)
 		}
 
 		for i := 0; i < instances; i++ {
 			require.Equal(t, failedToExecute[i], 1)
-			require.Equal(t, includedInBatch[i], 1)
 			require.False(t, timeout[i])
 		}
 
@@ -2075,7 +2069,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		instances := 5
 		failedToExecute := make([]int, instances)
-		includedInBatch := make([]int, instances)
 		timeout := make([]bool, instances)
 
 		apex := cardanofw.RunApexBridge(
@@ -2107,7 +2100,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			fmt.Printf("Tx %v sent. hash: %s\n", i, txHash)
 
 			// Check batch failed
-			includedInBatch[i], failedToExecute[i], timeout[i] = waitForBatchStatus(ctx, txHash, apiURL, apiKey, i)
+			failedToExecute[i], timeout[i] = waitForBatchSuccess(ctx, txHash, apiURL, apiKey, i)
 		}
 
 		for i := 0; i < instances; i++ {
@@ -2115,7 +2108,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 				require.Equal(t, failedToExecute[i], 1)
 			}
 
-			require.Equal(t, includedInBatch[i], 1)
 			require.False(t, timeout[i])
 		}
 
@@ -2134,13 +2126,12 @@ func convertToEthValues(sendAmount uint64) (uint64, *big.Int) {
 	return sendAmountDfm.Uint64(), ethgo.Ether(sendAmount)
 }
 
-func waitForBatchStatus(ctx context.Context, txHash string, apiURL string, apiKey string, idx int) (int, int, bool) {
+func waitForBatchSuccess(ctx context.Context, txHash string, apiURL string, apiKey string, idx int) (int, bool) {
 	var (
-		prevStatus      string
-		currentStatus   string
-		failedToExecute int
-		includedInBatch int
-		timeout         bool
+		prevStatus           string
+		currentStatus        string
+		failedToExecuteCount int
+		timeout              bool
 	)
 
 	timeoutTimer := time.NewTimer(time.Second * 300)
@@ -2156,9 +2147,9 @@ func waitForBatchStatus(ctx context.Context, txHash string, apiURL string, apiKe
 
 			fmt.Printf("Timeout\n")
 
-			return includedInBatch, failedToExecute, timeout
+			return failedToExecuteCount, timeout
 		case <-ctx.Done():
-			return includedInBatch, failedToExecute, timeout
+			return failedToExecuteCount, timeout
 		case <-time.After(time.Millisecond * 500):
 		}
 
@@ -2174,13 +2165,11 @@ func waitForBatchStatus(ctx context.Context, txHash string, apiURL string, apiKe
 			fmt.Printf("currentStatus %v = %s\n", idx, currentStatus)
 
 			if currentStatus == BatchFailed {
-				failedToExecute++
+				failedToExecuteCount++
 			}
 
 			if currentStatus == BatchSuccess {
-				includedInBatch++
-
-				return includedInBatch, failedToExecute, timeout
+				return failedToExecuteCount, timeout
 			}
 		}
 	}
