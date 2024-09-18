@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
 	"time"
@@ -75,15 +76,9 @@ func (ec *TestEVMBridge) GetHotWalletAddress() types.Address {
 }
 
 func (ec *TestEVMBridge) InitSmartContracts(blsKeys []string) error {
-	workingDirectory, err := os.MkdirTemp("", "deploy-evm")
-	if err != nil {
-		return err
-	}
+	workingDirectory := filepath.Join(os.TempDir(), "deploy-apex-bridge-evm-gateway")
 
-	defer func() {
-		_ = os.RemoveAll(workingDirectory)
-		_ = os.Remove(workingDirectory)
-	}()
+	defer os.RemoveAll(workingDirectory)
 
 	pk, err := ec.Admin.Ecdsa.MarshallPrivateKey()
 	if err != nil {
