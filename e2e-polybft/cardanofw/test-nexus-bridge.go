@@ -172,7 +172,7 @@ func SetupAndRunNexusBridge(
 
 	require.NoError(t, apexSystem.Nexus.InitSmartContracts(
 		apexSystem.Bridge.GetFirstServer().JSONRPCAddr(),
-		apexSystem.Bridge.GetProxyContractsAdmin()))
+		apexSystem.Bridge.GetBladeAdmin()))
 
 	txn := apexSystem.Nexus.Cluster.Transfer(t,
 		apexSystem.Nexus.Admin.Ecdsa,

@@ -50,6 +50,7 @@ type TestCardanoBridge struct {
 
 	cluster             *framework.TestCluster
 	proxyContractsAdmin *crypto.ECDSAKey
+	bladeAdmin          *crypto.ECDSAKey
 
 	config *ApexSystemConfig
 }
@@ -92,10 +93,15 @@ func (cb *TestCardanoBridge) StartValidators(t *testing.T, epochSize int) {
 	proxyContractsAdmin, err := crypto.GenerateECDSAKey()
 	require.NoError(t, err)
 
+	bladeAdmin, err := crypto.GenerateECDSAKey()
+	require.NoError(t, err)
+
 	cb.proxyContractsAdmin = proxyContractsAdmin
+	cb.bladeAdmin = bladeAdmin
 	cb.cluster = framework.NewTestCluster(t, cb.config.BladeValidatorCount,
 		framework.WithEpochSize(epochSize),
 		framework.WithProxyContractsAdmin(proxyContractsAdmin.Address().String()),
+		framework.WithBladeAdmin(bladeAdmin.Address().String()),
 	)
 
 	for idx, validator := range cb.validators {
@@ -105,6 +111,10 @@ func (cb *TestCardanoBridge) StartValidators(t *testing.T, epochSize int) {
 
 func (cb *TestCardanoBridge) GetProxyContractsAdmin() *crypto.ECDSAKey {
 	return cb.proxyContractsAdmin
+}
+
+func (cb *TestCardanoBridge) GetBladeAdmin() *crypto.ECDSAKey {
+	return cb.bladeAdmin
 }
 
 func (cb *TestCardanoBridge) NexusCreateWalletsAndAddresses(createBLSKeys bool) (err error) {
