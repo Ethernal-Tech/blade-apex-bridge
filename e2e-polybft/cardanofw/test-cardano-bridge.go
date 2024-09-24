@@ -197,7 +197,7 @@ func (cb *TestCardanoBridge) RegisterChains(
 			if cb.config.NexusEnabled {
 				errs[indx] = validator.RegisterChain(
 					ChainIDNexus,
-					apex.Nexus.GetGatewayAddress().String(), cb.GetRelayerWalletAddr().String(),
+					apex.Nexus.GetGatewayAddress().String(), "",
 					nexusTokenSupply, ChainTypeEVM)
 				if errs[indx] != nil {
 					return
