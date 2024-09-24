@@ -303,31 +303,29 @@ func (cb *TestCardanoBridge) GenerateConfigs(
 		return err
 	}
 
-	if cb.config.CustomConfigHandler != nil {
-		if cb.config.CustomConfigHandler["validator"] != nil {
-			for _, val := range cb.validators {
-				err := UpdateJSONFile(
-					val.GetValidatorComponentsConfig(),
-					val.GetValidatorComponentsConfig(),
-					cb.config.CustomConfigHandler["validator"],
-					false,
-				)
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		if cb.config.CustomConfigHandler["relayer"] != nil {
+	if cb.config.CustomOracleHandler != nil {
+		for _, val := range cb.validators {
 			err := UpdateJSONFile(
-				cb.validators[0].GetRelayerConfig(),
-				cb.validators[0].GetRelayerConfig(),
-				cb.config.CustomConfigHandler["relayer"],
+				val.GetValidatorComponentsConfig(),
+				val.GetValidatorComponentsConfig(),
+				cb.config.CustomOracleHandler,
 				false,
 			)
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	if cb.config.CustomRelayerHandler != nil {
+		err := UpdateJSONFile(
+			cb.validators[0].GetRelayerConfig(),
+			cb.validators[0].GetRelayerConfig(),
+			cb.config.CustomRelayerHandler,
+			false,
+		)
+		if err != nil {
+			return err
 		}
 	}
 

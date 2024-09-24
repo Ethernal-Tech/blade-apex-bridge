@@ -1953,10 +1953,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
-			cardanofw.WithCustomConfigHandler(map[string]func(mp map[string]interface{}){
-				"relayer": func(mp map[string]interface{}) {
-					cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")["depositGasLimit"] = uint64(10)
-				}}),
+			cardanofw.WithCustomConfigHandlers(nil, func(mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")["depositGasLimit"] = uint64(10)
+			}),
 		)
 
 		initApex(ctx, apex)
@@ -2014,10 +2013,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
-			cardanofw.WithCustomConfigHandler(map[string]func(mp map[string]interface{}){
-				"validator": func(mp map[string]interface{}) {
-					cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(1)
-				}}),
+			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(1)
+			}, nil),
 		)
 
 		initApex(ctx, apex)
@@ -2053,10 +2051,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
-			cardanofw.WithCustomConfigHandler(map[string]func(mp map[string]interface{}){
-				"validator": func(mp map[string]interface{}) {
-					cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(2)
-				}}),
+			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(2)
+			}, nil),
 		)
 
 		initApex(ctx, apex)
@@ -2090,10 +2087,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
-			cardanofw.WithCustomConfigHandler(map[string]func(mp map[string]interface{}){
-				"validator": func(mp map[string]interface{}) {
-					cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(3)
-				}}),
+			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(3)
+			}, nil),
 		)
 
 		initApex(ctx, apex)
@@ -2142,10 +2138,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
-			cardanofw.WithCustomConfigHandler(map[string]func(mp map[string]interface{}){
-				"validator": func(mp map[string]interface{}) {
-					cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(4)
-				}}),
+			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(4)
+			}, nil),
 		)
 
 		initApex(ctx, apex)
