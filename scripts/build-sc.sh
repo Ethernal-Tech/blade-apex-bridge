@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BRANCH=main
+BRANCH=feat/setChainAdditionalData #main
 
 # build Apex-bridge smartcontracts
 cd ./apex-bridge-smartcontracts

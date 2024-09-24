@@ -25,8 +25,6 @@ const (
 	ChainIDVector = "vector"
 	ChainIDNexus  = "nexus"
 
-	BridgeSCAddr = "0xABEF000000000000000000000000000000000000"
-
 	RunRelayerOnValidatorID = 1
 )
 
@@ -50,7 +48,8 @@ type TestCardanoBridge struct {
 
 	relayerWallet *crypto.ECDSAKey
 
-	cluster *framework.TestCluster
+	cluster             *framework.TestCluster
+	proxyContractsAdmin *crypto.ECDSAKey
 
 	config *ApexSystemConfig
 }
@@ -58,7 +57,6 @@ type TestCardanoBridge struct {
 func NewTestCardanoBridge(
 	dataDirPath string, apexSystemConfig *ApexSystemConfig,
 ) *TestCardanoBridge {
-
 	validators := make([]*TestCardanoValidator, apexSystemConfig.BladeValidatorCount)
 
 	for i := 0; i < apexSystemConfig.BladeValidatorCount; i++ {
@@ -91,13 +89,22 @@ func (cb *TestCardanoBridge) CardanoCreateWalletsAndAddresses(
 func (cb *TestCardanoBridge) StartValidators(t *testing.T, epochSize int) {
 	t.Helper()
 
+	proxyContractsAdmin, err := crypto.GenerateECDSAKey()
+	require.NoError(t, err)
+
+	cb.proxyContractsAdmin = proxyContractsAdmin
 	cb.cluster = framework.NewTestCluster(t, cb.config.BladeValidatorCount,
 		framework.WithEpochSize(epochSize),
+		framework.WithProxyContractsAdmin(proxyContractsAdmin.Address().String()),
 	)
 
 	for idx, validator := range cb.validators {
 		require.NoError(t, validator.SetClusterAndServer(cb.cluster, cb.cluster.Servers[idx]))
 	}
+}
+
+func (cb *TestCardanoBridge) GetProxyContractsAdmin() *crypto.ECDSAKey {
+	return cb.proxyContractsAdmin
 }
 
 func (cb *TestCardanoBridge) NexusCreateWalletsAndAddresses(createBLSKeys bool) (err error) {
@@ -169,7 +176,6 @@ func (cb *TestCardanoBridge) RegisterChains(
 	primeTokenSupply *big.Int,
 	vectorTokenSupply *big.Int,
 	nexusTokenSupply *big.Int,
-	apex *ApexSystem,
 ) error {
 	errs := make([]error, len(cb.validators))
 	wg := sync.WaitGroup{}
@@ -180,25 +186,20 @@ func (cb *TestCardanoBridge) RegisterChains(
 		go func(validator *TestCardanoValidator, indx int) {
 			defer wg.Done()
 
-			errs[indx] = validator.RegisterChain(
-				ChainIDPrime, cb.PrimeMultisigAddr, cb.PrimeMultisigFeeAddr, primeTokenSupply, ChainTypeCardano)
+			errs[indx] = validator.RegisterChain(ChainIDPrime, primeTokenSupply, ChainTypeCardano)
 			if errs[indx] != nil {
 				return
 			}
 
 			if cb.config.VectorEnabled {
-				errs[indx] = validator.RegisterChain(
-					ChainIDVector, cb.VectorMultisigAddr, cb.VectorMultisigFeeAddr, vectorTokenSupply, ChainTypeCardano)
+				errs[indx] = validator.RegisterChain(ChainIDVector, vectorTokenSupply, ChainTypeCardano)
 				if errs[indx] != nil {
 					return
 				}
 			}
 
 			if cb.config.NexusEnabled {
-				errs[indx] = validator.RegisterChain(
-					ChainIDNexus,
-					apex.Nexus.GetGatewayAddress().String(), "",
-					nexusTokenSupply, ChainTypeEVM)
+				errs[indx] = validator.RegisterChain(ChainIDNexus, nexusTokenSupply, ChainTypeEVM)
 				if errs[indx] != nil {
 					return
 				}
