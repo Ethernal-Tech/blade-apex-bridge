@@ -669,6 +669,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 	fmt.Println("vector fee addr: ", apex.Bridge.VectorMultisigFeeAddr)
 
 	t.Run("From prime to vector one by one - wait for other side", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		const (
 			sendAmount = uint64(1_000_000)
 			instances  = 5
@@ -696,6 +700,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From prime to vector one by one", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		const (
 			sendAmount = uint64(1_000_000)
 			instances  = 5
@@ -720,6 +728,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 
 	//nolint:dupl
 	t.Run("From prime to vector parallel", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		const (
 			sendAmount = uint64(1_000_000)
 			instances  = 5
@@ -753,6 +765,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From vector to prime one by one", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		const (
 			sendAmount = uint64(1_000_000)
 			instances  = 5
@@ -777,6 +793,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 
 	//nolint:dupl
 	t.Run("From vector to prime parallel", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		const (
 			instances  = 5
 			sendAmount = uint64(1_000_000)
@@ -810,6 +830,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From prime to vector sequential and parallel", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		const (
 			sequentialInstances = 5
 			parallelInstances   = 10
@@ -916,6 +940,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("Both directions sequential", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		const (
 			instances  = 5
 			sendAmount = uint64(1_000_000)

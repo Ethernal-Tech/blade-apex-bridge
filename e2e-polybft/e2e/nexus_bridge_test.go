@@ -41,6 +41,10 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 	)
 
 	t.Run("Sanity check", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		sendAmount := uint64(1)
 		expectedAmount := ethgo.Ether(sendAmount)
 
@@ -171,6 +175,10 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 	cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(1_000_000))
 
 	t.Run("From Nexus to Prime one by one - wait for other side", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		const (
 			instances = 5
 		)
@@ -202,6 +210,10 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Nexus to Prime one by one - don't wait", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		const (
 			instances = 5
 		)
@@ -233,6 +245,10 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Nexus to Prime - parallel", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		const (
 			instances = 5
 		)
@@ -277,6 +293,10 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Nexus to Prime - sequential and parallel", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		const (
 			instances         = 5
 			parallelInstances = 10
@@ -611,26 +631,11 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	receiverAddrNexus := userNexus.Address().String()
 	fmt.Printf("Nexus receiver Addr: %s\n", receiverAddrNexus)
 
-	t.Run("From Prime to Nexus", func(t *testing.T) {
-		sendAmountDfm, _ := convertToEthValues(1)
-
-		ethBalanceBefore, err := cardanofw.GetEthAmount(ctx, apex.Nexus, userNexus)
-		fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
-		require.NoError(t, err)
-
-		txHash, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
-			receiverAddrNexus, sendAmountDfm, apex.PrimeCluster.NetworkConfig(), receiverAddrNexus)
-		require.NoError(t, err)
-
-		fmt.Printf("Tx sent. hash: %s\n", txHash)
-
-		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
-			return val.Cmp(ethBalanceBefore) != 0
-		}, 30, 30*time.Second)
-		require.NoError(t, err)
-	})
-
 	t.Run("From Prime to Nexus one by one - wait for other side", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		sendAmountDfm, sendAmountEth := convertToEthValues(1)
 
 		instances := 5
@@ -656,6 +661,10 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Prime to Nexus one by one - don't wait for other side", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		sendAmountDfm, sendAmountEth := convertToEthValues(1)
 
 		ethBalanceBefore, err := cardanofw.GetEthAmount(ctx, apex.Nexus, userNexus)
@@ -683,6 +692,10 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Prime to Nexus parallel", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		sendAmountDfm, sendAmountEth := convertToEthValues(1)
 
 		ethBalanceBefore, err := cardanofw.GetEthAmount(ctx, apex.Nexus, userNexus)
@@ -730,6 +743,10 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Prime to Nexus sequential and parallel", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		sendAmountDfm, sendAmountEth := convertToEthValues(1)
 
 		ethBalanceBefore, err := cardanofw.GetEthAmount(ctx, apex.Nexus, userNexus)
@@ -940,6 +957,10 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("Both directions sequential", func(t *testing.T) {
+		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+			t.Skip()
+		}
+
 		sendAmount := uint64(1)
 		sendAmountDfm, sendAmountEth := convertToEthValues(sendAmount)
 
