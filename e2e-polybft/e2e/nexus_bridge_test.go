@@ -40,6 +40,8 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 		cardanofw.WithNexusEnabled(true),
 	)
 
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
+
 	t.Run("Sanity check", func(t *testing.T) {
 		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
 			t.Skip()
@@ -167,6 +169,8 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 		cardanofw.WithVectorEnabled(false),
 		cardanofw.WithNexusEnabled(true),
 	)
+
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
 
 	txProviderPrime := apex.GetPrimeTxProvider()
 
@@ -487,6 +491,8 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 		cardanofw.WithNexusEnabled(true),
 	)
 
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
+
 	fee := new(big.Int).SetUint64(1000010000000000000)
 
 	sendTxParams := func(txType, gatewayAddr, nexusUrl, privateKey, chainDst, receiver string, amount, fee *big.Int) error {
@@ -609,6 +615,8 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 		cardanofw.WithVectorEnabled(false),
 		cardanofw.WithNexusEnabled(true),
 	)
+
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
 
 	userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
 	require.NotNil(t, userPrime)
@@ -1461,6 +1469,8 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		cardanofw.WithNexusEnabled(true),
 	)
 
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
+
 	userPrime := apex.CreateAndFundUser(t, ctx, uint64(10_000_000))
 	require.NotNil(t, userPrime)
 
@@ -1734,6 +1744,8 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 		cardanofw.WithVectorEnabled(false),
 		cardanofw.WithNexusEnabled(true),
 	)
+
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
 
 	userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
 	require.NotNil(t, userPrime)
@@ -2043,6 +2055,8 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			}, nil),
 		)
 
+		defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
+
 		initApex(ctx, apex)
 
 		txHash, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
@@ -2085,6 +2099,8 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			}, nil),
 		)
 
+		defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
+
 		initApex(ctx, apex)
 
 		txHash, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.Bridge.PrimeMultisigAddr,
@@ -2124,6 +2140,8 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(3)
 			}, nil),
 		)
+
+		defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
 
 		initApex(ctx, apex)
 
@@ -2175,6 +2193,8 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(4)
 			}, nil),
 		)
+
+		defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
 
 		initApex(ctx, apex)
 

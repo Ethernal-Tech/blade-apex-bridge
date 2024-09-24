@@ -43,6 +43,8 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 		cardanofw.WithNexusEnabled(true),
 	)
 
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
+
 	oracleAPI, err := apex.Bridge.GetBridgingAPI()
 	require.NoError(t, err)
 
@@ -99,6 +101,9 @@ func TestE2E_ApexBridge_DoNothingWithSpecificUser(t *testing.T) {
 	defer cncl()
 
 	apex := cardanofw.RunApexBridge(t, ctx)
+
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
+
 	user := apex.CreateAndFundExistingUser(
 		t, ctx,
 		"58201825bce09711e1563fc1702587da6892d1d869894386323bd4378ea5e3d6cba0",
@@ -132,6 +137,8 @@ func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithAPIValidatorID(-1),
 	)
+
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
 
 	apiURLs, err := apex.Bridge.GetBridgingAPIs()
 	require.NoError(t, err)
@@ -201,6 +208,9 @@ func TestE2E_ApexBridge(t *testing.T) {
 	defer cncl()
 
 	apex := cardanofw.RunApexBridge(t, ctx)
+
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
+
 	user := apex.CreateAndFundUser(t, ctx, uint64(5_000_000))
 
 	txProviderPrime := apex.GetPrimeTxProvider()
@@ -236,6 +246,9 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 		cardanofw.WithVectorTTL(30, 1),
 		cardanofw.WithAPIKey(apiKey),
 	)
+
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
+
 	user := apex.CreateAndFundUser(t, ctx, uint64(5_000_000))
 
 	txProviderPrime := apex.GetPrimeTxProvider()
@@ -312,6 +325,9 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 	)
+
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
+
 	user := apex.CreateAndFundUser(t, ctx, uint64(50_000_000))
 
 	txProviderPrime := apex.GetPrimeTxProvider()
@@ -645,6 +661,9 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		cardanofw.WithPrimeClusterConfig(primeClusterConfig),
 		cardanofw.WithVectorClusterConfig(vectorClusterConfig),
 	)
+
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
+
 	user := apex.CreateAndFundUser(t, ctx, uint64(20_000_000_000))
 
 	txProviderPrime := apex.GetPrimeTxProvider()
@@ -1290,6 +1309,9 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 	)
+
+	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
+
 	user := apex.CreateAndFundUser(t, ctx, uint64(20_000_000_000))
 
 	txProviderPrime := apex.GetPrimeTxProvider()
