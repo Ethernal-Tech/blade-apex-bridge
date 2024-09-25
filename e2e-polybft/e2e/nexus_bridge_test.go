@@ -2188,7 +2188,8 @@ func convertToEthValues(sendAmount uint64) (uint64, *big.Int) {
 	return sendAmountDfm.Uint64(), ethgo.Ether(sendAmount)
 }
 
-func waitForBatchSuccess(ctx context.Context, txHash string, apiURL string, apiKey string, breakAfterFail bool,
+func waitForBatchSuccess(
+	ctx context.Context, txHash string, apiURL string, apiKey string, breakAfterFail bool,
 ) (int, bool) {
 	var (
 		prevStatus           string
