@@ -76,7 +76,7 @@ func (ec *TestEVMBridge) GetHotWalletAddress() types.Address {
 	return ec.NativeTokenWallet
 }
 
-func (ec *TestEVMBridge) InitSmartContracts(blsKeys []string) error {
+func (ec *TestEVMBridge) InitSmartContracts(validators []*TestCardanoValidator) error {
 	workingDirectory := filepath.Join(os.TempDir(), "deploy-apex-bridge-evm-gateway")
 	// do not remove directory, try to reuse it next time if still exists
 	if err := common.CreateDirSafe(workingDirectory, 0750); err != nil {
@@ -88,29 +88,41 @@ func (ec *TestEVMBridge) InitSmartContracts(blsKeys []string) error {
 		return err
 	}
 
+	basePath := "/home/igor/development/ethernal/apex-bridge/apex-evm-gateway"
+	keysPath := filepath.Join(basePath, "scripts/config.json")
+
 	var (
 		b      bytes.Buffer
 		params = []string{
-			"deploy-evm",
-			"--url", ec.Cluster.Servers[0].JSONRPCAddr(),
-			"--key", hex.EncodeToString(pk),
-			"--dir", workingDirectory,
-			"--clone",
+			filepath.Join(basePath, "scripts/simplifiedDeployment.js"),
+			ec.Cluster.Servers[0].JSONRPCAddr(), hex.EncodeToString(pk),
 		}
 	)
 
-	for _, x := range blsKeys {
-		params = append(params, "--bls-key", x)
+	if err := UpdateJSONFile(keysPath, keysPath, func(mp map[string]interface{}) {
+		keys := make([][4]string, len(validators))
+
+		for idx, v := range validators {
+			bigInts := v.BatcherBN256PrivateKey.PublicKey().ToBigInt()
+			keys[idx] = [4]string{
+				bigInts[0].String(), bigInts[1].String(),
+				bigInts[2].String(), bigInts[3].String(),
+			}
+		}
+
+		mp["BlsKeys"] = keys
+	}, false); err != nil {
+		return err
 	}
 
-	err = RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
+	err = RunCommand("node", params, io.MultiWriter(os.Stdout, &b))
 	if err != nil {
 		return err
 	}
 
 	output := b.String()
-	reGateway := regexp.MustCompile(`Gateway Proxy Address\s*=\s*0x([a-fA-F0-9]+)`)
-	reNativeTokenWallet := regexp.MustCompile(`NativeTokenWallet Proxy Address\s*=\s*0x([a-fA-F0-9]+)`)
+	reGateway := regexp.MustCompile(`Gateway Proxy contract deployed at:\s*0x([a-fA-F0-9]+)`)
+	reNativeTokenWallet := regexp.MustCompile(`NativeTokenWallet Proxy contract deployed at:\s*0x([a-fA-F0-9]+)`)
 
 	if match := reGateway.FindStringSubmatch(output); len(match) > 0 {
 		ec.Gateway = types.StringToAddress(match[1])
@@ -162,13 +174,7 @@ func SetupAndRunNexusBridge(
 ) {
 	t.Helper()
 
-	blsKeys := make([]string, len(apexSystem.Bridge.validators))
-	for i, valid := range apexSystem.Bridge.validators {
-		blsKeys[i] = hex.EncodeToString(valid.BatcherBN256PrivateKey.PublicKey().Marshal())
-	}
-
-	require.NoError(t,
-		apexSystem.Nexus.InitSmartContracts(blsKeys))
+	require.NoError(t, apexSystem.Nexus.InitSmartContracts(apexSystem.Bridge.validators))
 
 	txn := apexSystem.Nexus.Cluster.Transfer(t,
 		apexSystem.Nexus.Admin.Ecdsa,
