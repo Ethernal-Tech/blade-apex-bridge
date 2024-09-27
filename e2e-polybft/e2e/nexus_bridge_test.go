@@ -1928,10 +1928,6 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 }
 
 func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
-	if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
-		t.Skip()
-	}
-
 	const (
 		apiKey = "test_api_key"
 	)
@@ -2033,6 +2029,10 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 	//nolint:dupl
 	t.Run("Test failed batch", func(t *testing.T) {
+		if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
+			t.Skip()
+		}
+
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
@@ -2073,6 +2073,10 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 	//nolint:dupl
 	t.Run("Test failed batch 5 times in a row", func(t *testing.T) {
+		if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
+			t.Skip()
+		}
+
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
@@ -2112,6 +2116,10 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 	})
 
 	t.Run("Test multiple failed batches in a row", func(t *testing.T) {
+		if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
+			t.Skip()
+		}
+
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
