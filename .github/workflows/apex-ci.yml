@@ -32,8 +32,8 @@ on: # yamllint disable-line rule:truthy
         description: E2E ApexBridge Big Tests
         type: boolean
         default: true
-      e2e_apex_redundant_tests:
-        description: E2E ApexBridge Redundant Tests
+      e2e_apex_skip_redundant_tests:
+        description: E2E ApexBridge Skip Redundant Tests
         type: boolean
         default: true
   workflow_call:
@@ -62,8 +62,8 @@ on: # yamllint disable-line rule:truthy
         description: E2E ApexBridge Big Tests
         type: string
         required: true
-      e2e_apex_redundant_tests:
-        description: E2E ApexBridge Redundant Tests
+      e2e_apex_skip_redundant_tests:
+        description: E2E ApexBridge Skip Redundant Tests
         type: string
         required: true
     outputs:
@@ -129,6 +129,6 @@ jobs:
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
     with:
       e2e_apex_big_test: ${{ inputs.e2e_apex_big_test || 'false' }}
-      e2e_apex_redundant_tests: ${{ inputs.e2e_apex_redundant_tests || 'true' }}
+      e2e_apex_skip_redundant_tests: ${{ inputs.e2e_apex_skip_redundant_tests || 'true' }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
