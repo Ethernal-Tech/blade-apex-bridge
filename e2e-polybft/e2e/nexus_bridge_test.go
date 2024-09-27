@@ -26,6 +26,10 @@ const (
 )
 
 func TestE2E_ApexBridgeWithNexus(t *testing.T) {
+	if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
+		t.Skip()
+	}
+
 	const (
 		apiKey = "test_api_key"
 	)
@@ -43,10 +47,6 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 	defer require.True(t, apex.Bridge.ApexBridgeProcessesRunning())
 
 	t.Run("Sanity check", func(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
-			t.Skip()
-		}
-
 		sendAmount := uint64(1)
 		expectedAmount := ethgo.Ether(sendAmount)
 
@@ -156,6 +156,10 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 }
 
 func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
+	if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
+		t.Skip()
+	}
+
 	const (
 		apiKey = "test_api_key"
 	)
@@ -179,10 +183,6 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 	cardanoUser := apex.CreateAndFundUser(t, ctx, uint64(1_000_000))
 
 	t.Run("From Nexus to Prime one by one - wait for other side", func(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
-			t.Skip()
-		}
-
 		const (
 			instances = 5
 		)
@@ -214,10 +214,6 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Nexus to Prime one by one - don't wait", func(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
-			t.Skip()
-		}
-
 		const (
 			instances = 5
 		)
@@ -249,10 +245,6 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Nexus to Prime - parallel", func(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
-			t.Skip()
-		}
-
 		const (
 			instances = 5
 		)
@@ -297,10 +289,6 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Nexus to Prime - sequential and parallel", func(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
-			t.Skip()
-		}
-
 		const (
 			instances         = 5
 			parallelInstances = 10
@@ -640,7 +628,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	fmt.Printf("Nexus receiver Addr: %s\n", receiverAddrNexus)
 
 	t.Run("From Prime to Nexus one by one - wait for other side", func(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+		if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
 			t.Skip()
 		}
 
@@ -669,7 +657,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Prime to Nexus one by one - don't wait for other side", func(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+		if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
 			t.Skip()
 		}
 
@@ -700,7 +688,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Prime to Nexus parallel", func(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+		if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
 			t.Skip()
 		}
 
@@ -751,7 +739,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Prime to Nexus sequential and parallel", func(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+		if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
 			t.Skip()
 		}
 
@@ -806,6 +794,10 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Prime to Nexus sequential and parallel with max receivers", func(t *testing.T) {
+		if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
+			t.Skip()
+		}
+
 		const (
 			sequentialInstances = 5
 			parallelInstances   = 10
@@ -895,6 +887,10 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("From Prime to Nexus sequential and parallel - one node goes off in the midle", func(t *testing.T) {
+		if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
+			t.Skip()
+		}
+
 		const (
 			sequentialInstances  = 5
 			parallelInstances    = 6
@@ -965,7 +961,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("Both directions sequential", func(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
+		if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
 			t.Skip()
 		}
 
@@ -1932,6 +1928,10 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 }
 
 func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
+	if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
+		t.Skip()
+	}
+
 	const (
 		apiKey = "test_api_key"
 	)
@@ -2033,10 +2033,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 	//nolint:dupl
 	t.Run("Test failed batch", func(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
-			t.Skip()
-		}
-
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
@@ -2077,10 +2073,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 	//nolint:dupl
 	t.Run("Test failed batch 5 times in a row", func(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
-			t.Skip()
-		}
-
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
@@ -2120,10 +2112,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 	})
 
 	t.Run("Test multiple failed batches in a row", func(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_REDUNDANT_TESTS"); shouldRun != "true" {
-			t.Skip()
-		}
-
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
