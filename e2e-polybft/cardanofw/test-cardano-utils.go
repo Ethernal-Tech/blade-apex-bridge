@@ -242,11 +242,11 @@ func WaitForRequestStates(expectedStates []string, ctx context.Context, requestU
 }
 
 func WaitForInvalidState(
-	t *testing.T, ctx context.Context, apiURL string, apiKey string, chainId string, txHash string) {
+	t *testing.T, ctx context.Context, apiURL string, apiKey string, chainID string, txHash string) {
 	t.Helper()
 
 	requestURL := fmt.Sprintf(
-		"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, chainId, txHash)
+		"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, chainID, txHash)
 
 	state, err := WaitForRequestStates(
 		[]string{BridgingRequestStatusInvalidRequest}, ctx, requestURL, apiKey, 300)
