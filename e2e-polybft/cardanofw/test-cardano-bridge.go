@@ -3,6 +3,7 @@ package cardanofw
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -526,6 +527,11 @@ func (cb *TestCardanoBridge) CreateCardanoMultisigAddresses(
 func (cb *TestCardanoBridge) cardanoCreateAddress(
 	network cardanowallet.CardanoNetworkType, keys []string,
 ) (string, string, error) {
+	bridgeAdminPk, err := cb.bladeAdmin.MarshallPrivateKey()
+	if err != nil {
+		return "", "", err
+	}
+
 	bothAddresses := false
 
 	args := []string{
@@ -537,7 +543,9 @@ func (cb *TestCardanoBridge) cardanoCreateAddress(
 		args = append(args,
 			"--bridge-url", cb.cluster.Servers[0].JSONRPCAddr(),
 			"--bridge-addr", contracts.Bridge.String(),
-			"--chain", GetNetworkName(network))
+			"--chain", GetNetworkName(network),
+			"--bridge-key", hex.EncodeToString(bridgeAdminPk))
+
 		bothAddresses = true
 	}
 
@@ -547,7 +555,7 @@ func (cb *TestCardanoBridge) cardanoCreateAddress(
 
 	var outb bytes.Buffer
 
-	err := RunCommand(ResolveApexBridgeBinary(), args, io.MultiWriter(os.Stdout, &outb))
+	err = RunCommand(ResolveApexBridgeBinary(), args, io.MultiWriter(os.Stdout, &outb))
 	if err != nil {
 		return "", "", err
 	}
