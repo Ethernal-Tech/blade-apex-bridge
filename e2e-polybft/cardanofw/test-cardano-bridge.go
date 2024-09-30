@@ -493,35 +493,18 @@ func (cb *TestCardanoBridge) FundCardanoMultisigAddresses(
 
 func (cb *TestCardanoBridge) CreateCardanoMultisigAddresses(
 	primeNetworkType, vectorNetworkType cardanowallet.CardanoNetworkType,
-) error {
-	var (
-		errPrime, errVector error
-		wg                  = sync.WaitGroup{}
-	)
-
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-
-		cb.PrimeMultisigAddr, cb.PrimeMultisigFeeAddr, errPrime = cb.cardanoCreateAddress(
-			primeNetworkType, nil)
-	}()
-
-	if cb.config.VectorEnabled {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-
-			cb.VectorMultisigAddr, cb.VectorMultisigFeeAddr, errVector = cb.cardanoCreateAddress(
-				vectorNetworkType, nil)
-		}()
+) (err error) {
+	cb.PrimeMultisigAddr, cb.PrimeMultisigFeeAddr, err = cb.cardanoCreateAddress(primeNetworkType, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create address for prime: %w", err)
 	}
 
-	wg.Wait()
+	cb.VectorMultisigAddr, cb.VectorMultisigFeeAddr, err = cb.cardanoCreateAddress(vectorNetworkType, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create address for vector: %w", err)
+	}
 
-	return errors.Join(errPrime, errVector)
+	return nil
 }
 
 func (cb *TestCardanoBridge) cardanoCreateAddress(
