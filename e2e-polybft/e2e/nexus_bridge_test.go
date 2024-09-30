@@ -2015,8 +2015,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			apex.Bridge.GetValidator(t, 0).GetRelayerConfig(),
 			apex.Bridge.GetValidator(t, 0).GetRelayerConfig(),
 			func(mp map[string]interface{}) {
-				cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")["gasFeeCap"] = uint64(0)
-				cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")["gasTipCap"] = uint64(0)
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")
+				block["gasFeeCap"] = uint64(1000000000000)
+				block["gasTipCap"] = uint64(1000000000000)
 			},
 			false,
 		)
@@ -2047,8 +2048,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithCustomConfigHandlers(nil, func(mp map[string]interface{}) {
-				cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")["gasPrice"] = uint64(10000)
-				cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")["dynamicTx"] = bool(false)
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")
+				block["gasPrice"] = uint64(10)
+				block["dynamicTx"] = bool(false)
 			}),
 		)
 
@@ -2077,7 +2079,8 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			apex.Bridge.GetValidator(t, 0).GetRelayerConfig(),
 			apex.Bridge.GetValidator(t, 0).GetRelayerConfig(),
 			func(mp map[string]interface{}) {
-				cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")["gasPrice"] = uint64(0)
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")
+				block["gasPrice"] = uint64(1000000000000)
 			},
 			false,
 		)
