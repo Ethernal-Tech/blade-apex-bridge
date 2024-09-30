@@ -1984,8 +1984,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithCustomConfigHandlers(nil, func(mp map[string]interface{}) {
-				// cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")["gasFeeCap"] = uint64(10)
-				// cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")["gasTipCap"] = uint64(100)
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")
+				block["gasFeeCap"] = uint64(10)
+				block["gasTipCap"] = uint64(11)
 			}),
 		)
 
