@@ -1968,7 +1968,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		sendAmountDfm, sendAmountEth = convertToEthValues(1)
 	}
 
-	//nolint:dupl
 	t.Run("Test insufficient gas price dynamicTx=true", func(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
@@ -2032,7 +2031,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		require.False(t, timeout)
 	})
 
-	//nolint:dupl
 	t.Run("Test insufficient gas price dynamicTx=false", func(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
