@@ -41,10 +41,12 @@ type TestEVMBridge struct {
 	Gateway           types.Address
 }
 
-func (ec *TestEVMBridge) SetupChain(t *testing.T, ctx context.Context, bridge *TestCardanoBridge) {
+func (ec *TestEVMBridge) SetupChain(
+	t *testing.T, bridgeURL string, bridgeAdmin *crypto.ECDSAKey, relayerAddr types.Address,
+) {
 	t.Helper()
 
-	require.NoError(t, ec.InitSmartContracts(bridge.GetFirstServer().JSONRPCAddr(), bridge.GetBladeAdmin()))
+	require.NoError(t, ec.InitSmartContracts(bridgeURL, bridgeAdmin))
 
 	txn := ec.Cluster.Transfer(t,
 		ec.Admin.Ecdsa,
@@ -56,7 +58,7 @@ func (ec *TestEVMBridge) SetupChain(t *testing.T, ctx context.Context, bridge *T
 
 	txn = ec.Cluster.Transfer(t,
 		ec.Admin.Ecdsa,
-		bridge.GetRelayerWalletAddr(),
+		relayerAddr,
 		ethgo.Ether(1),
 	)
 	require.NotNil(t, txn)

@@ -6,7 +6,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"testing"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
@@ -24,18 +23,13 @@ type TestCardanoServerConfig struct {
 }
 
 type TestCardanoServer struct {
-	t *testing.T
-
 	config     *TestCardanoServerConfig
 	txProvider cardanowallet.ITxProvider
 	node       *framework.Node
 }
 
-func NewCardanoTestServer(t *testing.T, config *TestCardanoServerConfig) (*TestCardanoServer, error) {
-	t.Helper()
-
+func NewCardanoTestServer(config *TestCardanoServerConfig) (*TestCardanoServer, error) {
 	srv := &TestCardanoServer{
-		t:      t,
 		config: config,
 	}
 
@@ -121,7 +115,7 @@ func (t *TestCardanoServer) getTxProvider() cardanowallet.ITxProvider {
 		txProvider, err := cardanowallet.NewTxProviderCli(
 			t.config.NetworkMagic, t.SocketPath(), ResolveCardanoCliBinary(t.config.NetworkID))
 		if err != nil {
-			t.t.Fatalf("failed to create tx provider: %s", err.Error())
+			panic(fmt.Errorf("failed to create tx provider: %s", err.Error())) //nolint:gocritic
 		}
 
 		t.txProvider = txProvider

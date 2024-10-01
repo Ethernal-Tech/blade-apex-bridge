@@ -75,7 +75,7 @@ func (c *TestCardanoClusterConfig) GetStdout(name string, custom ...io.Writer) i
 
 	if c.WithLogs {
 		c.logsDirOnce.Do(func() {
-			if err := c.initLogsDir(); err != nil {
+			if err := c.initLogsDir(c.t.Name()); err != nil {
 				c.t.Fatal("GetStdout init logs dir", "err", err)
 			}
 		})
@@ -109,14 +109,13 @@ func (c *TestCardanoClusterConfig) GetStdout(name string, custom ...io.Writer) i
 	return io.MultiWriter(writers...)
 }
 
-func (c *TestCardanoClusterConfig) initLogsDir() error {
+func (c *TestCardanoClusterConfig) initLogsDir(testName string) error {
 	if c.LogsDir == "" {
-		logsDir := path.Join("../..", fmt.Sprintf("e2e-logs-cardano-%d", time.Now().UTC().Unix()), c.t.Name())
+		logsDir := path.Join("../..", fmt.Sprintf("e2e-logs-cardano-%d", time.Now().UTC().Unix()), testName)
 		if err := common.CreateDirSafe(logsDir, 0750); err != nil {
 			return err
 		}
 
-		c.t.Logf("logs enabled for e2e test: %s", logsDir)
 		c.LogsDir = logsDir
 	}
 
@@ -270,7 +269,7 @@ func NewCardanoTestCluster(t *testing.T, opts ...CardanoClusterOption) (*TestCar
 
 	for i := 0; i < cluster.Config.NodesCount; i++ {
 		// time.Sleep(time.Second * 5)
-		err = cluster.NewTestServer(t, i+1, config.Port+i)
+		err = cluster.NewTestServer(i+1, config.Port+i)
 		if err != nil {
 			return nil, err
 		}
@@ -279,10 +278,8 @@ func NewCardanoTestCluster(t *testing.T, opts ...CardanoClusterOption) (*TestCar
 	return cluster, nil
 }
 
-func (c *TestCardanoCluster) NewTestServer(t *testing.T, id int, port int) error {
-	t.Helper()
-
-	srv, err := NewCardanoTestServer(t, &TestCardanoServerConfig{
+func (c *TestCardanoCluster) NewTestServer(id int, port int) error {
+	srv, err := NewCardanoTestServer(&TestCardanoServerConfig{
 		ID:   id,
 		Port: port,
 		//StdOut:       c.Config.GetStdout(fmt.Sprintf("node-%d", id)),
@@ -440,8 +437,6 @@ func (c *TestCardanoCluster) WaitForBlock(
 			return false, nil
 		}
 
-		c.Config.t.Log("WaitForBlock", "tips", tips)
-
 		for _, tip := range tips {
 			if tip.Block < n {
 				return false, nil
@@ -510,10 +505,8 @@ func (c *TestCardanoCluster) WaitForBlockWithState(
 	})
 }
 
-func (c *TestCardanoCluster) StartOgmios(t *testing.T, id int) error {
-	t.Helper()
-
-	srv, err := NewOgmiosTestServer(t, &TestOgmiosServerConfig{
+func (c *TestCardanoCluster) StartOgmios(id int) error {
+	srv, err := NewOgmiosTestServer(&TestOgmiosServerConfig{
 		ID:         id,
 		ConfigFile: c.Servers[0].config.ConfigFile,
 		NetworkID:  c.Config.NetworkType,
