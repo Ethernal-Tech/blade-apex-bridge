@@ -305,18 +305,6 @@ func (a *ApexSystem) NexusCreateWalletsAndAddresses(createBLSKeys bool) (err err
 		return nil
 	}
 
-	// relayer is on the first validator only
-	relayerValidator := a.validators[0]
-
-	if err = relayerValidator.createSpecificWallet("relayer-evm"); err != nil {
-		return err
-	}
-
-	a.relayerWallet, err = relayerValidator.getRelayerWallet()
-	if err != nil {
-		return err
-	}
-
 	for _, validator := range a.validators {
 		if createBLSKeys {
 			if err = validator.createSpecificWallet("batcher-evm"); err != nil {
@@ -327,6 +315,17 @@ func (a *ApexSystem) NexusCreateWalletsAndAddresses(createBLSKeys bool) (err err
 		validator.BatcherBN256PrivateKey, err = validator.getBatcherWallet(!createBLSKeys)
 		if err != nil {
 			return err
+		}
+
+		if validator.ID == RunRelayerOnValidatorID {
+			if err = validator.createSpecificWallet("relayer-evm"); err != nil {
+				return err
+			}
+
+			a.relayerWallet, err = validator.getRelayerWallet()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
