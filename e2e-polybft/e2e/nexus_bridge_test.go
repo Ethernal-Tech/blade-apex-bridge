@@ -1969,6 +1969,10 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 	}
 
 	t.Run("Test insufficient gas price dynamicTx=true", func(t *testing.T) {
+		if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
+			t.Skip()
+		}
+
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
@@ -2015,8 +2019,8 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			apex.Bridge.GetValidator(t, 0).GetRelayerConfig(),
 			func(mp map[string]interface{}) {
 				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")
-				block["gasFeeCap"] = uint64(1000000000000)
-				block["gasTipCap"] = uint64(1000000000000)
+				block["gasFeeCap"] = uint64(0)
+				block["gasTipCap"] = uint64(0)
 			},
 			false,
 		)
@@ -2032,6 +2036,10 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 	})
 
 	t.Run("Test insufficient gas price dynamicTx=false", func(t *testing.T) {
+		if shouldSkip := os.Getenv("SKIP_E2E_REDUNDANT_TESTS"); shouldSkip == "true" {
+			t.Skip()
+		}
+
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
@@ -2078,7 +2086,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			apex.Bridge.GetValidator(t, 0).GetRelayerConfig(),
 			func(mp map[string]interface{}) {
 				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")
-				block["gasPrice"] = uint64(1000000000000)
+				block["gasPrice"] = uint64(0)
 			},
 			false,
 		)
