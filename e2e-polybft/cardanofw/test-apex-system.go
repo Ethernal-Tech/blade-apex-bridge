@@ -44,6 +44,8 @@ type ApexSystem struct {
 	bladeAdmin    *crypto.ECDSAKey
 
 	config *ApexSystemConfig
+
+	dataDirPath string
 }
 
 func NewApexSystem(
@@ -54,18 +56,10 @@ func NewApexSystem(
 		opt(config)
 	}
 
-	validators := make([]*TestApexValidator, config.BladeValidatorCount)
-
-	for i := 0; i < config.BladeValidatorCount; i++ {
-		validators[i] = NewTestApexValidator(dataDirPath, i+1)
+	return &ApexSystem{
+		config:      config,
+		dataDirPath: dataDirPath,
 	}
-
-	bridge := &ApexSystem{
-		validators: validators,
-		config:     config,
-	}
-
-	return bridge
 }
 
 func (a *ApexSystem) StopChains() {
@@ -169,8 +163,12 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 		framework.WithBladeAdmin(bladeAdmin.Address().String()),
 	)
 
-	for idx, validator := range a.validators {
-		require.NoError(t, validator.SetClusterAndServer(a.BridgeCluster, a.BridgeCluster.Servers[idx]))
+	// create validators
+	a.validators = make([]*TestApexValidator, a.config.BladeValidatorCount)
+
+	for idx := range a.validators {
+		a.validators[idx] = NewTestApexValidator(
+			a.dataDirPath, idx+1, a.BridgeCluster, a.BridgeCluster.Servers[idx])
 	}
 
 	a.BridgeCluster.WaitForReady(t)
@@ -300,31 +298,39 @@ func (a *ApexSystem) GetBridgeAdmin() *crypto.ECDSAKey {
 	return a.bladeAdmin
 }
 
-func (a *ApexSystem) NexusCreateWalletsAndAddresses(createBLSKeys bool) (err error) {
-	if !a.config.NexusEnabled || len(a.validators) == 0 {
-		return nil
-	}
-
+func (a *ApexSystem) CreateWallets(createBLSKeys bool) (err error) {
 	for _, validator := range a.validators {
-		if createBLSKeys {
-			if err = validator.createSpecificWallet("batcher-evm"); err != nil {
-				return err
-			}
-		}
-
-		validator.BatcherBN256PrivateKey, err = validator.getBatcherWallet(!createBLSKeys)
-		if err != nil {
+		if err = validator.CardanoWalletCreate(ChainIDPrime); err != nil {
 			return err
 		}
 
-		if validator.ID == RunRelayerOnValidatorID {
-			if err = validator.createSpecificWallet("relayer-evm"); err != nil {
+		if a.config.VectorEnabled {
+			if err = validator.CardanoWalletCreate(ChainIDVector); err != nil {
+				return err
+			}
+		}
+
+		if a.config.NexusEnabled {
+			if createBLSKeys {
+				if err = validator.createSpecificWallet("batcher-evm"); err != nil {
+					return err
+				}
+			}
+
+			validator.BatcherBN256PrivateKey, err = validator.getBatcherWallet(!createBLSKeys)
+			if err != nil {
 				return err
 			}
 
-			a.relayerWallet, err = validator.getRelayerWallet()
-			if err != nil {
-				return err
+			if validator.ID == RunRelayerOnValidatorID {
+				if err = validator.createSpecificWallet("relayer-evm"); err != nil {
+					return err
+				}
+
+				a.relayerWallet, err = validator.getRelayerWallet()
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -585,22 +591,6 @@ func (a *ApexSystem) ApexBridgeProcessesRunning() bool {
 	}
 
 	return true
-}
-
-func (a *ApexSystem) CreateCardanoWallets() (err error) {
-	for _, validator := range a.validators {
-		if err = validator.CardanoWalletCreate(ChainIDPrime); err != nil {
-			return err
-		}
-
-		if a.config.VectorEnabled {
-			if err = validator.CardanoWalletCreate(ChainIDVector); err != nil {
-				return err
-			}
-		}
-	}
-
-	return err
 }
 
 func (a *ApexSystem) FundCardanoMultisigAddresses(

@@ -24,9 +24,7 @@ func SetupAndRunApexBridge(
 
 	apexSystem := NewApexSystem(bridgeDataDir, opts...)
 
-	require.NoError(t, apexSystem.CreateCardanoWallets())
-
-	fmt.Printf("Wallets and addresses have been created. Starting chains...\n")
+	fmt.Printf("Starting chains...\n")
 
 	apexSystem.StartChains(t)
 
@@ -36,7 +34,7 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Bridge chain has been started\n")
 
-	require.NoError(t, apexSystem.NexusCreateWalletsAndAddresses(false))
+	require.NoError(t, apexSystem.CreateWallets(false))
 
 	fmt.Printf("Validators are ready\n")
 
@@ -50,6 +48,11 @@ func SetupAndRunApexBridge(
 
 	require.NoError(t, apexSystem.FundCardanoMultisigAddresses(ctx, FundTokenAmount))
 
+	if apexSystem.config.NexusEnabled {
+		apexSystem.Nexus.SetupChain(t, apexSystem.BridgeCluster.Servers[0].JSONRPCAddr(),
+			apexSystem.GetBridgeAdmin(), apexSystem.GetRelayerWalletAddr())
+	}
+
 	require.NoError(t, apexSystem.GenerateConfigs(
 		apexSystem.PrimeCluster,
 		apexSystem.VectorCluster,
@@ -57,11 +60,6 @@ func SetupAndRunApexBridge(
 	))
 
 	fmt.Printf("Configs have been generated\n")
-
-	if apexSystem.config.NexusEnabled {
-		apexSystem.Nexus.SetupChain(t, apexSystem.BridgeCluster.Servers[0].JSONRPCAddr(),
-			apexSystem.GetBridgeAdmin(), apexSystem.GetRelayerWalletAddr())
-	}
 
 	require.NoError(t, apexSystem.StartValidatorComponents(ctx))
 

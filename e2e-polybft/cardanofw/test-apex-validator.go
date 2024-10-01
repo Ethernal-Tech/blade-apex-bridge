@@ -47,43 +47,14 @@ type TestApexValidator struct {
 }
 
 func NewTestApexValidator(
-	dataDirPath string,
-	id int,
+	dataDirPath string, id int, cluster *framework.TestCluster, server *framework.TestServer,
 ) *TestApexValidator {
 	return &TestApexValidator{
 		dataDirPath: filepath.Join(dataDirPath, fmt.Sprintf("validator_%d", id)),
 		ID:          id,
+		cluster:     cluster,
+		server:      server,
 	}
-}
-
-func (cv *TestApexValidator) SetClusterAndServer(
-	cluster *framework.TestCluster, server *framework.TestServer,
-) error {
-	cv.cluster = cluster
-	cv.server = server
-	// move wallets files
-	srcPath := filepath.Join(cv.dataDirPath, secretsCardano.CardanoFolderLocal)
-	dstPath := filepath.Join(cv.server.DataDir(), secretsCardano.CardanoFolderLocal)
-
-	if err := common.CreateDirSafe(dstPath, 0750); err != nil {
-		return fmt.Errorf("failed to create dst directory: %w", err)
-	}
-
-	files, err := os.ReadDir(srcPath)
-	if err != nil {
-		return fmt.Errorf("failed to read source directory: %w", err)
-	}
-
-	for _, file := range files {
-		sourcePath := filepath.Join(srcPath, file.Name())
-		destPath := filepath.Join(dstPath, file.Name())
-		// Move the file
-		if err := os.Rename(sourcePath, destPath); err != nil {
-			return fmt.Errorf("failed to move file %s: %w", file.Name(), err)
-		}
-	}
-
-	return nil
 }
 
 func (cv *TestApexValidator) GetBridgingConfigsDir() string {
@@ -106,7 +77,7 @@ func (cv *TestApexValidator) CardanoWalletCreate(chainID string) error {
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"wallet-create",
 		"--chain", chainID,
-		"--validator-data-dir", cv.dataDirPath,
+		"--validator-data-dir", cv.server.DataDir(),
 	}, os.Stdout)
 }
 
