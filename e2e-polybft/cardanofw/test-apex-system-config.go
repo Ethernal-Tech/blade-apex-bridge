@@ -18,6 +18,9 @@ const (
 	ChainIDNexus  = "nexus"
 
 	RunRelayerOnValidatorID = 1
+
+	defaultFundTokenAmount    = uint64(100_000_000_000)
+	defaultFundEthTokenAmount = uint64(100_000)
 )
 
 type RunCardanoClusterConfig struct {
@@ -58,6 +61,9 @@ type ApexSystemConfig struct {
 
 	CustomOracleHandler  func(mp map[string]interface{})
 	CustomRelayerHandler func(mp map[string]interface{})
+
+	FundTokenAmount    uint64
+	FundEthTokenAmount uint64
 }
 
 type ApexSystemOptions func(*ApexSystemConfig)
@@ -180,6 +186,9 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 
 		CustomOracleHandler:  nil,
 		CustomRelayerHandler: nil,
+
+		FundTokenAmount:    defaultFundTokenAmount,
+		FundEthTokenAmount: defaultFundEthTokenAmount,
 	}
 }
 

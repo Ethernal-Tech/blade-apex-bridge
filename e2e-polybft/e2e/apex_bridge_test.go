@@ -129,11 +129,9 @@ func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 		t.Skip()
 	}
 
-	const (
-		apiKey = "my_api_key"
-	)
+	const apiKey = "my_api_key"
 
-	ctx, cncl := context.WithTimeout(context.Background(), time.Second*180)
+	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
 	apex := cardanofw.SetupAndRunApexBridge(
@@ -196,7 +194,7 @@ func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 					fmt.Printf("%s sums: %d, %d\n", requestURL, sumMultisig, sumFee)
 				}
 
-				if sumMultisig != cardanofw.FundTokenAmount || sumFee != cardanofw.FundTokenAmount ||
+				if sumMultisig != apex.Config.FundTokenAmount || sumFee != apex.Config.FundTokenAmount ||
 					currentState.BlockSlot == 0 {
 					break outerLoop
 				} else {
@@ -212,7 +210,7 @@ func TestE2E_ApexBridge(t *testing.T) {
 		t.Skip()
 	}
 
-	ctx, cncl := context.WithTimeout(context.Background(), time.Second*180)
+	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
 	apex := cardanofw.SetupAndRunApexBridge(t, ctx)

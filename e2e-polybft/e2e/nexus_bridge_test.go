@@ -126,7 +126,7 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 		fmt.Printf("ETH Amount BEFORE TX %d\n", ethBalanceBefore)
 		require.NoError(t, err)
 
-		relayerBalanceBefore, err := cardanofw.GetAddressEthAmount(ctx, apex.Nexus, apex.GetRelayerWalletAddr())
+		relayerBalanceBefore, err := cardanofw.GetAddressEthAmount(ctx, apex.Nexus, apex.GetNexusRelayerWalletAddr())
 		require.NoError(t, err)
 
 		txHash, err := userPrime.BridgeNexusAmount(t, ctx, txProviderPrime, apex.PrimeMultisigAddr,
@@ -147,7 +147,7 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 		fmt.Printf("ETH Amount AFTER AFTER TX %d\n", ethBalanceAfter)
 		require.NoError(t, err)
 
-		relayerBalanceAfter, err := cardanofw.GetAddressEthAmount(ctx, apex.Nexus, apex.GetRelayerWalletAddr())
+		relayerBalanceAfter, err := cardanofw.GetAddressEthAmount(ctx, apex.Nexus, apex.GetNexusRelayerWalletAddr())
 		require.NoError(t, err)
 
 		relayerBalanceGreater := relayerBalanceAfter.Cmp(relayerBalanceBefore) == 1

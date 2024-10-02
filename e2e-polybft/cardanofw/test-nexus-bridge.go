@@ -26,10 +26,6 @@ import (
 	"github.com/umbracle/ethgo"
 )
 
-const (
-	FundEthTokenAmount = uint64(100_000)
-)
-
 type NexusBridgeOption func(*TestEVMBridge)
 
 type TestEVMBridge struct {
@@ -42,7 +38,7 @@ type TestEVMBridge struct {
 }
 
 func (ec *TestEVMBridge) SetupChain(
-	t *testing.T, bridgeURL string, bridgeAdmin *crypto.ECDSAKey, relayerAddr types.Address,
+	t *testing.T, bridgeURL string, bridgeAdmin *crypto.ECDSAKey, relayerAddr types.Address, fundEthAmount uint64,
 ) {
 	t.Helper()
 
@@ -51,7 +47,7 @@ func (ec *TestEVMBridge) SetupChain(
 	txn := ec.Cluster.Transfer(t,
 		ec.Admin.Ecdsa,
 		ec.GetHotWalletAddress(),
-		ethgo.Ether(FundEthTokenAmount),
+		ethgo.Ether(fundEthAmount),
 	)
 	require.NotNil(t, txn)
 	require.True(t, txn.Succeed())

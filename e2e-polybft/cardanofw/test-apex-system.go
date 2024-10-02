@@ -31,6 +31,7 @@ type ApexSystem struct {
 	VectorCluster *TestCardanoCluster
 	Nexus         *TestEVMBridge
 	BridgeCluster *framework.TestCluster
+	Config        *ApexSystemConfig
 
 	validators  []*TestApexValidator
 	relayerNode *framework.Node
@@ -40,10 +41,8 @@ type ApexSystem struct {
 	VectorMultisigAddr    string
 	VectorMultisigFeeAddr string
 
-	relayerWallet *crypto.ECDSAKey
-	bladeAdmin    *crypto.ECDSAKey
-
-	config *ApexSystemConfig
+	nexusRelayerWallet *crypto.ECDSAKey
+	bladeAdmin         *crypto.ECDSAKey
 
 	dataDirPath string
 }
@@ -57,7 +56,7 @@ func NewApexSystem(
 	}
 
 	return &ApexSystem{
-		config:      config,
+		Config:      config,
 		dataDirPath: dataDirPath,
 	}
 }
@@ -121,27 +120,27 @@ func (a *ApexSystem) StartChains(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	errorsContainer := [3]error{}
 
-	wg.Add(a.config.ServiceCount())
+	wg.Add(a.Config.ServiceCount())
 
 	go func() {
 		defer wg.Done()
 
-		a.PrimeCluster, errorsContainer[0] = RunCardanoCluster(t, a.config.PrimeClusterConfig)
+		a.PrimeCluster, errorsContainer[0] = RunCardanoCluster(t, a.Config.PrimeClusterConfig)
 	}()
 
-	if a.config.VectorEnabled {
+	if a.Config.VectorEnabled {
 		go func() {
 			defer wg.Done()
 
-			a.VectorCluster, errorsContainer[1] = RunCardanoCluster(t, a.config.VectorClusterConfig)
+			a.VectorCluster, errorsContainer[1] = RunCardanoCluster(t, a.Config.VectorClusterConfig)
 		}()
 	}
 
-	if a.config.NexusEnabled {
+	if a.Config.NexusEnabled {
 		go func() {
 			defer wg.Done()
 
-			a.Nexus, errorsContainer[2] = RunEVMChain(t, a.config)
+			a.Nexus, errorsContainer[2] = RunEVMChain(t, a.Config)
 		}()
 	}
 
@@ -159,12 +158,12 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 	require.NoError(t, err)
 
 	a.bladeAdmin = bladeAdmin
-	a.BridgeCluster = framework.NewTestCluster(t, a.config.BladeValidatorCount,
+	a.BridgeCluster = framework.NewTestCluster(t, a.Config.BladeValidatorCount,
 		framework.WithBladeAdmin(bladeAdmin.Address().String()),
 	)
 
 	// create validators
-	a.validators = make([]*TestApexValidator, a.config.BladeValidatorCount)
+	a.validators = make([]*TestApexValidator, a.Config.BladeValidatorCount)
 
 	for idx := range a.validators {
 		a.validators[idx] = NewTestApexValidator(
@@ -214,7 +213,7 @@ func (a *ApexSystem) CreateAndFundUser(t *testing.T, ctx context.Context, sendAm
 
 	fmt.Printf("Prime user address funded\n")
 
-	if a.config.VectorEnabled {
+	if a.Config.VectorEnabled {
 		txProviderVector := a.GetVectorTxProvider()
 		// Fund vector address
 		vectorGenesisWallet := a.GetVectorGenesisWallet(t)
@@ -287,7 +286,7 @@ func (a *ApexSystem) CreateAndFundNexusUser(ctx context.Context, ethAmount uint6
 }
 
 func (a *ApexSystem) GetVectorNetworkType() cardanowallet.CardanoNetworkType {
-	if a.config.VectorEnabled && a.VectorCluster != nil {
+	if a.Config.VectorEnabled && a.VectorCluster != nil {
 		return a.VectorCluster.Config.NetworkType
 	}
 
@@ -304,13 +303,13 @@ func (a *ApexSystem) CreateWallets(createBLSKeys bool) (err error) {
 			return err
 		}
 
-		if a.config.VectorEnabled {
+		if a.Config.VectorEnabled {
 			if err = validator.CardanoWalletCreate(ChainIDVector); err != nil {
 				return err
 			}
 		}
 
-		if a.config.NexusEnabled {
+		if a.Config.NexusEnabled {
 			if createBLSKeys {
 				if err = validator.createSpecificWallet("batcher-evm"); err != nil {
 					return err
@@ -327,7 +326,7 @@ func (a *ApexSystem) CreateWallets(createBLSKeys bool) (err error) {
 					return err
 				}
 
-				a.relayerWallet, err = validator.getRelayerWallet()
+				a.nexusRelayerWallet, err = validator.getRelayerWallet()
 				if err != nil {
 					return err
 				}
@@ -338,8 +337,8 @@ func (a *ApexSystem) CreateWallets(createBLSKeys bool) (err error) {
 	return err
 }
 
-func (a *ApexSystem) GetRelayerWalletAddr() types.Address {
-	return a.relayerWallet.Address()
+func (a *ApexSystem) GetNexusRelayerWalletAddr() types.Address {
+	return a.nexusRelayerWallet.Address()
 }
 
 func (a *ApexSystem) GetValidatorsCount() int {
@@ -355,10 +354,7 @@ func (a *ApexSystem) GetValidator(t *testing.T, idx int) *TestApexValidator {
 }
 
 func (a *ApexSystem) RegisterChains(fundTokenAmount uint64) error {
-	primeTokenSupply := new(big.Int).SetUint64(fundTokenAmount)
-	vectorTokenSupply := new(big.Int).SetUint64(fundTokenAmount)
-	nexusTokenSupplyDfm := new(big.Int).SetUint64(fundTokenAmount)
-	nexusTokenSupplyDfm.Mul(nexusTokenSupplyDfm, new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil))
+	tokenSupply := new(big.Int).SetUint64(fundTokenAmount)
 
 	errs := make([]error, len(a.validators))
 	wg := sync.WaitGroup{}
@@ -369,20 +365,20 @@ func (a *ApexSystem) RegisterChains(fundTokenAmount uint64) error {
 		go func(validator *TestApexValidator, indx int) {
 			defer wg.Done()
 
-			errs[indx] = validator.RegisterChain(ChainIDPrime, primeTokenSupply, ChainTypeCardano)
+			errs[indx] = validator.RegisterChain(ChainIDPrime, tokenSupply, ChainTypeCardano)
 			if errs[indx] != nil {
 				return
 			}
 
-			if a.config.VectorEnabled {
-				errs[indx] = validator.RegisterChain(ChainIDVector, vectorTokenSupply, ChainTypeCardano)
+			if a.Config.VectorEnabled {
+				errs[indx] = validator.RegisterChain(ChainIDVector, tokenSupply, ChainTypeCardano)
 				if errs[indx] != nil {
 					return
 				}
 			}
 
-			if a.config.NexusEnabled {
-				errs[indx] = validator.RegisterChain(ChainIDNexus, nexusTokenSupplyDfm, ChainTypeEVM)
+			if a.Config.NexusEnabled {
+				errs[indx] = validator.RegisterChain(ChainIDNexus, tokenSupply, ChainTypeEVM)
 				if errs[indx] != nil {
 					return
 				}
@@ -411,7 +407,7 @@ func (a *ApexSystem) GenerateConfigs(
 
 			telemetryConfig := ""
 			if indx == 0 {
-				telemetryConfig = a.config.TelemetryConfig
+				telemetryConfig = a.Config.TelemetryConfig
 			}
 
 			var (
@@ -425,7 +421,7 @@ func (a *ApexSystem) GenerateConfigs(
 				nexusNodeURL       = "http://localhost:5500"
 			)
 
-			if a.config.TargetOneCardanoClusterServer {
+			if a.Config.TargetOneCardanoClusterServer {
 				primeNetworkAddr = primeCluster.NetworkAddress()
 				primeNetworkMagic = primeCluster.Config.NetworkMagic
 				primeNetworkID = uint(primeCluster.Config.NetworkType)
@@ -436,10 +432,10 @@ func (a *ApexSystem) GenerateConfigs(
 				primeNetworkID = uint(primeServer.config.NetworkID)
 			}
 
-			if a.config.VectorEnabled {
+			if a.Config.VectorEnabled {
 				vectorOgmiosURL = vectorCluster.OgmiosURL()
 
-				if a.config.TargetOneCardanoClusterServer {
+				if a.Config.TargetOneCardanoClusterServer {
 					vectorNetworkAddr = vectorCluster.NetworkAddress()
 					vectorNetworkMagic = vectorCluster.Config.NetworkMagic
 					vectorNetworkID = uint(vectorCluster.Config.NetworkType)
@@ -451,9 +447,9 @@ func (a *ApexSystem) GenerateConfigs(
 				}
 			}
 
-			if a.config.NexusEnabled {
+			if a.Config.NexusEnabled {
 				nexusNodeURLIndx := 0
-				if a.config.TargetOneCardanoClusterServer {
+				if a.Config.TargetOneCardanoClusterServer {
 					nexusNodeURLIndx = indx % len(nexus.Cluster.Servers)
 				}
 
@@ -465,16 +461,16 @@ func (a *ApexSystem) GenerateConfigs(
 				primeNetworkMagic,
 				primeNetworkID,
 				primeCluster.OgmiosURL(),
-				a.config.PrimeSlotRoundingThreshold,
-				a.config.PrimeTTLInc,
+				a.Config.PrimeSlotRoundingThreshold,
+				a.Config.PrimeTTLInc,
 				vectorNetworkAddr,
 				vectorNetworkMagic,
 				vectorNetworkID,
 				vectorOgmiosURL,
-				a.config.VectorSlotRoundingThreshold,
-				a.config.VectorTTLInc,
-				a.config.APIPortStart+indx,
-				a.config.APIKey,
+				a.Config.VectorSlotRoundingThreshold,
+				a.Config.VectorTTLInc,
+				a.Config.APIPortStart+indx,
+				a.Config.APIKey,
 				telemetryConfig,
 				nexusNodeURL,
 			)
@@ -487,7 +483,7 @@ func (a *ApexSystem) GenerateConfigs(
 		return err
 	}
 
-	if handler := a.config.CustomOracleHandler; handler != nil {
+	if handler := a.Config.CustomOracleHandler; handler != nil {
 		for _, val := range a.validators {
 			err := UpdateJSONFile(
 				val.GetValidatorComponentsConfig(), val.GetValidatorComponentsConfig(), handler, false)
@@ -497,7 +493,7 @@ func (a *ApexSystem) GenerateConfigs(
 		}
 	}
 
-	if handler := a.config.CustomRelayerHandler; handler != nil {
+	if handler := a.Config.CustomRelayerHandler; handler != nil {
 		for _, val := range a.validators {
 			if RunRelayerOnValidatorID != val.ID {
 				continue
@@ -514,7 +510,7 @@ func (a *ApexSystem) GenerateConfigs(
 
 func (a *ApexSystem) StartValidatorComponents(ctx context.Context) (err error) {
 	for _, validator := range a.validators {
-		hasAPI := a.config.APIValidatorID == -1 || validator.ID == a.config.APIValidatorID
+		hasAPI := a.Config.APIValidatorID == -1 || validator.ID == a.Config.APIValidatorID
 
 		if err = validator.Start(ctx, hasAPI); err != nil {
 			return err
@@ -561,7 +557,7 @@ func (a *ApexSystem) GetBridgingAPI() (string, error) {
 
 func (a *ApexSystem) GetBridgingAPIs() (res []string, err error) {
 	for _, validator := range a.validators {
-		hasAPI := a.config.APIValidatorID == -1 || validator.ID == a.config.APIValidatorID
+		hasAPI := a.Config.APIValidatorID == -1 || validator.ID == a.Config.APIValidatorID
 
 		if hasAPI {
 			if validator.APIPort == 0 {
@@ -640,7 +636,7 @@ func (a *ApexSystem) FundCardanoMultisigAddresses(
 
 	fmt.Printf("Prime fee addr funded: %s\n", txHash)
 
-	if a.config.VectorEnabled {
+	if a.Config.VectorEnabled {
 		txHash, err := fund(a.VectorCluster, fundTokenAmount, a.VectorMultisigAddr)
 		if err != nil {
 			return err
@@ -659,13 +655,13 @@ func (a *ApexSystem) FundCardanoMultisigAddresses(
 	return nil
 }
 
-func (a *ApexSystem) CreateCardanoMultisigAddresse() (err error) {
+func (a *ApexSystem) CreateCardanoMultisigAddresses() (err error) {
 	a.PrimeMultisigAddr, a.PrimeMultisigFeeAddr, err = a.cardanoCreateAddress(a.PrimeCluster.Config.NetworkType, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create addresses for prime: %w", err)
 	}
 
-	if a.config.VectorEnabled {
+	if a.Config.VectorEnabled {
 		a.VectorMultisigAddr, a.VectorMultisigFeeAddr, err = a.cardanoCreateAddress(a.VectorCluster.Config.NetworkType, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create addresses for vector: %w", err)

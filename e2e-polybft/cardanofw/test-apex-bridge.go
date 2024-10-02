@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const FundTokenAmount = uint64(100_000_000_000)
-
 func SetupAndRunApexBridge(
 	t *testing.T,
 	ctx context.Context,
@@ -32,25 +30,25 @@ func SetupAndRunApexBridge(
 
 	apexSystem.StartBridgeChain(t)
 
-	fmt.Printf("Bridge chain has been started\n")
+	fmt.Printf("Bridge chain has been started. Validators are ready\n")
 
 	require.NoError(t, apexSystem.CreateWallets(false))
 
-	fmt.Printf("Validators are ready\n")
+	fmt.Printf("Wallets have been created.\n")
 
-	require.NoError(t, apexSystem.RegisterChains(FundTokenAmount))
+	require.NoError(t, apexSystem.RegisterChains(apexSystem.Config.FundTokenAmount))
 
 	fmt.Printf("Chains have been registered\n")
 
-	require.NoError(t, apexSystem.CreateCardanoMultisigAddresse())
+	require.NoError(t, apexSystem.CreateCardanoMultisigAddresses())
 
 	fmt.Printf("Cardano Multisig addresses have been created\n")
 
-	require.NoError(t, apexSystem.FundCardanoMultisigAddresses(ctx, FundTokenAmount))
+	require.NoError(t, apexSystem.FundCardanoMultisigAddresses(ctx, apexSystem.Config.FundTokenAmount))
 
-	if apexSystem.config.NexusEnabled {
+	if apexSystem.Config.NexusEnabled {
 		apexSystem.Nexus.SetupChain(t, apexSystem.BridgeCluster.Servers[0].JSONRPCAddr(),
-			apexSystem.GetBridgeAdmin(), apexSystem.GetRelayerWalletAddr())
+			apexSystem.GetBridgeAdmin(), apexSystem.GetNexusRelayerWalletAddr(), apexSystem.Config.FundEthTokenAmount)
 	}
 
 	require.NoError(t, apexSystem.GenerateConfigs(
