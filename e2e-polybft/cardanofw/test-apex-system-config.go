@@ -2,12 +2,13 @@ package cardanofw
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/consensus/polybft"
-	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/0xPolygon/polygon-edge/types"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
@@ -215,22 +216,15 @@ func RunCardanoCluster(
 
 	networkMagic := GetNetworkMagic(config.NetworkType)
 	networkName := GetNetworkName(config.NetworkType)
-	logsDir := filepath.Join("../..",
-		fmt.Sprintf("e2e-logs-cardano-%s-%d", networkName, time.Now().UTC().Unix()),
-		t.Name(), fmt.Sprintf("%d", config.ID))
-
-	if err := common.CreateDirSafe(logsDir, 0750); err != nil {
-		return nil, err
-	}
+	ogmiosLogsFilePath := filepath.Join("..", "..", "e2e-logs-cardano",
+		fmt.Sprintf("ogmios-%s-%s.log", networkName, t.Name()))
 
 	cluster, err := NewCardanoTestCluster(
-		t,
 		WithID(config.ID+1),
 		WithNodesCount(config.NodesCount),
 		WithStartTimeDelay(time.Second*5),
 		WithPort(5100+config.ID*100),
 		WithOgmiosPort(1337+config.ID),
-		WithLogsDir(logsDir),
 		WithNetworkMagic(networkMagic),
 		WithNetworkType(config.NetworkType),
 		WithConfigGenesisDir(networkName),
@@ -246,7 +240,7 @@ func RunCardanoCluster(
 		return nil, err
 	}
 
-	if err := cluster.StartOgmios(config.ID); err != nil {
+	if err := cluster.StartOgmios(config.ID, GetLogsFile(t, ogmiosLogsFilePath, false)); err != nil {
 		return nil, err
 	}
 
@@ -257,4 +251,33 @@ func RunCardanoCluster(
 	fmt.Printf("Cluster %d is ready\n", config.ID)
 
 	return cluster, nil
+}
+
+func GetLogsFile(t *testing.T, filePath string, withStdout bool) io.Writer {
+	t.Helper()
+
+	var writers []io.Writer
+
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
+	if err != nil {
+		t.Log("failed to create log file", "err", err, "file", filePath)
+	} else {
+		writers = append(writers, f)
+
+		t.Cleanup(func() {
+			if err := f.Close(); err != nil {
+				t.Log("GetStdout close file error", "err", err)
+			}
+		})
+	}
+
+	if withStdout {
+		writers = append(writers, os.Stdout)
+	}
+
+	if len(writers) == 0 {
+		return io.Discard
+	}
+
+	return io.MultiWriter(writers...)
 }

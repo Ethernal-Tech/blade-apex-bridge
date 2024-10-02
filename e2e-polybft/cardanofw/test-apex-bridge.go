@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,7 @@ func SetupAndRunApexBridge(
 ) *ApexSystem {
 	t.Helper()
 
-	bridgeDataDir := "../../e2e-bridge-data-tmp-" + t.Name() // path.Join(path.Dir(primeCluster.Config.TmpDir), "bridge")
+	bridgeDataDir := filepath.Join("..", "..", "e2e-bridge-data-tmp-"+t.Name())
 
 	os.RemoveAll(bridgeDataDir)
 
