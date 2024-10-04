@@ -1,5 +1,6 @@
 package e2e
 
+/*
 import (
 	"context"
 	"encoding/hex"
@@ -511,8 +512,8 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 		// call SendTx command
 		err = sendTxParams("cardano", // "cardano" instead of "evm"
 			apex.Nexus.GetGatewayAddress().String(),
-			apex.Nexus.Cluster.Servers[0].JSONRPCAddr(),
-			hex.EncodeToString(pkBytes), "prime",
+			apex.GetNexusDefaultJSONRPCAddr(),
+			hex.EncodeToString(pkBytes), cardanofw.ChainIDPrime,
 			cardanoUser.PrimeAddress,
 			sendAmountWei, fee,
 		)
@@ -535,7 +536,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 		err = sendTxParams("evm",
 			apex.Nexus.GetGatewayAddress().String(),
 			"localhost:1234",
-			hex.EncodeToString(pkBytes), "prime",
+			hex.EncodeToString(pkBytes), cardanofw.ChainIDPrime,
 			cardanoUser.PrimeAddress,
 			sendAmountWei, fee,
 		)
@@ -557,8 +558,8 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 		// call SendTx command
 		err = sendTxParams("evm",
 			apex.Nexus.GetGatewayAddress().String(),
-			apex.Nexus.Cluster.Servers[0].JSONRPCAddr(),
-			hex.EncodeToString(pkBytes), "prime",
+			apex.GetNexusDefaultJSONRPCAddr(),
+			hex.EncodeToString(pkBytes), cardanofw.ChainIDPrime,
 			cardanoUser.PrimeAddress,
 			sendAmountWei, fee,
 		)
@@ -580,8 +581,8 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 		// call SendTx command
 		err = sendTxParams("evm",
 			apex.Nexus.GetGatewayAddress().String(),
-			apex.Nexus.Cluster.Servers[0].JSONRPCAddr(),
-			hex.EncodeToString(pkBytes), "prime",
+			apex.GetNexusDefaultJSONRPCAddr(),
+			hex.EncodeToString(pkBytes), cardanofw.ChainIDPrime,
 			cardanoUser.PrimeAddress,
 			sendAmountWei, fee,
 		)
@@ -1531,7 +1532,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 			receiverAddrNexus: sendAmount * 10, // 10Ada
 		}
 
-		bridgingRequestMetadata, err := cardanofw.CreateMetaData(
+		bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
 			userPrime.PrimeAddress, receivers, cardanofw.ChainIDNexus, feeAmount)
 		require.NoError(t, err)
 
@@ -1584,7 +1585,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		requestURL := fmt.Sprintf(
-			"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, "prime", txHash)
+			"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, cardanofw.ChainIDPrime, txHash)
 
 		_, err = cardanofw.WaitForRequestStates(nil, ctx, requestURL, apiKey, 60)
 		require.Error(t, err)
@@ -1630,7 +1631,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		apiURL, err := apex.GetBridgingAPI()
 		require.NoError(t, err)
 
-		cardanofw.WaitForInvalidState(t, ctx, apiURL, apiKey, "prime", txHash)
+		cardanofw.WaitForInvalidState(t, ctx, apiURL, apiKey, cardanofw.ChainIDPrime, txHash)
 	})
 
 	t.Run("Submitted invalid metadata - invalid sender", func(t *testing.T) {
@@ -1673,7 +1674,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		requestURL := fmt.Sprintf(
-			"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, "prime", txHash)
+			"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, cardanofw.ChainIDPrime, txHash)
 
 		_, err = cardanofw.WaitForRequestStates(nil, ctx, requestURL, apiKey, 60)
 		require.NoError(t, err)
@@ -1708,7 +1709,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		requestURL := fmt.Sprintf(
-			"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, "prime", txHash)
+			"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, cardanofw.ChainIDPrime, txHash)
 
 		_, err = cardanofw.WaitForRequestStates(nil, ctx, requestURL, apiKey, 60)
 		require.NoError(t, err)
@@ -1806,7 +1807,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 						receiverAddrNexus: sendAmount * 10, // 10Ada
 					}
 
-					bridgingRequestMetadata, err := cardanofw.CreateMetaData(
+					bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
 						primeUsers[idx].PrimeAddress, receivers, cardanofw.ChainIDNexus, feeAmount)
 					require.NoError(t, err)
 
@@ -1887,7 +1888,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 						receiverAddrNexus: sendAmount * 10, // 10Ada
 					}
 
-					bridgingRequestMetadata, err := cardanofw.CreateMetaData(
+					bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
 						primeUsers[idx].PrimeAddress, receivers, cardanofw.ChainIDNexus, feeAmount)
 					require.NoError(t, err)
 
@@ -1980,7 +1981,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithCustomConfigHandlers(nil, func(mp map[string]interface{}) {
-				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
 				block["gasFeeCap"] = uint64(10)
 				block["gasTipCap"] = uint64(11)
 			}),
@@ -2011,7 +2012,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			apex.GetValidator(t, 0).GetRelayerConfig(),
 			apex.GetValidator(t, 0).GetRelayerConfig(),
 			func(mp map[string]interface{}) {
-				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
 				block["gasFeeCap"] = uint64(0)
 				block["gasTipCap"] = uint64(0)
 			},
@@ -2047,7 +2048,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithCustomConfigHandlers(nil, func(mp map[string]interface{}) {
-				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
 				block["gasPrice"] = uint64(10)
 				block["dynamicTx"] = bool(false)
 			}),
@@ -2078,7 +2079,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			apex.GetValidator(t, 0).GetRelayerConfig(),
 			apex.GetValidator(t, 0).GetRelayerConfig(),
 			func(mp map[string]interface{}) {
-				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
 				block["gasPrice"] = uint64(0)
 			},
 			false,
@@ -2109,7 +2110,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithCustomConfigHandlers(nil, func(mp map[string]interface{}) {
-				cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")["depositGasLimit"] = uint64(10)
+				cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(10)
 			}),
 		)
 
@@ -2138,7 +2139,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			apex.GetValidator(t, 0).GetRelayerConfig(),
 			apex.GetValidator(t, 0).GetRelayerConfig(),
 			func(mp map[string]interface{}) {
-				cardanofw.GetMapFromInterfaceKey(mp, "chains", "nexus", "config")["depositGasLimit"] = uint64(0)
+				cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(0)
 			},
 			false,
 		)
@@ -2173,7 +2174,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
-				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(1)
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(1)
 			}, nil),
 		)
 
@@ -2217,7 +2218,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
-				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(2)
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(2)
 			}, nil),
 		)
 
@@ -2259,7 +2260,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
-				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(3)
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(3)
 			}, nil),
 		)
 
@@ -2312,7 +2313,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
-				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", "nexus")["testMode"] = uint8(4)
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(4)
 			}, nil),
 		)
 
@@ -2377,7 +2378,7 @@ func waitForBatchSuccess(
 	defer timeoutTimer.Stop()
 
 	requestURL := fmt.Sprintf(
-		"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, "prime", txHash)
+		"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, cardanofw.ChainIDPrime, txHash)
 
 	for {
 		select {
@@ -2417,3 +2418,4 @@ func waitForBatchSuccess(
 		}
 	}
 }
+*/

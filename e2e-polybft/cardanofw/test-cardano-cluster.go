@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
@@ -25,17 +26,17 @@ var cardanoFiles embed.FS
 
 const hostIP = "127.0.0.1"
 
+type RunCardanoClusterConfig struct {
+	ID                 int
+	NodesCount         int
+	NetworkType        wallet.CardanoNetworkType
+	InitialFundsKeys   []string
+	InitialFundsAmount uint64
+}
+
 type TestCardanoNetworkConfig struct {
 	NetworkMagic uint
 	NetworkType  wallet.CardanoNetworkType
-}
-
-func (c *TestCardanoNetworkConfig) IsPrime() bool {
-	if c.NetworkType == wallet.MainNetNetwork || c.NetworkType == wallet.TestNetNetwork {
-		return true
-	}
-
-	return false
 }
 
 type TestCardanoClusterConfig struct {
@@ -140,6 +141,51 @@ func WithInitialFunds(initialFundsKeys []string, initialFundsAmount uint64) Card
 	}
 }
 
+func RunCardanoCluster(
+	t *testing.T,
+	config *RunCardanoClusterConfig,
+) (*TestCardanoCluster, error) {
+	t.Helper()
+
+	networkMagic := GetNetworkMagic(config.NetworkType)
+	networkName := GetNetworkName(config.NetworkType)
+	ogmiosLogsFilePath := filepath.Join("..", "..", "e2e-logs-cardano",
+		fmt.Sprintf("ogmios-%s-%s.log", networkName, t.Name()))
+
+	cluster, err := NewCardanoTestCluster(
+		WithID(config.ID+1),
+		WithNodesCount(config.NodesCount),
+		WithStartTimeDelay(time.Second*5),
+		WithPort(5100+config.ID*100),
+		WithOgmiosPort(1337+config.ID),
+		WithNetworkMagic(networkMagic),
+		WithNetworkType(config.NetworkType),
+		WithConfigGenesisDir(networkName),
+		WithInitialFunds(config.InitialFundsKeys, config.InitialFundsAmount),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("Waiting for sockets to be ready\n")
+
+	if err := cluster.WaitForReady(time.Minute * 2); err != nil {
+		return nil, err
+	}
+
+	if err := cluster.StartOgmios(config.ID, GetLogsFile(t, ogmiosLogsFilePath, false)); err != nil {
+		return nil, err
+	}
+
+	if err := cluster.WaitForBlockWithState(10, time.Second*120); err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("Cluster %d is ready\n", config.ID)
+
+	return cluster, nil
+}
+
 func NewCardanoTestCluster(opts ...CardanoClusterOption) (cluster *TestCardanoCluster, err error) {
 	config := &TestCardanoClusterConfig{
 		TestCardanoNetworkConfig: TestCardanoNetworkConfig{
@@ -231,6 +277,35 @@ func (c *TestCardanoCluster) NewTestServer(id int, port int) error {
 	c.Servers = append(c.Servers, srv)
 
 	return err
+}
+
+func GetLogsFile(t *testing.T, filePath string, withStdout bool) io.Writer {
+	t.Helper()
+
+	var writers []io.Writer
+
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
+	if err != nil {
+		t.Log("failed to create log file", "err", err, "file", filePath)
+	} else {
+		writers = append(writers, f)
+
+		t.Cleanup(func() {
+			if err := f.Close(); err != nil {
+				t.Log("GetStdout close file error", "err", err)
+			}
+		})
+	}
+
+	if withStdout {
+		writers = append(writers, os.Stdout)
+	}
+
+	if len(writers) == 0 {
+		return io.Discard
+	}
+
+	return io.MultiWriter(writers...)
 }
 
 func (c *TestCardanoCluster) Fail(err error) {
