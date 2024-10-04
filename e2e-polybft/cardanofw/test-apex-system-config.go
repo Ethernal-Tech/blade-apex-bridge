@@ -186,12 +186,12 @@ func (c *ApexSystemConfig) applyPremineFundingOptions(users []*TestApexUser) {
 		c.PrimeClusterConfig.InitialFundsKeys = append(
 			c.PrimeClusterConfig.InitialFundsKeys, hex.EncodeToString(user.PrimeAddress.Bytes()))
 
-		if user.VectorWallet != nil {
+		if user.HasVectorWallet {
 			c.VectorClusterConfig.InitialFundsKeys = append(
 				c.VectorClusterConfig.InitialFundsKeys, hex.EncodeToString(user.VectorAddress.Bytes()))
 		}
 
-		if user.NexusWallet != nil {
+		if user.HasNexusWallet {
 			c.NexusInitialFundsKeys = append(
 				c.NexusInitialFundsKeys, user.NexusAddress)
 		}

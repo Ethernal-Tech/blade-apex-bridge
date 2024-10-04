@@ -2,6 +2,7 @@ package cardanofw
 
 import (
 	"encoding/hex"
+	"fmt"
 
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/types"
@@ -12,11 +13,13 @@ type TestApexUser struct {
 	PrimeWallet  cardanowallet.IWallet
 	PrimeAddress cardanowallet.CardanoAddress
 
-	VectorWallet  cardanowallet.IWallet
-	VectorAddress cardanowallet.CardanoAddress
+	HasVectorWallet bool
+	VectorWallet    cardanowallet.IWallet
+	VectorAddress   cardanowallet.CardanoAddress
 
-	NexusWallet  *crypto.ECDSAKey
-	NexusAddress types.Address
+	HasNexusWallet bool
+	NexusWallet    *crypto.ECDSAKey
+	NexusAddress   types.Address
 }
 
 func NewTestApexUser(
@@ -64,12 +67,14 @@ func NewTestApexUser(
 	}
 
 	return &TestApexUser{
-		PrimeWallet:   primeWallet,
-		PrimeAddress:  primeUserAddress,
-		VectorWallet:  vectorWallet,
-		VectorAddress: vectorUserAddress,
-		NexusWallet:   nexusWallet,
-		NexusAddress:  nexusUserAddress,
+		PrimeWallet:     primeWallet,
+		PrimeAddress:    primeUserAddress,
+		VectorWallet:    vectorWallet,
+		VectorAddress:   vectorUserAddress,
+		HasVectorWallet: vectorEnabled,
+		NexusWallet:     nexusWallet,
+		NexusAddress:    nexusUserAddress,
+		HasNexusWallet:  nexusEnabled,
 	}, nil
 }
 
@@ -128,12 +133,14 @@ func NewExistingTestApexUser(
 	}
 
 	return &TestApexUser{
-		PrimeWallet:   primeWallet,
-		PrimeAddress:  primeUserAddress,
-		VectorWallet:  vectorWallet,
-		VectorAddress: vectorUserAddress,
-		NexusWallet:   nexusWallet,
-		NexusAddress:  nexusUserAddress,
+		PrimeWallet:     primeWallet,
+		PrimeAddress:    primeUserAddress,
+		VectorWallet:    vectorWallet,
+		VectorAddress:   vectorUserAddress,
+		HasVectorWallet: vectorPrivateKey != "",
+		NexusWallet:     nexusWallet,
+		NexusAddress:    nexusUserAddress,
+		HasNexusWallet:  nexusPrivateKey != "",
 	}, nil
 }
 
@@ -164,9 +171,17 @@ func (u *TestApexUser) GetAddress(chain ChainID) string {
 	case ChainIDPrime:
 		return u.PrimeAddress.String()
 	case ChainIDVector:
-		return u.VectorAddress.String()
+		if u.HasVectorWallet {
+			return u.VectorAddress.String()
+		}
+
+		return ""
 	case ChainIDNexus:
-		return u.NexusAddress.String()
+		if u.HasNexusWallet {
+			return u.NexusAddress.String()
+		}
+
+		return ""
 	}
 
 	return ""
@@ -177,14 +192,22 @@ func (u *TestApexUser) GetPrivateKey(chain ChainID) (string, error) {
 	case ChainIDPrime:
 		return hex.EncodeToString(u.PrimeWallet.GetSigningKey()), nil
 	case ChainIDVector:
-		return hex.EncodeToString(u.VectorWallet.GetSigningKey()), nil
-	case ChainIDNexus:
-		pkBytes, err := u.NexusWallet.MarshallPrivateKey()
-		if err != nil {
-			return "", err
+		if u.HasVectorWallet {
+			return hex.EncodeToString(u.VectorWallet.GetSigningKey()), nil
 		}
 
-		return hex.EncodeToString(pkBytes), nil
+		return "", fmt.Errorf("user doesn't have a vector wallet")
+	case ChainIDNexus:
+		if u.HasNexusWallet {
+			pkBytes, err := u.NexusWallet.MarshallPrivateKey()
+			if err != nil {
+				return "", err
+			}
+
+			return hex.EncodeToString(pkBytes), nil
+		}
+
+		return "", fmt.Errorf("user doesn't have a nexus wallet")
 	}
 
 	return "", nil

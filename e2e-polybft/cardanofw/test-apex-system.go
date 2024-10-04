@@ -803,12 +803,12 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	require.Less(t, len(receivers), 5)
 
 	// check if users are valid for the bridging - do they have necessary wallets
-	require.True(t, sourceChain != ChainIDVector || sender.VectorWallet != nil)
-	require.True(t, sourceChain != ChainIDNexus || sender.NexusWallet != nil)
+	require.True(t, sourceChain != ChainIDVector || sender.HasVectorWallet)
+	require.True(t, sourceChain != ChainIDNexus || sender.HasNexusWallet)
 
 	for _, receiver := range receivers {
-		require.True(t, destinationChain != ChainIDVector || receiver.VectorWallet != nil)
-		require.True(t, destinationChain != ChainIDNexus || receiver.NexusWallet != nil)
+		require.True(t, destinationChain != ChainIDVector || receiver.HasVectorWallet)
+		require.True(t, destinationChain != ChainIDNexus || receiver.HasNexusWallet)
 	}
 
 	if sourceChain == ChainIDPrime || sourceChain == ChainIDVector {
@@ -896,7 +896,7 @@ func (a *ApexSystem) submitCardanoBridgingRequest(
 		bridgingAddr = a.PrimeMultisigAddr
 	} else if sourceChain == ChainIDVector {
 		txProvider = a.GetVectorTxProvider()
-		networkConfig = a.PrimeCluster.NetworkConfig()
+		networkConfig = a.VectorCluster.NetworkConfig()
 		bridgingAddr = a.VectorMultisigAddr
 	}
 
