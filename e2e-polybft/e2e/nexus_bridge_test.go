@@ -1899,7 +1899,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
 		require.NoError(t, err)
 
-		ethExpectedBalance := big.NewInt(0).Add(ethBalanceBefore, sendAmountEth.Mul(sendAmountEth, big.NewInt(5)))
+		ethExpectedBalance := big.NewInt(5)
+		ethExpectedBalance.Mul(ethExpectedBalance, sendAmountEth)
+		ethExpectedBalance.Add(ethExpectedBalance, ethBalanceBefore)
 
 		apiURL, err := apex.GetBridgingAPI()
 		require.NoError(t, err)
@@ -1953,7 +1955,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
 		require.NoError(t, err)
 
-		ethExpectedBalance := big.NewInt(0).Add(ethBalanceBefore, sendAmountEth.Mul(sendAmountEth, big.NewInt(5)))
+		ethExpectedBalance := big.NewInt(5)
+		ethExpectedBalance.Mul(ethExpectedBalance, sendAmountEth)
+		ethExpectedBalance.Add(ethExpectedBalance, ethBalanceBefore)
 
 		apiURL, err := apex.GetBridgingAPI()
 		require.NoError(t, err)

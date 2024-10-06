@@ -150,7 +150,7 @@ func RunCardanoCluster(
 	networkMagic := GetNetworkMagic(config.NetworkType)
 	networkName := GetNetworkName(config.NetworkType)
 	ogmiosLogsFilePath := filepath.Join("..", "..", "e2e-logs-cardano",
-		fmt.Sprintf("ogmios-%s-%s.log", networkName, t.Name()))
+		fmt.Sprintf("ogmios-%s-%s.log", networkName, strings.ReplaceAll(t.Name(), "/", "_")))
 
 	cluster, err := NewCardanoTestCluster(
 		WithID(config.ID+1),
