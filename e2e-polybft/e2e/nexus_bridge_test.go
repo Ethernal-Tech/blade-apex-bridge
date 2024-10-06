@@ -1899,7 +1899,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
 		require.NoError(t, err)
 
-		ethExpectedBalance := big.NewInt(5)
+		ethExpectedBalance := big.NewInt(int64(instances))
 		ethExpectedBalance.Mul(ethExpectedBalance, sendAmountEth)
 		ethExpectedBalance.Add(ethExpectedBalance, ethBalanceBefore)
 
@@ -1955,7 +1955,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
 		require.NoError(t, err)
 
-		ethExpectedBalance := big.NewInt(5)
+		ethExpectedBalance := big.NewInt(int64(instances))
 		ethExpectedBalance.Mul(ethExpectedBalance, sendAmountEth)
 		ethExpectedBalance.Add(ethExpectedBalance, ethBalanceBefore)
 
@@ -1982,16 +1982,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			require.False(t, timeout[i])
 		}
 
-		fmt.Printf("Waiting for ETH Amount %d\n", ethExpectedBalance)
-
 		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, ethExpectedBalance, 100, time.Second*10)
-
-		// temp - will remove this
-		if err != nil {
-			ethBalanceAfter, _ := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
-			fmt.Printf("WaitForExactAmount err: %v, current balance %d\n", err, ethBalanceAfter)
-		}
-
 		require.NoError(t, err)
 	})
 }
