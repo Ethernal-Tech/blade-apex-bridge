@@ -826,31 +826,34 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 			t.Skip()
 		}
 
-		sendAmount := uint64(1)
+		const (
+			sendAmount = uint64(1)
+			instances  = 5
+		)
+
 		sendAmountDfm, sendAmountEth := convertToEthValues(sendAmount)
-
-		instances := 5
-
-		for i := 0; i < instances; i++ {
-			txHash := apex.SubmitBridgingRequest(t, ctx,
-				cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-				user, new(big.Int).SetUint64(sendAmountDfm), user,
-			)
-
-			fmt.Printf("prime tx sent. hash: %s\n", txHash)
-
-			txHash = apex.SubmitBridgingRequest(t, ctx,
-				cardanofw.ChainIDNexus, cardanofw.ChainIDPrime,
-				user, sendAmountEth, user,
-			)
-			fmt.Printf("nexus tx sent. hash: %s\n", txHash)
-		}
 
 		prevAmountPrime, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
 		prevAmountNexus, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
 		require.NoError(t, err)
+
+		for i := 0; i < instances; i++ {
+			txHash := apex.SubmitBridgingRequest(t, ctx,
+				cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
+				apex.Users[0], new(big.Int).SetUint64(sendAmountDfm), user,
+			)
+
+			fmt.Printf("prime tx sent. hash: %s\n", txHash)
+
+			txHash = apex.SubmitBridgingRequest(t, ctx,
+				cardanofw.ChainIDNexus, cardanofw.ChainIDPrime,
+				apex.Users[0], sendAmountEth, user,
+			)
+
+			fmt.Printf("nexus tx sent. hash: %s\n", txHash)
+		}
 
 		transferedAmountEth := new(big.Int).SetInt64(int64(instances))
 		transferedAmountEth.Mul(transferedAmountEth, sendAmountEth)

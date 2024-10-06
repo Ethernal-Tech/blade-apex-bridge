@@ -908,26 +908,26 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			sendAmount = uint64(1_000_000)
 		)
 
+		prevAmountOnVector, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
+		require.NoError(t, err)
+		prevAmountOnPrime, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
 		for i := 0; i < instances; i++ {
 			primeTxHash := apex.SubmitBridgingRequest(t, ctx,
 				cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-				user, new(big.Int).SetUint64(sendAmount), user,
+				apex.Users[0], new(big.Int).SetUint64(sendAmount), user,
 			)
 
 			fmt.Printf("prime tx %v sent. hash: %s\n", i+1, primeTxHash)
 
 			vectorTxHash := apex.SubmitBridgingRequest(t, ctx,
 				cardanofw.ChainIDVector, cardanofw.ChainIDPrime,
-				user, new(big.Int).SetUint64(sendAmount), user,
+				apex.Users[0], new(big.Int).SetUint64(sendAmount), user,
 			)
 
 			fmt.Printf("vector tx %v sent. hash: %s\n", i+1, vectorTxHash)
 		}
-
-		prevAmountOnVector, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
-		require.NoError(t, err)
-		prevAmountOnPrime, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
 
 		var wg sync.WaitGroup
 
