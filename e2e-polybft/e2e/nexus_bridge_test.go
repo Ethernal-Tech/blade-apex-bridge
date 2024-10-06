@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"os"
 	"sync"
 	"testing"
@@ -1387,212 +1388,181 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 	})
 }
 
-/*
-	func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
-		if shouldRun := os.Getenv("RUN_E2E_BIG_TESTS"); shouldRun != "true" {
-			t.Skip()
+func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
+	if shouldRun := os.Getenv("RUN_E2E_BIG_TESTS"); shouldRun != "true" {
+		t.Skip()
+	}
+
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 1010
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithVectorEnabled(false),
+		cardanofw.WithNexusEnabled(true),
+		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithUserCardanoFund(100_000_000),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[userCnt-1]
+
+	txProviderPrime := apex.GetPrimeTxProvider()
+
+	//nolint:dupl
+	t.Run("From Prime to Nexus 200x 5min 90%", func(t *testing.T) {
+		sendAmount := uint64(1)
+		sendAmountDfm, sendAmountEth := convertToEthValues(sendAmount)
+
+		ethBalanceBefore, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
+		require.NoError(t, err)
+
+		instances := 200
+
+		maxWaitTime := 300
+		successChance := 90 // 90%
+		succeededCount := int64(0)
+
+		fmt.Printf("Sending transactions\n")
+
+		var wg sync.WaitGroup
+		for i := 0; i < instances; i++ {
+			wg.Add(1)
+
+			go func(idx int) {
+				defer wg.Done()
+
+				if successChance > rand.Intn(100) {
+					succeededCount++
+					sleepTime := rand.Intn(maxWaitTime)
+					time.Sleep(time.Second * time.Duration(sleepTime))
+
+					txHash := apex.SubmitBridgingRequest(t, ctx,
+						cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
+						apex.Users[idx], new(big.Int).SetUint64(sendAmountDfm), user,
+					)
+					fmt.Printf("Tx %v sent. hash: %s\n", idx+1, txHash)
+				} else {
+					const feeAmount = 1_100_000
+
+					receivers := map[string]uint64{
+						user.GetAddress(cardanofw.ChainIDNexus): sendAmountDfm * 10, // 10Ada
+					}
+
+					bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
+						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), receivers,
+						cardanofw.ChainIDNexus, feeAmount)
+					require.NoError(t, err)
+
+					txHash, err := cardanofw.SendTx(ctx, txProviderPrime, apex.Users[idx].PrimeWallet,
+						sendAmountDfm+feeAmount, apex.PrimeMultisigAddr,
+						apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+					require.NoError(t, err)
+
+					fmt.Printf("Tx %v sent without waiting for confirmation. hash: %s\n", idx+1, txHash)
+				}
+			}(i)
 		}
 
-		const (
-			apiKey = "test_api_key"
-		)
+		wg.Wait()
 
-		ctx, cncl := context.WithCancel(context.Background())
-		defer cncl()
+		fmt.Printf("All tx sent, waiting for confirmation.\n")
 
-		apex := cardanofw.SetupAndRunApexBridge(
-			t, ctx,
-			cardanofw.WithAPIKey(apiKey),
-			cardanofw.WithVectorEnabled(false),
-			cardanofw.WithNexusEnabled(true),
-		)
+		expectedAmount := new(big.Int).SetInt64(succeededCount)
+		expectedAmount.Mul(expectedAmount, sendAmountEth)
+		expectedAmount.Add(expectedAmount, ethBalanceBefore)
 
-		defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-		userPrime := apex.CreateAndFundUser(t, ctx, uint64(500_000_000))
-		require.NotNil(t, userPrime)
-
-		txProviderPrime := apex.GetPrimeTxProvider()
-
-		startAmountNexus := uint64(1)
-		expectedAmountNexus := ethgo.Ether(startAmountNexus)
-
-		userNexus, err := apex.CreateAndFundNexusUser(ctx, startAmountNexus)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmount, 500, time.Second*10)
 		require.NoError(t, err)
 
-		err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
-			return val.Cmp(expectedAmountNexus) == 0
-		}, 10, 10)
+		newAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
 		require.NoError(t, err)
 
-		fmt.Println("Nexus user created and funded")
+		fmt.Printf("Success count: %v. prevAmount: %v. newAmount: %v. expectedAmount: %v\n", succeededCount, ethBalanceBefore, newAmount, expectedAmount)
+	})
 
-		receiverAddrNexus := userNexus.Address().String()
-		fmt.Printf("Nexus receiver Addr: %s\n", receiverAddrNexus)
+	//nolint:dupl
+	t.Run("From Prime to Nexus 1000x 20min 90%", func(t *testing.T) {
+		sendAmount := uint64(1)
+		sendAmountDfm, sendAmountEth := convertToEthValues(sendAmount)
 
-		//nolint:dupl
-		t.Run("From Prime to Nexus 200x 5min 90%", func(t *testing.T) {
-			sendAmount := uint64(1)
-			sendAmountDfm, sendAmountEth := convertToEthValues(sendAmount)
+		ethBalanceBefore, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
+		require.NoError(t, err)
 
-			ethBalanceBefore, err := cardanofw.GetEthAmount(ctx, apex.Nexus, userNexus)
-			fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
-			require.NoError(t, err)
+		instances := 1000
 
-			instances := 200
-			primeUsers := make([]*cardanofw.TestApexUser, instances)
+		maxWaitTime := 1200
+		successChance := 90 // 90%
+		succeededCount := int64(0)
 
-			maxWaitTime := 300
-			successChance := 90 // 90%
-			succeededCount := int64(0)
+		fmt.Printf("Sending transactions\n")
 
-			fmt.Printf("Funding %v Wallets\n", instances)
+		var wg sync.WaitGroup
+		for i := 0; i < instances; i++ {
+			wg.Add(1)
 
-			for i := 0; i < instances; i++ {
-				primeUsers[i] = apex.CreateAndFundUser(t, ctx, uint64(10_000_000))
-				require.NotNil(t, primeUsers[i])
-			}
+			go func(idx int) {
+				defer wg.Done()
 
-			fmt.Printf("Funding complete\n")
-			fmt.Printf("Sending transactions\n")
+				if successChance > rand.Intn(100) {
+					succeededCount++
+					sleepTime := rand.Intn(maxWaitTime)
+					time.Sleep(time.Second * time.Duration(sleepTime))
 
-			var wg sync.WaitGroup
-			for i := 0; i < instances; i++ {
-				wg.Add(1)
+					txHash := apex.SubmitBridgingRequest(t, ctx,
+						cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
+						apex.Users[idx], new(big.Int).SetUint64(sendAmountDfm), user,
+					)
+					require.NoError(t, err)
+					fmt.Printf("Tx %v sent. hash: %s\n", idx+1, txHash)
+				} else {
+					const feeAmount = 1_100_000
 
-				go func(idx int) {
-					defer wg.Done()
-
-					if successChance > rand.Intn(100) {
-						succeededCount++
-						sleepTime := rand.Intn(maxWaitTime)
-						time.Sleep(time.Second * time.Duration(sleepTime))
-
-						txHash, err := primeUsers[idx].BridgeNexusAmount(t, ctx, txProviderPrime, apex.PrimeMultisigAddr,
-							receiverAddrNexus, sendAmountDfm, apex.PrimeCluster.NetworkConfig(), receiverAddrNexus)
-						require.NoError(t, err)
-						fmt.Printf("Tx %v sent. hash: %s\n", idx+1, txHash)
-					} else {
-						const feeAmount = 1_100_000
-
-						receivers := map[string]uint64{
-							receiverAddrNexus: sendAmount * 10, // 10Ada
-						}
-
-						bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
-							primeUsers[idx].PrimeAddress, receivers, cardanofw.ChainIDNexus, feeAmount)
-						require.NoError(t, err)
-
-						txHash, err := cardanofw.SendTx(ctx, txProviderPrime, primeUsers[idx].PrimeWallet,
-							sendAmountDfm+feeAmount, apex.PrimeMultisigAddr,
-							apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
-						require.NoError(t, err)
-
-						fmt.Printf("Tx %v sent without waiting for confirmation. hash: %s\n", idx+1, txHash)
+					receivers := map[string]uint64{
+						user.GetAddress(cardanofw.ChainIDNexus): sendAmountDfm * 10, // 10Ada
 					}
-				}(i)
-			}
 
-			wg.Wait()
+					bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
+						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), receivers,
+						cardanofw.ChainIDNexus, feeAmount)
+					require.NoError(t, err)
 
-			fmt.Printf("All tx sent, waiting for confirmation.\n")
+					txHash, err := cardanofw.SendTx(ctx, txProviderPrime, apex.Users[idx].PrimeWallet,
+						sendAmountDfm+feeAmount, apex.PrimeMultisigAddr,
+						apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+					require.NoError(t, err)
 
-			var newAmount *big.Int
+					fmt.Printf("Tx %v sent without waiting for confirmation. hash: %s\n", idx+1, txHash)
+				}
+			}(i)
+		}
 
-			expectedAmount := new(big.Int).SetInt64(succeededCount)
-			expectedAmount.Mul(expectedAmount, sendAmountEth)
-			expectedAmount.Add(expectedAmount, ethBalanceBefore)
+		wg.Wait()
 
-			err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
-				return val.Cmp(expectedAmount) >= 0
-			}, 20, time.Second*6)
-			require.NoError(t, err)
+		fmt.Printf("All tx sent, waiting for confirmation.\n")
 
-			fmt.Printf("Success count: %v. prevAmount: %v. newAmount: %v. expectedAmount: %v\n", succeededCount, ethBalanceBefore, newAmount, expectedAmount)
-		})
+		expectedAmount := new(big.Int).SetInt64(succeededCount)
+		expectedAmount.Mul(expectedAmount, sendAmountEth)
+		expectedAmount.Add(expectedAmount, ethBalanceBefore)
 
-		//nolint:dupl
-		t.Run("From Prime to Nexus 1000x 20min 90%", func(t *testing.T) {
-			sendAmount := uint64(1)
-			sendAmountDfm, sendAmountEth := convertToEthValues(sendAmount)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmount, 500, time.Second*10)
+		require.NoError(t, err)
 
-			ethBalanceBefore, err := cardanofw.GetEthAmount(ctx, apex.Nexus, userNexus)
-			fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
-			require.NoError(t, err)
+		newAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		require.NoError(t, err)
 
-			instances := 1000
-			primeUsers := make([]*cardanofw.TestApexUser, instances)
-
-			maxWaitTime := 1200
-			successChance := 90 // 90%
-			succeededCount := int64(0)
-
-			fmt.Printf("Funding %v Wallets\n", instances)
-
-			for i := 0; i < instances; i++ {
-				primeUsers[i] = apex.CreateAndFundUser(t, ctx, uint64(10_000_000))
-				require.NotNil(t, primeUsers[i])
-			}
-
-			fmt.Printf("Funding complete\n")
-			fmt.Printf("Sending transactions\n")
-
-			var wg sync.WaitGroup
-			for i := 0; i < instances; i++ {
-				wg.Add(1)
-
-				go func(idx int) {
-					defer wg.Done()
-
-					if successChance > rand.Intn(100) {
-						succeededCount++
-						sleepTime := rand.Intn(maxWaitTime)
-						time.Sleep(time.Second * time.Duration(sleepTime))
-
-						txHash, err := primeUsers[idx].BridgeNexusAmount(t, ctx, txProviderPrime, apex.PrimeMultisigAddr,
-							receiverAddrNexus, sendAmountDfm, apex.PrimeCluster.NetworkConfig(), receiverAddrNexus)
-						require.NoError(t, err)
-						fmt.Printf("Tx %v sent. hash: %s\n", idx+1, txHash)
-					} else {
-						const feeAmount = 1_100_000
-
-						receivers := map[string]uint64{
-							receiverAddrNexus: sendAmount * 10, // 10Ada
-						}
-
-						bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
-							primeUsers[idx].PrimeAddress, receivers, cardanofw.ChainIDNexus, feeAmount)
-						require.NoError(t, err)
-
-						txHash, err := cardanofw.SendTx(ctx, txProviderPrime, primeUsers[idx].PrimeWallet,
-							sendAmountDfm+feeAmount, apex.PrimeMultisigAddr,
-							apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
-						require.NoError(t, err)
-
-						fmt.Printf("Tx %v sent without waiting for confirmation. hash: %s\n", idx+1, txHash)
-					}
-				}(i)
-			}
-
-			wg.Wait()
-
-			fmt.Printf("All tx sent, waiting for confirmation.\n")
-
-			var newAmount *big.Int
-
-			expectedAmount := new(big.Int).SetInt64(succeededCount)
-			expectedAmount.Mul(expectedAmount, sendAmountEth)
-			expectedAmount.Add(expectedAmount, ethBalanceBefore)
-
-			err = cardanofw.WaitForEthAmount(ctx, apex.Nexus, userNexus, func(val *big.Int) bool {
-				return val.Cmp(expectedAmount) >= 0
-			}, 20, time.Second*6)
-			require.NoError(t, err)
-
-			fmt.Printf("Success count: %v. prevAmount: %v. newAmount: %v. expectedAmount: %v\n", succeededCount, ethBalanceBefore, newAmount, expectedAmount)
-		})
-	}
-*/
+		fmt.Printf("Success count: %v. prevAmount: %v. newAmount: %v. expectedAmount: %v\n", succeededCount, ethBalanceBefore, newAmount, expectedAmount)
+	})
+}
 
 func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 	const (
