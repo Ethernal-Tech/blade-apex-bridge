@@ -1022,6 +1022,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 
 		go func() {
 			defer wg.Done()
+
 			transferedAmountDfm := new(big.Int).SetInt64(int64(sequentialInstances * parallelInstances))
 			transferedAmountDfm.Mul(transferedAmountDfm, new(big.Int).SetUint64(sendAmountDfm))
 			dfmExpectedBalance := big.NewInt(0).Add(prevAmountPrime, transferedAmountDfm)
@@ -1133,6 +1134,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 
 		go func() {
 			defer wg.Done()
+
 			transferedAmountDfm := new(big.Int).SetInt64(int64(sequentialInstances * parallelInstances))
 			transferedAmountDfm.Mul(transferedAmountDfm, new(big.Int).SetUint64(sendAmountDfm))
 			dfmExpectedBalance := big.NewInt(0).Add(prevAmountPrime, transferedAmountDfm)
@@ -1192,7 +1194,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		_, err = cardanofw.SendTx(
 			ctx, txProviderPrime, user.PrimeWallet, sendAmountDfm+feeAmount, apex.PrimeMultisigAddr,
 			apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
-		require.NoError(t, err)
+		require.Error(t, err)
 		require.ErrorContains(t, err, "not enough funds")
 	})
 
@@ -1953,7 +1955,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("Test failed batches at 'random'", func(t *testing.T) {
+	t.Run("Test failed batches at random", func(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
@@ -2006,15 +2008,22 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			require.False(t, timeout[i])
 		}
 
+		fmt.Printf("Waiting for ETH Amount %d\n", ethExpectedBalance)
+
 		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, ethExpectedBalance, 100, time.Second*10)
+
+		// temp - will remove this
+		if err != nil {
+			ethBalanceAfter, _ := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+			fmt.Printf("WaitForExactAmount err: %v, current balance %d\n", err, ethBalanceAfter)
+		}
+
 		require.NoError(t, err)
 	})
 }
 
 func waitForBatchSuccess(
-
 	ctx context.Context, txHash string, apiURL string, apiKey string, breakAfterFail bool,
-
 ) (int, bool) {
 	var (
 		prevStatus           string
