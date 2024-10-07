@@ -279,35 +279,6 @@ func (c *TestCardanoCluster) NewTestServer(id int, port int) error {
 	return err
 }
 
-func GetLogsFile(t *testing.T, filePath string, withStdout bool) io.Writer {
-	t.Helper()
-
-	var writers []io.Writer
-
-	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
-	if err != nil {
-		t.Log("failed to create log file", "err", err, "file", filePath)
-	} else {
-		writers = append(writers, f)
-
-		t.Cleanup(func() {
-			if err := f.Close(); err != nil {
-				t.Log("GetStdout close file error", "err", err)
-			}
-		})
-	}
-
-	if withStdout {
-		writers = append(writers, os.Stdout)
-	}
-
-	if len(writers) == 0 {
-		return io.Discard
-	}
-
-	return io.MultiWriter(writers...)
-}
-
 func (c *TestCardanoCluster) Fail(err error) {
 	c.once.Do(func() {
 		c.executionErr = err

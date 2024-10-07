@@ -16,12 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/umbracle/ethgo"
-	/*
-		"encoding/hex"
-		"math/rand"
-
-		ethwallet "github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
-	*/)
+)
 
 const (
 	BatchFailed  = "FailedToExecuteOnDestination"
@@ -67,8 +62,7 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
 
-		expectedAmount := new(big.Int).SetUint64(sendAmountDfm)
-		expectedAmount.Add(expectedAmount, prevAmount)
+		expectedAmount := getExpectedAmountFromNexus(sendAmountDfm, prevAmount, 1, 1)
 
 		// check expected amount cardano
 		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDPrime, expectedAmount, 100, time.Second*10)
@@ -158,8 +152,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 				user, sendAmountWei, user,
 			)
 
-			expectedAmount := new(big.Int).SetUint64(sendAmountDfm)
-			expectedAmount.Add(expectedAmount, prevAmount)
+			expectedAmount := getExpectedAmountFromNexus(sendAmountDfm, prevAmount, 1, 1)
 
 			// check expected amount cardano
 			err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDPrime, expectedAmount, 100, time.Second*10)
@@ -184,9 +177,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			)
 		}
 
-		expectedAmount := new(big.Int).SetUint64(sendAmountDfm)
-		expectedAmount.Mul(expectedAmount, big.NewInt(instances))
-		expectedAmount.Add(expectedAmount, prevAmount)
+		expectedAmount := getExpectedAmountFromNexus(sendAmountDfm, prevAmount, instances, 1)
 
 		// check expected amount cardano
 		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDPrime, expectedAmount, 100, time.Second*10)
@@ -219,9 +210,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 
 		wg.Wait()
 
-		expectedAmount := new(big.Int).SetUint64(sendAmountDfm)
-		expectedAmount.Mul(expectedAmount, big.NewInt(instances))
-		expectedAmount.Add(expectedAmount, prevAmount)
+		expectedAmount := getExpectedAmountFromNexus(sendAmountDfm, prevAmount, instances, 1)
 
 		// check expected amount cardano
 		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDPrime, expectedAmount, 100, time.Second*10)
@@ -258,10 +247,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			wg.Wait()
 		}
 
-		expectedAmount := new(big.Int).SetUint64(sendAmountDfm)
-		expectedAmount.Mul(expectedAmount, big.NewInt(instances))
-		expectedAmount.Mul(expectedAmount, big.NewInt(parallelInstances))
-		expectedAmount.Add(expectedAmount, prevAmount)
+		expectedAmount := getExpectedAmountFromNexus(sendAmountDfm, prevAmount, instances, parallelInstances)
 
 		// check expected amount cardano
 		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDPrime, expectedAmount, 100, time.Second*10)
@@ -317,10 +303,8 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			go func(receiverIdx int) {
 				defer wgResults.Done()
 
-				expectedAmount := new(big.Int).SetUint64(sendAmountDfm)
-				expectedAmount.Mul(expectedAmount, big.NewInt(parallelInstances))
-				expectedAmount.Mul(expectedAmount, big.NewInt(instances))
-				expectedAmount.Add(expectedAmount, destinationUsersPrevAmounts[receiverIdx])
+				expectedAmount := getExpectedAmountFromNexus(
+					sendAmountDfm, destinationUsersPrevAmounts[receiverIdx], instances, parallelInstances)
 
 				err = apex.WaitForExactAmount(ctx, destinationUsers[receiverIdx], cardanofw.ChainIDPrime, expectedAmount, 100, time.Second*10)
 			}(i)
@@ -369,10 +353,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			wg.Wait()
 		}
 
-		expectedAmount := new(big.Int).SetUint64(sendAmountDfm)
-		expectedAmount.Mul(expectedAmount, big.NewInt(instances))
-		expectedAmount.Mul(expectedAmount, big.NewInt(parallelInstances))
-		expectedAmount.Add(expectedAmount, prevAmount)
+		expectedAmount := getExpectedAmountFromNexus(sendAmountDfm, prevAmount, instances, parallelInstances)
 
 		// check expected amount cardano
 		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDPrime, expectedAmount, 100, time.Second*10)
@@ -2051,4 +2032,14 @@ func convertToEthValues(sendAmount uint64) (uint64, *big.Int) {
 	sendAmountDfm.Mul(sendAmountDfm, exp)
 
 	return sendAmountDfm.Uint64(), ethgo.Ether(sendAmount)
+}
+
+func getExpectedAmountFromNexus(
+	sendAmountDfm uint64, prevAmount *big.Int, instances, parallelInstances uint64,
+) *big.Int {
+	expectedAmount := new(big.Int).SetUint64(sendAmountDfm)
+	expectedAmount.Mul(expectedAmount, new(big.Int).SetUint64(instances))
+	expectedAmount.Mul(expectedAmount, new(big.Int).SetUint64(parallelInstances))
+
+	return expectedAmount.Add(expectedAmount, prevAmount)
 }
