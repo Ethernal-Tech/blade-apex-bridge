@@ -4,6 +4,10 @@ import "github.com/0xPolygon/polygon-edge/types"
 
 var (
 	// Apex contracts
+	// CardanoVerifySignaturePrecompile is an address of precompile that allows verifying cardano signatures
+	CardanoVerifySignaturePrecompile = types.StringToAddress("0x2050")
+	// CardanoVerifySignaturePrecompile is an address of precompile that allows verifying BLS signatures for Apex
+	ApexBLSSignaturesVerificationPrecompile = types.StringToAddress("0x2060")
 
 	// Address of Bridge proxy
 	Bridge     = types.StringToAddress("0xABEF000000000000000000000000000000000000")

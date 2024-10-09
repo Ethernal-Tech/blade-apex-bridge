@@ -22,7 +22,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/validator"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
 	"github.com/0xPolygon/polygon-edge/contracts"
-	"github.com/0xPolygon/polygon-edge/forkmanager"
 	"github.com/0xPolygon/polygon-edge/types"
 )
 
@@ -603,11 +602,9 @@ func (c *consensusRuntime) calculateDistributeRewardsInput(
 		blockHeader   = lastFinalizedBlock // start calculating from this block
 	)
 
-	if forkmanager.GetInstance().IsForkEnabled(chain.Governance, pendingBlockNumber) {
-		// if governance is enabled, we are distributing rewards for previous epoch
-		// at the beginning of a new epoch, so modify epochID
-		epochID--
-	}
+	// we are distributing rewards for previous epoch
+	// at the beginning of a new epoch, so modify epochID
+	epochID--
 
 	getSealersForBlock := func(blockExtra *Extra, validators validator.AccountSet) error {
 		signers, err := validators.GetFilteredValidators(blockExtra.Parent.Bitmap)
