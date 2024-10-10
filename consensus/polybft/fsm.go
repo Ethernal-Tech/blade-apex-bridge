@@ -140,10 +140,6 @@ func (f *fsm) BuildProposal(currentRound uint64) ([]byte, error) {
 			return nil, err
 		}
 
-		f.logger.Info("Apex-Bridge epoch tx is written to block", "hash", tx.Hash(),
-			"epoch", f.commitEpochInput.Epoch, "size", f.commitEpochInput.EpochSize,
-			"id", f.commitEpochInput.ID)
-
 		if err := f.blockBuilder.WriteTx(tx); err != nil {
 			return nil, fmt.Errorf("failed to apply commit epoch transaction: %w", err)
 		}
@@ -154,10 +150,6 @@ func (f *fsm) BuildProposal(currentRound uint64) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-
-		f.logger.Info("Apex-Bridge reward tx is written to block", "hash", tx.Hash(),
-			"epoch", f.distributeRewardsInput.EpochID, "size", f.distributeRewardsInput.EpochSize,
-			"len", len(f.distributeRewardsInput.Uptime))
 
 		if err := f.blockBuilder.WriteTx(tx); err != nil {
 			return nil, fmt.Errorf("failed to apply distribute rewards transaction: %w", err)

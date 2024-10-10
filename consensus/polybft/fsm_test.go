@@ -290,7 +290,6 @@ func TestFSM_BuildProposal_EpochEndingBlock_FailedToApplyStateTx(t *testing.T) {
 		validators:        validatorSet,
 		commitEpochInput:  createTestCommitEpochInput(t, 0, 10),
 		exitEventRootHash: types.ZeroHash,
-		logger:            hclog.NewNullLogger(),
 	}
 
 	_, err := fsm.BuildProposal(0)
@@ -454,7 +453,6 @@ func TestFSM_BuildProposal_EpochEndingBlock_FailToGetNextValidatorsHash(t *testi
 		exitEventRootHash:  types.ZeroHash,
 		newValidatorsDelta: newValidatorDelta,
 		forks:              &chain.Forks{chain.Governance: chain.NewFork(0)},
-		logger:             hclog.NewNullLogger(),
 	}
 
 	proposal, err := fsm.BuildProposal(0)
