@@ -11,8 +11,8 @@ import (
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/indexer"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/Ethernal-Tech/ethgo/abi"
 	"github.com/stretchr/testify/require"
-	"github.com/umbracle/ethgo/abi"
 )
 
 func TestE2E_ApexBridge_TestCardanoVerifySignaturePrecompile(t *testing.T) {
