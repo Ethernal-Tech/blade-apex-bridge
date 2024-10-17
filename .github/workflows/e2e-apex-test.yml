@@ -76,7 +76,7 @@ jobs:
         uses: actions/checkout@v4.1.1
         with:
           repository: Ethernal-Tech/apex-bridge
-          ref: feat/preparation_for_next_tasks
+          ref: feat/apex-341-bindings #feat/preparation_for_next_tasks
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       - name: Build apex-bridge
         run: |
