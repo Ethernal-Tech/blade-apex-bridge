@@ -26,7 +26,7 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Starting chains...\n")
 
-	apexSystem.StartChains(t)
+	require.NoError(t, apexSystem.StartChains(t))
 
 	fmt.Printf("Chains have been started. Starting bridge chain...\n")
 
@@ -42,16 +42,11 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Chains have been registered\n")
 
-	require.NoError(t, apexSystem.CreateCardanoMultisigAddresses())
+	require.NoError(t, apexSystem.CreateAddresses())
 
 	fmt.Printf("Cardano Multisig addresses have been created\n")
 
-	require.NoError(t, apexSystem.FundCardanoMultisigAddresses(ctx))
-
-	if apexSystem.Config.NexusEnabled {
-		apexSystem.Nexus.SetupChain(t, apexSystem.GetBridgeDefaultJSONRPCAddr(),
-			apexSystem.GetBridgeAdmin(), apexSystem.GetNexusRelayerWalletAddr())
-	}
+	require.NoError(t, apexSystem.InitContractsAndFundWallets(ctx))
 
 	require.NoError(t, apexSystem.GenerateConfigs())
 

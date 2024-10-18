@@ -41,7 +41,6 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 		cardanofw.WithVectorEnabled(false),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(1),
-		cardanofw.WithUserCardanoFund(20_000_000),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -82,7 +81,8 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 		fmt.Printf("ETH Amount BEFORE TX %d\n", ethBalanceBefore)
 		require.NoError(t, err)
 
-		relayerBalanceBefore, err := apex.Nexus.GetAddressEthAmount(ctx, apex.GetNexusRelayerWalletAddr())
+		relayerBalanceBefore, err := apex.GetAddressBalance(
+			ctx, cardanofw.ChainIDNexus, apex.GetNexusRelayerWalletAddr().String())
 		require.NoError(t, err)
 
 		txHash := apex.SubmitBridgingRequest(t, ctx,
@@ -101,7 +101,8 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 		fmt.Printf("ETH Amount AFTER TX %d\n", ethBalanceAfter)
 		require.NoError(t, err)
 
-		relayerBalanceAfter, err := apex.Nexus.GetAddressEthAmount(ctx, apex.GetNexusRelayerWalletAddr())
+		relayerBalanceAfter, err := apex.GetAddressBalance(
+			ctx, cardanofw.ChainIDNexus, apex.GetNexusRelayerWalletAddr().String())
 		require.NoError(t, err)
 
 		relayerBalanceGreater := relayerBalanceAfter.Cmp(relayerBalanceBefore) == 1
@@ -360,136 +361,6 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 	})
 }
 
-func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
-	const (
-		apiKey  = "test_api_key"
-		userCnt = 1
-	)
-
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	apex := cardanofw.SetupAndRunApexBridge(
-		t, ctx,
-		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithVectorEnabled(false),
-		cardanofw.WithNexusEnabled(true),
-		cardanofw.WithUserCnt(userCnt),
-	)
-
-	defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-	user := apex.Users[userCnt-1]
-	fee := new(big.Int).SetUint64(1000010000000000000)
-
-	sendTxParams := func(txType, gatewayAddr, nexusUrl, privateKey, chainDst, receiver string, amount, fee *big.Int) error {
-		return cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
-			"sendtx",
-			"--tx-type", txType,
-			"--gateway-addr", gatewayAddr,
-			"--nexus-url", nexusUrl,
-			"--key", privateKey,
-			"--chain-dst", chainDst,
-			"--receiver", fmt.Sprintf("%s:%s", receiver, amount.String()),
-			"--fee", fee.String(),
-		}, os.Stdout)
-	}
-
-	t.Run("Wrong Tx-Type", func(t *testing.T) {
-		sendAmountEth := uint64(1)
-		sendAmountWei := ethgo.Ether(sendAmountEth)
-
-		userPk, err := user.GetPrivateKey(cardanofw.ChainIDNexus)
-		require.NoError(t, err)
-
-		// call SendTx command
-		err = sendTxParams("cardano", // "cardano" instead of "evm"
-			apex.Nexus.GetGatewayAddress().String(),
-			apex.GetNexusDefaultJSONRPCAddr(),
-			userPk, cardanofw.ChainIDPrime,
-			user.GetAddress(cardanofw.ChainIDPrime),
-			sendAmountWei, fee,
-		)
-		require.ErrorContains(t, err, "failed to execute command")
-	})
-
-	t.Run("Wrong Nexus URL", func(t *testing.T) {
-		sendAmountEth := uint64(1)
-		sendAmountWei := ethgo.Ether(sendAmountEth)
-
-		userPk, err := user.GetPrivateKey(cardanofw.ChainIDNexus)
-		require.NoError(t, err)
-
-		// call SendTx command
-		err = sendTxParams("evm",
-			apex.Nexus.GetGatewayAddress().String(),
-			"localhost:1234",
-			userPk, cardanofw.ChainIDPrime,
-			user.GetAddress(cardanofw.ChainIDPrime),
-			sendAmountWei, fee,
-		)
-		require.ErrorContains(t, err, "Error: invalid --nexus-url flag")
-	})
-
-	t.Run("Sender not enough funds", func(t *testing.T) {
-		sendAmountEth := uint64(2)
-		sendAmountWei := ethgo.Ether(sendAmountEth)
-
-		unfundedUser, err := cardanofw.NewTestApexUser(
-			apex.PrimeCluster.Config.NetworkType,
-			apex.Config.VectorEnabled,
-			apex.GetVectorNetworkType(),
-			apex.Config.NexusEnabled,
-		)
-		require.NoError(t, err)
-
-		unfundedUserPk, err := unfundedUser.GetPrivateKey(cardanofw.ChainIDNexus)
-		require.NoError(t, err)
-
-		// call SendTx command
-		err = sendTxParams("evm",
-			apex.Nexus.GetGatewayAddress().String(),
-			apex.GetNexusDefaultJSONRPCAddr(),
-			unfundedUserPk, cardanofw.ChainIDPrime,
-			unfundedUser.GetAddress(cardanofw.ChainIDPrime),
-			sendAmountWei, fee,
-		)
-		require.ErrorContains(t, err, "insufficient funds for execution")
-	})
-
-	t.Run("Big receiver amount", func(t *testing.T) {
-		unfundedUser, err := cardanofw.NewTestApexUser(
-			apex.PrimeCluster.Config.NetworkType,
-			apex.Config.VectorEnabled,
-			apex.GetVectorNetworkType(),
-			apex.Config.NexusEnabled,
-		)
-		require.NoError(t, err)
-
-		unfundedUserPk, err := unfundedUser.GetPrivateKey(cardanofw.ChainIDNexus)
-		require.NoError(t, err)
-
-		txn := apex.Nexus.Cluster.Transfer(t,
-			apex.Nexus.Admin.Ecdsa, unfundedUser.NexusAddress, big.NewInt(10))
-
-		require.NotNil(t, txn)
-		require.True(t, txn.Succeed())
-
-		sendAmountEth := uint64(20) // Sender funded with 10 Eth
-		sendAmountWei := ethgo.Ether(sendAmountEth)
-
-		// call SendTx command
-		err = sendTxParams("evm",
-			apex.Nexus.GetGatewayAddress().String(),
-			apex.GetNexusDefaultJSONRPCAddr(),
-			unfundedUserPk, cardanofw.ChainIDPrime,
-			unfundedUser.GetAddress(cardanofw.ChainIDPrime),
-			sendAmountWei, fee,
-		)
-		require.ErrorContains(t, err, "insufficient funds for execution")
-	})
-}
-
 func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
@@ -505,7 +376,6 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 		cardanofw.WithVectorEnabled(false),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(userCnt),
-		cardanofw.WithUserCardanoFund(500_000_000),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1148,7 +1018,6 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		cardanofw.WithVectorEnabled(false),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(userCnt),
-		cardanofw.WithUserCardanoFund(10_000_000),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1172,7 +1041,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 
 		_, err = cardanofw.SendTx(
 			ctx, txProviderPrime, user.PrimeWallet, sendAmountDfm+feeAmount, apex.PrimeMultisigAddr,
-			apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+			apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "not enough funds")
 	})
@@ -1195,7 +1064,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 
 		_, err = cardanofw.SendTx(ctx, txProviderPrime, user.PrimeWallet,
 			sendAmountDfm+feeAmount, apex.PrimeMultisigAddr,
-			apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+			apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 		require.Error(t, err)
 	})
 
@@ -1231,7 +1100,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 
 		txHash, err := cardanofw.SendTx(ctx, txProviderPrime, user.PrimeWallet,
 			sendAmountDfm+feeAmount, apex.PrimeMultisigAddr,
-			apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+			apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		apiURL, err := apex.GetBridgingAPI()
@@ -1277,7 +1146,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 
 		txHash, err := cardanofw.SendTx(ctx, txProviderPrime, user.PrimeWallet,
 			sendAmountDfm+feeAmount, apex.PrimeMultisigAddr,
-			apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+			apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		apiURL, err := apex.GetBridgingAPI()
@@ -1318,7 +1187,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 
 		txHash, err := cardanofw.SendTx(ctx, txProviderPrime, user.PrimeWallet,
 			sendAmountDfm+feeAmount, apex.PrimeMultisigAddr,
-			apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+			apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		apiURL, err := apex.GetBridgingAPI()
@@ -1352,7 +1221,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 
 		txHash, err := cardanofw.SendTx(ctx, txProviderPrime, user.PrimeWallet,
 			sendAmountDfm+feeAmount, apex.PrimeMultisigAddr,
-			apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+			apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		apiURL, err := apex.GetBridgingAPI()
@@ -1385,7 +1254,6 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 		cardanofw.WithVectorEnabled(false),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(userCnt),
-		cardanofw.WithUserCardanoFund(100_000_000),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1442,7 +1310,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 
 					txHash, err := cardanofw.SendTx(ctx, txProviderPrime, apex.Users[idx].PrimeWallet,
 						sendAmountDfm+feeAmount, apex.PrimeMultisigAddr,
-						apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+						apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 					require.NoError(t, err)
 
 					fmt.Printf("Tx %v sent without waiting for confirmation. hash: %s\n", idx+1, txHash)
@@ -1516,7 +1384,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 
 					txHash, err := cardanofw.SendTx(ctx, txProviderPrime, apex.Users[idx].PrimeWallet,
 						sendAmountDfm+feeAmount, apex.PrimeMultisigAddr,
-						apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+						apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 					require.NoError(t, err)
 
 					fmt.Printf("Tx %v sent without waiting for confirmation. hash: %s\n", idx+1, txHash)
@@ -1569,7 +1437,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithUserCardanoFund(500_000_000),
 			cardanofw.WithCustomConfigHandlers(nil, func(mp map[string]interface{}) {
 				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
 				block["gasFeeCap"] = uint64(10)
@@ -1639,7 +1506,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithUserCardanoFund(500_000_000),
 			cardanofw.WithCustomConfigHandlers(nil, func(mp map[string]interface{}) {
 				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
 				block["gasPrice"] = uint64(10)
@@ -1704,7 +1570,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithUserCardanoFund(500_000_000),
 			cardanofw.WithCustomConfigHandlers(nil, func(mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(10)
 			}),
@@ -1771,7 +1636,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithUserCardanoFund(500_000_000),
 			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(1)
 			}, nil),
@@ -1818,7 +1682,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithUserCardanoFund(500_000_000),
 			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(2)
 			}, nil),
@@ -1863,7 +1726,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithUserCardanoFund(500_000_000),
 			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(3)
 			}, nil),
@@ -1919,7 +1781,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithUserCardanoFund(500_000_000),
 			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(4)
 			}, nil),

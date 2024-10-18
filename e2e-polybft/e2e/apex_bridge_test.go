@@ -42,7 +42,6 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 		cardanofw.WithVectorEnabled(true),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(1),
-		cardanofw.WithUserCardanoFund(500_000_000),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -53,13 +52,13 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 	fmt.Printf("oracle API: %s\n", oracleAPI)
 	fmt.Printf("oracle API key: %s\n", apiKey)
 
-	fmt.Printf("prime network url: %s\n", apex.PrimeCluster.NetworkAddress())
-	fmt.Printf("prime ogmios url: %s\n", apex.PrimeCluster.OgmiosURL())
+	fmt.Printf("prime network url: %s\n", apex.PrimeInfo.NetworkAddress)
+	fmt.Printf("prime ogmios url: %s\n", apex.PrimeInfo.OgmiosURL)
 	fmt.Printf("prime bridging addr: %s\n", apex.PrimeMultisigAddr)
 	fmt.Printf("prime fee addr: %s\n", apex.PrimeMultisigFeeAddr)
 
-	fmt.Printf("vector network url: %s\n", apex.VectorCluster.NetworkAddress())
-	fmt.Printf("vector ogmios url: %s\n", apex.VectorCluster.OgmiosURL())
+	fmt.Printf("vector network url: %s\n", apex.VectorInfo.NetworkAddress)
+	fmt.Printf("vector ogmios url: %s\n", apex.VectorInfo.OgmiosURL)
 	fmt.Printf("vector bridging addr: %s\n", apex.VectorMultisigAddr)
 	fmt.Printf("vector fee addr: %s\n", apex.VectorMultisigFeeAddr)
 
@@ -76,13 +75,13 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 	fmt.Printf("user vector addr: %s\n", user.GetAddress(cardanofw.ChainIDVector))
 	fmt.Printf("user vector signing key hex: %s\n", userVectorSK)
 
-	chainID, err := apex.Nexus.Cluster.Servers[0].JSONRPC().ChainID()
+	chainID, err := apex.GetNexusNode().JSONRPC().ChainID()
 	require.NoError(t, err)
 
 	fmt.Printf("nexus user addr: %s\n", user.GetAddress(cardanofw.ChainIDNexus))
 	fmt.Printf("nexus user signing key: %s\n", userNexusPK)
-	fmt.Printf("nexus url: %s\n", apex.GetNexusDefaultJSONRPCAddr())
-	fmt.Printf("nexus gateway sc addr: %s\n", apex.Nexus.GetGatewayAddress().String())
+	fmt.Printf("nexus url: %s\n", apex.GetNexusNode().JSONRPCAddr())
+	fmt.Printf("nexus gateway sc addr: %s\n", apex.GetGatewayAddress())
 	fmt.Printf("nexus chainID: %v\n", chainID)
 
 	fmt.Printf("bridge url: %s\n", apex.GetBridgeDefaultJSONRPCAddr())
@@ -142,6 +141,7 @@ func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 				}
 
 				multisigAddr, feeAddr := "", ""
+				desiredAmount := apex.Config.PrimeConfig.FundAmount
 				sumMultisig, sumFee := uint64(0), uint64(0)
 
 				switch chainID {
@@ -164,8 +164,7 @@ func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 					fmt.Printf("%s sums: %d, %d\n", requestURL, sumMultisig, sumFee)
 				}
 
-				if sumMultisig != apex.Config.FundTokenAmount || sumFee != apex.Config.FundTokenAmount ||
-					currentState.BlockSlot == 0 {
+				if sumMultisig != desiredAmount || sumFee != desiredAmount || currentState.BlockSlot == 0 {
 					break outerLoop
 				} else {
 					goodOraclesCount++
@@ -183,10 +182,15 @@ func TestE2E_ApexBridge(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig.FundAmount = 500_000_000
+	vectorConfig.FundAmount = 500_000_000
+
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,
 		cardanofw.WithUserCnt(1),
-		cardanofw.WithUserCardanoFund(500_000_000),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -222,13 +226,18 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig.FundAmount = 500_000_000
+	vectorConfig.FundAmount = 500_000_000
+	primeConfig.TTLInc, primeConfig.SlotRoundingThreshold = 1, 20
+	vectorConfig.TTLInc, vectorConfig.SlotRoundingThreshold = 1, 30
+
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,
-		cardanofw.WithPrimeTTL(20, 1),
-		cardanofw.WithVectorTTL(30, 1),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithUserCnt(1),
-		cardanofw.WithUserCardanoFund(500_000_000),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -305,11 +314,16 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig.FundAmount = 500_000_000
+	vectorConfig.FundAmount = 500_000_000
+
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithUserCnt(10),
-		cardanofw.WithUserCardanoFund(500_000_000),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -333,7 +347,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 		txHash, err := cardanofw.SendTx(
 			ctx, txProviderPrime, user.PrimeWallet, sendAmount+feeAmount, apex.PrimeMultisigAddr,
-			apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+			apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		apiURL, err := apex.GetBridgingAPI()
@@ -357,7 +371,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 			txHash, err := cardanofw.SendTx(
 				ctx, txProviderPrime, apex.Users[i].PrimeWallet, sendAmount+feeAmount, apex.PrimeMultisigAddr,
-				apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+				apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 			require.NoError(t, err)
 
 			apiURL, err := apex.GetBridgingAPI()
@@ -396,7 +410,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 				txHashes[idx], err = cardanofw.SendTx(
 					ctx, txProviderPrime, testUser.PrimeWallet,
 					sendAmount+feeAmount, apex.PrimeMultisigAddr,
-					apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+					apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 				require.NoError(t, err)
 			}()
 		}
@@ -428,7 +442,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 		_, err = cardanofw.SendTx(
 			ctx, txProviderPrime, user.PrimeWallet, sendAmount+feeAmount, apex.PrimeMultisigAddr,
-			apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+			apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 		require.Error(t, err)
 	})
 
@@ -463,7 +477,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 		txHash, err := cardanofw.SendTx(
 			ctx, txProviderPrime, user.PrimeWallet, sendAmount+feeAmount, apex.PrimeMultisigAddr,
-			apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+			apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		apiURL, err := apex.GetBridgingAPI()
@@ -508,7 +522,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 		txHash, err := cardanofw.SendTx(
 			ctx, txProviderPrime, user.PrimeWallet, sendAmount+feeAmount, apex.PrimeMultisigAddr,
-			apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+			apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		apiURL, err := apex.GetBridgingAPI()
@@ -547,7 +561,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 		txHash, err := cardanofw.SendTx(
 			ctx, txProviderPrime, user.PrimeWallet, sendAmount+feeAmount, apex.PrimeMultisigAddr,
-			apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+			apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		apiURL, err := apex.GetBridgingAPI()
@@ -575,7 +589,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 		txHash, err := cardanofw.SendTx(
 			ctx, txProviderPrime, user.PrimeWallet, sendAmount, apex.PrimeMultisigAddr,
-			apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+			apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		apiURL, err := apex.GetBridgingAPI()
@@ -597,7 +611,6 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithUserCnt(userCnt),
-		cardanofw.WithUserCardanoFund(20_000_000_000),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1302,11 +1315,16 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig.FundAmount = 100_000_000
+	vectorConfig.FundAmount = 100_000_000
+
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithUserCnt(userCnt),
-		cardanofw.WithUserCardanoFund(100_000_000),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1365,7 +1383,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 
 					_, err = cardanofw.SendTx(
 						ctx, txProviderPrime, apex.Users[idx].PrimeWallet, sendAmount+feeAmount, apex.PrimeMultisigAddr,
-						apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+						apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 					require.NoError(t, err)
 				}
 			}(i)
@@ -1430,7 +1448,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 
 					_, err = cardanofw.SendTx(
 						ctx, txProviderPrime, apex.Users[idx].PrimeWallet, sendAmount+feeAmount, apex.PrimeMultisigAddr,
-						apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+						apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 					require.NoError(t, err)
 				}
 			}(i)
@@ -1498,7 +1516,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 
 					_, err = cardanofw.SendTx(
 						ctx, txProviderPrime, apex.Users[idx].PrimeWallet, sendAmount+feeAmount, apex.PrimeMultisigAddr,
-						apex.PrimeCluster.NetworkConfig(), bridgingRequestMetadata)
+						apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 					require.NoError(t, err)
 				}
 			}(i)
@@ -1529,7 +1547,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 
 					_, err = cardanofw.SendTx(
 						ctx, txProviderVector, apex.Users[idx].VectorWallet, sendAmount+feeAmount, apex.VectorMultisigAddr,
-						apex.VectorCluster.NetworkConfig(), bridgingRequestMetadata)
+						apex.Config.VectorConfig.NetworkType, bridgingRequestMetadata)
 					require.NoError(t, err)
 				}
 			}(i)
