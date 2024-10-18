@@ -136,14 +136,28 @@ func (cv *TestApexValidator) GenerateConfigs(
 	apiKey string,
 	telemetryConfig string,
 	nexusNodeURL string,
+	primeMultisigAddr string,
+	primeMultisigFeeAddr string,
+	vectorMultisigAddr string,
+	vectorMultisigFeeAddr string,
+	pvk string,
+	psk string,
+	pfvk string,
+	pfsk string,
+	vvk string,
+	vsk string,
+	vfvk string,
+	vfsk string,
 ) error {
 	cv.APIPort = apiPort
 	logsPath := filepath.Join(cv.dataDirPath, BridgingLogsDir)
 	dbsPath := filepath.Join(cv.dataDirPath, BridgingDBsDir)
 
+	jsonRPC := fmt.Sprintf("http://%s:%d", "127.0.0.1", 12345)
+
 	args := []string{
 		"generate-configs",
-		"--validator-data-dir", cv.server.DataDir(),
+		"--validator-data-dir", "validator", //cv.server.DataDir(),
 		"--output-dir", cv.GetBridgingConfigsDir(),
 		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
 		"--output-relayer-file-name", RelayerConfigFileName,
@@ -155,7 +169,7 @@ func (cv *TestApexValidator) GenerateConfigs(
 		"--vector-network-magic", fmt.Sprint(vectorNetworkMagic),
 		"--vector-network-id", fmt.Sprint(vectorNetworkID),
 		"--vector-ogmios-url", vectorOgmiosURL,
-		"--bridge-node-url", cv.server.JSONRPCAddr(),
+		"--bridge-node-url", jsonRPC, //cv.server.JSONRPCAddr(),
 		"--bridge-sc-address", contracts.Bridge.String(),
 		"--nexus-node-url", nexusNodeURL,
 		"--relayer-data-dir", cv.GetNexusTestDir(),
@@ -164,9 +178,20 @@ func (cv *TestApexValidator) GenerateConfigs(
 		"--api-port", fmt.Sprint(apiPort),
 		"--api-keys", apiKey,
 		"--telemetry", telemetryConfig,
-		"--relayer-data-dir", cv.server.DataDir(),
+		"--relayer-data-dir", "relayer", //cv.server.DataDir(),
+		"--prime-bridging-address", primeMultisigAddr,
+		"--prime-fee-address", primeMultisigFeeAddr,
+		"--vector-bridging-address", vectorMultisigAddr,
+		"--vector-fee-address", vectorMultisigFeeAddr,
+		"--prime-v-key", pvk,
+		"--prime-s-key", psk,
+		"--primefee-v-key", pfvk,
+		"--primefee-s-key", pfsk,
+		"--vector-v-key", vvk,
+		"--vector-s-key", vsk,
+		"--vectorfee-v-key", vfvk,
+		"--vectorfee-s-key", vfsk,
 	}
-
 	if primeTTLInc > 0 {
 		args = append(args,
 			"--prime-ttl-slot-inc", fmt.Sprint(primeTTLInc),

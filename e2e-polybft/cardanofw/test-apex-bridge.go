@@ -70,3 +70,59 @@ func SetupAndRunApexBridge(
 
 	return apexSystem
 }
+
+func SetupAndRunApexCentralizedBridge(
+	t *testing.T,
+	ctx context.Context,
+	opts ...ApexSystemOptions,
+) *ApexSystem {
+	t.Helper()
+
+	bridgeDataDir := filepath.Join("..", "..", "e2e-bridge-data-tmp-"+t.Name())
+
+	os.RemoveAll(bridgeDataDir)
+
+	fmt.Printf("SetupAndRunApexCentralizedBridge...\n")
+
+	apexSystem := NewApexCentralizedSystem(bridgeDataDir, opts...)
+
+	fmt.Printf("Starting chains...\n")
+
+	apexSystem.StartChains(t)
+
+	fmt.Printf("Chains have been started. Starting bridge...\n")
+
+	apexSystem.StartApexCentralized(t)
+
+	fmt.Printf("Bridge has been started\n")
+
+	// require.NoError(t, apexSystem.CreateWallets(false))
+
+	// fmt.Printf("Wallets have been created.\n")
+
+	// require.NoError(t, apexSystem.RegisterChains(apexSystem.Config.FundTokenAmount))
+
+	// fmt.Printf("Chains have been registered\n")
+
+	require.NoError(t, apexSystem.CreateCardanoAddresses())
+
+	require.NoError(t, apexSystem.FundCardanoMultisigAddresses(ctx, apexSystem.Config.FundTokenAmount))
+
+	fmt.Printf("Cardano addresses have been created and funded\n")
+
+	require.NoError(t, apexSystem.GenerateConfigs(
+		apexSystem.PrimeCluster,
+		apexSystem.VectorCluster,
+		apexSystem.Nexus,
+	))
+
+	fmt.Printf("Configs have been generated\n")
+
+	require.NoError(t, apexSystem.StartValidatorComponents(ctx))
+
+	fmt.Printf("Validator components started\n")
+
+	fmt.Printf("Centralized Apex bridge setup done\n")
+
+	return apexSystem
+}

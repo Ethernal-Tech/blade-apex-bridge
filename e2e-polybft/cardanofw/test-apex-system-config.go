@@ -193,6 +193,43 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 	}
 }
 
+func getDefaultApexCentralizedSystemConfig() *ApexSystemConfig {
+	return &ApexSystemConfig{
+		APIValidatorID: 1,
+		APIPortStart:   40000,
+		APIKey:         "test_api_key",
+
+		BladeValidatorCount: 1,
+
+		PrimeClusterConfig: &RunCardanoClusterConfig{
+			ID:          0,
+			NodesCount:  4,
+			NetworkType: cardanowallet.TestNetNetwork,
+		},
+		VectorClusterConfig: &RunCardanoClusterConfig{
+			ID:          1,
+			NodesCount:  4,
+			NetworkType: cardanowallet.VectorTestNetNetwork,
+		},
+
+		NexusValidatorCount: 4,
+		NexusStartingPort:   int64(30400),
+
+		VectorEnabled: true,
+		NexusEnabled:  false,
+		NexusBurnContractInfo: &polybft.BurnContractInfo{
+			BlockNumber: 0,
+			Address:     types.ZeroAddress,
+		},
+
+		CustomOracleHandler:  nil,
+		CustomRelayerHandler: nil,
+
+		FundTokenAmount:    uint64(150_000_000_000),
+		FundEthTokenAmount: defaultFundEthTokenAmount,
+	}
+}
+
 func (as *ApexSystemConfig) ServiceCount() int {
 	// Prime
 	count := 1

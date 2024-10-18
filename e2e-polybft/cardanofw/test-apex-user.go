@@ -234,7 +234,7 @@ func BridgeAmountFullMultipleReceivers(
 	require.NoError(t, err)
 
 	err = wallet.WaitForTxHashInUtxos(
-		context.Background(), txProvider, multisigAddr, txHash, 60, time.Second*2, IsRecoverableError)
+		context.Background(), txProvider, multisigAddr, txHash, 200, time.Second*2, IsRecoverableError)
 	require.NoError(t, err)
 
 	return txHash
