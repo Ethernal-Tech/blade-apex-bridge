@@ -157,7 +157,7 @@ func (cv *TestApexValidator) GenerateConfigs(
 
 	args := []string{
 		"generate-configs",
-		"--validator-data-dir", "validator", //cv.server.DataDir(),
+		"--validator-data-dir", "validator",
 		"--output-dir", cv.GetBridgingConfigsDir(),
 		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
 		"--output-relayer-file-name", RelayerConfigFileName,
@@ -169,7 +169,7 @@ func (cv *TestApexValidator) GenerateConfigs(
 		"--vector-network-magic", fmt.Sprint(vectorNetworkMagic),
 		"--vector-network-id", fmt.Sprint(vectorNetworkID),
 		"--vector-ogmios-url", vectorOgmiosURL,
-		"--bridge-node-url", jsonRPC, //cv.server.JSONRPCAddr(),
+		"--bridge-node-url", jsonRPC,
 		"--bridge-sc-address", contracts.Bridge.String(),
 		"--nexus-node-url", nexusNodeURL,
 		"--relayer-data-dir", cv.GetNexusTestDir(),
@@ -178,7 +178,7 @@ func (cv *TestApexValidator) GenerateConfigs(
 		"--api-port", fmt.Sprint(apiPort),
 		"--api-keys", apiKey,
 		"--telemetry", telemetryConfig,
-		"--relayer-data-dir", "relayer", //cv.server.DataDir(),
+		"--relayer-data-dir", "relayer",
 		"--prime-bridging-address", primeMultisigAddr,
 		"--prime-fee-address", primeMultisigFeeAddr,
 		"--vector-bridging-address", vectorMultisigAddr,

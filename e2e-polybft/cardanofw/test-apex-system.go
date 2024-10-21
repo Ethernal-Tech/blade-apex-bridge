@@ -728,17 +728,19 @@ func (a *ApexSystem) CreateCardanoMultisigAddresses() (err error) {
 }
 
 func (a *ApexSystem) CreateCardanoAddresses() (err error) {
-	fmt.Println("DN_LOG_TAG CreateCardanoAddresses")
+	fmt.Println("CreateCardanoAddresses")
+
 	cw, err := cardanowallet.GenerateWallet(false)
 	if err != nil {
 		return fmt.Errorf("failed to create prime wallet: %w", err)
 	}
 
-	//addrPrime, err := cardanowallet.NewEnterpriseAddress(a.PrimeCluster.Config.NetworkType, cw.GetVerificationKey())
-	a.PrimeMultisigAddr, _, err = a.cardanoCreateAddress(a.PrimeCluster.Config.NetworkType, []string{hex.EncodeToString(cw.GetVerificationKey()), hex.EncodeToString(cw.GetSigningKey())})
+	a.PrimeMultisigAddr, _, err = a.cardanoCreateAddress(a.PrimeCluster.Config.NetworkType,
+		[]string{hex.EncodeToString(cw.GetVerificationKey()), hex.EncodeToString(cw.GetSigningKey())})
 	if err != nil {
 		return fmt.Errorf("failed to create prime address: %w", err)
 	}
+
 	a.pvk = hex.EncodeToString(cw.VerificationKey)
 	a.psk = hex.EncodeToString(cw.SigningKey)
 
@@ -747,10 +749,12 @@ func (a *ApexSystem) CreateCardanoAddresses() (err error) {
 		return fmt.Errorf("failed to create prime wallet: %w", err)
 	}
 
-	a.PrimeMultisigFeeAddr, _, err = a.cardanoCreateAddress(a.PrimeCluster.Config.NetworkType, []string{hex.EncodeToString(cfw.GetVerificationKey()), hex.EncodeToString(cfw.GetSigningKey())})
+	a.PrimeMultisigFeeAddr, _, err = a.cardanoCreateAddress(a.PrimeCluster.Config.NetworkType,
+		[]string{hex.EncodeToString(cfw.GetVerificationKey()), hex.EncodeToString(cfw.GetSigningKey())})
 	if err != nil {
 		return fmt.Errorf("failed to create prime fee address: %w", err)
 	}
+
 	a.pfsk = hex.EncodeToString(cfw.SigningKey)
 	a.pfvk = hex.EncodeToString(cfw.VerificationKey)
 
@@ -759,11 +763,12 @@ func (a *ApexSystem) CreateCardanoAddresses() (err error) {
 		return fmt.Errorf("failed to create vector wallet: %w", err)
 	}
 
-	// addrVec, err := cardanowallet.NewEnterpriseAddress(a.VectorCluster.Config.NetworkType, vw.GetVerificationKey())
-	a.VectorMultisigAddr, _, err = a.cardanoCreateAddress(a.VectorCluster.Config.NetworkType, []string{hex.EncodeToString(vw.GetVerificationKey())})
+	a.VectorMultisigAddr, _, err = a.cardanoCreateAddress(a.VectorCluster.Config.NetworkType,
+		[]string{hex.EncodeToString(vw.GetVerificationKey())})
 	if err != nil {
 		return fmt.Errorf("failed to create vector address: %w", err)
 	}
+
 	a.vsk = hex.EncodeToString(vw.SigningKey)
 	a.vvk = hex.EncodeToString(vw.VerificationKey)
 
@@ -771,7 +776,9 @@ func (a *ApexSystem) CreateCardanoAddresses() (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to create vector wallet: %w", err)
 	}
-	a.VectorMultisigFeeAddr, _, err = a.cardanoCreateAddress(a.VectorCluster.Config.NetworkType, []string{hex.EncodeToString(vfw.GetVerificationKey())})
+
+	a.VectorMultisigFeeAddr, _, err = a.cardanoCreateAddress(a.VectorCluster.Config.NetworkType,
+		[]string{hex.EncodeToString(vfw.GetVerificationKey())})
 	if err != nil {
 		return fmt.Errorf("failed to create vector fee address: %w", err)
 	}
@@ -811,6 +818,7 @@ func (a *ApexSystem) cardanoCreateAddress(
 	for _, key := range keys {
 		args = append(args, "--key", key)
 	}
+
 	args = append(args, "--multisig", "false")
 
 	var outb bytes.Buffer
