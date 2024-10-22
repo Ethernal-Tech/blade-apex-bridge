@@ -43,7 +43,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		ID:                     0,
 		NetworkType:            cardWallet.TestNetNetwork,
 		NodesCount:             4,
-		InitialHotWalletAmount: new(big.Int).SetUint64(defaultFundTokenAmount), // big.NewInt(0),
+		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,
 		FundAmount:             defaultFundTokenAmount,
 	}
@@ -55,7 +55,7 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		ID:                     1,
 		NetworkType:            cardWallet.VectorTestNetNetwork,
 		NodesCount:             4,
-		InitialHotWalletAmount: new(big.Int).SetUint64(defaultFundTokenAmount), // big.NewInt(0),
+		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,
 		FundAmount:             defaultFundTokenAmount,
 	}
@@ -66,6 +66,9 @@ type TestCardanoChain struct {
 	cluster         *TestCardanoCluster
 	multisigAddr    string
 	multisigFeeAddr string
+
+	fundBlockSlot uint64
+	fundBlockHash string
 }
 
 var _ ITestApexChain = (*TestCardanoChain)(nil)
@@ -205,6 +208,15 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 	fmt.Printf("%s fee addr funded: %s\n", GetNetworkName(ec.config.NetworkType), txHash)
 
+	// retrieve latest tip
+	tip, err := cardWallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()).GetTip(ctx)
+	if err != nil {
+		return err
+	}
+
+	ec.fundBlockHash = tip.Hash
+	ec.fundBlockSlot = tip.Slot
+
 	return nil
 }
 
@@ -241,21 +253,20 @@ func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string)
 }
 
 func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) {
+	data := CardanoChainInfo{
+		NetworkAddress: ec.cluster.Servers[0].NetworkAddress(),
+		OgmiosURL:      ec.cluster.OgmiosURL(),
+		MultisigAddr:   ec.multisigAddr,
+		FeeAddr:        ec.multisigFeeAddr,
+		FundBlockHash:  ec.fundBlockHash,
+		FundBlockSlot:  ec.fundBlockSlot,
+	}
+
 	switch ec.ChainID() {
 	case ChainIDPrime:
-		apexSystem.PrimeInfo = CardanoChainInfo{
-			NetworkAddress: ec.cluster.Servers[0].NetworkAddress(),
-			OgmiosURL:      ec.cluster.OgmiosURL(),
-			MultisigAddr:   ec.multisigAddr,
-			FeeAddr:        ec.multisigFeeAddr,
-		}
+		apexSystem.PrimeInfo = data
 	case ChainIDVector:
-		apexSystem.VectorInfo = CardanoChainInfo{
-			NetworkAddress: ec.cluster.Servers[0].NetworkAddress(),
-			OgmiosURL:      ec.cluster.OgmiosURL(),
-			MultisigAddr:   ec.multisigAddr,
-			FeeAddr:        ec.multisigFeeAddr,
-		}
+		apexSystem.VectorInfo = data
 	}
 }
 

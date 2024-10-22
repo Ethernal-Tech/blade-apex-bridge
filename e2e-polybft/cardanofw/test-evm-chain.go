@@ -58,7 +58,7 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 			Address:     types.ZeroAddress,
 		},
 		ApexConfig:             genesis.ApexConfigNexus,
-		InitialHotWalletAmount: ethgo.Ether(defaultFundEthTokenAmount), // big.NewInt(0),
+		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          ethgo.Ether(defaultPremineEthTokenAmount),
 		FundAmount:             ethgo.Ether(defaultFundEthTokenAmount),
 		FundRelayerAmount:      ethgo.Ether(defaultFundRelayerEthTokenAmount),
@@ -71,6 +71,7 @@ type TestEVMChain struct {
 	cluster       *framework.TestCluster
 	gatewayAddr   types.Address
 	relayerWallet *crypto.ECDSAKey
+	fundBlockNum  uint64
 }
 
 var _ ITestApexChain = (*TestEVMChain)(nil)
@@ -168,6 +169,17 @@ func (ec *TestEVMChain) FundWallets(ctx context.Context) error {
 
 	_, err = ec.SendTx(
 		ctx, hex.EncodeToString(key), ec.relayerWallet.Address().String(), ec.config.FundRelayerAmount, nil)
+	if err != nil {
+		return err
+	}
+
+	// retrieve latest block and update starting point
+	client, err := jsonrpc.NewEthClient(ec.cluster.Servers[0].JSONRPCAddr())
+	if err != nil {
+		return err
+	}
+
+	ec.fundBlockNum, err = client.BlockNumber()
 
 	return err
 }
@@ -244,6 +256,7 @@ func (ec *TestEVMChain) PopulateApexSystem(apexSystem *ApexSystem) {
 			Node:           ec.cluster.Servers[0],
 			RelayerAddress: ec.relayerWallet.Address(),
 			AdminKey:       ec.admin,
+			FundBlockNum:   ec.fundBlockNum,
 		}
 	}
 }
