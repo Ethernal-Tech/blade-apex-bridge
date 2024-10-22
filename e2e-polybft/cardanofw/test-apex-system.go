@@ -367,19 +367,12 @@ func (a *ApexSystem) ApexBridgeProcessesRunning() bool {
 func (a *ApexSystem) GetBalance(
 	ctx context.Context, user *TestApexUser, chainID ChainID,
 ) (*big.Int, error) {
-	return a.GetAddressBalance(ctx, chainID, user.GetAddress(chainID))
-}
-
-func (a *ApexSystem) GetAddressBalance(
-	ctx context.Context, chainID ChainID, address string,
-) (*big.Int, error) {
-	for _, chain := range a.chains {
-		if chain.ChainID() == chainID {
-			return chain.GetAddressBalance(ctx, address)
-		}
+	chain, err := a.getChain(chainID)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("unsupported chain")
+	return chain.GetAddressBalance(ctx, user.GetAddress(chainID))
 }
 
 func (a *ApexSystem) WaitForGreaterAmount(
@@ -427,52 +420,18 @@ func (a *ApexSystem) SubmitTx(
 		return "", err
 	}
 
-	return a.SubmitTxFull(ctx, sourceChain, privateKey, receiver.GetAddress(destinationChain), amount, data)
-}
-
-func (a *ApexSystem) SubmitTxFull(
-	ctx context.Context,
-	sourceChain ChainID, privateKey string, receiverAddr string, amount *big.Int, data []byte,
-) (string, error) {
-	for _, chain := range a.chains {
-		if chain.ChainID() == sourceChain {
-			return chain.SendTx(ctx, privateKey, receiverAddr, amount, data)
-		}
+	chain, err := a.getChain(sourceChain)
+	if err != nil {
+		return "", err
 	}
 
-	return "", errors.New("unknown chain")
+	return chain.SendTx(ctx, privateKey, receiver.GetAddress(destinationChain), amount, data)
 }
 
 func (a *ApexSystem) SubmitBridgingRequest(
 	t *testing.T, ctx context.Context,
 	sourceChain ChainID, destinationChain ChainID,
 	sender *TestApexUser, sendAmount *big.Int, receivers ...*TestApexUser,
-) string {
-	t.Helper()
-
-	receiversMap := make(map[string]*big.Int, len(receivers))
-
-	for _, receiver := range receivers {
-		require.True(t, destinationChain != ChainIDVector || receiver.HasVectorWallet)
-		require.True(t, destinationChain != ChainIDNexus || receiver.HasNexusWallet)
-
-		receiversMap[receiver.GetAddress(destinationChain)] = sendAmount
-	}
-
-	// check if users are valid for the bridging - do they have necessary wallets
-	require.True(t, sourceChain != ChainIDVector || sender.HasVectorWallet)
-	require.True(t, sourceChain != ChainIDNexus || sender.HasNexusWallet)
-
-	privateKey, err := sender.GetPrivateKey(sourceChain)
-	require.NoError(t, err)
-
-	return a.SubmitBridgingRequestFull(t, ctx, sourceChain, destinationChain, privateKey, receiversMap)
-}
-
-func (a *ApexSystem) SubmitBridgingRequestFull(
-	t *testing.T, ctx context.Context,
-	sourceChain ChainID, destinationChain ChainID,
-	senderPrivateKey string, receivers map[string]*big.Int,
 ) string {
 	t.Helper()
 
@@ -507,16 +466,35 @@ func (a *ApexSystem) SubmitBridgingRequestFull(
 	require.Greater(t, len(receivers), 0)
 	require.Less(t, len(receivers), 5)
 
-	for _, chain := range a.chains {
-		if chain.ChainID() == sourceChain {
-			txHash, err := chain.BridgingRequest(ctx, destinationChain, senderPrivateKey, receivers)
-			require.NoError(t, err)
+	receiversMap := make(map[string]*big.Int, len(receivers))
 
-			return txHash
-		}
+	for _, receiver := range receivers {
+		require.True(t, destinationChain != ChainIDVector || receiver.HasVectorWallet)
+		require.True(t, destinationChain != ChainIDNexus || receiver.HasNexusWallet)
+
+		receiversMap[receiver.GetAddress(destinationChain)] = sendAmount
 	}
 
-	return ""
+	// check if users are valid for the bridging - do they have necessary wallets
+	require.True(t, sourceChain != ChainIDVector || sender.HasVectorWallet)
+	require.True(t, sourceChain != ChainIDNexus || sender.HasNexusWallet)
+
+	privateKey, err := sender.GetPrivateKey(sourceChain)
+	require.NoError(t, err)
+
+	txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(ctx, destinationChain, privateKey, receiversMap)
+	require.NoError(t, err)
+
+	return txHash
+}
+
+func (a *ApexSystem) GetChainMust(t *testing.T, chainID string) ITestApexChain {
+	t.Helper()
+
+	chain, err := a.getChain(chainID)
+	require.NoError(t, err)
+
+	return chain
 }
 
 func (a *ApexSystem) execForEachChain(handler func(chain ITestApexChain) error) error {
@@ -559,4 +537,14 @@ func (a *ApexSystem) execForEachValidator(handler func(i int, validator *TestApe
 	wg.Wait()
 
 	return errors.Join(errs...)
+}
+
+func (a *ApexSystem) getChain(chainID string) (ITestApexChain, error) {
+	for _, chain := range a.chains {
+		if chain.ChainID() == chainID {
+			return chain, nil
+		}
+	}
+
+	return nil, fmt.Errorf("unknown chain: %s", chainID)
 }

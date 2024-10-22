@@ -349,9 +349,8 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		privateKey, err := user.GetPrivateKey(cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		txHash, err := apex.SubmitTxFull(
-			ctx, cardanofw.ChainIDPrime, privateKey, apex.PrimeInfo.MultisigAddr,
-			new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
+		txHash, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).SendTx(ctx, privateKey,
+			apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		apiURL, err := apex.GetBridgingAPI()

@@ -82,8 +82,8 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 		fmt.Printf("ETH Amount BEFORE TX %d\n", ethBalanceBefore)
 		require.NoError(t, err)
 
-		relayerBalanceBefore, err := apex.GetAddressBalance(
-			ctx, cardanofw.ChainIDNexus, apex.NexusInfo.RelayerAddress.String())
+		relayerBalanceBefore, err := apex.GetChainMust(t, cardanofw.ChainIDNexus).GetAddressBalance(
+			ctx, apex.NexusInfo.RelayerAddress.String())
 		require.NoError(t, err)
 
 		txHash := apex.SubmitBridgingRequest(t, ctx,
@@ -102,8 +102,8 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 		fmt.Printf("ETH Amount AFTER TX %d\n", ethBalanceAfter)
 		require.NoError(t, err)
 
-		relayerBalanceAfter, err := apex.GetAddressBalance(
-			ctx, cardanofw.ChainIDNexus, apex.NexusInfo.RelayerAddress.String())
+		relayerBalanceAfter, err := apex.GetChainMust(t, cardanofw.ChainIDNexus).GetAddressBalance(
+			ctx, apex.NexusInfo.RelayerAddress.String())
 		require.NoError(t, err)
 
 		relayerBalanceGreater := relayerBalanceAfter.Cmp(relayerBalanceBefore) == 1
@@ -476,8 +476,8 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 		unfundedUserPk, err := unfundedUser.GetPrivateKey(cardanofw.ChainIDNexus)
 		require.NoError(t, err)
 
-		_, err = apex.SubmitTxFull(
-			ctx, cardanofw.ChainIDNexus, nexusAdminPrivateKey, unfundedUser.NexusAddress.String(), big.NewInt(10), nil)
+		_, err = apex.GetChainMust(t, cardanofw.ChainIDNexus).SendTx(
+			ctx, nexusAdminPrivateKey, unfundedUser.NexusAddress.String(), big.NewInt(10), nil)
 		require.NoError(t, err)
 
 		sendAmountEth := uint64(20) // Sender funded with 10 Eth
