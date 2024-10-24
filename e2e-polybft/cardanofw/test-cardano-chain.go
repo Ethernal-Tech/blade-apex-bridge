@@ -115,6 +115,8 @@ func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 
 	fmt.Printf("Waiting for sockets to be ready\n")
 
+	ec.cluster = cluster
+
 	if err := cluster.WaitForReady(time.Minute * 2); err != nil {
 		return err
 	}
@@ -128,8 +130,6 @@ func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 	}
 
 	fmt.Printf("Cluster %d is ready\n", ec.config.ID)
-
-	ec.cluster = cluster
 
 	return nil
 }
