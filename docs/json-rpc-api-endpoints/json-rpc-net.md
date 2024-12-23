@@ -4,15 +4,15 @@
 
 Whether the client is actively listening for network connections.
 
-### Parameters
+#### Parameters
 
 None
 
-### Returns
+#### Returns
 
 * Boolean - true when listening, otherwise false.
 
-### Example
+#### Example
 
 ```bash
 curl  https://rpc-endpoint.io:8545 -X POST --data '{"jsonrpc":"2.0","method":"net_listening","params":[],"id":1}'
@@ -32,22 +32,21 @@ curl  https://rpc-endpoint.io:8545 -X POST --data '{"jsonrpc":"2.0","method":"ne
 
 </details>
 
-\
 
 
 ## net\_peerCount
 
 Returns number of peers currently connected to the client.
 
-### Parameters
+#### Parameters
 
 None
 
-### Returns
+#### Returns
 
 * QUANTITY - number of connected peers in hexadecimal.
 
-### Example
+#### Example
 
 ```bash
 curl  https://rpc-endpoint.io:8545 -X POST --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}'
@@ -67,22 +66,21 @@ curl  https://rpc-endpoint.io:8545 -X POST --data '{"jsonrpc":"2.0","method":"ne
 
 </details>
 
-\
 
 
 ## net\_version
 
 Returns the current network id.
 
-### Parameters
+#### Parameters
 
 None
 
-### Returns
+#### Returns
 
 * String - the current network id.
 
-### Example
+#### Example
 
 ```bash
 curl  https://rpc-endpoint.io:8545 --data '{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}'

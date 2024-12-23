@@ -4,15 +4,15 @@
 
 Returns the current client version.
 
-### Parameters
+#### Parameters
 
 None
 
-### Returns
+#### Returns
 
 * String - the current client version.
 
-### Example
+#### Example
 
 ```bash
 curl  https://rpc-endpoint.io:8545 -X POST --data '{"jsonrpc":"2.0","method":"web3_clientVersion","params":[],"id":1}'
@@ -32,22 +32,21 @@ curl  https://rpc-endpoint.io:8545 -X POST --data '{"jsonrpc":"2.0","method":"we
 
 </details>
 
-\
 
 
 ## web3\_sha3
 
 Returns Keccak-256 (not the standardized SHA3-256) of the given data.
 
-### Parameters
+#### Parameters
 
 * DATA - the data to convert into a SHA3 hash.
 
-### Returns
+#### Returns
 
 * DATA - the SHA3 result of the given string.
 
-### Example
+#### Example
 
 ```bash
 curl  https://rpc-endpoint.io:8545 -X POST --data '{"jsonrpc":"2.0","method":"web3_sha3","params":["0x68656c6c6f20776f726c64"],"id":1}'

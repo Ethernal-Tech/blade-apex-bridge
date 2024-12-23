@@ -7,7 +7,7 @@ For information on the available CLI commands and their configuration flags and 
 
 ## Backup
 
-### Description
+#### Description
 
 Create blockchain backup file by fetching blockchain data from the running node.\
 Usage: `./blade backup [flags]`
@@ -20,18 +20,17 @@ Usage: `./blade backup [flags]`
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade backup --out backup-file
 ```
 
-\
 
 
 ## Genesis
 
-### Description
+#### Description
 
 Generates the genesis configuration file with the passed in parameters.\
 Usage: `./blade genesis [flags]`\
@@ -54,7 +53,7 @@ Mutually Exclusive Parameters
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade genesis --reward-wallet 0xDEADBEEF --premine 0x0000000000000000000000000000000000000000 --proxy-contracts-admin 0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed --blade-admin 0x61324166B0202DB1E7502924326262274Fa4358F --validators /ip4/127.0.0.1/tcp/1478/p2p/16Uiu2HAmMYyzK7c649Tnn6XdqFLP7fpPB2QWdck1Ee9vj5a7Nhg8:0x61324166B0202DB1E7502924326262274Fa4358F:06d8d9e6af67c28e85ac400b72c2e635e83234f8a380865e050a206554049a222c4792120d84977a6ca669df56ff3a1cf1cfeccddb650e7aacff4ed6c1d4e37b055858209f80117b3c0a6e7a28e456d4caf2270f430f9df2ba37221f23e9bbd313c9ef488e1849cc5c40d18284d019dde5ed86770309b9c24b70ceff6167a6ca
@@ -62,9 +61,9 @@ Mutually Exclusive Parameters
 
 
 
-## genesis predeploy
+### genesis predeploy
 
-### Description
+#### Description
 
 Specifies the contract to be predeployed on chain start.\
 Usage: `./blade genesis predeploy [flags]`
@@ -80,7 +79,7 @@ Mutually Exclusive Parameters
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade genesis predeploy --artifacts-name RootERC20 --deployer-address 0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed
@@ -90,7 +89,7 @@ Mutually Exclusive Parameters
 
 ## Mint-erc20
 
-### Description
+#### Description
 
 Mints ERC20 tokens to specified addresses.\
 Usage: `./blade mint-erc20 [flags]`
@@ -103,7 +102,7 @@ Usage: `./blade mint-erc20 [flags]`
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade mint-erc20 --addresses 0x85da99c8a7c2c95964c8efd687e95e632fc533d6 0x26F3f1f3F1d75c6d5d5146d1e44cec8831d0283A --amounts 1 2 --erc20-token 0x37e2e1f3F1d75c6d5d6336d1e44cec8831d0272a --private-key hex_encoded_private_key
@@ -113,7 +112,7 @@ Usage: `./blade mint-erc20 [flags]`
 
 ## Monitor
 
-### Description
+#### Description
 
 Starts logging block add / remove events on the blockchain.\
 Usage: `./blade monitor [flags]`
@@ -126,7 +125,7 @@ Usage: `./blade monitor [flags]`
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade monitor
@@ -136,7 +135,7 @@ Usage: `./blade monitor [flags]`
 
 ## Peers
 
-### Description
+#### Description
 
 Top level command for interacting with the network peers. Only accepts subcommands.\
 Usage: `./blade peers [command]`\
@@ -149,9 +148,9 @@ Available commands:\
 
 
 
-## peers add
+### peers add
 
-### Description
+#### Description
 
 Adds new peers to the peer list, using the peer's libp2p address.\
 Usage: `./blade peers add [flags]`
@@ -164,7 +163,7 @@ Usage: `./blade peers add [flags]`
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade peers add --addr /ip4/192.168.200.201/tcp/1478/p2p/16Uiu2HAmGEMQmFqe2U4ag35BWiXniZ6orJVgaxdtSyFwXhFqT4Ko
@@ -172,9 +171,9 @@ Usage: `./blade peers add [flags]`
 
 
 
-## peers list
+### peers list
 
-### Description
+#### Description
 
 Returns the list of connected peers, including the local node.\
 Usage: `./blade peers list [flags]`
@@ -187,7 +186,7 @@ Usage: `./blade peers list [flags]`
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade peers list
@@ -195,9 +194,9 @@ Usage: `./blade peers list [flags]`
 
 
 
-## peers status
+### peers status
 
-### Description
+#### Description
 
 Returns status of the specified peer, using the libp2p peer node ID.\
 Usage: `./blade peers status [flags]`
@@ -210,7 +209,7 @@ Usage: `./blade peers status [flags]`
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade peers status --peer-id 16Uiu2HAmGEMQmFqe2U4ag35BWiXniZ6orJVgaxdtSyFwXhFqT4Ko
@@ -220,7 +219,7 @@ Usage: `./blade peers status [flags]`
 
 ## Regenesis
 
-### Description
+#### Description
 
 Copies trie db for specific block to a separate folder.\
 Usage: `./blade regenesis [flags]`\
@@ -239,7 +238,7 @@ Available commands:\
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade regenesis --source-path <dir containing old chain trie> --stateRoot <state root which will be copied into target trie> --target-path <directory containing new trie>
@@ -247,9 +246,9 @@ Available commands:\
 
 
 
-## regenesis getroot
+### regenesis getroot
 
-### Description
+#### Description
 
 Returns blockchain state root.\
 Usage: `./blade regenesis getroot [flags]`
@@ -262,7 +261,7 @@ Usage: `./blade regenesis getroot [flags]`
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade regenesis getroot --rpc http://localhost:10002
@@ -270,9 +269,9 @@ Usage: `./blade regenesis getroot [flags]`
 
 
 
-## regenesis history
+### regenesis history
 
-### Description
+#### Description
 
 Run history test (compare chain and trie db state roots).\
 Usage: `./blade regenesis history [flags]`
@@ -285,7 +284,7 @@ Usage: `./blade regenesis history [flags]`
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade regenesis history --chaindb <chaindb path> --triedb <triedb path>
@@ -295,7 +294,7 @@ Usage: `./blade regenesis history [flags]`
 
 ## Secrets
 
-### Description
+#### Description
 
 Top level SecretsManager command for interacting with secrets functionality. Only accepts subcommands.\
 Usage: `./blade secrets [command]`\
@@ -308,9 +307,9 @@ Available commands:\
 
 
 
-## secrets generate
+### secrets generate
 
-### Description
+#### Description
 
 Initializes the secrets manager configuration in the provided directory.\
 Usage: `./blade secrets generate [flags]`
@@ -323,7 +322,7 @@ Usage: `./blade secrets generate [flags]`
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade secrets generate --name blade-test --type alibaba-ssm --server-url oos.eu-central-1.aliyuncs.com --extra 'region=eu-central-1,ssm-parameter-path=/devnet'
@@ -331,9 +330,9 @@ Usage: `./blade secrets generate [flags]`
 
 
 
-## secrets init
+### secrets init
 
-### Description
+#### Description
 
 Initializes private keys for Blade (Validator + Networking) to the specified Secrets Manager.\
 Usage: `./blade secrets init [flags]`
@@ -350,7 +349,7 @@ Mutually Exclusive Parameters
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade secrets init --data-dir data --insecure
@@ -358,9 +357,9 @@ Mutually Exclusive Parameters
 
 
 
-## secrets output
+### secrets output
 
-### Description
+#### Description
 
 Outputs validator key address and public network key from the provided Secrets Manager.\
 Usage: `./blade secrets output [flags]`
@@ -376,7 +375,7 @@ Mutually Exclusive Parameters
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade secrets output --data-dir data
@@ -386,7 +385,7 @@ Mutually Exclusive Parameters
 
 ## Server
 
-### Description
+#### Description
 
 Default command starting the Blade client, by bootstrapping all modules together.\
 Usage: `./blade server [flags]`\
@@ -404,7 +403,7 @@ Available commands:\
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade server --data-dir data
@@ -412,9 +411,9 @@ Available commands:\
 
 
 
-## server export
+### server export
 
-### Description
+#### Description
 
 Export default-config.yaml file with default parameters that can be used to run the server.\
 Usage: `./blade server export [flags]`
@@ -427,7 +426,7 @@ Usage: `./blade server export [flags]`
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade server export
@@ -437,7 +436,7 @@ Usage: `./blade server export [flags]`
 
 ## Status
 
-### Description
+#### Description
 
 Returns status of the Blade client.\
 Usage: `./blade status [flags]`
@@ -450,7 +449,7 @@ Usage: `./blade status [flags]`
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade status
@@ -460,7 +459,7 @@ Usage: `./blade status [flags]`
 
 ## TxPool
 
-### Description
+#### Description
 
 Top level command for interacting with the transaction pool. Only accepts subcommands.\
 Usage: `./blade txpool [command]`\
@@ -472,9 +471,9 @@ Available commands:\
 
 
 
-## txpool status
+### txpool status
 
-### Description
+#### Description
 
 Returns the number of transactions in the transaction pool.\
 Usage: `./blade txpool status [flags]`
@@ -487,7 +486,7 @@ Usage: `./blade txpool status [flags]`
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade txpool status
@@ -495,9 +494,9 @@ Usage: `./blade txpool status [flags]`
 
 
 
-## txpool subscribe
+### txpool subscribe
 
-### Description
+#### Description
 
 Logs specific TxPool events.\
 Usage: `./blade txpool subscribe [flags]`
@@ -510,7 +509,7 @@ Usage: `./blade txpool subscribe [flags]`
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade txpool subscribe --added --demoted  --dropped --enqueued --promoted --pruned-enqueued --pruned-promoted
@@ -520,7 +519,7 @@ Usage: `./blade txpool subscribe [flags]`
 
 ## Validator
 
-### Description
+#### Description
 
 Validator command for interacting with validators. Only accepts subcommands.\
 Usage: `./blade validator [command]`\
@@ -537,9 +536,9 @@ Available commands:\
 
 
 
-## validator info
+### validator info
 
-### Description
+#### Description
 
 Gets validator info.\
 Usage: `./blade validator info [flags]`
@@ -555,7 +554,7 @@ Mutually Exclusive Parameters
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade validator info --data-dir data
@@ -563,9 +562,9 @@ Mutually Exclusive Parameters
 
 
 
-## validator register-validator
+### validator register-validator
 
-### Description
+#### Description
 
 Registers a whitelisted validator to supernet manager on rootchain.\
 Usage: `./blade validator register-validator [flags]`
@@ -581,7 +580,7 @@ Mutually Exclusive Parameters
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade validator register-validator --data-dir data
@@ -589,9 +588,9 @@ Mutually Exclusive Parameters
 
 
 
-## validator stake
+### validator stake
 
-### Description
+#### Description
 
 Stakes the amount sent to validator.\
 Usage: `./blade validator stake [flags]`
@@ -607,7 +606,7 @@ Mutually Exclusive Parameters
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade validator stake --amount 10 --data-dir data
@@ -615,9 +614,9 @@ Mutually Exclusive Parameters
 
 
 
-## validator unstake
+### validator unstake
 
-### Description
+#### Description
 
 Unstakes the amount sent for validator or undelegates amount from validator.\
 Usage: `./blade validator unstake [flags]`
@@ -633,7 +632,7 @@ Mutually Exclusive Parameters
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade validator unstake --amount 10 --data-dir data
@@ -641,9 +640,9 @@ Mutually Exclusive Parameters
 
 
 
-## validator whitelist-validators
+### validator whitelist-validators
 
-### Description
+#### Description
 
 Whitelist new validators.\
 Usage: `./blade validator whitelist-validators [flags]`
@@ -659,7 +658,7 @@ Mutually Exclusive Parameters
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade validator whitelist-validators --addresses 0x85da99c8a7c2c95964c8efd687e95e632fc533d6 --data-dir data --private-key <private key>
@@ -667,9 +666,9 @@ Mutually Exclusive Parameters
 
 
 
-## validator withdraw
+### validator withdraw
 
-### Description
+#### Description
 
 Withdraws validator's withdrawable stake.\
 Usage: `./blade validator withdraw [flags]`
@@ -685,7 +684,7 @@ Mutually Exclusive Parameters
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade validator withdraw --data-dir data
@@ -693,9 +692,9 @@ Mutually Exclusive Parameters
 
 
 
-## validator withdraw-rewards
+### validator withdraw-rewards
 
-### Description
+#### Description
 
 Withdraws validator pending rewards on child chain.\
 Usage: `./blade validator withdraw-rewards [flags]`
@@ -711,7 +710,7 @@ Mutually Exclusive Parameters
 
 </details>
 
-### Example
+#### Example
 
 ```bash
 ./blade validator withdraw-rewards --data-dir data
@@ -721,12 +720,12 @@ Mutually Exclusive Parameters
 
 ## Version
 
-### Description
+#### Description
 
 Returns current Blade version.\
 Usage: `./blade version`
 
-### Example
+#### Example
 
 ```bash
 ./blade version
