@@ -1,6 +1,6 @@
-# JSON RPC net API
+# net
 
-## net_listening
+## net\_listening
 
 Whether the client is actively listening for network connections.
 
@@ -10,27 +10,32 @@ None
 
 ### Returns
 
-* <b> Boolean </b> - true when listening, otherwise false.
+* Boolean - true when listening, otherwise false.
 
 ### Example
 
-````bash
+```bash
 curl  https://rpc-endpoint.io:8545 -X POST --data '{"jsonrpc":"2.0","method":"net_listening","params":[],"id":1}'
-````
-<details>
-<summary><b>JSON result ↓</b></summary>
+```
 
-````bash
+<details>
+
+<summary>JSON result ↓</summary>
+
+```bash
 {
   "jsonrpc": "2.0",
   "id": 1,
   "result": true
 }
-````
-</details>
-<br>
+```
 
-## net_peerCount
+</details>
+
+\
+
+
+## net\_peerCount
 
 Returns number of peers currently connected to the client.
 
@@ -40,27 +45,32 @@ None
 
 ### Returns
 
-* <b> QUANTITY </b> - number of connected peers in hexadecimal.
+* QUANTITY - number of connected peers in hexadecimal.
 
 ### Example
 
-````bash
+```bash
 curl  https://rpc-endpoint.io:8545 -X POST --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}'
-````
-<details>
-<summary><b>JSON result ↓</b></summary>
+```
 
-````bash
+<details>
+
+<summary>JSON result ↓</summary>
+
+```bash
 {
   "jsonrpc": "2.0",
   "id": 1,
   "result": "0x6"
 }
-````
-</details>
-<br>
+```
 
-## net_version
+</details>
+
+\
+
+
+## net\_version
 
 Returns the current network id.
 
@@ -70,21 +80,24 @@ None
 
 ### Returns
 
-* <b> String </b> - the current network id.
+* String - the current network id.
 
 ### Example
 
-````bash
+```bash
 curl  https://rpc-endpoint.io:8545 --data '{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}'
-````
-<details>
-<summary><b>JSON result ↓</b></summary>
+```
 
-````bash
+<details>
+
+<summary>JSON result ↓</summary>
+
+```bash
 {
   "jsonrpc": "2.0",
   "id": 1,
   "result": "100"
 }
-````
+```
+
 </details>
