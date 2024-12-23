@@ -1,3 +1,5 @@
+# JSON RPC txpool API
+
 ## txpool_content
 
 Returns a list with the exact details of all the transactions currently pending for inclusion in the next block(s), as well as the ones that are being scheduled for future execution only.

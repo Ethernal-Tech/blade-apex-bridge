@@ -1,3 +1,5 @@
+# JSON RPC net API
+
 ## net_listening
 
 Whether the client is actively listening for network connections.

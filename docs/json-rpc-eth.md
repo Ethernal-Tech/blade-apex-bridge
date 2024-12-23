@@ -1,3 +1,5 @@
+# JSON RPC eth API
+
 ## eth_blockNumber
 
 Returns the number of the most recent block.

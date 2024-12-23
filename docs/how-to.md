@@ -1,3 +1,5 @@
+# How to
+
 ## Configure London Hard Fork
 In order to enable London Hard Fork and dynamic fee transactions execute `genesis` CLI command with `--burn-contract` flag.
 

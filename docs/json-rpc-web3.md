@@ -1,3 +1,5 @@
+# JSON RPC web3 API
+
 ## web3_clientVersion
 
 Returns the current client version.
