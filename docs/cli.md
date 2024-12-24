@@ -12,9 +12,7 @@ For information on the available CLI commands and their configuration flags and 
 Create blockchain backup file by fetching blockchain data from the running node.\
 Usage: `./blade backup [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -22,7 +20,6 @@ Usage: `./blade backup [flags]`
 | `--grpc-address string` | The GRPC interface. | 127.0.0.1:9632 | NO |
 | `--out string` | Export path for the backup file. |  | YES |
 | `--to string` | Backup ending block number. | latest block | NO |
-</details>
 
 #### Example
 
@@ -44,9 +41,8 @@ Available commands:\
 
 * predeploy
 
-<details>
 
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -104,8 +100,6 @@ Mutually Exclusive Parameters
 * `--validators-path`: Root path containing polybft validators' secrets. If `--validators` flag is not specified, validators' configuration will be read from this path.
 * `--validators-prefix`: Folder prefix names for polybft validators' secrets. If `--validators` flag is set, this prefix will be used for folder names.
 
-</details>
-
 #### Example
 
 ```bash
@@ -121,9 +115,8 @@ Mutually Exclusive Parameters
 Specifies the contract to be predeployed on chain start.\
 Usage: `./blade genesis predeploy [flags]`
 
-<details>
 
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -138,8 +131,6 @@ Usage: `./blade genesis predeploy [flags]`
 Mutually Exclusive Parameters
 
 * `--artifacts-name` and `--artifacts-path`: These flags are mutually >exclusive. Use either `--artifacts-name` for built-in contracts or `--artifacts-path` for externaly defined contracts.
-
-</details>
 
 #### Example
 
@@ -156,9 +147,7 @@ Mutually Exclusive Parameters
 Mints ERC20 tokens to specified addresses.\
 Usage: `./blade mint-erc20 [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -168,9 +157,6 @@ Usage: `./blade mint-erc20 [flags]`
 | `--jsonrpc string` | JSON RPC interface. | 0.0.0.0:8545 | NO |
 | `--private-key string` | Minter user private key. |  | YES |
 | `--tx-timeout duration` | Timeout for transaction processing. | 50s | NO |
-</details>
-
-</details>
 
 #### Example
 
@@ -187,14 +173,11 @@ Usage: `./blade mint-erc20 [flags]`
 Starts logging block add / remove events on the blockchain.\
 Usage: `./blade monitor [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
 | `--grpc-address string` | The GRPC interface. | 127.0.0.1:9632 | NO |
-</details>
 
 #### Example
 
@@ -226,17 +209,12 @@ Available commands:\
 Adds new peers to the peer list, using the peer's libp2p address.\
 Usage: `./blade peers add [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
 | `--addr strings` | The libp2p peers addresses. |  | YES |
 | `--grpc-address string` | The GRPC interface. | 127.0.0.1:9632 | NO |
-</details>
-
-</details>
 
 #### Example
 
@@ -253,14 +231,11 @@ Usage: `./blade peers add [flags]`
 Returns the list of connected peers, including the local node.\
 Usage: `./blade peers list [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
 | `--grpc-address string` | The GRPC interface.   | 127.0.0.1:9632 | NO |
-</details>
 
 #### Example
 
@@ -277,15 +252,12 @@ Usage: `./blade peers list [flags]`
 Returns status of the specified peer, using the libp2p peer node ID.\
 Usage: `./blade peers status [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
 | `--grpc-address string` | The GRPC interface. | 127.0.0.1:9632 | NO |
 | `--peer-id string` | Libp2p node ID of a specific peer within p2p network. |  | YES |
-</details>
 
 #### Example
 
@@ -308,16 +280,13 @@ Available commands:\
 * getroot
 * history
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
 | `--source-path string` | Directory containing trie data which will be copied. |  | YES |
 | `--stateRoot string` | Hash of state root which will be copied. |  | YES |
 | `--target-path string` | Directory where to copy trie data. |  | YES |
-</details>
 
 #### Example
 
@@ -334,15 +303,12 @@ Available commands:\
 Returns blockchain state root.\
 Usage: `./blade regenesis getroot [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
 | `--block int` | Block number of trie snapshot. | head | NO |
 | `--rpc string` | Blockchain JSON RPC IP address. |  | YES |
-</details>
 
 #### Example
 
@@ -359,9 +325,7 @@ Usage: `./blade regenesis getroot [flags]`
 Run history test (compare chain and trie db state roots).\
 Usage: `./blade regenesis history [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -369,7 +333,6 @@ Usage: `./blade regenesis history [flags]`
 | `--from uint`   | Lower bound of regenesis test. |  0  | NO |
 | `--to uint` | Upper bound of regenesis test. | head | NO |
 | `--triedb string` | Path to trie DB. |   | YES |
-</details>
 
 #### Example
 
@@ -401,9 +364,7 @@ Available commands:\
 Initializes the secrets manager configuration in the provided directory.\
 Usage: `./blade secrets generate [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -415,7 +376,6 @@ Usage: `./blade secrets generate [flags]`
 | `--server-url string` | Server URL for the service. |  | YES |
 | `--token string` | Access token for the hashicorp-vault service. |  | YES (only for hashicorp-vault) |
 | `--type string` | Type of the secrets manager. Available types: hashicorp-vault, aws-ssm, gcp-ssm and alibaba-ssm. | hashicorp-vault | NO |
-</details>
 
 #### Example
 
@@ -432,9 +392,7 @@ Usage: `./blade secrets generate [flags]`
 Initializes private keys for Blade (Validator + Networking) to the specified Secrets Manager.\
 Usage: `./blade secrets init [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -455,8 +413,6 @@ Mutually Exclusive Parameters
 * `--config` and `--data-dir`: These flags are mutually >exclusive. Use either `--config` to specify the path to the SecretsManager config file or `--data-dir` to set the directory for the Blade data if the local FS is used.
 * `--num` and `--config`: These flags are mutually exclusive. Set `--num` to define number of secrets to be created (only for local FS) or use `--config` to provide the SecretsManager config file path.
 
-</details>
-
 #### Example
 
 ```bash
@@ -472,9 +428,7 @@ Mutually Exclusive Parameters
 Outputs validator key address and public network key from the provided Secrets Manager.\
 Usage: `./blade secrets output [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -489,8 +443,6 @@ Usage: `./blade secrets output [flags]`
 Mutually Exclusive Parameters
 
 * `--config` and `--data-dir`: These flags are mutually >exclusive. Use either `--config` to specify the path to the SecretsManager config file or `--data-dir` to set the directory for the Blade data if the local FS is used.
-
-</details>
 
 #### Example
 
@@ -512,9 +464,7 @@ Available commands:\
 
 * export
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -555,7 +505,6 @@ Available commands:\
 | `--tx-gossip-batch-size uint` | Maximum number of transactions in a single gossip message. | 1 | NO |
 | `--use-tls` | Start JSON RPC endpoint with TLS enabled. | FALSE | NO |
 | `--websocket-read-limit uint` | Maximum size in bytes for a message read from the peer by websocket. | 8192 | NO |
-</details>
 
 #### Example
 
@@ -572,14 +521,11 @@ Available commands:\
 Export default-config.yaml file with default parameters that can be used to run the server.\
 Usage: `./blade server export [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
 | `--type string` | File type of exported config file (yaml or json). | yaml | NO |
-</details>
 
 #### Example
 
@@ -596,16 +542,11 @@ Usage: `./blade server export [flags]`
 Returns status of the Blade client.\
 Usage: `./blade status [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
-
-<summary><b>Flags ↓</b></summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
 | `--grpc-address string` | The GRPC interface. | 127.0.0.1:9632 | NO |
-</details>
 
 #### Example
 
@@ -636,14 +577,11 @@ Available commands:\
 Returns the number of transactions in the transaction pool.\
 Usage: `./blade txpool status [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
 | `--grpc-address string` | The GRPC interface. | 127.0.0.1:9632 | NO |
-</details>
 
 #### Example
 
@@ -660,9 +598,7 @@ Usage: `./blade txpool status [flags]`
 Logs specific TxPool events.\
 Usage: `./blade txpool subscribe [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -674,7 +610,6 @@ Usage: `./blade txpool subscribe [flags]`
 | `--promoted` | Subscribe to transaction promoted events. | FALSE | NO |
 | `--pruned-enqueued` | Subscribe to transaction pruned-enqueued events. | FALSE | NO |
 | `--pruned-promoted` | Subscribe to transaction pruned-promoted events. | FALSE | NO |
-</details>
 
 #### Example
 
@@ -710,9 +645,7 @@ Available commands:\
 Gets validator info.\
 Usage: `./blade validator info [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -725,8 +658,6 @@ Usage: `./blade validator info [flags]`
 Mutually Exclusive Parameters
 
 * `--config` and `--data-dir`: These flags are mutually >exclusive. Use either `--config` to specify the path to the SecretsManager config file or `--data-dir` to set the directory for the Blade data if the local FS is used.
-
-</details>
 
 #### Example
 
@@ -743,9 +674,7 @@ Mutually Exclusive Parameters
 Registers a whitelisted validator to supernet manager on rootchain.\
 Usage: `./blade validator register-validator [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -760,8 +689,6 @@ Usage: `./blade validator register-validator [flags]`
 Mutually Exclusive Parameters
 
 * `--config` and `--data-dir`: These flags are mutually >exclusive. Use either `--config` to specify the path to the SecretsManager config file or `--data-dir` to set the directory for the Blade data if the local FS is used.
-
-</details>
 
 #### Example
 
@@ -778,9 +705,7 @@ Mutually Exclusive Parameters
 Stakes the amount sent to validator.\
 Usage: `./blade validator stake [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -795,8 +720,6 @@ Usage: `./blade validator stake [flags]`
 Mutually Exclusive Parameters
 
 * `--config` and `--data-dir`: These flags are mutually >exclusive. Use either `--config` to specify the path to the SecretsManager config file or `--data-dir` to set the directory for the Blade data if the local FS is used.
-
-</details>
 
 #### Example
 
@@ -813,9 +736,7 @@ Mutually Exclusive Parameters
 Unstakes the amount sent for validator or undelegates amount from validator.\
 Usage: `./blade validator unstake [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -829,8 +750,6 @@ Usage: `./blade validator unstake [flags]`
 Mutually Exclusive Parameters
 
 * `--config` and `--data-dir`: These flags are mutually >exclusive. Use either `--config` to specify the path to the SecretsManager config file or `--data-dir` to set the directory for the Blade data if the local FS is used.
-
-</details>
 
 #### Example
 
@@ -847,9 +766,7 @@ Mutually Exclusive Parameters
 Whitelist new validators.\
 Usage: `./blade validator whitelist-validators [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -864,8 +781,6 @@ Usage: `./blade validator whitelist-validators [flags]`
 Mutually Exclusive Parameters
 
 * `--config` and `--data-dir`: These flags are mutually >exclusive. Use either `--config` to specify the path to the SecretsManager config file or `--data-dir` to set the directory for the Blade data if the local FS is used.
-
-</details>
 
 #### Example
 
@@ -882,9 +797,7 @@ Mutually Exclusive Parameters
 Withdraws validator's withdrawable stake.\
 Usage: `./blade validator withdraw [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -897,8 +810,6 @@ Usage: `./blade validator withdraw [flags]`
 Mutually Exclusive Parameters
 
 * `--config` and `--data-dir`: These flags are mutually >exclusive. Use either `--config` to specify the path to the SecretsManager config file or `--data-dir` to set the directory for the Blade data if the local FS is used.
-
-</details>
 
 #### Example
 
@@ -915,9 +826,7 @@ Mutually Exclusive Parameters
 Withdraws validator pending rewards on child chain.\
 Usage: `./blade validator withdraw-rewards [flags]`
 
-<details>
-
-<summary>Flags ↓</summary>
+#### Flags
 
 | Parameter | Description | Default Value | Mandatory |
 | :-------- | :---------- | :------------ | :-------- |
@@ -930,8 +839,6 @@ Usage: `./blade validator withdraw-rewards [flags]`
 Mutually Exclusive Parameters
 
 * `--config` and `--data-dir`: These flags are mutually >exclusive. Use either `--config` to specify the path to the SecretsManager config file or `--data-dir` to set the directory for the Blade data if the local FS is used.
-
-</details>
 
 #### Example
 
