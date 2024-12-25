@@ -2,7 +2,7 @@
 
 Configuration parameters are crucial for setting up and operating a Blade-powered chain. You can configure these parameters using the server commands. Before running these commands, it is essential to generate keys using the blade secrets command.
 
-For information on the available CLI commands and their configuration flags and descriptions refer to the sections below.\
+For information on the available CLI commands and their configuration flags and descriptions refer to the sections below.
 
 
 ## backup
@@ -36,7 +36,7 @@ Usage: `./blade backup [flags]`
 Generates the genesis configuration file with the passed in parameters.\
 Usage: `./blade genesis [flags]`\
 Usage: `./blade genesis [command]`\
-Available commands:\
+Available commands:
 
 
 * predeploy
@@ -193,7 +193,7 @@ Usage: `./blade monitor [flags]`
 
 Top level command for interacting with the network peers. Only accepts subcommands.\
 Usage: `./blade peers [command]`\
-Available commands:\
+Available commands:
 
 
 * add
@@ -274,7 +274,7 @@ Usage: `./blade peers status [flags]`
 Copies trie db for specific block to a separate folder.\
 Usage: `./blade regenesis [flags]`\
 Usage: `./blade regenesis [command]`\
-Available commands:\
+Available commands:
 
 
 * getroot
@@ -348,7 +348,7 @@ Usage: `./blade regenesis history [flags]`
 
 Top level SecretsManager command for interacting with secrets functionality. Only accepts subcommands.\
 Usage: `./blade secrets [command]`\
-Available commands:\
+Available commands:
 
 
 * generate
@@ -459,7 +459,7 @@ Mutually Exclusive Parameters
 Default command starting the Blade client, by bootstrapping all modules together.\
 Usage: `./blade server [flags]`\
 Usage: `./blade server [command]`\
-Available commands:\
+Available commands:
 
 
 * export
@@ -562,7 +562,7 @@ Usage: `./blade status [flags]`
 
 Top level command for interacting with the transaction pool. Only accepts subcommands.\
 Usage: `./blade txpool [command]`\
-Available commands:\
+Available commands:
 
 
 * status
@@ -625,7 +625,7 @@ Usage: `./blade txpool subscribe [flags]`
 
 Validator command for interacting with validators. Only accepts subcommands.\
 Usage: `./blade validator [command]`\
-Available commands:\
+Available commands:
 
 
 * info
