@@ -150,7 +150,7 @@ docker run -v <your-local-directory>:/container-dir -w /container-dir 0xethernal
 * validators is array of validators in the network in the format `<P2P multi address>:<ECDSA address>:<public BLS key>`. If param bootnode is omitted then genesis validators will be also bootnodes. In the example above a local validator will be a bootnode as well, hence genesis is generated with 127.0.0.1. Other validators connecting to that bootnode/validator should have set private/public IP address of the bootnode/validator during genesis generation. There can be multiple bootnodes (up to the total number of validators).
 
 > **Info**\
-> More information about Blade configuration parameters can be found in section CLI.
+> More information about Blade configuration parameters can be found in [CLI configuration](cli.md).
 >
 > **Warning**\
 > Permission over `<your-local-directory>` should be set to 777 (only for Docker deployment).
