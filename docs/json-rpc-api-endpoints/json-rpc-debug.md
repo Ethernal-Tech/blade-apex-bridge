@@ -1381,62 +1381,6 @@ nill
 ```
 </details>
 
-## debug_traceBlockByNumber
-
-Executes all transactions in the block specified by number with a tracer and returns the tracing result.
-
-### Parameters
-
-* <b>QUANTITY|TAG </b> - integer of a block number, or the string "latest"
-* <b> Object </b> - The tracer options:
-
-  +  <b>  enableMemory: Boolean </b> - (optional, default: false) The flag indicating enabling memory capture.
-  +  <b>  disableStack: Boolean </b> - (optional, default: false) The flag indicating disabling stack capture.
-  +  <b>  disableStorage: Boolean </b> - (optional, default: false) The flag indicating disabling storage capture.
-  +  <b>  enableReturnData: Boolean </b> - (optional, default: false) The flag indicating enabling return data capture.
-  +  <b>  timeOut: String </b> - (optional, default: "5s") The timeout for cancellation of execution.
-  +  <b>  tracer: String </b> - (default: "structTracer") Defines the debug tracer used for given call. Supported values: structTracer, callTracer.
-
-
-### Returns
-
-<b> Array </b> - Array of trace objects with the following fields:
-
-  * <b> failed: Boolean </b> - the tx is successful or not
-  * <b> gas: QUANTITY </b> - the total consumed gas in the tx
-  * <b> returnValue: DATA </b> - the return value of the executed contract call
-  * <b> structLogs: Array </b> - the trace result of each step with the following fields:
-
-    + <b> pc: QUANTITY </b> - the current index in bytecode
-    + <b> op: String </b> - the name of current executing operation
-    + <b> gas: QUANTITY </b> - the available gas ßin the execution
-    + <b> gasCost: QUANTITY </b> - the gas cost of the operation
-    + <b> depth: QUANTITY </b> - the number of levels of calling functions
-    + <b> error: String </b> - the error of the execution
-    + <b> stack: Array </b> - array of values in the current stack
-    + <b> memory: Array </b> - array of values in the current memory
-    + <b> storage: Object </b> - mapping of the current storage
-    + <b> refund: QUANTITY </b> - the total of current refund value
-
-### Example
-
-````bash
-curl  https://rpc-endpoint.io:8545 -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"debug_traceBlockByNumber","params":["latest"],"id":1}'
-````
-<details>
-
-<summary>JSON result ↓</summary>
-
-```bash
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": "0x"
-}
-```
-
-</details>
-
 
 ## debug\_writeBlockProfile
 
@@ -1494,7 +1438,7 @@ cast rpc --rpc-url http://localhost:10002/ debug_writeMemProfile WriteMemProfile
 
 </details>
 
-## debug\_writeBlockProfile
+## debug\_writeMutexProfile
 
 The WriteMutexProfile method writes a goroutine blocking (mutex) profile to the specified file.
 
