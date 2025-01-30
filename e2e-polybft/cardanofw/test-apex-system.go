@@ -175,9 +175,6 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 	}
 
 	a.BridgeCluster.WaitForReady(t)
-
-	err = a.setBridgingAPIs()
-	require.NoError(t, err)
 }
 
 func (a *ApexSystem) CreateWallets() (err error) {
@@ -257,7 +254,7 @@ func (a *ApexSystem) RegisterChains() error {
 }
 
 func (a *ApexSystem) GenerateConfigs() error {
-	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
+	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		telemetryConfig := ""
 		if i == 0 {
 			telemetryConfig = a.Config.TelemetryConfig
@@ -295,6 +292,11 @@ func (a *ApexSystem) GenerateConfigs() error {
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	return a.setBridgingAPIs()
 }
 
 func (a *ApexSystem) GetBridgeDefaultJSONRPCAddr() string {
