@@ -90,25 +90,35 @@ test-e2e-apex-bridge: check-go
 fund-testnet-e2e-apex-bridge: check-go
 	go build -o artifacts/blade .
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
-	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetFund"
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetFund"
 
 .PHONY: defund-testnet-e2e-apex-bridge
 defund-testnet-e2e-apex-bridge: check-go
 	go build -o artifacts/blade .
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
-	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetDefund"
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetDefund"
 
 .PHONY: testnet-e2e-apex-bridge-print-balances
 testnet-e2e-apex-bridge-print-balances: check-go
 	go build -o artifacts/blade .
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
-	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetPrintBalances"
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetPrintBalances"
 
 .PHONY: test-testnet-e2e-apex-bridge
 test-testnet-e2e-apex-bridge: check-go
 	go build -o artifacts/blade .
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
 	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "ApexTestnetBridge"
+
+.PHONY: full-test-testnet-e2e-apex-bridge
+full-test-testnet-e2e-apex-bridge: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetFund" && \
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "ApexTestnetBridge"; true
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetDefund"
 
 .PHONY: test-property-polybft
 test-property-polybft: check-go

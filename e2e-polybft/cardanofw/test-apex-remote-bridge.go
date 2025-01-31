@@ -33,8 +33,10 @@ func GetTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 		PrimeInfo: CardanoChainInfo{
 			NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
 			OgmiosURL:      "http://ogmios.prime.testnet.apexfusion.org:1337",
-			MultisigAddr:   "addr_test1wrz24vv4tvfqsywkxn36rv5zagys2d7euafcgt50gmpgqpq4ju9uv",
-			FeeAddr:        "addr_test1wq5dw0g9mpmjy0xd6g58kncapdf6vgcka9el4llhzwy5vhqz80tcq",
+			// BlockfrostURL:    "https://blockfrost-m1.demeter.run",
+			BlockfrostAPIKey: os.Getenv("PRIME_BLOCKFROST_API_KEY"),
+			MultisigAddr:     "addr_test1wrz24vv4tvfqsywkxn36rv5zagys2d7euafcgt50gmpgqpq4ju9uv",
+			FeeAddr:          "addr_test1wq5dw0g9mpmjy0xd6g58kncapdf6vgcka9el4llhzwy5vhqz80tcq",
 		},
 		VectorInfo: CardanoChainInfo{
 			NetworkAddress: "relay-0.vector.testnet.apexfusion.org:7522",
@@ -129,17 +131,21 @@ func SetupRemoteApexBridge(
 	}
 
 	primeChain := &TestCardanoChain{
-		config:          apexConfig.PrimeConfig,
-		multisigAddr:    remoteConfig.PrimeInfo.MultisigAddr,
-		multisigFeeAddr: remoteConfig.PrimeInfo.FeeAddr,
-		ogmiosURL:       remoteConfig.PrimeInfo.OgmiosURL,
+		config:           apexConfig.PrimeConfig,
+		multisigAddr:     remoteConfig.PrimeInfo.MultisigAddr,
+		multisigFeeAddr:  remoteConfig.PrimeInfo.FeeAddr,
+		ogmiosURL:        remoteConfig.PrimeInfo.OgmiosURL,
+		blockfrostURL:    remoteConfig.PrimeInfo.BlockfrostURL,
+		blockfrostAPIKey: remoteConfig.PrimeInfo.BlockfrostAPIKey,
 	}
 
 	vectorChain := &TestCardanoChain{
-		config:          apexConfig.VectorConfig,
-		multisigAddr:    remoteConfig.VectorInfo.MultisigAddr,
-		multisigFeeAddr: remoteConfig.VectorInfo.FeeAddr,
-		ogmiosURL:       remoteConfig.VectorInfo.OgmiosURL,
+		config:           apexConfig.VectorConfig,
+		multisigAddr:     remoteConfig.VectorInfo.MultisigAddr,
+		multisigFeeAddr:  remoteConfig.VectorInfo.FeeAddr,
+		ogmiosURL:        remoteConfig.VectorInfo.OgmiosURL,
+		blockfrostURL:    remoteConfig.VectorInfo.BlockfrostURL,
+		blockfrostAPIKey: remoteConfig.VectorInfo.BlockfrostAPIKey,
 	}
 
 	nexusChain := &TestEVMChain{

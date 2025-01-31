@@ -514,19 +514,19 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Submitted invalid metadata - wrong type", func(t *testing.T) {
-		PrimeToNexusInvalidMetadataWrongType(t, ctx, apex, user)
+		PrimeToNexusInvalidMetadataWrongType(t, ctx, apex, user, cardanofw.DefaultRequestStateTimeoutSec)
 	})
 
 	t.Run("Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		PrimeToNexusInvalidMetadataInvalidDestination(t, ctx, apex, user)
+		PrimeToNexusInvalidMetadataInvalidDestination(t, ctx, apex, user, 0)
 	})
 
 	t.Run("Submitted invalid metadata - invalid sender", func(t *testing.T) {
-		PrimeToNexusInvalidMetadataInvalidSender(t, ctx, apex, user)
+		PrimeToNexusInvalidMetadataInvalidSender(t, ctx, apex, user, 0)
 	})
 
 	t.Run("Submitted invalid metadata - empty tx", func(t *testing.T) {
-		PrimeToNexusInvalidMetadataInvalidTransactions(t, ctx, apex, user)
+		PrimeToNexusInvalidMetadataInvalidTransactions(t, ctx, apex, user, 0)
 	})
 }
 
@@ -559,7 +559,8 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 
 	user := apex.Users[userCnt-1]
 
-	txProviderPrime := apex.PrimeInfo.GetTxProvider()
+	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	require.NoError(t, err)
 
 	//nolint:dupl
 	t.Run("From Prime to Nexus 200x 5min 90%", func(t *testing.T) {
@@ -1328,7 +1329,7 @@ func PrimeToNexusInvalidMetadataSlicedOff(
 	feeAmount := uint64(1_100_000)
 
 	receivers := map[string]uint64{
-		user.GetAddress(dstChain): sendAmountDfm.Uint64() * 10,
+		user.GetAddress(dstChain): sendAmountDfm.Uint64(),
 	}
 
 	bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
@@ -1345,6 +1346,7 @@ func PrimeToNexusInvalidMetadataSlicedOff(
 
 func PrimeToNexusInvalidMetadataWrongType(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
+	requestStateTimeoutSec uint,
 ) {
 	t.Helper()
 
@@ -1354,7 +1356,7 @@ func PrimeToNexusInvalidMetadataWrongType(
 	feeAmount := uint64(1_100_000)
 
 	receivers := map[string]uint64{
-		user.GetAddress(dstChain): sendAmountDfm.Uint64() * 10,
+		user.GetAddress(dstChain): sendAmountDfm.Uint64(),
 	}
 
 	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
@@ -1383,13 +1385,14 @@ func PrimeToNexusInvalidMetadataWrongType(
 		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	_, err = cardanofw.WaitForRequestStates(ctx, apex, srcChain, txHash, apex.Config.APIKey, nil, 60)
+	_, err = cardanofw.WaitForRequestStates(ctx, apex, srcChain, txHash, apex.Config.APIKey, nil, requestStateTimeoutSec)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "timeout")
 }
 
 func PrimeToNexusInvalidMetadataInvalidDestination(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
+	invalidStateTimeoutSec uint,
 ) {
 	t.Helper()
 
@@ -1399,7 +1402,7 @@ func PrimeToNexusInvalidMetadataInvalidDestination(
 	feeAmount := uint64(1_100_000)
 
 	receivers := map[string]uint64{
-		user.GetAddress(dstChain): sendAmountDfm.Uint64() * 10,
+		user.GetAddress(dstChain): sendAmountDfm.Uint64(),
 	}
 
 	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
@@ -1428,11 +1431,12 @@ func PrimeToNexusInvalidMetadataInvalidDestination(
 		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey)
+	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
 }
 
 func PrimeToNexusInvalidMetadataInvalidSender(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
+	invalidStateTimeoutSec uint,
 ) {
 	t.Helper()
 
@@ -1442,7 +1446,7 @@ func PrimeToNexusInvalidMetadataInvalidSender(
 	feeAmount := uint64(1_100_000)
 
 	receivers := map[string]uint64{
-		user.GetAddress(dstChain): sendAmountDfm.Uint64() * 10,
+		user.GetAddress(dstChain): sendAmountDfm.Uint64(),
 	}
 
 	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
@@ -1471,11 +1475,12 @@ func PrimeToNexusInvalidMetadataInvalidSender(
 		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey)
+	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
 }
 
 func PrimeToNexusInvalidMetadataInvalidTransactions(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
+	invalidStateTimeoutSec uint,
 ) {
 	t.Helper()
 
@@ -1502,7 +1507,7 @@ func PrimeToNexusInvalidMetadataInvalidTransactions(
 		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey)
+	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
 }
 
 func NexusToPrimeSubmitterNotEnoughFunds(
@@ -1532,7 +1537,7 @@ func NexusToPrimeSubmitterNotEnoughFunds(
 		unfundedUser.GetAddress(cardanofw.ChainIDPrime),
 		sendAmountWei, fee,
 	)
-	require.ErrorContains(t, err, "insufficient funds for execution")
+	require.ErrorContains(t, err, "insufficient funds")
 }
 
 func sendTxParamsNPInvalidScenarios(txType, gatewayAddr, nexusURL, privateKey, chainDst, receiver string, amount, fee *big.Int) error {

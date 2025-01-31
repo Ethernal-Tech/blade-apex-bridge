@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -82,13 +83,27 @@ func NewRemoteVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 }
 
 type TestCardanoChain struct {
-	config          *TestCardanoChainConfig
-	cluster         *TestCardanoCluster
-	ogmiosURL       string
-	multisigAddr    string
-	multisigFeeAddr string
-	fundBlockSlot   uint64
-	fundBlockHash   string
+	config           *TestCardanoChainConfig
+	cluster          *TestCardanoCluster
+	ogmiosURL        string
+	blockfrostURL    string
+	blockfrostAPIKey string
+	multisigAddr     string
+	multisigFeeAddr  string
+	fundBlockSlot    uint64
+	fundBlockHash    string
+}
+
+func (ec *TestCardanoChain) GetTxProvider() (infrawallet.ITxProvider, error) {
+	if ec.ogmiosURL != "" {
+		return infrawallet.NewTxProviderOgmios(ec.ogmiosURL), nil
+	}
+
+	if ec.blockfrostURL != "" && ec.blockfrostAPIKey != "" {
+		return infrawallet.NewTxProviderBlockFrost(ec.blockfrostURL, ec.blockfrostAPIKey), nil
+	}
+
+	return nil, errors.New("neither a blockfrost nor a ogmios is specified")
 }
 
 var _ ITestApexChain = (*TestCardanoChain)(nil)
@@ -233,8 +248,13 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		fmt.Printf("%s multisig addr funded: %s\n", GetNetworkName(ec.config.NetworkType), txHash)
 	}
 
+	txProvider, err := ec.GetTxProvider()
+	if err != nil {
+		return err
+	}
+
 	// retrieve latest tip
-	tip, err := infrawallet.NewTxProviderOgmios(ec.ogmiosURL).GetTip(ctx)
+	tip, err := txProvider.GetTip(ctx)
 	if err != nil {
 		return err
 	}
@@ -301,7 +321,12 @@ func (ec *TestCardanoChain) ChainID() string {
 }
 
 func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) (*big.Int, error) {
-	utxos, err := infrawallet.NewTxProviderOgmios(ec.ogmiosURL).GetUtxos(ctx, addr)
+	txProvider, err := ec.GetTxProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	utxos, err := txProvider.GetUtxos(ctx, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +385,10 @@ func (ec *TestCardanoChain) SendTx(
 
 	wallet := infrawallet.NewWallet(paymentKey, stakeKey)
 
-	txProvider := infrawallet.NewTxProviderOgmios(ec.ogmiosURL)
+	txProvider, err := ec.GetTxProvider()
+	if err != nil {
+		return "", err
+	}
 
 	txHash, err := SendTx(ctx, txProvider, wallet,
 		amount.Uint64(), receiverAddr, ec.config.NetworkType, data)

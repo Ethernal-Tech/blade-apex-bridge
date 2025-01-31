@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -57,7 +58,6 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotNil(t, apex.FunderUser)
-	require.NoError(t, err)
 
 	var wg sync.WaitGroup
 
@@ -125,9 +125,12 @@ func Test_E2E_TestnetFund(t *testing.T) {
 	)
 
 	require.NotNil(t, apex.FunderUser)
-	require.NoError(t, err)
 
-	var wg sync.WaitGroup
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		addrErrs = make(map[string]error)
+	)
 
 	balances := getUserBalances(ctx, apex, apex.Users)
 	printUserBalances(apex, apex.Users, balances)
@@ -135,10 +138,10 @@ func Test_E2E_TestnetFund(t *testing.T) {
 	fmt.Printf("funding the wallets\n")
 
 	for _, user := range apex.Users {
+		fmt.Printf("-----------------------------\n")
+
 		for _, chain := range chains {
 			wg.Add(1)
-
-			fmt.Printf("-----------------------------\n")
 
 			go func(user *cardanofw.TestApexUser, chain string) {
 				defer wg.Done()
@@ -150,6 +153,10 @@ func Test_E2E_TestnetFund(t *testing.T) {
 				_, err := apex.SubmitTx(ctx, chain, apex.FunderUser, addr, cardanofw.ApexToDfm(big.NewInt(apexToFund)), nil)
 				if err != nil {
 					fmt.Printf("error while funding %s address: %s, err: %v\n", chain, addr, err)
+
+					mu.Lock()
+					addrErrs[addr] = err
+					mu.Unlock()
 				}
 			}(user, chain)
 		}
@@ -159,6 +166,14 @@ func Test_E2E_TestnetFund(t *testing.T) {
 
 	balances = getUserBalances(ctx, apex, apex.Users)
 	printUserBalances(apex, apex.Users, balances)
+
+	errs := make([]error, 0, len(addrErrs))
+	for _, err := range addrErrs {
+		errs = append(errs, err)
+	}
+
+	err = errors.Join(errs...)
+	require.NoError(t, err)
 
 	fmt.Printf("done\n")
 }
@@ -262,8 +277,12 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetTestnetApexBridgeConfig())
 	require.NoError(t, err)
 
+	const (
+		requestStateTimeoutSec = 600
+	)
+
 	t.Run("Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
-		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, apex.Users[0])
+		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, apex.Users[0], requestStateTimeoutSec)
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
@@ -271,19 +290,19 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, apex.Users[2])
+		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, apex.Users[2], requestStateTimeoutSec)
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[3])
+		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[3], requestStateTimeoutSec)
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[4])
+		PrimeToVectorInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[4], requestStateTimeoutSec)
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - empty tx", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[5])
+		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[5], requestStateTimeoutSec)
 	})
 
 	t.Run("Prime to Nexus submitter not enough funds", func(t *testing.T) {
@@ -297,19 +316,19 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - wrong type", func(t *testing.T) {
-		PrimeToNexusInvalidMetadataWrongType(t, ctx, apex, apex.Users[8])
+		PrimeToNexusInvalidMetadataWrongType(t, ctx, apex, apex.Users[8], requestStateTimeoutSec)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - invalid destination", func(t *testing.T) {
-		PrimeToNexusInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[9])
+		PrimeToNexusInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[9], requestStateTimeoutSec)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - invalid sender", func(t *testing.T) {
-		PrimeToNexusInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[0])
+		PrimeToNexusInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[0], requestStateTimeoutSec)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - empty tx", func(t *testing.T) {
-		PrimeToNexusInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[1])
+		PrimeToNexusInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[1], requestStateTimeoutSec)
 	})
 
 	t.Run("Nexus to Prime submitter not enough funds", func(t *testing.T) {

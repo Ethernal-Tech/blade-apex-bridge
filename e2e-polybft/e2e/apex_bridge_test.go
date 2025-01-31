@@ -328,7 +328,7 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			cardanofw.WaitForInvalidState(t, ctx, apex, br.src, txHashes[idx], apiKey)
+			cardanofw.WaitForInvalidState(t, ctx, apex, br.src, txHashes[idx], apiKey, 0)
 		}()
 	}
 
@@ -449,10 +449,11 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 	user := apex.Users[0]
 
-	txProviderPrime := apex.PrimeInfo.GetTxProvider()
+	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	require.NoError(t, err)
 
 	t.Run("Mismatch submitted and receiver amounts", func(t *testing.T) {
-		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, user)
+		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, user, 0)
 	})
 
 	t.Run("Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
@@ -474,7 +475,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 				apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 			require.NoError(t, err)
 
-			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey)
+			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
 		}
 	})
 
@@ -516,7 +517,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		wg.Wait()
 
 		for i := 0; i < instances; i++ {
-			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHashes[i], apiKey)
+			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHashes[i], apiKey, 0)
 		}
 	})
 
@@ -525,19 +526,19 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Submitted invalid metadata - wrong type", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, user)
+		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, user, cardanofw.DefaultRequestStateTimeoutSec)
 	})
 
 	t.Run("Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, user)
+		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, user, 0)
 	})
 
 	t.Run("Submitted invalid metadata - invalid sender", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidSender(t, ctx, apex, user)
+		PrimeToVectorInvalidMetadataInvalidSender(t, ctx, apex, user, 0)
 	})
 
 	t.Run("Submitted invalid metadata - empty tx", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, user)
+		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, user, 0)
 	})
 
 	t.Run("Submitted with tokens to bridging addr", func(t *testing.T) {
@@ -579,7 +580,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey)
+		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
 	})
 }
 
@@ -617,7 +618,9 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		}
 
 		sendAmountDfm := big.NewInt(5_000_000)
-		txProviderPrime := apex.PrimeInfo.GetTxProvider()
+		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+		require.NoError(t, err)
+
 		minterUser := apex.Users[userCnt-2]
 
 		brSubmitterUser, err := cardanofw.NewTestApexUser(
@@ -640,7 +643,9 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 
 		sendAmount := uint64(5_000_000)
 		feeAmount := uint64(1_100_000)
-		txProviderPrime := apex.PrimeInfo.GetTxProvider()
+
+		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+		require.NoError(t, err)
 
 		minterUser := apex.Users[userCnt-3]
 
@@ -677,7 +682,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey)
+		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
 
 		const (
 			sendAmountVec = uint64(1_000_000)
@@ -1385,8 +1390,11 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 
 	user := apex.Users[userCnt-1]
 
-	txProviderPrime := apex.PrimeInfo.GetTxProvider()
-	txProviderVector := apex.VectorInfo.GetTxProvider()
+	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	require.NoError(t, err)
+
+	txProviderVector, err := apex.VectorInfo.GetTxProvider()
+	require.NoError(t, err)
 
 	fmt.Println("prime user addr: ", user.PrimeAddress)
 	fmt.Println("vector user addr: ", user.VectorAddress)
@@ -1701,6 +1709,7 @@ func PrimeVectorBothDirectionsSequentialAndParallel(
 
 func PrimeToVectorMismatchSubmittedAndReceiverAmounts(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
+	invalidStateTimeoutSec uint,
 ) {
 	t.Helper()
 
@@ -1721,7 +1730,7 @@ func PrimeToVectorMismatchSubmittedAndReceiverAmounts(
 		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey)
+	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
 }
 
 func PrimeToVectorInvalidMetadataSlicedOff(
@@ -1729,7 +1738,9 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 ) {
 	t.Helper()
 
-	txProviderPrime := apex.PrimeInfo.GetTxProvider()
+	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	require.NoError(t, err)
+
 	sendAmount := uint64(1_000_000)
 	feeAmount := uint64(1_100_000)
 
@@ -1753,10 +1764,13 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 
 func PrimeToVectorInvalidMetadataWrongType(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
+	requestStateTimeoutSec uint,
 ) {
 	t.Helper()
 
-	txProviderPrime := apex.PrimeInfo.GetTxProvider()
+	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	require.NoError(t, err)
+
 	sendAmount := uint64(1_000_000)
 	feeAmount := uint64(1_100_000)
 
@@ -1790,17 +1804,20 @@ func PrimeToVectorInvalidMetadataWrongType(
 		apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	_, err = cardanofw.WaitForRequestStates(ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, nil, 60)
+	_, err = cardanofw.WaitForRequestStates(ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, nil, requestStateTimeoutSec)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "timeout")
 }
 
 func PrimeToVectorInvalidMetadataInvalidDestination(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
+	invalidStateTimeoutSec uint,
 ) {
 	t.Helper()
 
-	txProviderPrime := apex.PrimeInfo.GetTxProvider()
+	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	require.NoError(t, err)
+
 	sendAmount := uint64(1_000_000)
 	feeAmount := uint64(1_100_000)
 
@@ -1834,15 +1851,18 @@ func PrimeToVectorInvalidMetadataInvalidDestination(
 		apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey)
+	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
 }
 
 func PrimeToVectorInvalidMetadataInvalidSender(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
+	invalidStateTimeoutSec uint,
 ) {
 	t.Helper()
 
-	txProviderPrime := apex.PrimeInfo.GetTxProvider()
+	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	require.NoError(t, err)
+
 	sendAmount := uint64(1_000_000)
 	feeAmount := uint64(1_100_000)
 
@@ -1876,15 +1896,18 @@ func PrimeToVectorInvalidMetadataInvalidSender(
 		apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey)
+	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
 }
 
 func PrimeToVectorInvalidMetadataInvalidTransactions(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
+	invalidStateTimeoutSec uint,
 ) {
 	t.Helper()
 
-	txProviderPrime := apex.PrimeInfo.GetTxProvider()
+	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	require.NoError(t, err)
+
 	sendAmount := uint64(1_000_000)
 	feeAmount := uint64(1_100_000)
 
@@ -1906,5 +1929,5 @@ func PrimeToVectorInvalidMetadataInvalidTransactions(
 		apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey)
+	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
 }
