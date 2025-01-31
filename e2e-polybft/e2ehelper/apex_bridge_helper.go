@@ -46,7 +46,7 @@ func ExecuteSingleBridgingSkyline(
 
 	txHash := apex.SubmitBridgingRequestSkyline(
 		t, ctx, srcChain, dstChain, senderUser, sendAmountDfm, sendtx.BridgingTypeCurrencyOnSource, receiverUser)
-	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, big.NewInt(1_043_020))
+	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, new(big.Int).SetUint64(cardanofw.MinUtxoWithTokens))
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 

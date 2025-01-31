@@ -13,7 +13,7 @@ func getShelleyGenesis(networkType wallet.CardanoNetworkType) func(mp map[string
 	switch networkType {
 	case wallet.TestNetNetwork:
 		return testPrimeShelleyGenesis
-	case wallet.VectorTestNetNetwork, wallet.CardanoTestNetwork:
+	case wallet.VectorTestNetNetwork:
 		return testVectorShelleyGenesis
 	default:
 		return nil
@@ -25,7 +25,7 @@ func getConwayGenesis(networkType wallet.CardanoNetworkType) func(mp map[string]
 	switch networkType {
 	case wallet.TestNetNetwork:
 		return noChanges
-	case wallet.VectorTestNetNetwork, wallet.CardanoTestNetwork:
+	case wallet.VectorTestNetNetwork:
 		return noChanges
 	default:
 		return nil
