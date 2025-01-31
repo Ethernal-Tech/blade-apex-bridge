@@ -11,6 +11,10 @@ on: # yamllint disable-line rule:truthy
         description: E2E ApexBridge Testnet Fund
         type: string
         required: true
+      e2e_apex_testnet_defund:
+        description: E2E ApexBridge Testnet Defund
+        type: string
+        required: true
       e2e_apex_testnet_balances:
         description: E2E ApexBridge Testnet Balances
         type: string
@@ -97,13 +101,19 @@ jobs:
         uses: actions/checkout@v4.1.1
       - name: Check certificate key permissions
         run: ls -l /etc/ssl/private/localhost.key
-      - name: Run Funds
+      - name: Run Fund
         if: inputs.e2e_apex_testnet_fund == 'true'
         run: make fund-testnet-e2e-apex-bridge
-      - name: Run Tests
+      - name: Run Test
         if: inputs.e2e_apex_testnet_test == 'true'
         run: make test-testnet-e2e-apex-bridge
-      - name: Run Balances
+      - name: Run Balances (before defund)
+        if: inputs.e2e_apex_testnet_balances == 'true'
+        run: make testnet-e2e-apex-bridge-print-balances
+      - name: Run Defund
+        if: inputs.e2e_apex_testnet_defund == 'true'
+        run: make defund-testnet-e2e-apex-bridge
+      - name: Run Balances (after defund)
         if: inputs.e2e_apex_testnet_balances == 'true'
         run: make testnet-e2e-apex-bridge-print-balances
       - name: Run tests failed

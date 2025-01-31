@@ -13,7 +13,11 @@ on: # yamllint disable-line rule:truthy
       e2e_apex_testnet_fund:
         description: E2E ApexBridge Testnet Fund
         type: boolean
-        default: false
+        default: true
+      e2e_apex_testnet_defund:
+        description: E2E ApexBridge Testnet Defund
+        type: boolean
+        default: true
       e2e_apex_testnet_balances:
         description: E2E ApexBridge Testnet Balances
         type: boolean
@@ -27,6 +31,7 @@ jobs:
       e2e_apex_testnet_test: ${{ steps.test_input_check.outputs.e2e_apex_testnet_test }}
       e2e_apex_testnet_fund: ${{ steps.fund_input_check.outputs.e2e_apex_testnet_fund }}
       e2e_apex_testnet_balances: ${{ steps.balances_input_check.outputs.e2e_apex_testnet_balances }}
+      e2e_apex_testnet_defund: ${{ steps.defund_input_check.outcome.e2e_apex_testnet_defund }}
     steps:
       - name: Test Input Check
         id: test_input_check
@@ -43,6 +48,14 @@ jobs:
             echo "e2e_apex_testnet_fund=true" >> $GITHUB_OUTPUT
           else
             echo "e2e_apex_testnet_fund=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Defund Input Check
+        id: defund_input_check
+        run: |
+          if [[ "${{ inputs.e2e_apex_testnet_defund }}" != "false" ]]; then
+            echo "e2e_apex_testnet_defund=true" >> $GITHUB_OUTPUT
+          else
+            echo "e2e_apex_testnet_defund=false" >> $GITHUB_OUTPUT
           fi
       - name: Balances Input Check
         id: balances_input_check
@@ -66,6 +79,7 @@ jobs:
     with:
       e2e_apex_testnet_test: ${{ needs.inputs_check.outputs.e2e_apex_testnet_test }}
       e2e_apex_testnet_fund: ${{ needs.inputs_check.outputs.e2e_apex_testnet_fund }}
+      e2e_apex_testnet_defund: ${{ needs.inputs_check.outputs.e2e_apex_testnet_defund }}
       e2e_apex_testnet_balances: ${{ needs.inputs_check.outputs.e2e_apex_testnet_balances }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
