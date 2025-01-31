@@ -57,9 +57,9 @@ func SetupAndRunSkylineBridge(
 
 	fmt.Printf("Contracts have been set up\n")
 
-	require.NoError(t, skylineSystem.FundWallets(ctx))
+	require.NoError(t, skylineSystem.FundWalletsSkyline(ctx))
 
-	fmt.Printf("Wallets have been funded\n") // <-ok
+	fmt.Printf("Wallets have been funded\n")
 
 	require.NoError(t, skylineSystem.GenerateSkylineConfigs())
 	require.NoError(t, skylineSystem.FinishConfiguringSkyline())

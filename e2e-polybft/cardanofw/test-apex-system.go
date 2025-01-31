@@ -297,6 +297,12 @@ func (a *ApexSystem) FinishConfiguringSkyline() error {
 
 func (a *ApexSystem) FundWallets(ctx context.Context) error {
 	return a.execForEachChain(func(chain ITestApexChain) error {
+		return chain.FundWallets(ctx)
+	})
+}
+
+func (a *ApexSystem) FundWalletsSkyline(ctx context.Context) error {
+	return a.execForEachChain(func(chain ITestApexChain) error {
 		var txProvider cardanowallet.ITxProvider
 
 		var networkType cardanowallet.CardanoNetworkType
