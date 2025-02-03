@@ -17,10 +17,12 @@ func NewSkylineSystem(
 	var err error
 
 	for i := range users {
-		users[i], err = NewTestApexUser(
+		users[i], err = NewTestApexUserSkyline(
 			config.PrimeConfig.NetworkType,
 			config.VectorConfig.IsEnabled,
 			config.VectorConfig.NetworkType,
+			config.CardanoConfig.IsEnabled,
+			config.CardanoConfig.NetworkType,
 			config.NexusConfig.IsEnabled,
 		)
 		if err != nil {
@@ -34,7 +36,7 @@ func NewSkylineSystem(
 		dataDirPath: dataDirPath,
 		chains: []ITestApexChain{
 			NewTestCardanoChain(config.PrimeConfig),
-			NewTestCardanoChain(config.VectorConfig),
+			NewTestCardanoChain(config.CardanoConfig),
 		},
 	}
 

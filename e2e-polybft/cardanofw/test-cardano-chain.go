@@ -305,8 +305,10 @@ func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) {
 	switch ec.ChainID() {
 	case ChainIDPrime:
 		apexSystem.PrimeInfo = chainInfo
-	case ChainIDVector, ChainIDCardano:
+	case ChainIDVector:
 		apexSystem.VectorInfo = chainInfo
+	case ChainIDCardano:
+		apexSystem.CardanoInfo = chainInfo
 	}
 }
 
@@ -382,6 +384,19 @@ func (ec *TestCardanoChain) BridgingRequest(
 		})
 	}
 
+	exchangeRates := []sendtx.ExchangeRateEntry{
+		{
+			SrcChainID: ChainIDPrime,
+			DstChainID: ChainIDCardano,
+			Value:      0.5,
+		},
+		{
+			SrcChainID: ChainIDCardano,
+			DstChainID: ChainIDPrime,
+			Value:      2.0,
+		},
+	}
+
 	rawTx, txHash, _, err := ec.txSender.CreateBridgingTx(
 		ctx,
 		srcChainID,
@@ -389,20 +404,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		walletAddr.String(),
 		receivers,
 		bridgingFeeAmount,
-		sendtx.NewExchangeRate(
-			sendtx.ExchangeRateEntry{
-
-				SrcChainID: ChainIDPrime,
-				DstChainID: ChainIDCardano,
-				Value:      0.5,
-			},
-			sendtx.ExchangeRateEntry{
-
-				SrcChainID: ChainIDCardano,
-				DstChainID: ChainIDPrime,
-				Value:      2.0,
-			},
-		),
+		sendtx.NewExchangeRate(exchangeRates...),
 	)
 	if err != nil {
 		return "", err
@@ -493,4 +495,12 @@ func (ec *TestCardanoChain) submitTx(
 
 func (ec *TestCardanoChain) SetNativeTokenName(tokenName string) {
 	ec.NativeTokenName = tokenName
+}
+
+func GetExchangeRate(sourceChainID string, destinationChainID string) (float64, error) {
+	if destinationChainID == "prime" {
+		return 0.5, nil
+	}
+
+	return 2, nil
 }
