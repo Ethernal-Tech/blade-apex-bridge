@@ -2,23 +2,6 @@
 name: E2E ApexBridge Testnet Tests
 on: # yamllint disable-line rule:truthy
   workflow_call:
-    inputs:
-      e2e_apex_testnet_test:
-        description: E2E ApexBridge Testnet Test
-        type: string
-        required: true
-      e2e_apex_testnet_fund:
-        description: E2E ApexBridge Testnet Fund
-        type: string
-        required: true
-      e2e_apex_testnet_defund:
-        description: E2E ApexBridge Testnet Defund
-        type: string
-        required: true
-      e2e_apex_testnet_balances:
-        description: E2E ApexBridge Testnet Balances
-        type: string
-        required: true
     outputs:
       workflow_output:
         description: E2E ApexBridge Testnet Tests output
@@ -102,20 +85,13 @@ jobs:
       - name: Check certificate key permissions
         run: ls -l /etc/ssl/private/localhost.key
       - name: Run Fund
-        if: inputs.e2e_apex_testnet_fund == 'true'
         run: make fund-testnet-e2e-apex-bridge
       - name: Run Test
-        if: success() && inputs.e2e_apex_testnet_test == 'true'
+        if: success()
         run: make test-testnet-e2e-apex-bridge
-      - name: Run Balances (before defund)
-        if: success() && inputs.e2e_apex_testnet_balances == 'true'
-        run: make testnet-e2e-apex-bridge-print-balances
       - name: Run Defund
-        if: success() && inputs.e2e_apex_testnet_defund == 'true'
+        if: always()
         run: make defund-testnet-e2e-apex-bridge
-      - name: Run Balances (after defund)
-        if: success() && inputs.e2e_apex_testnet_balances == 'true'
-        run: make testnet-e2e-apex-bridge-print-balances
       - name: Run tests failed
         if: failure()
         id: run_e2e_apex_testnet_failure
