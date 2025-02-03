@@ -63,8 +63,6 @@ require (
 	pgregory.net/rapid v1.1.0
 )
 
-require go.opentelemetry.io/auto/sdk v1.1.0 // indirect
-
 require (
 	cloud.google.com/go/auth v0.14.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect
@@ -255,6 +253,7 @@ require (
 	github.com/valyala/fasthttp v1.58.0
 	github.com/wlynxg/anet v0.0.5 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
+	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/collector/component v0.104.0 // indirect
 	go.opentelemetry.io/collector/config/configtelemetry v0.104.0 // indirect
 	go.opentelemetry.io/collector/pdata v1.11.0 // indirect
