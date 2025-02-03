@@ -33,10 +33,8 @@ func GetTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 		PrimeInfo: CardanoChainInfo{
 			NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
 			OgmiosURL:      "http://ogmios.prime.testnet.apexfusion.org:1337",
-			// BlockfrostURL:    "https://blockfrost-m1.demeter.run",
-			BlockfrostAPIKey: os.Getenv("PRIME_BLOCKFROST_API_KEY"),
-			MultisigAddr:     "addr_test1wrz24vv4tvfqsywkxn36rv5zagys2d7euafcgt50gmpgqpq4ju9uv",
-			FeeAddr:          "addr_test1wq5dw0g9mpmjy0xd6g58kncapdf6vgcka9el4llhzwy5vhqz80tcq",
+			MultisigAddr:   "addr_test1wrz24vv4tvfqsywkxn36rv5zagys2d7euafcgt50gmpgqpq4ju9uv",
+			FeeAddr:        "addr_test1wq5dw0g9mpmjy0xd6g58kncapdf6vgcka9el4llhzwy5vhqz80tcq",
 		},
 		VectorInfo: CardanoChainInfo{
 			NetworkAddress: "relay-0.vector.testnet.apexfusion.org:7522",
