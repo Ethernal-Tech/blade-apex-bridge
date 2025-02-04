@@ -53,7 +53,7 @@ func SetupAndRunSkylineBridge(
 	fmt.Printf("Multisig addresses have been created\n")
 
 	require.NoError(t, skylineSystem.InitContracts(ctx))
-	require.NoError(t, skylineSystem.FinishConfiguringSkyline())
+	require.NoError(t, skylineSystem.FinishConfiguring())
 
 	fmt.Printf("Contracts have been set up\n")
 
@@ -62,7 +62,6 @@ func SetupAndRunSkylineBridge(
 	fmt.Printf("Wallets have been funded\n")
 
 	require.NoError(t, skylineSystem.GenerateSkylineConfigs())
-	require.NoError(t, skylineSystem.FinishConfiguringSkyline())
 
 	fmt.Printf("Configs have been generated\n")
 

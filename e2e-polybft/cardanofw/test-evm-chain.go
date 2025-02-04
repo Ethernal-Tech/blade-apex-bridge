@@ -388,5 +388,5 @@ func (ec *TestEVMChain) sendTx(
 	return receipt, nil
 }
 
-func (ec *TestEVMChain) SetNativeTokenName(tokenName string) {
-}
+// func (ec *TestEVMChain) SetNativeTokenName(tokenName string) {
+// }

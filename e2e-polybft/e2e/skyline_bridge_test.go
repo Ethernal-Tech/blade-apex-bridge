@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
+	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -59,8 +60,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			minterUser, brSubmitterUser, uint64(1_100_000_000), uint64(0))
 		require.NoError(t, err)
 
-		e2ehelper.ExecuteSingleBridgingSkyline(
-			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm)
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
+			sendtx.BridgingTypeCurrencyOnSource)
 	})
 	t.Run("prime -> cardano - native token on src", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
@@ -82,8 +84,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			minterUser, brSubmitterUser, uint64(1_100_000_000), uint64(2_500_000))
 		require.NoError(t, err)
 
-		e2ehelper.ExecuteSingleBridgingSkylineNativeTokens(
-			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm)
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
+			sendtx.BridgingTypeNativeTokenOnSource)
 	})
 
 	t.Run("cardano -> prime - currency on src", func(t *testing.T) {
@@ -106,8 +109,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			minterUser, brSubmitterUser, uint64(1_100_000_000), uint64(0))
 		require.NoError(t, err)
 
-		e2ehelper.ExecuteSingleBridgingSkyline(
-			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm)
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
+			sendtx.BridgingTypeCurrencyOnSource)
 	})
 
 	t.Run("cardano -> prime - native token on src", func(t *testing.T) {
@@ -130,7 +134,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			minterUser, brSubmitterUser, uint64(1_100_000_000), uint64(2_500_000))
 		require.NoError(t, err)
 
-		e2ehelper.ExecuteSingleBridgingSkylineNativeTokens(
-			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm)
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
+			sendtx.BridgingTypeNativeTokenOnSource)
 	})
 }

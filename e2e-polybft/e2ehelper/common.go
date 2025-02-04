@@ -14,11 +14,6 @@ type IApexSystem interface {
 	SubmitBridgingRequest(
 		t *testing.T, ctx context.Context,
 		sourceChain cardanofw.ChainID, destinationChain cardanofw.ChainID,
-		sender *cardanofw.TestApexUser, dfmAmount *big.Int, receivers ...*cardanofw.TestApexUser,
-	) string
-	SubmitBridgingRequestSkyline(
-		t *testing.T, ctx context.Context,
-		sourceChain cardanofw.ChainID, destinationChain cardanofw.ChainID,
 		sender *cardanofw.TestApexUser, dfmAmount *big.Int, bridgingType sendtx.BridgingType,
 		receivers ...*cardanofw.TestApexUser,
 	) string

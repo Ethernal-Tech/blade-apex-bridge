@@ -17,7 +17,7 @@ import (
 
 func ExecuteSingleBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, senderUser, receiverUser *cardanofw.TestApexUser,
-	srcChain, dstChain string, sendAmountDfm *big.Int,
+	srcChain, dstChain string, sendAmountDfm *big.Int, bridgingType sendtx.BridgingType,
 ) {
 	t.Helper()
 
@@ -25,49 +25,14 @@ func ExecuteSingleBridging(
 	require.NoError(t, err)
 
 	txHash := apex.SubmitBridgingRequest(
-		t, ctx, srcChain, dstChain, senderUser, sendAmountDfm, receiverUser)
-	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
+		t, ctx, srcChain, dstChain, senderUser, sendAmountDfm, bridgingType, receiverUser)
 
-	fmt.Printf("Tx sent. hash: %s\n", txHash)
+	expectedAmountDest := sendAmountDfm
+	if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
+		expectedAmountDest = new(big.Int).SetUint64(cardanofw.MinUtxoWithTokens)
+	}
 
-	// check expected amount cardano
-	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmountDfm, 100, time.Second*10)
-	require.NoError(t, err)
-}
-
-func ExecuteSingleBridgingSkyline(
-	t *testing.T, ctx context.Context, apex IApexSystem, senderUser, receiverUser *cardanofw.TestApexUser,
-	srcChain, dstChain string, sendAmountDfm *big.Int,
-) {
-	t.Helper()
-
-	prevAmountDfm, err := apex.GetBalance(ctx, receiverUser, dstChain)
-	require.NoError(t, err)
-
-	txHash := apex.SubmitBridgingRequestSkyline(
-		t, ctx, srcChain, dstChain, senderUser, sendAmountDfm, sendtx.BridgingTypeCurrencyOnSource, receiverUser)
-	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, new(big.Int).SetUint64(cardanofw.MinUtxoWithTokens))
-
-	fmt.Printf("Tx sent. hash: %s\n", txHash)
-
-	// check expected amount cardano
-	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmountDfm, 100, time.Second*10)
-	require.NoError(t, err)
-}
-
-func ExecuteSingleBridgingSkylineNativeTokens(
-	t *testing.T, ctx context.Context, apex IApexSystem, senderUser, receiverUser *cardanofw.TestApexUser,
-	srcChain, dstChain string, sendAmountDfm *big.Int,
-) {
-	t.Helper()
-
-	prevAmountDfm, err := apex.GetBalance(ctx, receiverUser, dstChain)
-	require.NoError(t, err)
-
-	txHash := apex.SubmitBridgingRequestSkyline(t, ctx, srcChain, dstChain, senderUser, sendAmountDfm,
-		sendtx.BridgingTypeNativeTokenOnSource, receiverUser)
-
-	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
+	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, expectedAmountDest)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
@@ -86,7 +51,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 		prevAmountDfm, err := apex.GetBalance(ctx, user, dstChain)
 		require.NoError(t, err)
 
-		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, user)
+		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, sendtx.BridgingTypeNormal, user)
 		expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
 
 		err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm, 100, time.Second*10)
@@ -106,7 +71,7 @@ func ExecuteBridgingWaitAfterSubmits(
 	expectedAmountDfm := new(big.Int).Set(prevAmountDfm)
 
 	for i := 0; i < txCountPerSender; i++ {
-		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, user)
+		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, sendtx.BridgingTypeNormal, user)
 		expectedAmountDfm = expectedAmountDfm.Add(expectedAmountDfm, sendAmountDfm)
 	}
 

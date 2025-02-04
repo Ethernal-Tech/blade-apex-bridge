@@ -98,8 +98,6 @@ type TestCardanoChain struct {
 	fundBlockSlot   uint64
 	fundBlockHash   string
 	txSender        *sendtx.TxSender
-
-	NativeTokenName string
 }
 
 var _ ITestApexChain = (*TestCardanoChain)(nil)
@@ -441,7 +439,7 @@ func (ec *TestCardanoChain) SendTx(
 		metadata,
 		amount.Uint64(),
 		0,
-		ec.NativeTokenName,
+		"",
 	)
 	if err != nil {
 		return "", err
@@ -491,10 +489,6 @@ func (ec *TestCardanoChain) submitTx(
 
 		return txHash, nil
 	}, infracommon.WithRetryCount(retryCount), infracommon.WithRetryWaitTime(retryWaitTime))
-}
-
-func (ec *TestCardanoChain) SetNativeTokenName(tokenName string) {
-	ec.NativeTokenName = tokenName
 }
 
 func GetExchangeRate(sourceChainID string, destinationChainID string) (float64, error) {

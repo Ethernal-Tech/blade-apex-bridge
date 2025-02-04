@@ -42,8 +42,6 @@ type ITestApexChain interface {
 		bridgingFee uint64,
 		exchangeRate sendtx.ExchangeRate,
 	) ([]byte, error)
-
-	SetNativeTokenName(string)
 }
 
 type TestApexChainDummy struct {

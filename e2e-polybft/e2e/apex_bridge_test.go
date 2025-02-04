@@ -217,7 +217,8 @@ func TestE2E_ApexBridge(t *testing.T) {
 	sendAmountDfm := cardanofw.ApexToDfm(big.NewInt(1))
 
 	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm)
+		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm,
+		sendtx.BridgingTypeNormal)
 }
 
 func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
@@ -255,7 +256,7 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 	// Initiate bridging PRIME -> VECTOR
 	txHash := apex.SubmitBridgingRequest(t, ctx,
 		cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-		user, new(big.Int).SetUint64(sendAmount), user,
+		user, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, user,
 	)
 
 	_, timeout := cardanofw.WaitForBatchState(
@@ -312,7 +313,8 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		go func(i int, src string, dest string, sender *cardanofw.TestApexUser) {
 			defer wg.Done()
 
-			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, src, dest, sender, apexSendAmount, user)
+			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNormal,
+				user)
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
 		}(idx, br.src, br.dest, br.sender)
 	}
@@ -398,7 +400,7 @@ func TestE2E_FundAmount(t *testing.T) {
 
 			txHash := apex.SubmitBridgingRequest(t, ctx,
 				tc.fromChain, tc.toChain,
-				user, tc.sendAmount, user,
+				user, tc.sendAmount, sendtx.BridgingTypeNormal, user,
 			)
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
@@ -410,7 +412,7 @@ func TestE2E_FundAmount(t *testing.T) {
 
 			txHash = apex.SubmitBridgingRequest(t, ctx,
 				tc.fromChain, tc.toChain,
-				user, tc.sendAmount, user,
+				user, tc.sendAmount, sendtx.BridgingTypeNormal, user,
 			)
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
@@ -742,7 +744,8 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm)
+			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm,
+			sendtx.BridgingTypeNormal)
 	})
 
 	t.Run("Submitted with tokens to bridging addr - confirming that batcher functions", func(t *testing.T) {
@@ -1105,7 +1108,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			go func(src string, dest string, sender *cardanofw.TestApexUser, receiver *cardanofw.TestApexUser, amount *big.Int) {
 				defer wg.Done()
 
-				txHash := apex.SubmitBridgingRequest(t, ctx, src, dest, sender, amount, receiver)
+				txHash := apex.SubmitBridgingRequest(t, ctx, src, dest, sender, amount, sendtx.BridgingTypeNormal, receiver)
 				fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHash)
 			}(br.src, br.dest, br.sender, receivers[br.receiverIdx], cardanofw.ApexToDfm(br.amount))
 		}
@@ -1540,7 +1543,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 
 					apex.SubmitBridgingRequest(t, ctx,
 						cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-						apex.Users[idx], new(big.Int).SetUint64(sendAmount), user,
+						apex.Users[idx], new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, user,
 					)
 				} else {
 					feeAmount := uint64(1_100_000)
@@ -1607,7 +1610,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 
 					apex.SubmitBridgingRequest(t, ctx,
 						cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-						apex.Users[idx], new(big.Int).SetUint64(sendAmount), user,
+						apex.Users[idx], new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, user,
 					)
 				} else {
 					feeAmount := uint64(1_100_000)
@@ -1676,7 +1679,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 
 					apex.SubmitBridgingRequest(t, ctx,
 						cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-						apex.Users[idx], new(big.Int).SetUint64(sendAmount), user,
+						apex.Users[idx], new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, user,
 					)
 				} else {
 					feeAmount := uint64(1_100_000)
@@ -1711,7 +1714,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 
 					apex.SubmitBridgingRequest(t, ctx,
 						cardanofw.ChainIDVector, cardanofw.ChainIDPrime,
-						apex.Users[idx], new(big.Int).SetUint64(sendAmount), user,
+						apex.Users[idx], new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, user,
 					)
 				} else {
 					feeAmount := uint64(1_100_000)

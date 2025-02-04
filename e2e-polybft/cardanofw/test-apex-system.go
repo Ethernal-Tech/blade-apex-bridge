@@ -61,9 +61,6 @@ type ApexSystem struct {
 	dataDirPath string
 
 	Users []*TestApexUser
-
-	primeTokenName   string
-	cardanoTokenName string
 }
 
 func NewApexSystem(
@@ -215,14 +212,56 @@ func (a *ApexSystem) InitContracts(ctx context.Context) error {
 	return nil
 }
 
+func (a *ApexSystem) GetTokenName(chainId string, networkType cardanowallet.CardanoNetworkType) string {
+	minterUser := a.Users[len(a.Users)-2]
+	minterWallet, _ := minterUser.GetCardanoWallet(chainId)
+
+	keyHash, err := cardanowallet.GetKeyHash(minterWallet.VerificationKey)
+	if err != nil {
+		return ""
+	}
+
+	policy := cardanowallet.PolicyScript{
+		Type:    cardanowallet.PolicyScriptSigType,
+		KeyHash: keyHash,
+	}
+
+	cardanoCliBinary := cardanowallet.ResolveCardanoCliBinary(networkType)
+
+	pid, _ := cardanowallet.NewCliUtils(cardanoCliBinary).GetPolicyID(policy)
+
+	return cardanowallet.NewToken(pid, defaultTokenName).String()
+}
+
 func (a *ApexSystem) FinishConfiguring() error {
 	// after contracts have been initialized populate all the needed things into apex object
 	for _, chain := range a.chains {
 		chain.PopulateApexSystem(a)
 	}
 
+	a.Config.PrimeConfig.NativeTokens = []sendtx.TokenExchangeConfig{
+		{
+			DstChainID: ChainIDCardano,
+			TokenName:  a.GetTokenName(ChainIDPrime, a.Config.PrimeConfig.NetworkType),
+		},
+	}
+
 	txSenderChainConfigs := map[string]sendtx.ChainConfig{
-		ChainIDVector: {
+		ChainIDPrime: {
+			CardanoCliBinary:     ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
+			TxProvider:           cardanowallet.NewTxProviderOgmios(a.PrimeInfo.OgmiosURL),
+			MultiSigAddr:         a.PrimeInfo.MultisigAddr,
+			TestNetMagic:         GetNetworkMagic(a.Config.PrimeConfig.NetworkType),
+			TTLSlotNumberInc:     ttlSlotNumberInc,
+			MinUtxoValue:         minUTxODefaultValue,
+			MinBridgingFeeAmount: a.Config.PrimeConfig.MinBridgingFee,
+			NativeTokens:         a.Config.PrimeConfig.NativeTokens,
+			PotentialFee:         potentialFee,
+		},
+	}
+
+	if a.Config.VectorConfig.IsEnabled {
+		txSenderChainConfigs[ChainIDVector] = sendtx.ChainConfig{
 			CardanoCliBinary:     ResolveCardanoCliBinary(a.Config.VectorConfig.NetworkType),
 			TxProvider:           cardanowallet.NewTxProviderOgmios(a.VectorInfo.OgmiosURL),
 			MultiSigAddr:         a.VectorInfo.MultisigAddr,
@@ -232,39 +271,18 @@ func (a *ApexSystem) FinishConfiguring() error {
 			MinBridgingFeeAmount: a.Config.VectorConfig.MinBridgingFee,
 			NativeTokens:         a.Config.VectorConfig.NativeTokens,
 			PotentialFee:         potentialFee,
-		},
-		ChainIDPrime: {
-			CardanoCliBinary:     ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
-			TxProvider:           cardanowallet.NewTxProviderOgmios(a.PrimeInfo.OgmiosURL),
-			MultiSigAddr:         a.PrimeInfo.MultisigAddr,
-			TestNetMagic:         GetNetworkMagic(a.Config.PrimeConfig.NetworkType),
-			TTLSlotNumberInc:     ttlSlotNumberInc,
-			MinUtxoValue:         minUTxODefaultValue,
-			MinBridgingFeeAmount: a.Config.PrimeConfig.MinBridgingFee,
-			NativeTokens:         a.Config.PrimeConfig.NativeTokens,
-			PotentialFee:         potentialFee,
-		},
-		ChainIDNexus: {
-			MinBridgingFeeAmount: a.Config.NexusConfig.MinBridgingFee,
-		},
+		}
 	}
 
-	// set txSenderChainConfigs configuration for each chain
-	for _, chain := range a.chains {
-		chain.UpdateTxSendChainConfiguration(txSenderChainConfigs)
-	}
+	if a.Config.CardanoConfig.IsEnabled {
+		a.Config.CardanoConfig.NativeTokens = []sendtx.TokenExchangeConfig{
+			{
+				DstChainID: ChainIDPrime,
+				TokenName:  a.GetTokenName(ChainIDCardano, a.Config.CardanoConfig.NetworkType),
+			},
+		}
 
-	return nil
-}
-
-func (a *ApexSystem) FinishConfiguringSkyline() error {
-	// after contracts have been initialized populate all the needed things into apex object
-	for _, chain := range a.chains {
-		chain.PopulateApexSystem(a)
-	}
-
-	txSenderChainConfigs := map[string]sendtx.ChainConfig{
-		ChainIDCardano: {
+		txSenderChainConfigs[ChainIDCardano] = sendtx.ChainConfig{
 			CardanoCliBinary:     ResolveCardanoCliBinary(a.Config.CardanoConfig.NetworkType),
 			TxProvider:           cardanowallet.NewTxProviderOgmios(a.CardanoInfo.OgmiosURL),
 			MultiSigAddr:         a.CardanoInfo.MultisigAddr,
@@ -274,18 +292,13 @@ func (a *ApexSystem) FinishConfiguringSkyline() error {
 			MinBridgingFeeAmount: a.Config.CardanoConfig.MinBridgingFee,
 			NativeTokens:         a.Config.CardanoConfig.NativeTokens,
 			PotentialFee:         potentialFee,
-		},
-		ChainIDPrime: {
-			CardanoCliBinary:     ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
-			TxProvider:           cardanowallet.NewTxProviderOgmios(a.PrimeInfo.OgmiosURL),
-			MultiSigAddr:         a.PrimeInfo.MultisigAddr,
-			TestNetMagic:         GetNetworkMagic(a.Config.PrimeConfig.NetworkType),
-			TTLSlotNumberInc:     ttlSlotNumberInc,
-			MinUtxoValue:         minUTxODefaultValue,
-			MinBridgingFeeAmount: a.Config.PrimeConfig.MinBridgingFee,
-			NativeTokens:         a.Config.PrimeConfig.NativeTokens,
-			PotentialFee:         potentialFee,
-		},
+		}
+	}
+
+	if a.Config.NexusConfig.IsEnabled {
+		txSenderChainConfigs[ChainIDNexus] = sendtx.ChainConfig{
+			MinBridgingFeeAmount: a.Config.NexusConfig.MinBridgingFee,
+		}
 	}
 
 	// set txSenderChainConfigs configuration for each chain
@@ -311,27 +324,21 @@ func (a *ApexSystem) FundWalletsSkyline(ctx context.Context) error {
 		if chain.ChainID() == ChainIDPrime {
 			txProvider = a.PrimeInfo.GetTxProvider()
 			networkType = a.Config.PrimeConfig.NetworkType
-		} else {
+		} else if chain.ChainID() == ChainIDCardano {
 			txProvider = a.CardanoInfo.GetTxProvider()
 			networkType = a.Config.CardanoConfig.NetworkType
+		} else {
+			return fmt.Errorf("chain %s is not supported", chain.ChainID())
 		}
 
 		minterUser := a.Users[len(a.Users)-2]
 
-		ta, err := FundAddressWithToken(
+		_, err := FundAddressWithToken(
 			ctx, chain.ChainID(), networkType, txProvider,
 			minterUser, chain.GetHotWalletAddress(), uint64(20_000_000), uint64(1_000_000_000))
 		if err != nil {
 			return err
 		}
-
-		if chain.ChainID() == ChainIDPrime {
-			a.primeTokenName = ta.Token.String()
-		} else {
-			a.cardanoTokenName = ta.Token.String()
-		}
-
-		chain.SetNativeTokenName(ta.Token.String())
 
 		return chain.FundWallets(ctx)
 	})
@@ -426,22 +433,11 @@ func (a *ApexSystem) GenerateSkylineConfigs() error {
 			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
 		}
 
-		a.Config.PrimeConfig.NativeTokens = []sendtx.TokenExchangeConfig{
-			{
-				DstChainID: ChainIDCardano,
-				TokenName:  a.primeTokenName,
-			},
-		}
-
-		a.Config.CardanoConfig.NativeTokens = []sendtx.TokenExchangeConfig{
-			{
-				DstChainID: ChainIDPrime,
-				TokenName:  a.cardanoTokenName,
-			},
-		}
+		cardanoPrimeTokenName := a.Config.CardanoConfig.NativeTokens[0].TokenName
+		primeCardanoTokenName := a.Config.PrimeConfig.NativeTokens[0].TokenName
 
 		err := validator.GenerateSkylineConfigs(a.Config.APIPortStart+i, a.Config.APIKey, telemetryConfig,
-			a.cardanoTokenName, a.primeTokenName, args...)
+			cardanoPrimeTokenName, primeCardanoTokenName, args...)
 		if err != nil {
 			return err
 		}
@@ -678,7 +674,7 @@ func (a *ApexSystem) SubmitTx(
 func (a *ApexSystem) SubmitBridgingRequest(
 	t *testing.T, ctx context.Context,
 	sourceChain ChainID, destinationChain ChainID,
-	sender *TestApexUser, dfmAmount *big.Int, receivers ...*TestApexUser,
+	sender *TestApexUser, dfmAmount *big.Int, bridgingType sendtx.BridgingType, receivers ...*TestApexUser,
 ) string {
 	t.Helper()
 
@@ -688,25 +684,30 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	require.True(t,
 		sourceChain == ChainIDPrime ||
 			sourceChain == ChainIDVector ||
-			sourceChain == ChainIDNexus,
+			sourceChain == ChainIDNexus ||
+			sourceChain == ChainIDCardano,
 	)
 
 	// check if destinationChain is supported
 	require.True(t,
 		destinationChain == ChainIDPrime ||
 			destinationChain == ChainIDVector ||
-			destinationChain == ChainIDNexus,
+			destinationChain == ChainIDNexus ||
+			destinationChain == ChainIDCardano,
 	)
 
 	// check if bridging direction is supported
 	require.False(t,
 		!a.Config.VectorConfig.IsEnabled && (sourceChain == ChainIDVector || destinationChain == ChainIDVector))
 	require.False(t,
+		!a.Config.CardanoConfig.IsEnabled && (sourceChain == ChainIDCardano || destinationChain == ChainIDCardano))
+	require.False(t,
 		!a.Config.NexusConfig.IsEnabled && (sourceChain == ChainIDNexus || destinationChain == ChainIDNexus))
 	require.True(t,
 		sourceChain == ChainIDPrime ||
 			(sourceChain == ChainIDVector && destinationChain == ChainIDPrime) ||
-			(sourceChain == ChainIDNexus && destinationChain == ChainIDPrime),
+			(sourceChain == ChainIDNexus && destinationChain == ChainIDPrime) ||
+			(sourceChain == ChainIDCardano && destinationChain == ChainIDPrime),
 	)
 
 	// check if number of receivers is valid
@@ -722,67 +723,13 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	for _, receiver := range receivers {
 		require.True(t, destinationChain != ChainIDVector || receiver.HasVectorWallet)
 		require.True(t, destinationChain != ChainIDNexus || receiver.HasNexusWallet)
+		require.True(t, destinationChain != ChainIDCardano || receiver.HasCardanoWallet)
 
 		receiversMap[receiver.GetAddress(destinationChain)] = DfmToChainNativeTokenAmount(sourceChain, dfmAmount)
 	}
 	// check if users are valid for the bridging - do they have necessary wallets
 	require.True(t, sourceChain != ChainIDVector || sender.HasVectorWallet)
 	require.True(t, sourceChain != ChainIDNexus || sender.HasNexusWallet)
-
-	privateKey, err := sender.GetPrivateKey(sourceChain)
-	require.NoError(t, err)
-
-	txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
-		ctx, destinationChain, privateKey, receiversMap, feeAmount)
-	require.NoError(t, err)
-
-	return txHash
-}
-
-func (a *ApexSystem) SubmitBridgingRequestSkyline(
-	t *testing.T, ctx context.Context,
-	sourceChain ChainID, destinationChain ChainID,
-	sender *TestApexUser, dfmAmount *big.Int, bridgingType sendtx.BridgingType, receivers ...*TestApexUser,
-) string {
-	t.Helper()
-
-	require.True(t, sourceChain != destinationChain)
-
-	// check if sourceChain is supported
-	require.True(t,
-		sourceChain == ChainIDPrime ||
-			sourceChain == ChainIDCardano,
-	)
-
-	// check if destinationChain is supported
-	require.True(t,
-		destinationChain == ChainIDPrime ||
-			destinationChain == ChainIDCardano,
-	)
-
-	// check if bridging direction is supported
-	require.False(t,
-		!a.Config.CardanoConfig.IsEnabled && (sourceChain == ChainIDCardano || destinationChain == ChainIDCardano))
-	require.True(t,
-		sourceChain == ChainIDPrime || (sourceChain == ChainIDCardano && destinationChain == ChainIDPrime),
-	)
-
-	// check if number of receivers is valid
-	require.Greater(t, len(receivers), 0)
-	require.Less(t, len(receivers), 5)
-
-	const feeAmountDfm = uint64(1_100_000)
-
-	feeAmount := DfmToChainNativeTokenAmount(sourceChain, new(big.Int).SetUint64(feeAmountDfm))
-
-	receiversMap := make(map[string]*big.Int, len(receivers))
-
-	for _, receiver := range receivers {
-		require.True(t, destinationChain != ChainIDCardano || receiver.HasCardanoWallet)
-
-		receiversMap[receiver.GetAddress(destinationChain)] = DfmToChainNativeTokenAmount(sourceChain, dfmAmount)
-	}
-	// check if users are valid for the bridging - do they have necessary wallets
 	require.True(t, sourceChain != ChainIDCardano || sender.HasCardanoWallet)
 
 	privateKey, err := sender.GetPrivateKey(sourceChain)

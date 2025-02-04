@@ -45,7 +45,7 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 		srcChain, dstChain := cardanofw.ChainIDNexus, cardanofw.ChainIDPrime
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm)
+			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, sendtx.BridgingTypeNormal)
 	})
 
 	t.Run("From Prime to Nexus", func(t *testing.T) {
@@ -56,7 +56,7 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm)
+			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, sendtx.BridgingTypeNormal)
 
 		relayerBalanceAfter, err := apex.GetChainMust(t, dstChain).GetAddressBalance(
 			ctx, apex.NexusInfo.RelayerAddress.String())
@@ -777,7 +777,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 
 					txHash := apex.SubmitBridgingRequest(t, ctx,
 						cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-						apex.Users[idx], sendAmountDfm, user,
+						apex.Users[idx], sendAmountDfm, sendtx.BridgingTypeNormal, user,
 					)
 					fmt.Printf("Tx %v sent. hash: %s\n", idx+1, txHash)
 				} else {
@@ -851,7 +851,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 
 					txHash := apex.SubmitBridgingRequest(t, ctx,
 						cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-						apex.Users[idx], sendAmountDfm, user,
+						apex.Users[idx], sendAmountDfm, sendtx.BridgingTypeNormal, user,
 					)
 
 					fmt.Printf("Tx %v sent. hash: %s\n", idx+1, txHash)
@@ -935,7 +935,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		txHash := apex.SubmitBridgingRequest(t, ctx,
 			cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-			user, sendAmountDfm, user,
+			user, sendAmountDfm, sendtx.BridgingTypeNormal, user,
 		)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -1002,7 +1002,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		txHash := apex.SubmitBridgingRequest(t, ctx,
 			cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-			user, sendAmountDfm, user,
+			user, sendAmountDfm, sendtx.BridgingTypeNormal, user,
 		)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -1062,7 +1062,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		txHash := apex.SubmitBridgingRequest(t, ctx,
 			cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-			user, sendAmountDfm, user)
+			user, sendAmountDfm, sendtx.BridgingTypeNormal, user)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
 
@@ -1135,7 +1135,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		txHash := apex.SubmitBridgingRequest(t, ctx,
 			cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-			user, sendAmountDfm, user,
+			user, sendAmountDfm, sendtx.BridgingTypeNormal, user,
 		)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -1190,7 +1190,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		txHash := apex.SubmitBridgingRequest(t, ctx,
 			cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-			user, sendAmountDfm, user,
+			user, sendAmountDfm, sendtx.BridgingTypeNormal, user,
 		)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -1245,7 +1245,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		for i := 0; i < instances; i++ {
 			txHash := apex.SubmitBridgingRequest(t, ctx,
 				cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-				user, sendAmountDfm, user,
+				user, sendAmountDfm, sendtx.BridgingTypeNormal, user,
 			)
 
 			fmt.Printf("Tx %v sent. hash: %s\n", i, txHash)
@@ -1298,7 +1298,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		for i := 0; i < instances; i++ {
 			txHash := apex.SubmitBridgingRequest(t, ctx,
 				cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-				user, sendAmountDfm, user,
+				user, sendAmountDfm, sendtx.BridgingTypeNormal, user,
 			)
 
 			fmt.Printf("Tx %v sent. hash: %s\n", i, txHash)
@@ -1396,7 +1396,7 @@ func TestE2E_NexusFundAmount(t *testing.T) {
 
 			txHash := apex.SubmitBridgingRequest(t, ctx,
 				tc.fromChain, tc.toChain,
-				user, tc.sendAmountDfm, user,
+				user, tc.sendAmountDfm, sendtx.BridgingTypeNormal, user,
 			)
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
@@ -1408,7 +1408,7 @@ func TestE2E_NexusFundAmount(t *testing.T) {
 
 			txHash = apex.SubmitBridgingRequest(t, ctx,
 				tc.fromChain, tc.toChain,
-				user, tc.sendAmountDfm, user,
+				user, tc.sendAmountDfm, sendtx.BridgingTypeNormal, user,
 			)
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
