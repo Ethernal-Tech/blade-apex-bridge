@@ -806,7 +806,7 @@ curl https://rpc-endpoint.io:8545 -X POST --data '{"jsonrpc":"2.0","method":"deb
 
 The IntermediateRoots method executes a block and returns a list of intermediate state roots—representing the state of the blockchain after each transaction in the block.
 
-### Parameters
+#### Parameters
 
 * DATA, 32 Bytes - block hash
 * Object - The tracer options:
@@ -818,11 +818,11 @@ The IntermediateRoots method executes a block and returns a list of intermediate
   + timeOut: String - (optional, default: "5s") The timeout for cancellation of execution.
   + tracer: String - (default: "structTracer") Defines the debug tracer used for given call. Supported values: structTracer, callTracer.
 
-### Returns
+#### Returns
 
  * Array - list of intermediate state roots, where each hash corresponds to the state root after a transaction in the block.
 
-### Example
+#### Example
 
 ````bash
 curl https://rpc-endpoint.io:8545 -X POST --data '{"jsonrpc":"2.0","method":"debug_intermediateRoots","params":["0x1190f352179918be580bda87e6bbe563d48ac2949e6041e5bf445dbd80a6ce60", {}],"id":1}'
