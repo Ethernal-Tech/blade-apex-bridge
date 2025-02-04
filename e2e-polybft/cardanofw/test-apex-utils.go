@@ -32,6 +32,8 @@ const (
 	BridgingRequestStatusInvalidRequest = "InvalidRequest"
 
 	MinUTxODefaultValue = uint64(1_000_000)
+
+	DefaultRequestStateTimeoutSec = 300
 )
 
 func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
@@ -528,11 +530,15 @@ func WaitForRequestStates(
 }
 
 func WaitForInvalidState(
-	t *testing.T, ctx context.Context, apex *ApexSystem, chainID string, txHash string, apiKey string) {
+	t *testing.T, ctx context.Context, apex *ApexSystem, chainID string, txHash string, apiKey string, timeoutSec uint) {
 	t.Helper()
 
+	if timeoutSec == 0 {
+		timeoutSec = DefaultRequestStateTimeoutSec
+	}
+
 	state, err := WaitForRequestStates(
-		ctx, apex, chainID, txHash, apiKey, []string{BridgingRequestStatusInvalidRequest}, 300)
+		ctx, apex, chainID, txHash, apiKey, []string{BridgingRequestStatusInvalidRequest}, timeoutSec)
 	require.NoError(t, err)
 	require.Equal(t, BridgingRequestStatusInvalidRequest, state)
 }
