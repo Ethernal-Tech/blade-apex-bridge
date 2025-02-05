@@ -196,7 +196,7 @@ func createNativeTokenTx(
 		Tokens: senderTokens,
 	})
 
-	fee, err := builder.CalculateFee(0)
+	fee, err := builder.CalculateFee(1)
 	if err != nil {
 		return nil, "", err
 	}
@@ -296,7 +296,7 @@ func createMintTx(
 		Tokens: senderTokens,
 	})
 
-	fee, err := builder.CalculateFee(0)
+	fee, err := builder.CalculateFee(1)
 	if err != nil {
 		return nil, "", err
 	}
