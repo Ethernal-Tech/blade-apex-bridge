@@ -126,7 +126,7 @@ func ExecuteBridging(
 				defer wgResults.Done()
 
 				err := apex.WaitForExactAmount(
-					ctx, receiverUser, dstChain, expectedAmountDfm, defaultDstNumRetries, defaultDstWaitTime)
+					ctx, receiverUser, dstChain, expectedAmountDfm, len(receiverUsers)*defaultDstNumRetries, defaultDstWaitTime)
 				if err != nil {
 					errs[idx*len(dstChains)+idxChain] = fmt.Errorf("receiver %d on %s: %w", idx, dstChain, err)
 
