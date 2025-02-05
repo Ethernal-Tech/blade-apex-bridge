@@ -1,0 +1,36 @@
+---
+name: ApexBridge Testnet
+on: # yamllint disable-line rule:truthy
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  build_blade:
+    name: Build Blade
+    uses: ./.github/workflows/build.yml
+  lint:
+    name: Lint
+    uses: ./.github/workflows/lint.yml
+    needs: build_blade
+  e2e_apex_testnet_test:
+    name: E2E ApexBridge Testnet Tests
+    uses: ./.github/workflows/e2e-testnet-test.yml
+    needs: build_blade
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      TESTNET_BRIDGING_API_KEY: ${{ secrets.TESTNET_BRIDGING_API_KEY }}
+      E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.E2E_TESTNET_WALLET_KEYS_CONTENT }}
+  notification_apex_testnet:
+    name: ApexBridge Testnet Notification
+    uses: ./.github/workflows/apex-notification-testnet.yml
+    needs: [build_blade, lint, e2e_apex_testnet_test]
+    if: success() || failure()
+    with:
+      environment: testnet
+      build_blade_output: ${{ needs.build_blade.outputs.workflow_output }}
+      lint_output: ${{ needs.lint.outputs.workflow_output }}
+      e2e_apex_testnet_test_output: ${{ needs.e2e_apex_testnet_test.outputs.workflow_output }}
+    secrets:
+      APEX_SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}
