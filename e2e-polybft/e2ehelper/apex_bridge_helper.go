@@ -14,6 +14,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	defaultDstNumRetries = 100
+	defaultDstWaitTime   = 15 * time.Second
+)
+
 func ExecuteSingleBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, senderUser, receiverUser *cardanofw.TestApexUser,
 	srcChain, dstChain string, sendAmountDfm *big.Int,
@@ -30,7 +35,7 @@ func ExecuteSingleBridging(
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
 	// check expected amount cardano
-	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmountDfm, 100, time.Second*10)
+	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmountDfm, defaultDstNumRetries, defaultDstWaitTime)
 	require.NoError(t, err)
 }
 
@@ -47,7 +52,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, user)
 		expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
 
-		err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm, 100, time.Second*10)
+		err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm, defaultDstNumRetries, defaultDstWaitTime)
 		require.NoError(t, err)
 	}
 }
@@ -68,7 +73,7 @@ func ExecuteBridgingWaitAfterSubmits(
 		expectedAmountDfm = expectedAmountDfm.Add(expectedAmountDfm, sendAmountDfm)
 	}
 
-	err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm, 100, time.Second*10)
+	err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm, defaultDstNumRetries, defaultDstWaitTime)
 	require.NoError(t, err)
 }
 
@@ -121,7 +126,7 @@ func ExecuteBridging(
 				defer wgResults.Done()
 
 				err := apex.WaitForExactAmount(
-					ctx, receiverUser, dstChain, expectedAmountDfm, 100, time.Second*10)
+					ctx, receiverUser, dstChain, expectedAmountDfm, defaultDstNumRetries, defaultDstWaitTime)
 				if err != nil {
 					errs[idx*len(dstChains)+idxChain] = fmt.Errorf("receiver %d on %s: %w", idx, dstChain, err)
 
