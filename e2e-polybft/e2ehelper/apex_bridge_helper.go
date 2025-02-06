@@ -16,7 +16,7 @@ import (
 
 const (
 	defaultDstNumRetries = 100
-	defaultDstWaitTime   = 15 * time.Second
+	defaultDstWaitTime   = 30 * time.Second
 )
 
 func ExecuteSingleBridging(
