@@ -374,7 +374,7 @@ func (ec *TestCardanoChain) SendTx(
 	ctx context.Context, privateKey string, receiverAddr string, amount *big.Int, data []byte,
 ) (string, error) {
 	const (
-		retryCount    = 75
+		retryCount    = 90
 		retryWaitTime = time.Second * 2
 	)
 
