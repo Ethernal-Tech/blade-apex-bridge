@@ -38,7 +38,7 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithVectorEnabled(true),
@@ -121,7 +121,7 @@ func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithAPIValidatorID(-1),
@@ -205,7 +205,7 @@ func TestE2E_ApexBridge(t *testing.T) {
 	primeConfig.PremineAmount = 500_000_000
 	vectorConfig.PremineAmount = 500_000_000
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithUserCnt(1),
 		cardanofw.WithPrimeConfig(primeConfig),
@@ -239,7 +239,7 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 	primeConfig.TTLInc, primeConfig.SlotRoundingThreshold = 1, 20
 	vectorConfig.TTLInc, vectorConfig.SlotRoundingThreshold = 1, 30
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithVectorConfig(vectorConfig),
@@ -277,7 +277,7 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithUserCnt(1),
@@ -353,7 +353,7 @@ func TestE2E_FundAmount(t *testing.T) {
 	primeConfig.FundAmount = 1_000_000
 	vectorConfig.FundAmount = 1_000_000
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithVectorConfig(vectorConfig),
@@ -438,7 +438,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 	primeConfig.PremineAmount = 500_000_000
 	vectorConfig.PremineAmount = 500_000_000
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithUserCnt(userCnt),
@@ -670,9 +670,11 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 			apex.Config.PrimeConfig.NetworkType, false, 0, false)
 		require.NoError(t, err)
 
+		minterWallet, _ := minterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
+
 		tokensFunded, err := cardanofw.FundUserWithToken(
 			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			minterUser, brSubmitterUser, uint64(10_000_000), uint64(1_000_000))
+			minterWallet, brSubmitterUser, uint64(10_000_000), uint64(1_000_000))
 		require.NoError(t, err)
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
@@ -706,7 +708,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithUserCnt(userCnt),
@@ -738,9 +740,11 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			apex.Config.PrimeConfig.NetworkType, false, 0, false)
 		require.NoError(t, err)
 
+		minterWallet, _ := minterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
+
 		_, err = cardanofw.FundUserWithToken(
 			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			minterUser, brSubmitterUser, uint64(10_000_000), uint64(1_000_000))
+			minterWallet, brSubmitterUser, uint64(10_000_000), uint64(1_000_000))
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
@@ -763,9 +767,11 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			apex.Config.PrimeConfig.NetworkType, false, 0, false)
 		require.NoError(t, err)
 
+		minterWallet, _ := minterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
+
 		tokensFunded, err := cardanofw.FundUserWithToken(
 			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			minterUser, brSubmitterUser, uint64(10_000_000), uint64(1_000_000))
+			minterWallet, brSubmitterUser, uint64(10_000_000), uint64(1_000_000))
 		require.NoError(t, err)
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
@@ -1208,7 +1214,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		vectorConfig.FundAmount = 0
 		nexusConfig.FundAmount = big.NewInt(0)
 
-		apex := cardanofw.SetupAndRunApexBridge(
+		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithUserCnt(userCnt),
@@ -1263,7 +1269,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		vectorConfig.FundAmount = 0
 		nexusConfig.FundAmount = big.NewInt(0)
 
-		apex := cardanofw.SetupAndRunApexBridge(
+		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithUserCnt(userCnt),
@@ -1341,7 +1347,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		nexusConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
 			cardanofw.ChainIDNexus, initialFundInDfm)
 
-		apex := cardanofw.SetupAndRunApexBridge(
+		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithUserCnt(userCnt),
@@ -1415,7 +1421,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		nexusConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
 			cardanofw.ChainIDNexus, initialFundInDfm)
 
-		apex := cardanofw.SetupAndRunApexBridge(
+		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithUserCnt(userCnt),
@@ -1497,7 +1503,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 	primeConfig.PremineAmount = 30_000_000_000
 	vectorConfig.PremineAmount = 30_000_000_000
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithUserCnt(userCnt),

@@ -28,6 +28,8 @@ type CardanoChainInfo struct {
 	SocketPath     string
 	FundBlockHash  string
 	FundBlockSlot  uint64
+
+	GenesisWallet *cardanowallet.Wallet
 }
 
 func (ci *CardanoChainInfo) GetTxProvider() cardanowallet.ITxProvider {
@@ -61,6 +63,10 @@ type ApexSystem struct {
 	dataDirPath string
 
 	Users []*TestApexUser
+
+	IsSkyline bool
+
+	ExchangeService IExchangeService
 }
 
 func NewApexSystem(
@@ -98,9 +104,62 @@ func NewApexSystem(
 			NewTestCardanoChain(config.VectorConfig),
 			nexus,
 		},
+		IsSkyline: false,
 	}
 
 	apex.Config.applyPremineFundingOptions(apex.Users)
+
+	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = big.NewInt(0)
+	apex.Config.CardanoConfig.InitialHotWalletTokenAmount = big.NewInt(0)
+
+	apex.ExchangeService = nil
+
+	return apex, nil
+}
+
+func NewSkylineSystem(
+	dataDirPath string, opts ...ApexSystemOptions,
+) (*ApexSystem, error) {
+	config := getDefaultSkylinexSystemConfig()
+	for _, opt := range opts {
+		opt(config)
+	}
+
+	users := make([]*TestApexUser, config.UserCnt)
+
+	var err error
+
+	for i := range users {
+		users[i], err = NewTestApexUserSkyline(
+			config.PrimeConfig.NetworkType,
+			config.VectorConfig.IsEnabled,
+			config.VectorConfig.NetworkType,
+			config.CardanoConfig.IsEnabled,
+			config.CardanoConfig.NetworkType,
+			config.NexusConfig.IsEnabled,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create a new skyline user: %w", err)
+		}
+	}
+
+	apex := &ApexSystem{
+		Config:      config,
+		Users:       users,
+		dataDirPath: dataDirPath,
+		chains: []ITestApexChain{
+			NewTestCardanoChain(config.PrimeConfig),
+			NewTestCardanoChain(config.CardanoConfig),
+		},
+		IsSkyline: true,
+	}
+
+	apex.Config.applyPremineFundingOptions(apex.Users)
+
+	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = big.NewInt(1_000_000_000)
+	apex.Config.CardanoConfig.InitialHotWalletTokenAmount = big.NewInt(1_000_000_000)
+
+	apex.ExchangeService = NewExchangeService()
 
 	return apex, nil
 }
@@ -212,14 +271,12 @@ func (a *ApexSystem) InitContracts(ctx context.Context) error {
 	return nil
 }
 
-func (a *ApexSystem) GetTokenName(chainId string, networkType cardanowallet.CardanoNetworkType) string {
-	minterUser := a.Users[len(a.Users)-2]
-	minterWallet, _ := minterUser.GetCardanoWallet(chainId)
+func (a *ApexSystem) GetTokenName(t *testing.T, minterWallet *cardanowallet.Wallet, chainID ChainID,
+	networkType cardanowallet.CardanoNetworkType) string {
+	t.Helper()
 
 	keyHash, err := cardanowallet.GetKeyHash(minterWallet.VerificationKey)
-	if err != nil {
-		return ""
-	}
+	require.NoError(t, err)
 
 	policy := cardanowallet.PolicyScript{
 		Type:    cardanowallet.PolicyScriptSigType,
@@ -228,21 +285,26 @@ func (a *ApexSystem) GetTokenName(chainId string, networkType cardanowallet.Card
 
 	cardanoCliBinary := cardanowallet.ResolveCardanoCliBinary(networkType)
 
-	pid, _ := cardanowallet.NewCliUtils(cardanoCliBinary).GetPolicyID(policy)
+	pid, err := cardanowallet.NewCliUtils(cardanoCliBinary).GetPolicyID(policy)
+	require.NoError(t, err)
 
 	return cardanowallet.NewToken(pid, defaultTokenName).String()
 }
 
-func (a *ApexSystem) FinishConfiguring() error {
+func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
+	t.Helper()
+
 	// after contracts have been initialized populate all the needed things into apex object
 	for _, chain := range a.chains {
-		chain.PopulateApexSystem(a)
+		chain.PopulateApexSystem(t, a)
 	}
+
+	minterWalletPrime := a.PrimeInfo.GenesisWallet
 
 	a.Config.PrimeConfig.NativeTokens = []sendtx.TokenExchangeConfig{
 		{
 			DstChainID: ChainIDCardano,
-			TokenName:  a.GetTokenName(ChainIDPrime, a.Config.PrimeConfig.NetworkType),
+			TokenName:  a.GetTokenName(t, minterWalletPrime, ChainIDPrime, a.Config.PrimeConfig.NetworkType),
 		},
 	}
 
@@ -275,10 +337,12 @@ func (a *ApexSystem) FinishConfiguring() error {
 	}
 
 	if a.Config.CardanoConfig.IsEnabled {
+		minterWalletCardano := a.CardanoInfo.GenesisWallet
+
 		a.Config.CardanoConfig.NativeTokens = []sendtx.TokenExchangeConfig{
 			{
 				DstChainID: ChainIDPrime,
-				TokenName:  a.GetTokenName(ChainIDCardano, a.Config.CardanoConfig.NetworkType),
+				TokenName:  a.GetTokenName(t, minterWalletCardano, ChainIDCardano, a.Config.CardanoConfig.NetworkType),
 			},
 		}
 
@@ -315,35 +379,6 @@ func (a *ApexSystem) FundWallets(ctx context.Context) error {
 	})
 }
 
-func (a *ApexSystem) FundWalletsSkyline(ctx context.Context) error {
-	return a.execForEachChain(func(chain ITestApexChain) error {
-		var txProvider cardanowallet.ITxProvider
-
-		var networkType cardanowallet.CardanoNetworkType
-
-		if chain.ChainID() == ChainIDPrime {
-			txProvider = a.PrimeInfo.GetTxProvider()
-			networkType = a.Config.PrimeConfig.NetworkType
-		} else if chain.ChainID() == ChainIDCardano {
-			txProvider = a.CardanoInfo.GetTxProvider()
-			networkType = a.Config.CardanoConfig.NetworkType
-		} else {
-			return fmt.Errorf("chain %s is not supported", chain.ChainID())
-		}
-
-		minterUser := a.Users[len(a.Users)-2]
-
-		_, err := FundAddressWithToken(
-			ctx, chain.ChainID(), networkType, txProvider,
-			minterUser, chain.GetHotWalletAddress(), uint64(20_000_000), uint64(1_000_000_000))
-		if err != nil {
-			return err
-		}
-
-		return chain.FundWallets(ctx)
-	})
-}
-
 func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, dfmAmount *big.Int) error {
 	chain, err := a.getChain(chainID)
 	if err != nil {
@@ -361,10 +396,10 @@ func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, dfm
 	return err
 }
 
-func (a *ApexSystem) RegisterChains(system string) error {
+func (a *ApexSystem) RegisterChains() error {
 	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		for _, chain := range a.chains {
-			if err := chain.RegisterChain(validator, system); err != nil {
+			if err := chain.RegisterChain(validator); err != nil {
 				return fmt.Errorf("operation failed for validator = %d and chain = %s: %w",
 					i, chain.ChainID(), err)
 			}
@@ -375,6 +410,14 @@ func (a *ApexSystem) RegisterChains(system string) error {
 }
 
 func (a *ApexSystem) GenerateConfigs() error {
+	if a.IsSkyline {
+		return a.generateSkylineConfigs()
+	} else {
+		return a.generateReactorConfigs()
+	}
+}
+
+func (a *ApexSystem) generateReactorConfigs() error {
 	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		telemetryConfig := ""
 		if i == 0 {
@@ -415,7 +458,7 @@ func (a *ApexSystem) GenerateConfigs() error {
 	})
 }
 
-func (a *ApexSystem) GenerateSkylineConfigs() error {
+func (a *ApexSystem) generateSkylineConfigs() error {
 	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		telemetryConfig := ""
 		if i == 0 {
@@ -735,8 +778,13 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	privateKey, err := sender.GetPrivateKey(sourceChain)
 	require.NoError(t, err)
 
+	exchangeRate := []sendtx.ExchangeRateEntry{}
+	if a.ExchangeService != nil {
+		exchangeRate = a.ExchangeService.GetExchangeRate(sourceChain, destinationChain)
+	}
+
 	txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
-		ctx, destinationChain, privateKey, receiversMap, feeAmount, bridgingType)
+		ctx, destinationChain, privateKey, receiversMap, feeAmount, exchangeRate, bridgingType)
 	require.NoError(t, err)
 
 	return txHash

@@ -17,10 +17,8 @@ const (
 
 func FundUserWithToken(ctx context.Context, chain ChainID,
 	networkType cardanowallet.CardanoNetworkType, txProvider cardanowallet.ITxProvider,
-	minterUser *TestApexUser, userToFund *TestApexUser, lovelaceFundAmount uint64, tokenFundAmount uint64,
+	minterWallet *cardanowallet.Wallet, userToFund *TestApexUser, lovelaceFundAmount uint64, tokenFundAmount uint64,
 ) (*cardanowallet.TokenAmount, error) {
-	minterWallet, _ := minterUser.GetCardanoWallet(chain)
-
 	keyHash, err := cardanowallet.GetKeyHash(minterWallet.VerificationKey)
 	if err != nil {
 		return nil, err
@@ -61,16 +59,16 @@ func FundUserWithToken(ctx context.Context, chain ChainID,
 	}
 
 	fmt.Printf("Funded user %s with lovelace + native tokens. txHash: %s\n", userToFundAddr, txHash)
+	fmt.Printf("User funded with TokenAmount: %+v\n", fundToken)
 
 	return &fundToken, nil
 }
 
 func FundAddressWithToken(ctx context.Context, chain ChainID,
 	networkType cardanowallet.CardanoNetworkType, txProvider cardanowallet.ITxProvider,
-	minterUser *TestApexUser, addrToFund string, lovelaceFundAmount uint64, tokenFundAmount uint64,
+	minterWallet *cardanowallet.Wallet, addrToFund string, lovelaceFundAmount uint64,
+	tokenFundAmount uint64,
 ) (*cardanowallet.TokenAmount, error) {
-	minterWallet, _ := minterUser.GetCardanoWallet(chain)
-
 	keyHash, err := cardanowallet.GetKeyHash(minterWallet.VerificationKey)
 	if err != nil {
 		return nil, err

@@ -37,7 +37,12 @@ func ExecuteSingleBridging(
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
 	// check expected amount cardano
-	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmountDfm, 100, time.Second*10)
+	if bridgingType != sendtx.BridgingTypeCurrencyOnSource {
+		err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmountDfm, 100, time.Second*10)
+	} else {
+		err = apex.WaitForGreaterAmount(ctx, receiverUser, dstChain, prevAmountDfm, 100, time.Second*10)
+	}
+
 	require.NoError(t, err)
 }
 

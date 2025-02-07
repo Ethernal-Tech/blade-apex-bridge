@@ -83,7 +83,8 @@ var (
 
 					for j := 0; j < txCountPerSender; j++ {
 						txHash := apex.SubmitBridgingRequest(
-							t, ctx, chainPair.srcChain, chainPair.dstChain, senderUser, sendAmountDfm, sendtx.BridgingTypeNormal, receivers...)
+							t, ctx, chainPair.srcChain, chainPair.dstChain, senderUser, sendAmountDfm,
+							sendtx.BridgingTypeNormal, receivers...)
 
 						fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
 							idx+1, j+1, chainPair.srcChain, chainPair.dstChain, txHash)

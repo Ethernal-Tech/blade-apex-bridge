@@ -15,10 +15,10 @@ type ITestApexChain interface {
 	CreateWallets(validator *TestApexValidator) error
 	CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridgeURL string) error
 	FundWallets(ctx context.Context) error
-	RegisterChain(validator *TestApexValidator, system string) error
+	RegisterChain(validator *TestApexValidator) error
 	InitContracts(bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error
 	GetGenerateConfigsParams(indx int) []string
-	PopulateApexSystem(apexSystem *ApexSystem)
+	PopulateApexSystem(t *testing.T, apexSystem *ApexSystem)
 	UpdateTxSendChainConfiguration(configs map[string]sendtx.ChainConfig)
 	ChainID() string
 	GetAddressBalance(ctx context.Context, addr string) (*big.Int, error)
@@ -28,6 +28,7 @@ type ITestApexChain interface {
 		privateKey string,
 		receivers map[string]*big.Int,
 		feeAmount *big.Int,
+		exchangeRates []sendtx.ExchangeRateEntry,
 		bridgingTypes ...sendtx.BridgingType,
 	) (string, error)
 	SendTx(
@@ -60,6 +61,7 @@ func (t *TestApexChainDummy) BridgingRequest(
 	privateKey string,
 	receivers map[string]*big.Int,
 	feeAmount *big.Int,
+	exchangeRates []sendtx.ExchangeRateEntry,
 	bridgingTypes ...sendtx.BridgingType,
 ) (string, error) {
 	return "", nil
@@ -93,13 +95,14 @@ func (t *TestApexChainDummy) InitContracts(bridgeAdmin *crypto.ECDSAKey, bridgeU
 	return nil
 }
 
-func (t *TestApexChainDummy) PopulateApexSystem(apexSystem *ApexSystem) {
+func (*TestApexChainDummy) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) {
+	t.Helper()
 }
 
 func (t *TestApexChainDummy) UpdateTxSendChainConfiguration(_ map[string]sendtx.ChainConfig) {
 }
 
-func (t *TestApexChainDummy) RegisterChain(validator *TestApexValidator, system string) error {
+func (t *TestApexChainDummy) RegisterChain(validator *TestApexValidator) error {
 	return nil
 }
 
@@ -135,10 +138,6 @@ func (t *TestApexChainDummy) CreateMetadata(
 	exchangeRate sendtx.ExchangeRate,
 ) ([]byte, error) {
 	return nil, nil
-}
-
-func (t *TestApexChainDummy) SetNativeTokenName(string) {
-
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)

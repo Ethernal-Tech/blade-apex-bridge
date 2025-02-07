@@ -30,7 +30,7 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithVectorEnabled(false),
@@ -79,7 +79,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithVectorEnabled(false),
@@ -189,7 +189,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithVectorEnabled(false),
@@ -320,7 +320,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithVectorEnabled(false),
@@ -556,7 +556,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 	primeConfig := cardanofw.NewPrimeChainConfig()
 	primeConfig.PremineAmount = premineAmount
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithVectorEnabled(false),
@@ -734,7 +734,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 	primeConfig := cardanofw.NewPrimeChainConfig()
 	primeConfig.PremineAmount = 100_000_000
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithVectorEnabled(false),
@@ -918,7 +918,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			timeout         bool
 		)
 
-		apex := cardanofw.SetupAndRunApexBridge(
+		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
@@ -985,7 +985,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			timeout         bool
 		)
 
-		apex := cardanofw.SetupAndRunApexBridge(
+		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
@@ -1047,7 +1047,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			timeout         bool
 		)
 
-		apex := cardanofw.SetupAndRunApexBridge(
+		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
@@ -1110,7 +1110,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			timeout         bool
 		)
 
-		apex := cardanofw.SetupAndRunApexBridge(
+		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
@@ -1165,7 +1165,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			timeout         bool
 		)
 
-		apex := cardanofw.SetupAndRunApexBridge(
+		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
@@ -1218,7 +1218,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		failedToExecute := make([]int, instances)
 		timeout := make([]bool, instances)
 
-		apex := cardanofw.SetupAndRunApexBridge(
+		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
@@ -1271,7 +1271,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		failedToExecute := make([]int, instances)
 		timeout := make([]bool, instances)
 
-		apex := cardanofw.SetupAndRunApexBridge(
+		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
 			cardanofw.WithVectorEnabled(false),
@@ -1341,7 +1341,7 @@ func TestE2E_NexusFundAmount(t *testing.T) {
 	nexusConfig := cardanofw.NewNexusChainConfig(true)
 	nexusConfig.FundAmount = big.NewInt(1)
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithNexusConfig(nexusConfig),

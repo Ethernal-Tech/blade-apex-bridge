@@ -19,6 +19,7 @@ import (
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -29,20 +30,21 @@ const (
 type ChainType string
 
 type TestCardanoChainConfig struct {
-	IsEnabled              bool
-	ID                     int
-	NetworkType            infrawallet.CardanoNetworkType
-	NodesCount             int
-	InitialHotWalletAmount *big.Int
-	ChainType              ChainType
-	FundAmount             uint64
-	FundFeeAmount          uint64
-	PreminesAddresses      []string
-	PremineAmount          uint64
-	SlotRoundingThreshold  uint64
-	TTLInc                 uint64
-	MinBridgingFee         uint64
-	NativeTokens           []sendtx.TokenExchangeConfig
+	IsEnabled                   bool
+	ID                          int
+	NetworkType                 infrawallet.CardanoNetworkType
+	NodesCount                  int
+	InitialHotWalletAmount      *big.Int
+	InitialHotWalletTokenAmount *big.Int
+	ChainType                   ChainType
+	FundAmount                  uint64
+	FundFeeAmount               uint64
+	PreminesAddresses           []string
+	PremineAmount               uint64
+	SlotRoundingThreshold       uint64
+	TTLInc                      uint64
+	MinBridgingFee              uint64
+	NativeTokens                []sendtx.TokenExchangeConfig
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -230,6 +232,22 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		fmt.Printf("%s fee addr funded: %s\n", GetNetworkName(ec.config), txHash)
 	}
 
+	if ec.config.InitialHotWalletTokenAmount != nil || ec.config.InitialHotWalletTokenAmount.Uint64() != 0 {
+		minterWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
+		if err != nil {
+			return err
+		}
+
+		tokenAmount, err := FundAddressWithToken(
+			ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()),
+			minterWallet, ec.GetHotWalletAddress(), ec.config.FundAmount, ec.config.InitialHotWalletTokenAmount.Uint64())
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("%s multisig addr funded with tokens: %+v\n", GetNetworkName(ec.config), tokenAmount)
+	}
+
 	if ec.config.FundAmount != 0 {
 		txHash, err := ec.SendTx(
 			ctx, privateKey, ec.multisigAddr, new(big.Int).SetUint64(ec.config.FundAmount), nil)
@@ -256,13 +274,9 @@ func (ec *TestCardanoChain) InitContracts(bridgeAdmin *crypto.ECDSAKey, bridgeUR
 	return nil
 }
 
-func (ec *TestCardanoChain) RegisterChain(validator *TestApexValidator, system string) error {
-	if system == "skyline" {
-		return validator.RegisterChain(ec.ChainID(), ec.config.InitialHotWalletAmount, big.NewInt(1000000000),
-			ChainTypeCardano)
-	}
-
-	return validator.RegisterChain(ec.ChainID(), ec.config.InitialHotWalletAmount, big.NewInt(0), ChainTypeCardano)
+func (ec *TestCardanoChain) RegisterChain(validator *TestApexValidator) error {
+	return validator.RegisterChain(ec.ChainID(), ec.config.InitialHotWalletAmount, ec.config.InitialHotWalletTokenAmount,
+		ChainTypeCardano)
 }
 
 func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string) {
@@ -289,7 +303,12 @@ func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string)
 	return result
 }
 
-func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) {
+func (ec *TestCardanoChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) {
+	t.Helper()
+
+	genesisWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
+	require.NoError(t, err)
+
 	chainInfo := CardanoChainInfo{
 		NetworkAddress: ec.cluster.Servers[0].NetworkAddress(),
 		OgmiosURL:      ec.cluster.OgmiosURL(),
@@ -298,6 +317,7 @@ func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) {
 		SocketPath:     ec.cluster.OgmiosServer.SocketPath(),
 		FundBlockHash:  ec.fundBlockHash,
 		FundBlockSlot:  ec.fundBlockSlot,
+		GenesisWallet:  genesisWallet,
 	}
 
 	switch ec.ChainID() {
@@ -337,7 +357,7 @@ func (ec *TestCardanoChain) CreateMetadata(
 	exchangeRate sendtx.ExchangeRate,
 ) ([]byte, error) {
 	metadata, err := ec.txSender.CreateMetadata(
-		senderAddr, GetNetworkName(ec.config), dstChainID, receivers, bridgingFee, exchangeRate)
+		context.Background(), senderAddr, GetNetworkName(ec.config), dstChainID, receivers, bridgingFee, exchangeRate)
 	if err != nil {
 		return nil, err
 	}
@@ -351,6 +371,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 	privateKey string,
 	receiversMap map[string]*big.Int,
 	feeAmount *big.Int,
+	exchangeRates []sendtx.ExchangeRateEntry,
 	bridgingTypes ...sendtx.BridgingType,
 ) (string, error) {
 	privateKeyBytes, err := hex.DecodeString(privateKey)
@@ -380,19 +401,6 @@ func (ec *TestCardanoChain) BridgingRequest(
 			Amount:       DfmToChainNativeTokenAmount(srcChainID, receiverAmount).Uint64(),
 			BridgingType: bridgingType,
 		})
-	}
-
-	exchangeRates := []sendtx.ExchangeRateEntry{
-		{
-			SrcChainID: ChainIDPrime,
-			DstChainID: ChainIDCardano,
-			Value:      0.5,
-		},
-		{
-			SrcChainID: ChainIDCardano,
-			DstChainID: ChainIDPrime,
-			Value:      2.0,
-		},
 	}
 
 	rawTx, txHash, _, err := ec.txSender.CreateBridgingTx(
@@ -489,12 +497,4 @@ func (ec *TestCardanoChain) submitTx(
 
 		return txHash, nil
 	}, infracommon.WithRetryCount(retryCount), infracommon.WithRetryWaitTime(retryWaitTime))
-}
-
-func GetExchangeRate(sourceChainID string, destinationChainID string) (float64, error) {
-	if destinationChainID == "prime" {
-		return 0.5, nil
-	}
-
-	return 2, nil
 }

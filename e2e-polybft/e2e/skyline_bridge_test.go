@@ -40,6 +40,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	fmt.Println("cardano fee addr: ", apex.CardanoInfo.FeeAddr)
 	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
 
+	minterWalletPrime := apex.PrimeInfo.GenesisWallet
+	minterWalletCardano := apex.CardanoInfo.GenesisWallet
+
 	t.Run("prime -> cardano - currency on src", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
 			t.Skip()
@@ -53,11 +56,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		txProviderPrime := apex.PrimeInfo.GetTxProvider()
 
-		minterUser := apex.Users[userCnt-2]
-
 		_, err = cardanofw.FundUserWithToken(
 			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			minterUser, brSubmitterUser, uint64(1_100_000_000), uint64(0))
+			minterWalletPrime, brSubmitterUser, uint64(1_100_000_000), uint64(0))
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
@@ -77,11 +78,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		txProviderPrime := apex.PrimeInfo.GetTxProvider()
 
-		minterUser := apex.Users[userCnt-2]
-
 		_, err = cardanofw.FundUserWithToken(
 			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			minterUser, brSubmitterUser, uint64(1_100_000_000), uint64(2_500_000))
+			minterWalletPrime, brSubmitterUser, uint64(1_100_000_000), uint64(2_500_000))
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
@@ -102,11 +101,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		txProviderCardano := apex.CardanoInfo.GetTxProvider()
 
-		minterUser := apex.Users[userCnt-2]
-
 		_, err = cardanofw.FundUserWithToken(
 			ctx, cardanofw.ChainIDCardano, apex.Config.CardanoConfig.NetworkType, txProviderCardano,
-			minterUser, brSubmitterUser, uint64(1_100_000_000), uint64(0))
+			minterWalletCardano, brSubmitterUser, uint64(1_100_000_000), uint64(0))
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
@@ -127,11 +124,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		txProviderCardano := apex.CardanoInfo.GetTxProvider()
 
-		minterUser := apex.Users[userCnt-2]
-
 		_, err = cardanofw.FundUserWithToken(
 			ctx, cardanofw.ChainIDCardano, apex.Config.CardanoConfig.NetworkType, txProviderCardano,
-			minterUser, brSubmitterUser, uint64(1_100_000_000), uint64(2_500_000))
+			minterWalletCardano, brSubmitterUser, uint64(1_100_000_000), uint64(2_500_000))
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(

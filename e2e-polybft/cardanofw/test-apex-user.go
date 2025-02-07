@@ -179,11 +179,12 @@ func NewExistingTestApexUser(
 func (u *TestApexUser) GetCardanoWallet(chain ChainID) (
 	*cardanowallet.Wallet, *cardanowallet.CardanoAddress,
 ) {
-	if chain == ChainIDPrime {
+	switch chain {
+	case ChainIDPrime:
 		return u.PrimeWallet, u.PrimeAddress
-	} else if chain == ChainIDVector {
+	case ChainIDVector:
 		return u.VectorWallet, u.VectorAddress
-	} else if chain == ChainIDCardano {
+	case ChainIDCardano:
 		return u.CardanoWallet, u.CardanoAddress
 	}
 
