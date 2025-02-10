@@ -110,7 +110,7 @@ func NewApexSystem(
 	apex.Config.applyPremineFundingOptions(apex.Users)
 
 	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = big.NewInt(0)
-	apex.Config.CardanoConfig.InitialHotWalletTokenAmount = big.NewInt(0)
+	apex.Config.VectorConfig.InitialHotWalletTokenAmount = big.NewInt(0)
 
 	apex.ExchangeService = nil
 
