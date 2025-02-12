@@ -220,7 +220,12 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 			parallelInstances   = 10
 		)
 
-		PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances)
+		timeoutConfig := e2ehelper.NewTimeoutConfig(
+			e2ehelper.WithBridgingNumRetries(e2ehelper.DefaultDstNumRetries),
+			e2ehelper.WithBridgingTimeout(e2ehelper.DefaultDstWaitTime),
+		)
+
+		PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, timeoutConfig)
 	})
 
 	t.Run("Prime and Vector both directions sequential and parallel", func(t *testing.T) {
@@ -231,7 +236,12 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 		receiverUser := apex.Users[parallelInstances]
 
-		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, receiverUser, sequentialInstances, parallelInstances)
+		timeoutConfig := e2ehelper.NewTimeoutConfig(
+			e2ehelper.WithBridgingNumRetries(e2ehelper.DefaultDstNumRetries),
+			e2ehelper.WithBridgingTimeout(e2ehelper.DefaultDstWaitTime),
+		)
+
+		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, timeoutConfig)
 	})
 
 	t.Run("From Prime to Nexus sequential and parallel with max receivers", func(t *testing.T) {

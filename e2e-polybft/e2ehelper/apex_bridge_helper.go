@@ -15,9 +15,41 @@ import (
 )
 
 const (
-	defaultDstNumRetries = 100
-	defaultDstWaitTime   = 30 * time.Second
+	DefaultDstNumRetries = 100
+	DefaultDstWaitTime   = 30 * time.Second
 )
+
+type TimeoutConfig struct {
+	bridgingTimeout    time.Duration
+	bridgingNumRetries int
+}
+
+type TimeoutOption func(*TimeoutConfig)
+
+func WithBridgingTimeout(timeout time.Duration) TimeoutOption {
+	return func(cfg *TimeoutConfig) {
+		cfg.bridgingTimeout = timeout * time.Second
+	}
+}
+
+func WithBridgingNumRetries(retries int) TimeoutOption {
+	return func(cfg *TimeoutConfig) {
+		cfg.bridgingNumRetries = retries
+	}
+}
+
+func NewTimeoutConfig(options ...TimeoutOption) TimeoutConfig {
+	cfg := TimeoutConfig{
+		bridgingTimeout:    10 * time.Second,
+		bridgingNumRetries: 100,
+	}
+
+	for _, opt := range options {
+		opt(&cfg)
+	}
+
+	return cfg
+}
 
 func ExecuteSingleBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, senderUser, receiverUser *cardanofw.TestApexUser,
@@ -35,7 +67,7 @@ func ExecuteSingleBridging(
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
 	// check expected amount cardano
-	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmountDfm, defaultDstNumRetries, defaultDstWaitTime)
+	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmountDfm, DefaultDstNumRetries, DefaultDstWaitTime)
 	require.NoError(t, err)
 }
 
@@ -52,7 +84,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, user)
 		expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
 
-		err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm, defaultDstNumRetries, defaultDstWaitTime)
+		err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm, DefaultDstNumRetries, DefaultDstWaitTime)
 		require.NoError(t, err)
 	}
 }
@@ -73,7 +105,7 @@ func ExecuteBridgingWaitAfterSubmits(
 		expectedAmountDfm = expectedAmountDfm.Add(expectedAmountDfm, sendAmountDfm)
 	}
 
-	err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm, defaultDstNumRetries, defaultDstWaitTime)
+	err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm, DefaultDstNumRetries, DefaultDstWaitTime)
 	require.NoError(t, err)
 }
 
@@ -126,7 +158,7 @@ func ExecuteBridging(
 				defer wgResults.Done()
 
 				err := apex.WaitForExactAmount(
-					ctx, receiverUser, dstChain, expectedAmountDfm, len(receiverUsers)*defaultDstNumRetries, defaultDstWaitTime)
+					ctx, receiverUser, dstChain, expectedAmountDfm, len(receiverUsers)*config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingTimeout)
 				if err != nil {
 					errs[idx*len(dstChains)+idxChain] = fmt.Errorf("receiver %d on %s: %w", idx, dstChain, err)
 
@@ -138,7 +170,7 @@ func ExecuteBridging(
 				if config.waitForUnexpectedBridges {
 					// nothing else should be bridged for 2 minutes
 					err = apex.WaitForGreaterAmount(
-						ctx, receiverUser, dstChain, expectedAmountDfm, 12, time.Second*10)
+						ctx, receiverUser, dstChain, expectedAmountDfm, 12, config.timeoutConfig.bridgingTimeout)
 					if !errors.Is(err, infracommon.ErrRetryTimeout) {
 						errs[idx*len(dstChains)+idxChain] = fmt.Errorf(
 							"receiver %d on %s should not receive more tokens: %w", idx, dstChain, err)

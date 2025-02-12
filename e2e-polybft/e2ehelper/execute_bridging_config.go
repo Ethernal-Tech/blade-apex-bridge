@@ -30,12 +30,14 @@ type executeBridgingConfig struct {
 	restartValidatorsConfigs []RestartValidatorsConfig
 	sendTxStrategy           SendTxStrategyFn
 	restartValidatorStrategy RestartValidatorStrategyFn
+	timeoutConfig            TimeoutConfig
 }
 
 func newExecuteBridgingConfig(opts ...ExecuteBridgingOption) *executeBridgingConfig {
 	config := &executeBridgingConfig{
 		sendTxStrategy:           defaultSendTxStrategy,
 		restartValidatorStrategy: defaultRestartValidatorStrategy,
+		timeoutConfig:            NewTimeoutConfig(),
 	}
 
 	for _, x := range opts {
@@ -62,6 +64,12 @@ func WithRestartValidatorsConfig(restartValidatorsConfigs []RestartValidatorsCon
 func WithSendTxStrategy(strategy SendTxStrategyFn) ExecuteBridgingOption {
 	return func(config *executeBridgingConfig) {
 		config.sendTxStrategy = strategy
+	}
+}
+
+func WithTimeoutConfig(tc TimeoutConfig) ExecuteBridgingOption {
+	return func(cfg *executeBridgingConfig) {
+		cfg.timeoutConfig = tc
 	}
 }
 

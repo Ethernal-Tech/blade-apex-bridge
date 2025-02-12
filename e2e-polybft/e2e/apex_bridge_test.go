@@ -1672,7 +1672,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 }
 
 func PrimeToVectorSequentialAndParallelWithMaxReceivers(
-	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, sequentialInstances, parallelInstances int,
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, sequentialInstances, parallelInstances int, tConfig ...e2ehelper.TimeoutConfig,
 ) {
 	t.Helper()
 
@@ -1681,6 +1681,11 @@ func PrimeToVectorSequentialAndParallelWithMaxReceivers(
 		sendAmount = uint64(1_000_000)
 	)
 
+	var opts []e2ehelper.ExecuteBridgingOption
+	if len(tConfig) > 0 {
+		opts = []e2ehelper.ExecuteBridgingOption{e2ehelper.WithTimeoutConfig(tConfig[0])}
+	}
+
 	e2ehelper.ExecuteBridging(
 		t, ctx, apex, sequentialInstances,
 		apex.Users[:parallelInstances],
@@ -1688,18 +1693,27 @@ func PrimeToVectorSequentialAndParallelWithMaxReceivers(
 		[]string{cardanofw.ChainIDPrime},
 		map[string][]string{
 			cardanofw.ChainIDPrime: {cardanofw.ChainIDVector},
-		}, new(big.Int).SetUint64(sendAmount))
+		}, new(big.Int).SetUint64(sendAmount),
+		opts...)
 }
 
 func PrimeVectorBothDirectionsSequentialAndParallel(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	receiverUser *cardanofw.TestApexUser, sequentialInstances, parallelInstances int,
+	receiverUser *cardanofw.TestApexUser, sequentialInstances, parallelInstances int, tConfig ...e2ehelper.TimeoutConfig,
 ) {
 	t.Helper()
 
 	const (
 		sendAmount = uint64(1_000_000)
 	)
+
+	var opts []e2ehelper.ExecuteBridgingOption
+
+	if len(tConfig) > 0 {
+		opts = append(opts, e2ehelper.WithTimeoutConfig(tConfig[0]))
+	}
+
+	opts = append(opts, e2ehelper.WithWaitForUnexpectedBridges(true))
 
 	e2ehelper.ExecuteBridging(
 		t, ctx, apex, sequentialInstances,
@@ -1710,7 +1724,7 @@ func PrimeVectorBothDirectionsSequentialAndParallel(
 			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
 			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
 		}, new(big.Int).SetUint64(sendAmount),
-		e2ehelper.WithWaitForUnexpectedBridges(true))
+		opts...)
 }
 
 func PrimeToVectorMismatchSubmittedAndReceiverAmounts(
