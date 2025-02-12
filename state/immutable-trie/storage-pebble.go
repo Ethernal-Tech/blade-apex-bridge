@@ -25,7 +25,7 @@ func (b *pebbleBatch) Put(k, v []byte) {
 }
 
 func (b *pebbleBatch) Write() error {
-	return b.batch.Commit(&pebble.WriteOptions{})
+	return b.batch.Commit(nil)
 }
 
 func (ps *pebbleStorage) SetCode(hash types.Hash, code []byte) error {
@@ -107,10 +107,25 @@ func (ps *pebbleStorage) Close() error {
 }
 
 func NewPebbleStorage(path string, logger hclog.Logger) (Storage, error) {
-	db, err := pebble.Open(path, nil)
+	opts := &pebble.Options{Logger: PebbleLogger{}}
+
+	db, err := pebble.Open(path, opts)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pebbleStorage{db}, nil
+}
+
+// PebbleLogger is just a noop logger to disable Pebble's internal logger.
+type PebbleLogger struct{}
+
+func (l PebbleLogger) Infof(format string, args ...interface{}) {
+}
+
+func (l PebbleLogger) Errorf(format string, args ...interface{}) {
+}
+
+func (l PebbleLogger) Fatalf(format string, args ...interface{}) {
+	panic(fmt.Errorf("pebble fatal: "+format, args...)) //nolint:gocritic
 }
