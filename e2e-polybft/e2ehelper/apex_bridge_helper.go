@@ -28,7 +28,7 @@ type TimeoutOption func(*TimeoutConfig)
 
 func WithBridgingTimeout(timeout time.Duration) TimeoutOption {
 	return func(cfg *TimeoutConfig) {
-		cfg.bridgingTimeout = timeout * time.Second
+		cfg.bridgingTimeout = timeout
 	}
 }
 
@@ -53,9 +53,11 @@ func NewTimeoutConfig(options ...TimeoutOption) TimeoutConfig {
 
 func ExecuteSingleBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, senderUser, receiverUser *cardanofw.TestApexUser,
-	srcChain, dstChain string, sendAmountDfm *big.Int,
+	srcChain, dstChain string, sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
+
+	config := newExecuteBridgingConfig(options...)
 
 	prevAmountDfm, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	require.NoError(t, err)
@@ -67,15 +69,18 @@ func ExecuteSingleBridging(
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
 	// check expected amount cardano
-	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmountDfm, DefaultDstNumRetries, DefaultDstWaitTime)
+	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmountDfm,
+		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingTimeout)
 	require.NoError(t, err)
 }
 
 func ExecuteBridgingOneByOneWaitOnOtherSide(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
-	user *cardanofw.TestApexUser, srcChain, dstChain string, sendAmountDfm *big.Int,
+	user *cardanofw.TestApexUser, srcChain, dstChain string, sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
+
+	config := newExecuteBridgingConfig(options...)
 
 	for i := 0; i < txCountPerSender; i++ {
 		prevAmountDfm, err := apex.GetBalance(ctx, user, dstChain)
@@ -84,16 +89,19 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, user)
 		expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
 
-		err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm, DefaultDstNumRetries, DefaultDstWaitTime)
+		err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm,
+			config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingTimeout)
 		require.NoError(t, err)
 	}
 }
 
 func ExecuteBridgingWaitAfterSubmits(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
-	user *cardanofw.TestApexUser, srcChain, dstChain string, sendAmountDfm *big.Int,
+	user *cardanofw.TestApexUser, srcChain, dstChain string, sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
+
+	config := newExecuteBridgingConfig(options...)
 
 	prevAmountDfm, err := apex.GetBalance(ctx, user, dstChain)
 	require.NoError(t, err)
@@ -105,7 +113,8 @@ func ExecuteBridgingWaitAfterSubmits(
 		expectedAmountDfm = expectedAmountDfm.Add(expectedAmountDfm, sendAmountDfm)
 	}
 
-	err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm, DefaultDstNumRetries, DefaultDstWaitTime)
+	err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm,
+		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingTimeout)
 	require.NoError(t, err)
 }
 
@@ -158,7 +167,9 @@ func ExecuteBridging(
 				defer wgResults.Done()
 
 				err := apex.WaitForExactAmount(
-					ctx, receiverUser, dstChain, expectedAmountDfm, len(receiverUsers)*config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingTimeout)
+					ctx, receiverUser, dstChain, expectedAmountDfm,
+					len(receiverUsers)*config.timeoutConfig.bridgingNumRetries,
+					config.timeoutConfig.bridgingTimeout)
 				if err != nil {
 					errs[idx*len(dstChains)+idxChain] = fmt.Errorf("receiver %d on %s: %w", idx, dstChain, err)
 
