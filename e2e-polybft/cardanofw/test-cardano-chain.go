@@ -232,7 +232,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		fmt.Printf("%s fee addr funded: %s\n", GetNetworkName(ec.config), txHash)
 	}
 
-	if ec.config.InitialHotWalletTokenAmount != nil || ec.config.InitialHotWalletTokenAmount.Uint64() != 0 {
+	if ec.config.InitialHotWalletTokenAmount != nil && ec.config.InitialHotWalletTokenAmount.Uint64() != 0 {
 		minterWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
 		if err != nil {
 			return err
