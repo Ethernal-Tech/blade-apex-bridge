@@ -59,6 +59,8 @@ type ApexSystem struct {
 
 	dataDirPath string
 
+	bridgingAPIs []string
+
 	Users []*TestApexUser
 }
 
@@ -290,7 +292,7 @@ func (a *ApexSystem) RegisterChains() error {
 }
 
 func (a *ApexSystem) GenerateConfigs() error {
-	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
+	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		telemetryConfig := ""
 		if i == 0 {
 			telemetryConfig = a.Config.TelemetryConfig
@@ -328,6 +330,11 @@ func (a *ApexSystem) GenerateConfigs() error {
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	return a.setBridgingAPIs()
 }
 
 func (a *ApexSystem) GetBridgeDefaultJSONRPCAddr() string {
@@ -392,6 +399,34 @@ func (a ApexSystem) StopRelayer() error {
 	return a.relayerNode.Stop()
 }
 
+func (a *ApexSystem) setBridgingAPIs() error {
+	var bridgingAPIs []string
+
+	for _, validator := range a.validators {
+		hasAPI := a.Config.APIValidatorID == -1 || validator.ID == a.Config.APIValidatorID
+
+		if hasAPI {
+			if validator.APIPort == 0 {
+				return fmt.Errorf("api port not defined")
+			}
+
+			bridgingAPIs = append(bridgingAPIs, fmt.Sprintf("http://localhost:%d", validator.APIPort))
+		}
+	}
+
+	a.bridgingAPIs = bridgingAPIs
+
+	return nil
+}
+
+func (a *ApexSystem) GetBridgingAPIs() ([]string, error) {
+	if len(a.bridgingAPIs) == 0 {
+		return nil, fmt.Errorf("not running API")
+	}
+
+	return a.bridgingAPIs, nil
+}
+
 func (a *ApexSystem) GetBridgingAPI() (string, error) {
 	apis, err := a.GetBridgingAPIs()
 	if err != nil {
@@ -399,26 +434,6 @@ func (a *ApexSystem) GetBridgingAPI() (string, error) {
 	}
 
 	return apis[0], nil
-}
-
-func (a *ApexSystem) GetBridgingAPIs() (res []string, err error) {
-	for _, validator := range a.validators {
-		hasAPI := a.Config.APIValidatorID == -1 || validator.ID == a.Config.APIValidatorID
-
-		if hasAPI {
-			if validator.APIPort == 0 {
-				return nil, fmt.Errorf("api port not defined")
-			}
-
-			res = append(res, fmt.Sprintf("http://localhost:%d", validator.APIPort))
-		}
-	}
-
-	if len(res) == 0 {
-		return nil, fmt.Errorf("not running API")
-	}
-
-	return res, nil
 }
 
 func (a *ApexSystem) ApexBridgeProcessesRunning() bool {
