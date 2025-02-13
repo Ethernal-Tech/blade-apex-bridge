@@ -12,27 +12,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type TimeoutConfig struct {
+type bridgingRetryWaitTime struct {
 	bridgingTimeout    time.Duration
 	bridgingNumRetries int
 }
 
-type TimeoutOption func(*TimeoutConfig)
+type TimeoutOption func(*bridgingRetryWaitTime)
 
-func WithBridgingTimeout(timeout time.Duration) TimeoutOption {
-	return func(cfg *TimeoutConfig) {
-		cfg.bridgingTimeout = timeout
+func WithBridgingRetryWaitTime(waitTime time.Duration) TimeoutOption {
+	return func(cfg *bridgingRetryWaitTime) {
+		cfg.bridgingTimeout = waitTime
 	}
 }
 
 func WithBridgingNumRetries(retries int) TimeoutOption {
-	return func(cfg *TimeoutConfig) {
+	return func(cfg *bridgingRetryWaitTime) {
 		cfg.bridgingNumRetries = retries
 	}
 }
 
-func NewTimeoutConfig(options ...TimeoutOption) TimeoutConfig {
-	cfg := TimeoutConfig{
+func NewTimeoutConfig(options ...TimeoutOption) bridgingRetryWaitTime {
+	cfg := bridgingRetryWaitTime{
 		bridgingTimeout:    10 * time.Second,
 		bridgingNumRetries: 100,
 	}
@@ -62,7 +62,7 @@ type executeBridgingConfig struct {
 	restartValidatorsConfigs []RestartValidatorsConfig
 	sendTxStrategy           SendTxStrategyFn
 	restartValidatorStrategy RestartValidatorStrategyFn
-	timeoutConfig            TimeoutConfig
+	timeoutConfig            bridgingRetryWaitTime
 }
 
 func newExecuteBridgingConfig(opts ...ExecuteBridgingOption) *executeBridgingConfig {
@@ -99,7 +99,7 @@ func WithSendTxStrategy(strategy SendTxStrategyFn) ExecuteBridgingOption {
 	}
 }
 
-func WithTimeoutConfig(tc TimeoutConfig) ExecuteBridgingOption {
+func WithTimeoutConfig(tc bridgingRetryWaitTime) ExecuteBridgingOption {
 	return func(cfg *executeBridgingConfig) {
 		cfg.timeoutConfig = tc
 	}

@@ -20,7 +20,7 @@ var (
 	chains        = []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus}
 	timeoutConfig = e2ehelper.NewTimeoutConfig(
 		e2ehelper.WithBridgingNumRetries(defaultDstNumRetries),
-		e2ehelper.WithBridgingTimeout(defaultDstWaitTime),
+		e2ehelper.WithBridgingRetryWaitTime(defaultDstWaitTime),
 	)
 	bridgingOpts = []e2ehelper.ExecuteBridgingOption{e2ehelper.WithTimeoutConfig(timeoutConfig)}
 )
