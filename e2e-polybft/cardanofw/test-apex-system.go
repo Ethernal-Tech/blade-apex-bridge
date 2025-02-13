@@ -21,17 +21,27 @@ import (
 )
 
 type CardanoChainInfo struct {
-	NetworkAddress string
-	OgmiosURL      string
-	MultisigAddr   string
-	FeeAddr        string
-	SocketPath     string
-	FundBlockHash  string
-	FundBlockSlot  uint64
+	NetworkAddress   string
+	OgmiosURL        string
+	BlockfrostURL    string
+	BlockfrostAPIKey string
+	MultisigAddr     string
+	FeeAddr          string
+	SocketPath       string
+	FundBlockHash    string
+	FundBlockSlot    uint64
 }
 
-func (ci *CardanoChainInfo) GetTxProvider() cardanowallet.ITxProvider {
-	return cardanowallet.NewTxProviderOgmios(ci.OgmiosURL)
+func (ci *CardanoChainInfo) GetTxProvider() (cardanowallet.ITxProvider, error) {
+	if ci.OgmiosURL != "" {
+		return cardanowallet.NewTxProviderOgmios(ci.OgmiosURL), nil
+	}
+
+	if ci.BlockfrostURL != "" && ci.BlockfrostAPIKey != "" {
+		return cardanowallet.NewTxProviderBlockFrost(ci.BlockfrostURL, ci.BlockfrostAPIKey), nil
+	}
+
+	return nil, errors.New("neither a blockfrost nor a ogmios is specified")
 }
 
 type EVMChainInfo struct {
@@ -61,7 +71,8 @@ type ApexSystem struct {
 
 	bridgingAPIs []string
 
-	Users []*TestApexUser
+	FunderUser *TestApexUser
+	Users      []*TestApexUser
 }
 
 func NewApexSystem(
@@ -226,10 +237,10 @@ func (a *ApexSystem) FinishConfiguring() error {
 			MultiSigAddr:         a.VectorInfo.MultisigAddr,
 			TestNetMagic:         GetNetworkMagic(a.Config.VectorConfig.NetworkType),
 			TTLSlotNumberInc:     ttlSlotNumberInc,
-			MinUtxoValue:         minUTxODefaultValue,
+			MinUtxoValue:         MinUTxODefaultValue,
 			MinBridgingFeeAmount: a.Config.VectorConfig.MinBridgingFee,
 			NativeTokens:         a.Config.VectorConfig.NativeTokens,
-			PotentialFee:         potentialFee,
+			PotentialFee:         PotentialFee,
 		},
 		ChainIDPrime: {
 			CardanoCliBinary:     ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
@@ -237,10 +248,10 @@ func (a *ApexSystem) FinishConfiguring() error {
 			MultiSigAddr:         a.PrimeInfo.MultisigAddr,
 			TestNetMagic:         GetNetworkMagic(a.Config.PrimeConfig.NetworkType),
 			TTLSlotNumberInc:     ttlSlotNumberInc,
-			MinUtxoValue:         minUTxODefaultValue,
+			MinUtxoValue:         MinUTxODefaultValue,
 			MinBridgingFeeAmount: a.Config.PrimeConfig.MinBridgingFee,
 			NativeTokens:         a.Config.PrimeConfig.NativeTokens,
-			PotentialFee:         potentialFee,
+			PotentialFee:         PotentialFee,
 		},
 		ChainIDNexus: {
 			MinBridgingFeeAmount: a.Config.NexusConfig.MinBridgingFee,

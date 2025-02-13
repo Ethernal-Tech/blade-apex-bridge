@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -10,11 +11,8 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
+	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
-)
-
-const (
-	funderUserIdx = 20
 )
 
 var (
@@ -23,7 +21,7 @@ var (
 
 func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 	const (
-		apexAmountToBridge = 15_000_000
+		apexAmountToBridge = 10_000
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -32,26 +30,86 @@ func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetTestnetApexBridgeConfig())
 	require.NoError(t, err)
 
-	require.GreaterOrEqual(t, len(apex.Users), funderUserIdx+1)
+	require.NotNil(t, apex.FunderUser)
 
-	funderUser := apex.Users[funderUserIdx]
-
-	balances := getUserBalances(ctx, apex, []*cardanofw.TestApexUser{funderUser})
-	printUserBalances([]*cardanofw.TestApexUser{funderUser}, balances)
+	balances := getUserBalances(ctx, apex, nil)
+	printUserBalances(apex, nil, balances)
 
 	sendAmountDfm := cardanofw.ApexToDfm(new(big.Int).SetUint64(apexAmountToBridge))
 
 	fmt.Printf("bridging %v apex to vector\n", apexAmountToBridge)
 
 	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, funderUser, funderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm)
+		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm)
 
 	fmt.Printf("bridging %v apex to nexus\n", apexAmountToBridge)
 	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, funderUser, funderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm)
+		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm)
 
-	balances = getUserBalances(ctx, apex, []*cardanofw.TestApexUser{funderUser})
-	printUserBalances([]*cardanofw.TestApexUser{funderUser}, balances)
+	balances = getUserBalances(ctx, apex, nil)
+	printUserBalances(apex, nil, balances)
+}
+func Test_E2E_TestnetDefund(t *testing.T) {
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetTestnetApexBridgeConfig())
+	require.NoError(t, err)
+
+	require.NotNil(t, apex.FunderUser)
+
+	var wg sync.WaitGroup
+
+	balances := getUserBalances(ctx, apex, apex.Users)
+	printUserBalances(apex, apex.Users, balances)
+
+	fmt.Printf("defunding the wallets\n")
+
+	for _, user := range apex.Users {
+		for _, chain := range chains {
+			addr := user.GetAddress(chain)
+
+			var (
+				change         *big.Int
+				balanceAtleast *big.Int
+			)
+
+			if chain == cardanofw.ChainIDNexus {
+				change = new(big.Int).SetUint64(cardanofw.PotentialFee)
+				balanceAtleast = new(big.Int).Set(change)
+			} else {
+				change = new(big.Int).SetUint64(cardanofw.MinUTxODefaultValue + cardanofw.PotentialFee)
+				balanceAtleast = big.NewInt(0).Add(new(big.Int).SetUint64(cardanofw.MinUTxODefaultValue), change)
+			}
+
+			balance, exists := balances[addr]
+			if !exists || balance.Cmp(balanceAtleast) != 1 {
+				continue
+			}
+
+			toDefund := big.NewInt(0).Sub(balance, change)
+
+			wg.Add(1)
+
+			go func(user *cardanofw.TestApexUser, chain string) {
+				defer wg.Done()
+
+				fmt.Printf("Defunding %s address: %s\n", chain, addr)
+
+				_, err := apex.SubmitTx(ctx, chain, user, apex.FunderUser.GetAddress(chain), toDefund, nil)
+				if err != nil {
+					fmt.Printf("error while defunding %s address: %s, err: %v\n", chain, addr, err)
+				}
+			}(user, chain)
+		}
+	}
+
+	wg.Wait()
+
+	balances = getUserBalances(ctx, apex, apex.Users)
+	printUserBalances(apex, apex.Users, balances)
+
+	fmt.Printf("done\n")
 }
 
 func Test_E2E_TestnetFund(t *testing.T) {
@@ -62,22 +120,25 @@ func Test_E2E_TestnetFund(t *testing.T) {
 	require.NoError(t, err)
 
 	const (
-		apexToFund = 75
+		apexToFund = 100
 	)
 
-	require.GreaterOrEqual(t, len(apex.Users), funderUserIdx+1)
+	require.NotNil(t, apex.FunderUser)
 
 	var (
-		funderUser = apex.Users[funderUserIdx]
-		wg         sync.WaitGroup
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		addrErrs = make(map[string]error)
 	)
 
 	balances := getUserBalances(ctx, apex, apex.Users)
-	printUserBalances(apex.Users, balances)
+	printUserBalances(apex, apex.Users, balances)
 
 	fmt.Printf("funding the wallets\n")
 
 	for _, user := range apex.Users {
+		fmt.Printf("-----------------------------\n")
+
 		for _, chain := range chains {
 			wg.Add(1)
 
@@ -88,9 +149,13 @@ func Test_E2E_TestnetFund(t *testing.T) {
 
 				fmt.Printf("Funding %s address: %s\n", chain, addr)
 
-				_, err := apex.SubmitTx(ctx, chain, funderUser, addr, cardanofw.ApexToDfm(big.NewInt(apexToFund)), nil)
+				_, err := apex.SubmitTx(ctx, chain, apex.FunderUser, addr, cardanofw.ApexToDfm(big.NewInt(apexToFund)), nil)
 				if err != nil {
 					fmt.Printf("error while funding %s address: %s, err: %v\n", chain, addr, err)
+
+					mu.Lock()
+					addrErrs[addr] = err
+					mu.Unlock()
 				}
 			}(user, chain)
 		}
@@ -99,12 +164,20 @@ func Test_E2E_TestnetFund(t *testing.T) {
 	}
 
 	balances = getUserBalances(ctx, apex, apex.Users)
-	printUserBalances(apex.Users, balances)
+	printUserBalances(apex, apex.Users, balances)
+
+	errs := make([]error, 0, len(addrErrs))
+	for _, err := range addrErrs {
+		errs = append(errs, err)
+	}
+
+	err = errors.Join(errs...)
+	require.NoError(t, err)
 
 	fmt.Printf("done\n")
 }
 
-func Test_E2E_ApexTestnetBridge(t *testing.T) {
+func Test_E2E_SanityCheck(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
@@ -112,7 +185,7 @@ func Test_E2E_ApexTestnetBridge(t *testing.T) {
 	require.NoError(t, err)
 
 	var (
-		user             = apex.Users[funderUserIdx]
+		user             = apex.Users[0]
 		sendAmount       = cardanofw.ApexToDfm(big.NewInt(1))
 		bridgingRequests = []struct {
 			src  string
@@ -133,6 +206,163 @@ func Test_E2E_ApexTestnetBridge(t *testing.T) {
 	}
 }
 
+func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetTestnetApexBridgeConfig())
+	require.NoError(t, err)
+
+	t.Run("From Prime to Vector sequential and parallel with max receivers", func(t *testing.T) {
+		const (
+			sequentialInstances = 3
+			parallelInstances   = 10
+		)
+
+		PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances)
+	})
+
+	t.Run("Prime and Vector both directions sequential and parallel", func(t *testing.T) {
+		const (
+			sequentialInstances = 3
+			parallelInstances   = 6
+		)
+
+		receiverUser := apex.Users[parallelInstances]
+
+		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, receiverUser, sequentialInstances, parallelInstances)
+	})
+
+	t.Run("From Prime to Nexus sequential and parallel with max receivers", func(t *testing.T) {
+		const (
+			sequentialInstances = 3
+			parallelInstances   = 10
+		)
+
+		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+
+		PrimeToNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm)
+	})
+
+	t.Run("Prime and Nexus both directions sequential and parallel", func(t *testing.T) {
+		const (
+			sequentialInstances = 3
+			parallelInstances   = 6
+		)
+
+		receiverUser := apex.Users[parallelInstances]
+		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+
+		PrimeNexusBothDirectionsSequentialAndParallel(
+			t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm)
+	})
+
+	t.Run("From Nexus to Prime sequential and parallel max receivers", func(t *testing.T) {
+		const (
+			sequentialInstances = 3
+			parallelInstances   = 10
+		)
+
+		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+
+		NexusToPrimeSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm)
+	})
+}
+
+func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetTestnetApexBridgeConfig())
+	require.NoError(t, err)
+
+	const (
+		requestStateTimeoutSec = 600
+	)
+
+	t.Run("Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
+		feeAmount := uint64(1_100_000)
+
+		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, apex.Users[0], requestStateTimeoutSec, feeAmount)
+	})
+
+	t.Run("Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
+		feeAmount := uint64(1_100_000)
+
+		PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[1], feeAmount)
+	})
+
+	t.Run("Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
+		feeAmount := uint64(1_100_000)
+
+		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, apex.Users[2], requestStateTimeoutSec, feeAmount)
+	})
+
+	t.Run("Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
+		feeAmount := uint64(1_100_000)
+
+		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[3], requestStateTimeoutSec, feeAmount)
+	})
+
+	t.Run("Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
+		feeAmount := uint64(1_100_000)
+
+		PrimeToVectorInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[4], requestStateTimeoutSec, feeAmount)
+	})
+
+	t.Run("Prime to Vector submitted invalid metadata - empty tx", func(t *testing.T) {
+		feeAmount := uint64(1_100_000)
+
+		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[5], requestStateTimeoutSec, feeAmount)
+	})
+
+	t.Run("Prime to Nexus submitter not enough funds", func(t *testing.T) {
+		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(500_000))
+		feeAmount := uint64(1_100_000)
+
+		PrimeToNexusSubmitterNotEnoughFunds(t, ctx, apex, apex.Users[6], sendAmountDfm, feeAmount)
+	})
+
+	t.Run("Prime to Nexus submitted invalid metadata - sliced off", func(t *testing.T) {
+		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+		feeAmount := uint64(1_100_000)
+
+		PrimeToNexusInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[7], sendAmountDfm, feeAmount)
+	})
+
+	t.Run("Prime to Nexus submitted invalid metadata - wrong type", func(t *testing.T) {
+		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+		feeAmount := uint64(1_100_000)
+
+		PrimeToNexusInvalidMetadataWrongType(t, ctx, apex, apex.Users[8], requestStateTimeoutSec, sendAmountDfm, feeAmount)
+	})
+
+	t.Run("Prime to Nexus submitted invalid metadata - invalid destination", func(t *testing.T) {
+		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+		feeAmount := uint64(1_100_000)
+
+		PrimeToNexusInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[9], requestStateTimeoutSec, sendAmountDfm, feeAmount)
+	})
+
+	t.Run("Prime to Nexus submitted invalid metadata - invalid sender", func(t *testing.T) {
+		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+		feeAmount := uint64(1_100_000)
+
+		PrimeToNexusInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[0], requestStateTimeoutSec, sendAmountDfm, feeAmount)
+	})
+
+	t.Run("Prime to Nexus submitted invalid metadata - empty tx", func(t *testing.T) {
+		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+		feeAmount := uint64(1_100_000)
+
+		PrimeToNexusInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[1], requestStateTimeoutSec, sendAmountDfm, feeAmount)
+	})
+
+	t.Run("Nexus to Prime submitter not enough funds", func(t *testing.T) {
+		NexusToPrimeSubmitterNotEnoughFunds(t, ctx, apex)
+	})
+}
+
 func Test_E2E_TestnetPrintBalances(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
@@ -141,11 +371,13 @@ func Test_E2E_TestnetPrintBalances(t *testing.T) {
 	require.NoError(t, err)
 
 	balances := getUserBalances(ctx, apex, apex.Users)
-	printUserBalances(apex.Users, balances)
+	printUserBalances(apex, apex.Users, balances)
 }
 
-func printUserBalances(users []*cardanofw.TestApexUser, balances map[string]*big.Int) {
-	for i, user := range users {
+func printUserBalances(apex *cardanofw.ApexSystem, users []*cardanofw.TestApexUser, balances map[string]*big.Int) {
+	allUsers := append([]*cardanofw.TestApexUser{apex.FunderUser}, users...)
+
+	for i, user := range allUsers {
 		fmt.Printf("=============================\n")
 		fmt.Printf("user: %d\n", i)
 
@@ -178,7 +410,8 @@ func getUserBalances(
 
 	fmt.Printf("getting the balances\n")
 
-	for _, user := range users {
+	allUsers := append([]*cardanofw.TestApexUser{apex.FunderUser}, users...)
+	for _, user := range allUsers {
 		for _, chain := range chains {
 			wg.Add(1)
 
