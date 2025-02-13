@@ -1350,7 +1350,11 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
 
 		// give time for oracles to submit hot wallet increment claims for initial fundings
-		time.Sleep(time.Minute)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(90 * time.Second):
+		}
 
 		var (
 			defundReceiver          = apex.Users[userCnt-2]
@@ -1424,7 +1428,11 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
 
 		// give time for oracles to submit hot wallet increment claims for initial fundings
-		time.Sleep(time.Minute)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(90 * time.Second):
+		}
 
 		var (
 			defundReceiver          = apex.Users[userCnt-2]
