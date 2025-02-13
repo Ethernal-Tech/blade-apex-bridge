@@ -1702,6 +1702,8 @@ func PrimeVectorBothDirectionsSequentialAndParallel(
 		sendAmount = uint64(1_000_000)
 	)
 
+	options = append(options, e2ehelper.WithWaitForUnexpectedBridges(true))
+
 	e2ehelper.ExecuteBridging(
 		t, ctx, apex, sequentialInstances,
 		apex.Users[:parallelInstances],

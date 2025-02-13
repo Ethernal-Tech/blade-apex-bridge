@@ -17,7 +17,12 @@ import (
 )
 
 var (
-	chains = []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus}
+	chains        = []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus}
+	timeoutConfig = e2ehelper.NewTimeoutConfig(
+		e2ehelper.WithBridgingNumRetries(defaultDstNumRetries),
+		e2ehelper.WithBridgingTimeout(defaultDstWaitTime),
+	)
+	bridgingOpts = []e2ehelper.ExecuteBridgingOption{e2ehelper.WithTimeoutConfig(timeoutConfig)}
 )
 
 const (
@@ -45,19 +50,12 @@ func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 
 	fmt.Printf("bridging %v apex to vector\n", apexAmountToBridge)
 
-	timeoutConfig := e2ehelper.NewTimeoutConfig(
-		e2ehelper.WithBridgingNumRetries(defaultDstNumRetries),
-		e2ehelper.WithBridgingTimeout(defaultDstWaitTime),
-	)
-
-	opts := []e2ehelper.ExecuteBridgingOption{e2ehelper.WithTimeoutConfig(timeoutConfig)}
-
 	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm, opts...)
+		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm, bridgingOpts...)
 
 	fmt.Printf("bridging %v apex to nexus\n", apexAmountToBridge)
 	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm, opts...)
+		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm, bridgingOpts...)
 
 	balances = getUserBalances(ctx, apex, nil)
 	printUserBalances(apex, nil, balances)
@@ -212,17 +210,11 @@ func Test_E2E_SanityCheck(t *testing.T) {
 		}
 	)
 
-	timeoutConfig := e2ehelper.NewTimeoutConfig(
-		e2ehelper.WithBridgingNumRetries(defaultDstNumRetries),
-		e2ehelper.WithBridgingTimeout(defaultDstWaitTime),
-	)
-	opts := []e2ehelper.ExecuteBridgingOption{e2ehelper.WithTimeoutConfig(timeoutConfig)}
-
 	for _, dir := range bridgingRequests {
 		fmt.Printf("bridging from %s to %s\n", dir.src, dir.dest)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, opts...)
+			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, bridgingOpts...)
 	}
 }
 
@@ -239,14 +231,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 			parallelInstances   = 10
 		)
 
-		timeoutConfig := e2ehelper.NewTimeoutConfig(
-			e2ehelper.WithBridgingNumRetries(defaultDstNumRetries),
-			e2ehelper.WithBridgingTimeout(defaultDstWaitTime),
-		)
-
-		opts := []e2ehelper.ExecuteBridgingOption{e2ehelper.WithTimeoutConfig(timeoutConfig)}
-
-		PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, opts...)
+		PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, bridgingOpts...)
 	})
 
 	t.Run("Prime and Vector both directions sequential and parallel", func(t *testing.T) {
@@ -257,14 +242,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 		receiverUser := apex.Users[parallelInstances]
 
-		timeoutConfig := e2ehelper.NewTimeoutConfig(
-			e2ehelper.WithBridgingNumRetries(defaultDstNumRetries),
-			e2ehelper.WithBridgingTimeout(defaultDstWaitTime),
-		)
-
-		opts := []e2ehelper.ExecuteBridgingOption{e2ehelper.WithTimeoutConfig(timeoutConfig)}
-
-		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, opts...)
+		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, bridgingOpts...)
 	})
 
 	t.Run("From Prime to Nexus sequential and parallel with max receivers", func(t *testing.T) {
@@ -275,14 +253,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		timeoutConfig := e2ehelper.NewTimeoutConfig(
-			e2ehelper.WithBridgingNumRetries(defaultDstNumRetries),
-			e2ehelper.WithBridgingTimeout(defaultDstWaitTime),
-		)
-
-		opts := []e2ehelper.ExecuteBridgingOption{e2ehelper.WithTimeoutConfig(timeoutConfig)}
-
-		PrimeToNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm, opts...)
+		PrimeToNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 
 	t.Run("Prime and Nexus both directions sequential and parallel", func(t *testing.T) {
@@ -294,15 +265,8 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 		receiverUser := apex.Users[parallelInstances]
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		timeoutConfig := e2ehelper.NewTimeoutConfig(
-			e2ehelper.WithBridgingNumRetries(defaultDstNumRetries),
-			e2ehelper.WithBridgingTimeout(defaultDstWaitTime),
-		)
-
-		opts := []e2ehelper.ExecuteBridgingOption{e2ehelper.WithTimeoutConfig(timeoutConfig)}
-
 		PrimeNexusBothDirectionsSequentialAndParallel(
-			t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm, opts...)
+			t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 
 	t.Run("From Nexus to Prime sequential and parallel max receivers", func(t *testing.T) {
@@ -313,14 +277,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		timeoutConfig := e2ehelper.NewTimeoutConfig(
-			e2ehelper.WithBridgingNumRetries(defaultDstNumRetries),
-			e2ehelper.WithBridgingTimeout(defaultDstWaitTime),
-		)
-
-		opts := []e2ehelper.ExecuteBridgingOption{e2ehelper.WithTimeoutConfig(timeoutConfig)}
-
-		NexusToPrimeSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm, opts...)
+		NexusToPrimeSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 }
 
