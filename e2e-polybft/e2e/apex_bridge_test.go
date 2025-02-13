@@ -43,6 +43,7 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithVectorEnabled(true),
 		cardanofw.WithNexusEnabled(true),
+		cardanofw.WithTelemetryConfig(cardanofw.PrometheusTelemetry),
 		cardanofw.WithUserCnt(1),
 	)
 
@@ -106,6 +107,11 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 	fmt.Printf("bridge admin address: %s\n", apex.GetBridgeAdmin().Address())
 	fmt.Printf("bridge proxy admin key: %s\n", hex.EncodeToString(proxyAdminPrivateKeyRaw))
 	fmt.Printf("bridge proxy admin address: %s\n", apex.GetBridgeProxyAdmin().Address())
+
+	for i := 0; i < apex.GetValidatorsCount(); i++ {
+		fmt.Printf("validator %d `--telemetry` flag telemetry url(s): %s\n",
+			i+1, apex.Config.GetTelemetryForValidatorIdx(i))
+	}
 
 	signalChannel := make(chan os.Signal, 1)
 	// Notify the signalChannel when the interrupt signal is received (Ctrl+C)

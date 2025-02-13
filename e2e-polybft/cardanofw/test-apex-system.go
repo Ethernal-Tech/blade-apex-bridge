@@ -304,11 +304,6 @@ func (a *ApexSystem) RegisterChains() error {
 
 func (a *ApexSystem) GenerateConfigs() error {
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
-		telemetryConfig := ""
-		if i == 0 {
-			telemetryConfig = a.Config.TelemetryConfig
-		}
-
 		serverIndx := i
 		if a.Config.TargetOneCardanoClusterServer {
 			serverIndx = 0
@@ -320,7 +315,8 @@ func (a *ApexSystem) GenerateConfigs() error {
 			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
 		}
 
-		err := validator.GenerateConfigs(a.Config.APIPortStart+i, a.Config.APIKey, telemetryConfig, args...)
+		err := validator.GenerateConfigs(
+			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i), args...)
 		if err != nil {
 			return err
 		}
