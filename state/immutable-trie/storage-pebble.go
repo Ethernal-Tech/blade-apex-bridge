@@ -14,7 +14,7 @@ type pebbleStorage struct {
 	db *pebble.DB // Underlying pebble storage engine
 }
 
-// KVBatch is a batch write for pebble db
+// pebbleBatch is a batch write for pebble db
 type pebbleBatch struct {
 	db    *pebble.DB // Underlying pebble storage engine
 	batch *pebble.Batch

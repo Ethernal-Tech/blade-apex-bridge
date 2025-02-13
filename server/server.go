@@ -22,8 +22,8 @@ import (
 	"github.com/0xPolygon/polygon-edge/archive"
 	"github.com/0xPolygon/polygon-edge/blockchain"
 	"github.com/0xPolygon/polygon-edge/blockchain/storagev2"
-	"github.com/0xPolygon/polygon-edge/blockchain/storagev2/leveldb"
 	"github.com/0xPolygon/polygon-edge/blockchain/storagev2/memory"
+	"github.com/0xPolygon/polygon-edge/blockchain/storagev2/pebble"
 	"github.com/0xPolygon/polygon-edge/chain"
 	"github.com/0xPolygon/polygon-edge/consensus"
 	consensusPolyBFT "github.com/0xPolygon/polygon-edge/consensus/polybft"
@@ -322,7 +322,7 @@ func NewServer(config *Config) (*Server, error) {
 				return nil, err
 			}
 		} else {
-			db, err = leveldb.NewLevelDBStorage(
+			db, err = pebble.NewPebbleDBStorage(
 				filepath.Join(m.config.DataDir, "blockchain"),
 				m.logger,
 			)
