@@ -82,14 +82,17 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 	fmt.Printf("user vector addr: %s\n", user.GetAddress(cardanofw.ChainIDVector))
 	fmt.Printf("user vector signing key hex: %s\n", userVectorSK)
 
-	chainID, err := apex.NexusInfo.Node.JSONRPC().ChainID()
+	jsonRPCClient, err := cardanofw.JSONRPCClient(apex.NexusInfo.JSONRPCAddr)
+	require.NoError(t, err)
+
+	nexusChainID, err := jsonRPCClient.ChainID()
 	require.NoError(t, err)
 
 	fmt.Printf("nexus user addr: %s\n", user.GetAddress(cardanofw.ChainIDNexus))
 	fmt.Printf("nexus user signing key: %s\n", userNexusPK)
-	fmt.Printf("nexus url: %s\n", apex.NexusInfo.Node.JSONRPCAddr())
+	fmt.Printf("nexus url: %s\n", apex.NexusInfo.JSONRPCAddr)
 	fmt.Printf("nexus gateway sc addr: %s\n", apex.NexusInfo.GatewayAddress)
-	fmt.Printf("nexus chainID: %v\n", chainID)
+	fmt.Printf("nexus chainID: %v\n", nexusChainID)
 	fmt.Printf("nexus admin key: %v\n", hex.EncodeToString(nexusAdminKeyRaw))
 
 	proxyAdminPrivateKeyRaw, err := apex.GetBridgeProxyAdmin().MarshallPrivateKey()
@@ -464,7 +467,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		}
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+			ctx, user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			receivers, bridgingFeeAmount, sendtx.NewExchangeRate())
 		require.NoError(t, err)
 
@@ -482,7 +485,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 			feeAmount := uint64(1_100_000)
 
 			metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-				apex.Users[i].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+				ctx, apex.Users[i].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 				[]sendtx.BridgingTxReceiver{
 					{
 						Addr:         apex.Users[i].GetAddress(cardanofw.ChainIDVector),
@@ -519,7 +522,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 				testUser := apex.Users[idx]
 
 				metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-					testUser.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+					ctx, testUser.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 					[]sendtx.BridgingTxReceiver{
 						{
 							Addr:         apex.Users[idx].GetAddress(cardanofw.ChainIDVector),
@@ -556,7 +559,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		}
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+			ctx, user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			receivers, bridgingFeeAmount, sendtx.NewExchangeRate())
 		require.NoError(t, err)
 
@@ -574,7 +577,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		feeAmount := uint64(1_100_000)
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+			ctx, user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:   user.GetAddress(cardanofw.ChainIDVector),
@@ -600,7 +603,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		feeAmount := uint64(1_100_000)
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+			ctx, user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:   user.GetAddress(cardanofw.ChainIDVector),
@@ -624,7 +627,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		feeAmount := uint64(1_100_000)
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-			"dummy", cardanofw.ChainIDVector,
+			ctx, "dummy", cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:   user.GetAddress(cardanofw.ChainIDVector),
@@ -648,7 +651,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		sendAmount := uint64(1_000_000)
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+			ctx, user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{}, bridgingFeeAmount, sendtx.NewExchangeRate())
 		require.NoError(t, err)
 
@@ -675,7 +678,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+			ctx, user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:   user.GetAddress(cardanofw.ChainIDVector),
@@ -767,7 +770,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+			ctx, user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:   user.GetAddress(cardanofw.ChainIDVector),
@@ -1555,7 +1558,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 					feeAmount := uint64(1_100_000)
 
 					metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+						ctx, apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 						[]sendtx.BridgingTxReceiver{
 							{
 								Addr:         user.GetAddress(cardanofw.ChainIDVector),
@@ -1622,7 +1625,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 					feeAmount := uint64(1_100_000)
 
 					metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+						ctx, apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 						[]sendtx.BridgingTxReceiver{
 							{
 								Addr:         user.GetAddress(cardanofw.ChainIDVector),
@@ -1699,7 +1702,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 					}
 
 					metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+						ctx, apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 						receivers, bridgingFeeAmount, sendtx.NewExchangeRate())
 					require.NoError(t, err)
 
@@ -1726,7 +1729,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 					feeAmount := uint64(1_100_000)
 
 					metadata, err := apex.GetChainMust(t, cardanofw.ChainIDVector).CreateMetadata(
-						apex.Users[idx].GetAddress(cardanofw.ChainIDVector), cardanofw.ChainIDPrime,
+						ctx, apex.Users[idx].GetAddress(cardanofw.ChainIDVector), cardanofw.ChainIDPrime,
 						[]sendtx.BridgingTxReceiver{
 							{
 								Addr:         user.GetAddress(cardanofw.ChainIDPrime),

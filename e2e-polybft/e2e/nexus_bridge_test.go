@@ -231,7 +231,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 		// call SendTx command
 		err = sendTxParams("cardano", // "cardano" instead of "evm"
 			apex.NexusInfo.GatewayAddress.String(),
-			apex.NexusInfo.Node.JSONRPCAddr(),
+			apex.NexusInfo.JSONRPCAddr,
 			userPk, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime,
 			user.GetAddress(cardanofw.ChainIDPrime),
 			sendAmountWei, fee,
@@ -273,7 +273,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 		// call SendTx command
 		err = sendTxParams("evm",
 			apex.NexusInfo.GatewayAddress.String(),
-			apex.NexusInfo.Node.JSONRPCAddr(),
+			apex.NexusInfo.JSONRPCAddr,
 			unfundedUserPk, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime,
 			unfundedUser.GetAddress(cardanofw.ChainIDPrime),
 			sendAmountWei, fee,
@@ -302,7 +302,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 		// call SendTx command
 		err = sendTxParams("evm",
 			apex.NexusInfo.GatewayAddress.String(),
-			apex.NexusInfo.Node.JSONRPCAddr(),
+			apex.NexusInfo.JSONRPCAddr,
 			unfundedUserPk, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime,
 			unfundedUser.GetAddress(cardanofw.ChainIDPrime),
 			sendAmountWei, fee,
@@ -583,7 +583,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		}
 
 		metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
-			user.GetAddress(srcChain), dstChain,
+			ctx, user.GetAddress(srcChain), dstChain,
 			receivers, bridgingFeeAmount, sendtx.NewExchangeRate())
 		require.NoError(t, err)
 
@@ -606,7 +606,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		}
 
 		metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
-			user.GetAddress(srcChain), dstChain,
+			ctx, user.GetAddress(srcChain), dstChain,
 			receivers, bridgingFeeAmount, sendtx.NewExchangeRate())
 		require.NoError(t, err)
 
@@ -623,7 +623,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		feeAmount := uint64(1_100_000)
 
 		metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
-			user.GetAddress(srcChain), dstChain,
+			ctx, user.GetAddress(srcChain), dstChain,
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:   user.GetAddress(dstChain),
@@ -649,7 +649,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		feeAmount := uint64(1_100_000)
 
 		metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
-			user.GetAddress(srcChain), dstChain,
+			ctx, user.GetAddress(srcChain), dstChain,
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:   user.GetAddress(dstChain),
@@ -674,7 +674,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		feeAmount := uint64(1_100_000)
 
 		metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
-			"dummy", dstChain,
+			ctx, "dummy", dstChain,
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:   user.GetAddress(dstChain),
@@ -700,7 +700,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		feeAmount := uint64(1_100_000)
 
 		metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
-			user.GetAddress(srcChain), dstChain,
+			ctx, user.GetAddress(srcChain), dstChain,
 			[]sendtx.BridgingTxReceiver{},
 			bridgingFeeAmount, sendtx.NewExchangeRate())
 		require.NoError(t, err)
@@ -784,7 +784,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 					const feeAmount = 1_100_000
 
 					metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDNexus,
+						ctx, apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDNexus,
 						[]sendtx.BridgingTxReceiver{
 							{
 								Addr:         user.GetAddress(cardanofw.ChainIDNexus),
@@ -859,7 +859,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 					const feeAmount = 1_100_000
 
 					metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDNexus,
+						ctx, apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDNexus,
 						[]sendtx.BridgingTxReceiver{
 							{
 								Addr:         user.GetAddress(cardanofw.ChainIDNexus),

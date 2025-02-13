@@ -36,8 +36,8 @@ func (ci *CardanoChainInfo) GetTxProvider() cardanowallet.ITxProvider {
 
 type EVMChainInfo struct {
 	GatewayAddress types.Address
-	Node           *framework.TestServer
 	RelayerAddress types.Address
+	JSONRPCAddr    string
 	AdminKey       *crypto.ECDSAKey
 	FundBlockNum   uint64
 }

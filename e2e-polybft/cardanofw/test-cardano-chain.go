@@ -73,6 +73,7 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 type TestCardanoChain struct {
 	config          *TestCardanoChainConfig
 	cluster         *TestCardanoCluster
+	ogmiosURL       string
 	multisigAddr    string
 	multisigFeeAddr string
 	fundBlockSlot   uint64
@@ -137,6 +138,8 @@ func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 	if err := cluster.WaitForBlockWithState(10, time.Second*120); err != nil {
 		return err
 	}
+
+	ec.ogmiosURL = ec.cluster.OgmiosURL()
 
 	fmt.Printf("Cluster %s (%d) is ready\n", networkName, ec.config.ID)
 
@@ -221,7 +224,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	}
 
 	// retrieve latest tip
-	tip, err := infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()).GetTip(ctx)
+	tip, err := infrawallet.NewTxProviderOgmios(ec.ogmiosURL).GetTip(ctx)
 	if err != nil {
 		return err
 	}
@@ -250,7 +253,7 @@ func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string)
 		getFlag("network-address"), server.NetworkAddress(),
 		getFlag("network-magic"), fmt.Sprint(GetNetworkMagic(ec.config.NetworkType)),
 		getFlag("network-id"), fmt.Sprint(ec.config.NetworkType),
-		getFlag("ogmios-url"), ec.cluster.OgmiosURL(),
+		getFlag("ogmios-url"), ec.ogmiosURL,
 	}
 
 	if ec.config.TTLInc > 0 {
@@ -267,7 +270,7 @@ func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string)
 func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) {
 	chainInfo := CardanoChainInfo{
 		NetworkAddress: ec.cluster.Servers[0].NetworkAddress(),
-		OgmiosURL:      ec.cluster.OgmiosURL(),
+		OgmiosURL:      ec.ogmiosURL,
 		MultisigAddr:   ec.multisigAddr,
 		FeeAddr:        ec.multisigFeeAddr,
 		SocketPath:     ec.cluster.OgmiosServer.SocketPath(),
@@ -292,7 +295,7 @@ func (ec *TestCardanoChain) ChainID() string {
 }
 
 func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) (*big.Int, error) {
-	utxos, err := infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()).GetUtxos(ctx, addr)
+	utxos, err := infrawallet.NewTxProviderOgmios(ec.ogmiosURL).GetUtxos(ctx, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -303,6 +306,7 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 }
 
 func (ec *TestCardanoChain) CreateMetadata(
+	context context.Context,
 	senderAddr string,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
@@ -310,7 +314,7 @@ func (ec *TestCardanoChain) CreateMetadata(
 	exchangeRate sendtx.ExchangeRate,
 ) ([]byte, error) {
 	metadata, err := ec.txSender.CreateMetadata(
-		senderAddr, GetNetworkName(ec.config.NetworkType), dstChainID, receivers, bridgingFee, exchangeRate)
+		context, senderAddr, GetNetworkName(ec.config.NetworkType), dstChainID, receivers, bridgingFee, exchangeRate)
 	if err != nil {
 		return nil, err
 	}
@@ -326,13 +330,12 @@ func (ec *TestCardanoChain) BridgingRequest(
 	feeAmount *big.Int,
 	bridgingTypes ...sendtx.BridgingType,
 ) (string, error) {
-	privateKeyBytes, err := hex.DecodeString(privateKey)
+	paymentKey, stakeKey, err := FromCardanoPrivateKeyString(privateKey)
 	if err != nil {
 		return "", err
 	}
 
-	wallet := infrawallet.NewWallet(
-		infrawallet.GetVerificationKeyFromSigningKey(privateKeyBytes), privateKeyBytes)
+	wallet := infrawallet.NewWallet(paymentKey, stakeKey)
 	srcChainID := GetNetworkName(ec.config.NetworkType)
 
 	walletAddr, err := GetAddress(ec.config.NetworkType, wallet)
@@ -378,13 +381,12 @@ func (ec *TestCardanoChain) SendTx(
 	amount *big.Int,
 	metadata []byte,
 ) (string, error) {
-	privateKeyBytes, err := hex.DecodeString(privateKey)
+	paymentKey, stakeKey, err := FromCardanoPrivateKeyString(privateKey)
 	if err != nil {
 		return "", err
 	}
 
-	wallet := infrawallet.NewWallet(
-		infrawallet.GetVerificationKeyFromSigningKey(privateKeyBytes), privateKeyBytes)
+	wallet := infrawallet.NewWallet(paymentKey, stakeKey)
 
 	walletAddr, err := GetAddress(ec.config.NetworkType, wallet)
 	if err != nil {
