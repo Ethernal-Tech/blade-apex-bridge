@@ -1672,7 +1672,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 }
 
 func PrimeToVectorSequentialAndParallelWithMaxReceivers(
-	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, sequentialInstances, parallelInstances int,
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, sequentialInstances, parallelInstances int, options ...e2ehelper.ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -1688,18 +1688,21 @@ func PrimeToVectorSequentialAndParallelWithMaxReceivers(
 		[]string{cardanofw.ChainIDPrime},
 		map[string][]string{
 			cardanofw.ChainIDPrime: {cardanofw.ChainIDVector},
-		}, new(big.Int).SetUint64(sendAmount))
+		}, new(big.Int).SetUint64(sendAmount),
+		options...)
 }
 
 func PrimeVectorBothDirectionsSequentialAndParallel(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	receiverUser *cardanofw.TestApexUser, sequentialInstances, parallelInstances int,
+	receiverUser *cardanofw.TestApexUser, sequentialInstances, parallelInstances int, options ...e2ehelper.ExecuteBridgingOption,
 ) {
 	t.Helper()
 
 	const (
 		sendAmount = uint64(1_000_000)
 	)
+
+	options = append(options, e2ehelper.WithWaitForUnexpectedBridges(true))
 
 	e2ehelper.ExecuteBridging(
 		t, ctx, apex, sequentialInstances,
@@ -1710,7 +1713,7 @@ func PrimeVectorBothDirectionsSequentialAndParallel(
 			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
 			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
 		}, new(big.Int).SetUint64(sendAmount),
-		e2ehelper.WithWaitForUnexpectedBridges(true))
+		options...)
 }
 
 func PrimeToVectorMismatchSubmittedAndReceiverAmounts(

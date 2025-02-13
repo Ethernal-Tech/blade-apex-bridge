@@ -1231,7 +1231,7 @@ func TestE2E_NexusFundAmount(t *testing.T) {
 
 func PrimeToNexusSequentialAndParallelWithMaxReceivers(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	sequentialInstances, parallelInstances int, sendAmountDfm *big.Int,
+	sequentialInstances, parallelInstances int, sendAmountDfm *big.Int, options ...e2ehelper.ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -1248,12 +1248,13 @@ func PrimeToNexusSequentialAndParallelWithMaxReceivers(
 		map[string][]string{
 			cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 		},
-		sendAmountDfm)
+		sendAmountDfm,
+		options...)
 }
 
 func PrimeNexusBothDirectionsSequentialAndParallel(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, receiverUser *cardanofw.TestApexUser,
-	sequentialInstances, parallelInstances int, sendAmountDfm *big.Int,
+	sequentialInstances, parallelInstances int, sendAmountDfm *big.Int, options ...e2ehelper.ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -1269,12 +1270,13 @@ func PrimeNexusBothDirectionsSequentialAndParallel(
 			cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 			cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 		},
-		sendAmountDfm)
+		sendAmountDfm,
+		options...)
 }
 
 func NexusToPrimeSequentialAndParallelWithMaxReceivers(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	sequentialInstances, parallelInstances int, sendAmountDfm *big.Int,
+	sequentialInstances, parallelInstances int, sendAmountDfm *big.Int, options ...e2ehelper.ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -1290,7 +1292,8 @@ func NexusToPrimeSequentialAndParallelWithMaxReceivers(
 		map[string][]string{
 			cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 		},
-		sendAmountDfm)
+		sendAmountDfm,
+		options...)
 }
 
 func PrimeToNexusSubmitterNotEnoughFunds(
