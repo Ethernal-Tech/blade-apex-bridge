@@ -1231,19 +1231,13 @@ func TestE2E_NexusFundAmount(t *testing.T) {
 
 func PrimeToNexusSequentialAndParallelWithMaxReceivers(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	sequentialInstances, parallelInstances int, sendAmountDfm *big.Int, tConfig ...e2ehelper.TimeoutConfig,
+	sequentialInstances, parallelInstances int, sendAmountDfm *big.Int, options ...e2ehelper.ExecuteBridgingOption,
 ) {
 	t.Helper()
 
 	const (
 		receivers = 4
 	)
-
-	var opts []e2ehelper.ExecuteBridgingOption
-
-	if len(tConfig) > 0 {
-		opts = append(opts, e2ehelper.WithTimeoutConfig(tConfig[0]))
-	}
 
 	e2ehelper.ExecuteBridging(
 		t, ctx, apex,
@@ -1255,22 +1249,16 @@ func PrimeToNexusSequentialAndParallelWithMaxReceivers(
 			cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 		},
 		sendAmountDfm,
-		opts...)
+		options...)
 }
 
 func PrimeNexusBothDirectionsSequentialAndParallel(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, receiverUser *cardanofw.TestApexUser,
-	sequentialInstances, parallelInstances int, sendAmountDfm *big.Int, tConfig ...e2ehelper.TimeoutConfig,
+	sequentialInstances, parallelInstances int, sendAmountDfm *big.Int, options ...e2ehelper.ExecuteBridgingOption,
 ) {
 	t.Helper()
 
 	const ()
-
-	var opts []e2ehelper.ExecuteBridgingOption
-
-	if len(tConfig) > 0 {
-		opts = append(opts, e2ehelper.WithTimeoutConfig(tConfig[0]))
-	}
 
 	e2ehelper.ExecuteBridging(
 		t, ctx, apex,
@@ -1283,24 +1271,18 @@ func PrimeNexusBothDirectionsSequentialAndParallel(
 			cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 		},
 		sendAmountDfm,
-		opts...)
+		options...)
 }
 
 func NexusToPrimeSequentialAndParallelWithMaxReceivers(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	sequentialInstances, parallelInstances int, sendAmountDfm *big.Int, tConfig ...e2ehelper.TimeoutConfig,
+	sequentialInstances, parallelInstances int, sendAmountDfm *big.Int, options ...e2ehelper.ExecuteBridgingOption,
 ) {
 	t.Helper()
 
 	const (
 		receivers = 4
 	)
-
-	var opts []e2ehelper.ExecuteBridgingOption
-
-	if len(tConfig) > 0 {
-		opts = append(opts, e2ehelper.WithTimeoutConfig(tConfig[0]))
-	}
 
 	e2ehelper.ExecuteBridging(
 		t, ctx, apex, sequentialInstances,
@@ -1311,7 +1293,7 @@ func NexusToPrimeSequentialAndParallelWithMaxReceivers(
 			cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 		},
 		sendAmountDfm,
-		opts...)
+		options...)
 }
 
 func PrimeToNexusSubmitterNotEnoughFunds(

@@ -12,6 +12,38 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type TimeoutConfig struct {
+	bridgingTimeout    time.Duration
+	bridgingNumRetries int
+}
+
+type TimeoutOption func(*TimeoutConfig)
+
+func WithBridgingTimeout(timeout time.Duration) TimeoutOption {
+	return func(cfg *TimeoutConfig) {
+		cfg.bridgingTimeout = timeout
+	}
+}
+
+func WithBridgingNumRetries(retries int) TimeoutOption {
+	return func(cfg *TimeoutConfig) {
+		cfg.bridgingNumRetries = retries
+	}
+}
+
+func NewTimeoutConfig(options ...TimeoutOption) TimeoutConfig {
+	cfg := TimeoutConfig{
+		bridgingTimeout:    10 * time.Second,
+		bridgingNumRetries: 100,
+	}
+
+	for _, opt := range options {
+		opt(&cfg)
+	}
+
+	return cfg
+}
+
 type RestartValidatorsConfig struct {
 	WaitTime   time.Duration
 	StartIndxs []int

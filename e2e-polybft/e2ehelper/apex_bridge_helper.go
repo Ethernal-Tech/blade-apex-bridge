@@ -14,43 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	DefaultDstNumRetries = 100
-	DefaultDstWaitTime   = 30 * time.Second
-)
-
-type TimeoutConfig struct {
-	bridgingTimeout    time.Duration
-	bridgingNumRetries int
-}
-
-type TimeoutOption func(*TimeoutConfig)
-
-func WithBridgingTimeout(timeout time.Duration) TimeoutOption {
-	return func(cfg *TimeoutConfig) {
-		cfg.bridgingTimeout = timeout
-	}
-}
-
-func WithBridgingNumRetries(retries int) TimeoutOption {
-	return func(cfg *TimeoutConfig) {
-		cfg.bridgingNumRetries = retries
-	}
-}
-
-func NewTimeoutConfig(options ...TimeoutOption) TimeoutConfig {
-	cfg := TimeoutConfig{
-		bridgingTimeout:    10 * time.Second,
-		bridgingNumRetries: 100,
-	}
-
-	for _, opt := range options {
-		opt(&cfg)
-	}
-
-	return cfg
-}
-
 func ExecuteSingleBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, senderUser, receiverUser *cardanofw.TestApexUser,
 	srcChain, dstChain string, sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
@@ -181,7 +144,7 @@ func ExecuteBridging(
 				if config.waitForUnexpectedBridges {
 					// nothing else should be bridged for 2 minutes
 					err = apex.WaitForGreaterAmount(
-						ctx, receiverUser, dstChain, expectedAmountDfm, 12, config.timeoutConfig.bridgingTimeout)
+						ctx, receiverUser, dstChain, expectedAmountDfm, 12, time.Second*10)
 					if !errors.Is(err, infracommon.ErrRetryTimeout) {
 						errs[idx*len(dstChains)+idxChain] = fmt.Errorf(
 							"receiver %d on %s should not receive more tokens: %w", idx, dstChain, err)
