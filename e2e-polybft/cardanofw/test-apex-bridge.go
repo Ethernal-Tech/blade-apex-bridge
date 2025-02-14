@@ -11,9 +11,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type SystemID = string
+
+const (
+	SystemIDReactor SystemID = "reactor"
+	SystemIDSkyline SystemID = "skyline"
+)
+
+func SetupAndRunReactorBridge(
+	t *testing.T,
+	ctx context.Context,
+	opts ...ApexSystemOptions,
+) *ApexSystem {
+	t.Helper()
+
+	return SetupAndRunApexBridge(t, ctx, SystemIDReactor, opts...)
+}
+func SetupAndRunSkylineBridge(
+	t *testing.T,
+	ctx context.Context,
+	opts ...ApexSystemOptions,
+) *ApexSystem {
+	t.Helper()
+
+	return SetupAndRunApexBridge(t, ctx, SystemIDSkyline, opts...)
+}
+
 func SetupAndRunApexBridge(
 	t *testing.T,
 	ctx context.Context,
+	system SystemID,
 	opts ...ApexSystemOptions,
 ) *ApexSystem {
 	t.Helper()
@@ -22,7 +49,20 @@ func SetupAndRunApexBridge(
 
 	os.RemoveAll(bridgeDataDir)
 
-	apexSystem, err := NewApexSystem(bridgeDataDir, opts...)
+	var (
+		apexSystem *ApexSystem
+		err        error
+	)
+
+	switch system {
+	case SystemIDReactor:
+		apexSystem, err = NewApexSystem(bridgeDataDir, opts...)
+	case SystemIDSkyline:
+		apexSystem, err = NewSkylineSystem(bridgeDataDir, opts...)
+	default:
+		err = fmt.Errorf("unknown system ID: %s", system)
+	}
+
 	require.NoError(t, err)
 
 	fmt.Printf("Starting chains...\n")
@@ -53,7 +93,7 @@ func SetupAndRunApexBridge(
 	fmt.Printf("Multisig addresses have been created\n")
 
 	require.NoError(t, apexSystem.InitContracts(ctx))
-	require.NoError(t, apexSystem.FinishConfiguring())
+	require.NoError(t, apexSystem.FinishConfiguring(t))
 
 	fmt.Printf("Contracts have been set up\n")
 

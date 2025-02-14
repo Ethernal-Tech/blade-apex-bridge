@@ -234,7 +234,7 @@ func (ec *TestEVMChain) InitContracts(bridgeAdmin *crypto.ECDSAKey, bridgeURL st
 
 func (ec *TestEVMChain) RegisterChain(validator *TestApexValidator) error {
 	return validator.RegisterChain(
-		ec.config.ChainID, WeiToDfm(ec.config.InitialHotWalletAmount), ChainTypeEVM)
+		ec.config.ChainID, WeiToDfm(ec.config.InitialHotWalletAmount), big.NewInt(0), ChainTypeEVM)
 }
 
 func (ec *TestEVMChain) GetGenerateConfigsParams(indx int) (result []string) {
@@ -250,7 +250,9 @@ func (ec *TestEVMChain) GetGenerateConfigsParams(indx int) (result []string) {
 	}
 }
 
-func (ec *TestEVMChain) PopulateApexSystem(apexSystem *ApexSystem) {
+func (ec *TestEVMChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) {
+	t.Helper()
+
 	if ec.config.ChainID == ChainIDNexus {
 		apexSystem.NexusInfo = EVMChainInfo{
 			GatewayAddress: ec.gatewayAddr,
@@ -294,6 +296,7 @@ func (ec *TestEVMChain) BridgingRequest(
 	privateKey string,
 	receivers map[string]*big.Int,
 	feeAmount *big.Int,
+	exchangeRates []sendtx.ExchangeRateEntry,
 	bridgingTypes ...sendtx.BridgingType,
 ) (string, error) {
 	params := []string{

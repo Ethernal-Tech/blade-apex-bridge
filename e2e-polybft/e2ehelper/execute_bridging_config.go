@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -82,7 +83,8 @@ var (
 
 					for j := 0; j < txCountPerSender; j++ {
 						txHash := apex.SubmitBridgingRequest(
-							t, ctx, chainPair.srcChain, chainPair.dstChain, senderUser, sendAmountDfm, receivers...)
+							t, ctx, chainPair.srcChain, chainPair.dstChain, senderUser, sendAmountDfm,
+							sendtx.BridgingTypeNormal, receivers...)
 
 						fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
 							idx+1, j+1, chainPair.srcChain, chainPair.dstChain, txHash)

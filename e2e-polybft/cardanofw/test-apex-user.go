@@ -17,6 +17,10 @@ type TestApexUser struct {
 	VectorWallet    *cardanowallet.Wallet
 	VectorAddress   *cardanowallet.CardanoAddress
 
+	HasCardanoWallet bool
+	CardanoWallet    *cardanowallet.Wallet
+	CardanoAddress   *cardanowallet.CardanoAddress
+
 	HasNexusWallet bool
 	NexusWallet    *crypto.ECDSAKey
 	NexusAddress   types.Address
@@ -28,11 +32,24 @@ func NewTestApexUser(
 	vectorNetworkType cardanowallet.CardanoNetworkType,
 	nexusEnabled bool,
 ) (*TestApexUser, error) {
+	return NewTestApexUserSkyline(primeNetworkType, vectorEnabled, vectorNetworkType, false, 0, nexusEnabled)
+}
+
+func NewTestApexUserSkyline(
+	primeNetworkType cardanowallet.CardanoNetworkType,
+	vectorEnabled bool,
+	vectorNetworkType cardanowallet.CardanoNetworkType,
+	cardanoEnabled bool,
+	cardanoNetworkType cardanowallet.CardanoNetworkType,
+	nexusEnabled bool,
+) (*TestApexUser, error) {
 	var (
-		vectorWallet      *cardanowallet.Wallet         = nil
-		vectorUserAddress *cardanowallet.CardanoAddress = nil
-		nexusWallet       *crypto.ECDSAKey              = nil
-		nexusUserAddress                                = types.Address{}
+		vectorWallet       *cardanowallet.Wallet         = nil
+		vectorUserAddress  *cardanowallet.CardanoAddress = nil
+		cardanoWallet      *cardanowallet.Wallet         = nil
+		cardanoUserAddress *cardanowallet.CardanoAddress = nil
+		nexusWallet        *crypto.ECDSAKey              = nil
+		nexusUserAddress                                 = types.Address{}
 	)
 
 	primeWallet, err := cardanowallet.GenerateWallet(false)
@@ -57,6 +74,18 @@ func NewTestApexUser(
 		}
 	}
 
+	if cardanoEnabled {
+		cardanoWallet, err = cardanowallet.GenerateWallet(false)
+		if err != nil {
+			return nil, err
+		}
+
+		cardanoUserAddress, err = GetAddress(cardanoNetworkType, cardanoWallet)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if nexusEnabled {
 		nexusWallet, err = crypto.GenerateECDSAKey()
 		if err != nil {
@@ -67,14 +96,17 @@ func NewTestApexUser(
 	}
 
 	return &TestApexUser{
-		PrimeWallet:     primeWallet,
-		PrimeAddress:    primeUserAddress,
-		VectorWallet:    vectorWallet,
-		VectorAddress:   vectorUserAddress,
-		HasVectorWallet: vectorEnabled,
-		NexusWallet:     nexusWallet,
-		NexusAddress:    nexusUserAddress,
-		HasNexusWallet:  nexusEnabled,
+		PrimeWallet:      primeWallet,
+		PrimeAddress:     primeUserAddress,
+		VectorWallet:     vectorWallet,
+		VectorAddress:    vectorUserAddress,
+		HasVectorWallet:  vectorEnabled,
+		CardanoWallet:    cardanoWallet,
+		CardanoAddress:   cardanoUserAddress,
+		HasCardanoWallet: cardanoEnabled,
+		NexusWallet:      nexusWallet,
+		NexusAddress:     nexusUserAddress,
+		HasNexusWallet:   nexusEnabled,
 	}, nil
 }
 
@@ -147,10 +179,13 @@ func NewExistingTestApexUser(
 func (u *TestApexUser) GetCardanoWallet(chain ChainID) (
 	*cardanowallet.Wallet, *cardanowallet.CardanoAddress,
 ) {
-	if chain == ChainIDPrime {
+	switch chain {
+	case ChainIDPrime:
 		return u.PrimeWallet, u.PrimeAddress
-	} else if chain == ChainIDVector {
+	case ChainIDVector:
 		return u.VectorWallet, u.VectorAddress
+	case ChainIDCardano:
+		return u.CardanoWallet, u.CardanoAddress
 	}
 
 	return nil, nil
@@ -176,6 +211,12 @@ func (u *TestApexUser) GetAddress(chain ChainID) string {
 		}
 
 		return ""
+	case ChainIDCardano:
+		if u.HasCardanoWallet {
+			return u.CardanoAddress.String()
+		}
+
+		return ""
 	case ChainIDNexus:
 		if u.HasNexusWallet {
 			return u.NexusAddress.String()
@@ -197,6 +238,12 @@ func (u *TestApexUser) GetPrivateKey(chain ChainID) (string, error) {
 		}
 
 		return "", fmt.Errorf("user doesn't have a vector wallet")
+	case ChainIDCardano:
+		if u.HasCardanoWallet {
+			return hex.EncodeToString(u.CardanoWallet.SigningKey), nil
+		}
+
+		return "", fmt.Errorf("user doesn't have a cardano wallet")
 	case ChainIDNexus:
 		if u.HasNexusWallet {
 			pkBytes, err := u.NexusWallet.MarshallPrivateKey()
