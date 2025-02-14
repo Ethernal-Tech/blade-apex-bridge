@@ -466,7 +466,6 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
-	t.Run("Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
 		for i := 0; i < 5; i++ {
 			sendAmount := uint64(1_000_000)
 			feeAmount := uint64(1_100_000)
@@ -487,7 +486,6 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 				apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
 			require.NoError(t, err)
 
-			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
 			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
 		}
 	})
@@ -530,7 +528,6 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		wg.Wait()
 
 		for i := 0; i < instances; i++ {
-			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHashes[i], apiKey, 0)
 			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHashes[i], apiKey, 0)
 		}
 	})
@@ -589,7 +586,6 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
-		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
 	})
 }
 
@@ -627,9 +623,6 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		}
 
 		sendAmountDfm := big.NewInt(5_000_000)
-		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
-		require.NoError(t, err)
-
 		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
 		require.NoError(t, err)
 
