@@ -35,6 +35,7 @@ const (
 	MinUTxODefaultValue           = uint64(1_000_000)
 	ttlSlotNumberInc              = 500
 	PotentialFee                  = 500_000
+	maxInputs                     = 40
 	bridgingFeeAmount             = uint64(1_100_000)
 	defaultMinBridgingFeeAmount   = uint64(1_000_010)
 	DefaultRequestStateTimeoutSec = 300
