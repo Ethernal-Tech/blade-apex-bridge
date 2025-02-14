@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
@@ -16,7 +17,17 @@ import (
 )
 
 var (
-	chains = []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus}
+	chains        = []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus}
+	timeoutConfig = e2ehelper.NewTimeoutConfig(
+		e2ehelper.WithBridgingNumRetries(defaultDstNumRetries),
+		e2ehelper.WithBridgingRetryWaitTime(defaultDstWaitTime),
+	)
+	bridgingOpts = []e2ehelper.ExecuteBridgingOption{e2ehelper.WithTimeoutConfig(timeoutConfig)}
+)
+
+const (
+	defaultDstNumRetries = 100
+	defaultDstWaitTime   = 30 * time.Second
 )
 
 func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
@@ -40,11 +51,11 @@ func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 	fmt.Printf("bridging %v apex to vector\n", apexAmountToBridge)
 
 	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm)
+		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm, bridgingOpts...)
 
 	fmt.Printf("bridging %v apex to nexus\n", apexAmountToBridge)
 	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm)
+		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm, bridgingOpts...)
 
 	balances = getUserBalances(ctx, apex, nil)
 	printUserBalances(apex, nil, balances)
@@ -202,7 +213,7 @@ func Test_E2E_SanityCheck(t *testing.T) {
 		fmt.Printf("bridging from %s to %s\n", dir.src, dir.dest)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount)
+			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, bridgingOpts...)
 	}
 }
 
@@ -219,7 +230,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 			parallelInstances   = 10
 		)
 
-		PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances)
+		PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, bridgingOpts...)
 	})
 
 	t.Run("Prime and Vector both directions sequential and parallel", func(t *testing.T) {
@@ -230,7 +241,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 		receiverUser := apex.Users[parallelInstances]
 
-		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, receiverUser, sequentialInstances, parallelInstances)
+		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, bridgingOpts...)
 	})
 
 	t.Run("From Prime to Nexus sequential and parallel with max receivers", func(t *testing.T) {
@@ -241,7 +252,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		PrimeToNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm)
+		PrimeToNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 
 	t.Run("Prime and Nexus both directions sequential and parallel", func(t *testing.T) {
@@ -254,7 +265,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
 		PrimeNexusBothDirectionsSequentialAndParallel(
-			t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm)
+			t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 
 	t.Run("From Nexus to Prime sequential and parallel max receivers", func(t *testing.T) {
@@ -265,7 +276,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		NexusToPrimeSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm)
+		NexusToPrimeSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 }
 
