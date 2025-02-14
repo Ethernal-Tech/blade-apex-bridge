@@ -402,7 +402,7 @@ func (ec *TestCardanoChain) CreateMetadata(
 	exchangeRate sendtx.ExchangeRate,
 ) ([]byte, error) {
 	metadata, err := ec.txSender.CreateMetadata(
-		context, senderAddr, GetNetworkName(ec.config.NetworkType), dstChainID, receivers, bridgingFee, exchangeRate)
+		context, senderAddr, GetNetworkName(ec.config), dstChainID, receivers, bridgingFee, exchangeRate)
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +425,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 	}
 
 	wallet := infrawallet.NewWallet(paymentKey, stakeKey)
-	srcChainID := GetNetworkName(ec.config.NetworkType)
+	srcChainID := GetNetworkName(ec.config)
 
 	walletAddr, err := GetAddress(ec.config.NetworkType, wallet)
 	if err != nil {

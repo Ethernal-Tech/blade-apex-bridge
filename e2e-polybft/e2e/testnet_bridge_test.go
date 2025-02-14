@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
+	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
@@ -51,11 +52,11 @@ func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 	fmt.Printf("bridging %v apex to vector\n", apexAmountToBridge)
 
 	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm, bridgingOpts...)
+		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm, sendtx.BridgingTypeNormal, bridgingOpts...)
 
 	fmt.Printf("bridging %v apex to nexus\n", apexAmountToBridge)
 	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm, bridgingOpts...)
+		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm, sendtx.BridgingTypeNormal, bridgingOpts...)
 
 	balances = getUserBalances(ctx, apex, nil)
 	printUserBalances(apex, nil, balances)
@@ -213,7 +214,7 @@ func Test_E2E_SanityCheck(t *testing.T) {
 		fmt.Printf("bridging from %s to %s\n", dir.src, dir.dest)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, bridgingOpts...)
+			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, sendtx.BridgingTypeNormal, bridgingOpts...)
 	}
 }
 

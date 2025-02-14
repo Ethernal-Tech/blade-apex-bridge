@@ -31,7 +31,7 @@ func ExecuteSingleBridging(
 
 	expectedAmountDest := sendAmountDfm
 	if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
-		expectedAmountDest = new(big.Int).SetUint64(cardanofw.MinUtxoWithTokens)
+		expectedAmountDest = new(big.Int).SetUint64(cardanofw.MinUTxODefaultValue)
 	}
 
 	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, expectedAmountDest)

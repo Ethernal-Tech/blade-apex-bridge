@@ -342,10 +342,10 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			MultiSigAddr:         a.VectorInfo.MultisigAddr,
 			TestNetMagic:         GetNetworkMagic(a.Config.VectorConfig.NetworkType),
 			TTLSlotNumberInc:     ttlSlotNumberInc,
-			MinUtxoValue:         minUTxODefaultValue,
+			MinUtxoValue:         MinUTxODefaultValue,
 			MinBridgingFeeAmount: a.Config.VectorConfig.MinBridgingFee,
 			NativeTokens:         a.Config.VectorConfig.NativeTokens,
-			PotentialFee:         potentialFee,
+			PotentialFee:         PotentialFee,
 		}
 	}
 
@@ -365,10 +365,10 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			MultiSigAddr:         a.CardanoInfo.MultisigAddr,
 			TestNetMagic:         GetNetworkMagic(a.Config.CardanoConfig.NetworkType),
 			TTLSlotNumberInc:     ttlSlotNumberInc,
-			MinUtxoValue:         minUTxODefaultValue,
+			MinUtxoValue:         MinUTxODefaultValue,
 			MinBridgingFeeAmount: a.Config.CardanoConfig.MinBridgingFee,
 			NativeTokens:         a.Config.CardanoConfig.NativeTokens,
-			PotentialFee:         potentialFee,
+			PotentialFee:         PotentialFee,
 		}
 	}
 
@@ -431,12 +431,7 @@ func (a *ApexSystem) GenerateConfigs() error {
 }
 
 func (a *ApexSystem) generateReactorConfigs() error {
-	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
-		telemetryConfig := ""
-		if i == 0 {
-			telemetryConfig = a.Config.TelemetryConfig
-		}
-
+	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
 		if a.Config.TargetOneCardanoClusterServer {
 			serverIndx = 0
@@ -478,12 +473,7 @@ func (a *ApexSystem) generateReactorConfigs() error {
 }
 
 func (a *ApexSystem) generateSkylineConfigs() error {
-	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
-		telemetryConfig := ""
-		if i == 0 {
-			telemetryConfig = a.Config.TelemetryConfig
-		}
-
+	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
 		if a.Config.TargetOneCardanoClusterServer {
 			serverIndx = 0
@@ -498,7 +488,8 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 		cardanoPrimeTokenName := a.Config.CardanoConfig.NativeTokens[0].TokenName
 		primeCardanoTokenName := a.Config.PrimeConfig.NativeTokens[0].TokenName
 
-		err := validator.GenerateSkylineConfigs(a.Config.APIPortStart+i, a.Config.APIKey, telemetryConfig,
+		err := validator.GenerateSkylineConfigs(
+			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i),
 			cardanoPrimeTokenName, primeCardanoTokenName, args...)
 		if err != nil {
 			return err
@@ -520,6 +511,11 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	return a.setBridgingAPIs()
 }
 
 func (a *ApexSystem) GetBridgeDefaultJSONRPCAddr() string {
