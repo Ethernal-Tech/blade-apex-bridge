@@ -75,6 +75,13 @@ func NewRemoteNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 	}
 }
 
+func NewRemoteNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
+	return &TestEVMChainConfig{
+		ChainID:   ChainIDNexus,
+		IsEnabled: isEnabled,
+	}
+}
+
 type TestEVMChain struct {
 	config        *TestEVMChainConfig
 	admin         *crypto.ECDSAKey

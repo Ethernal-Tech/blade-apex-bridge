@@ -466,6 +466,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
+	t.Run("Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
 		for i := 0; i < 5; i++ {
 			sendAmount := uint64(1_000_000)
 			feeAmount := uint64(1_100_000)
@@ -487,10 +488,11 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 			require.NoError(t, err)
 
 			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
+			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
 		}
 	})
 
-	t.Run("Multiple submitters don't have enough funds parallel", func(t *testing.T) {
+	t.Run("Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
 		instances := 5
 		txHashes := make([]string, instances)
 
@@ -528,6 +530,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		wg.Wait()
 
 		for i := 0; i < instances; i++ {
+			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHashes[i], apiKey, 0)
 			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHashes[i], apiKey, 0)
 		}
 	})
@@ -586,6 +589,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
+		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
 	})
 }
 
@@ -623,6 +627,9 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		}
 
 		sendAmountDfm := big.NewInt(5_000_000)
+		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+		require.NoError(t, err)
+
 		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
 		require.NoError(t, err)
 
@@ -792,18 +799,9 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		const (
 			sequentialInstances = 5
 			parallelInstances   = 10
-			receivers           = 4
-			sendAmount          = uint64(1_000_000)
 		)
 
-		e2ehelper.ExecuteBridging(
-			t, ctx, apex, sequentialInstances,
-			apex.Users[:parallelInstances],
-			apex.Users[len(apex.Users)-receivers:],
-			[]string{cardanofw.ChainIDPrime},
-			map[string][]string{
-				cardanofw.ChainIDPrime: {cardanofw.ChainIDVector},
-			}, new(big.Int).SetUint64(sendAmount))
+		PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances)
 	})
 
 	t.Run("Both directions sequential", func(t *testing.T) {
@@ -867,19 +865,9 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		const (
 			sequentialInstances = 5
 			parallelInstances   = 6
-			sendAmount          = uint64(1_000_000)
 		)
 
-		e2ehelper.ExecuteBridging(
-			t, ctx, apex, sequentialInstances,
-			apex.Users[:parallelInstances],
-			[]*cardanofw.TestApexUser{user},
-			[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
-			map[string][]string{
-				cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
-				cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
-			}, new(big.Int).SetUint64(sendAmount),
-			e2ehelper.WithWaitForUnexpectedBridges(true))
+		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, user, sequentialInstances, parallelInstances)
 	})
 }
 

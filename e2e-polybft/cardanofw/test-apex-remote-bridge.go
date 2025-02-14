@@ -22,6 +22,7 @@ type ApexKeysData struct {
 	Funder *ApexPrivateKeys   `json:"funder"`
 	Users  []*ApexPrivateKeys `json:"users"`
 }
+
 type ApexUsersData struct {
 	Funder *TestApexUser
 	Users  []*TestApexUser

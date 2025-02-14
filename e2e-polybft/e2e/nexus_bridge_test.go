@@ -359,7 +359,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 
 		const (
 			sequentialInstances = 5
-			parallelInstances   = 1
+			parallelInstances   = 10
 		)
 
 		PrimeToNexusSequentialAndParallelWithMaxReceivers(
@@ -1436,7 +1436,7 @@ func PrimeToNexusInvalidMetadataWrongType(
 		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	_, err = cardanofw.WaitForRequestStates(ctx, apex, srcChain, txHash, apex.Config.APIKey, nil, 60)
+	_, err = cardanofw.WaitForRequestStates(ctx, apex, srcChain, txHash, apex.Config.APIKey, nil, requestStateTimeoutSec)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "timeout")
 }
