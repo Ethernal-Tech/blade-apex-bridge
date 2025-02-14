@@ -106,7 +106,7 @@ func (ps *pebbleStorage) Close() error {
 	return ps.db.Close()
 }
 
-func NewPebbleStorage(path string, logger hclog.Logger) (Storage, error) {
+func NewPebbleDBStorage(path string, logger hclog.Logger) (Storage, error) {
 	opts := &pebble.Options{Logger: PebbleLogger{}}
 
 	db, err := pebble.Open(path, opts)

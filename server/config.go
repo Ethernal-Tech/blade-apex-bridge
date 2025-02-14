@@ -54,6 +54,8 @@ type Config struct {
 	MetricsInterval time.Duration
 
 	EventTracker *EventTracker
+
+	DBEngine string
 }
 
 // Telemetry holds the config details for metric services
