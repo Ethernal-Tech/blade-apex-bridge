@@ -15,6 +15,8 @@ const (
 	ChainIDVector ChainID = "vector"
 	ChainIDNexus  ChainID = "nexus"
 
+	ChainIDCardano ChainID = "cardano"
+
 	RunRelayerOnValidatorID = 1
 
 	NoTelemetry TelemetryConfig = iota
@@ -32,9 +34,10 @@ type ApexSystemConfig struct {
 
 	BladeValidatorCount int
 
-	PrimeConfig  *TestCardanoChainConfig
-	VectorConfig *TestCardanoChainConfig
-	NexusConfig  *TestEVMChainConfig
+	PrimeConfig   *TestCardanoChainConfig
+	VectorConfig  *TestCardanoChainConfig
+	CardanoConfig *TestCardanoChainConfig
+	NexusConfig   *TestEVMChainConfig
 
 	CustomOracleHandler  func(mp map[string]interface{})
 	CustomRelayerHandler func(mp map[string]interface{})
@@ -68,6 +71,12 @@ func WithVectorEnabled(enabled bool) ApexSystemOptions {
 	}
 }
 
+func WithCardanoEnabled(enabled bool) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.CardanoConfig.IsEnabled = enabled
+	}
+}
+
 func WithNexusEnabled(enabled bool) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.NexusConfig.IsEnabled = enabled
@@ -98,6 +107,12 @@ func WithVectorConfig(config *TestCardanoChainConfig) ApexSystemOptions {
 	}
 }
 
+func WithCardanoConfig(config *TestCardanoChainConfig) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.CardanoConfig = config
+	}
+}
+
 func WithNexusConfig(config *TestEVMChainConfig) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.NexusConfig = config
@@ -125,9 +140,30 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 
 		BladeValidatorCount: 4,
 
-		PrimeConfig:  NewPrimeChainConfig(),
-		VectorConfig: NewVectorChainConfig(true),
-		NexusConfig:  NewNexusChainConfig(false),
+		PrimeConfig:   NewPrimeChainConfig(),
+		VectorConfig:  NewVectorChainConfig(true),
+		CardanoConfig: NewCardanoChainConfig(false),
+		NexusConfig:   NewNexusChainConfig(false),
+
+		CustomOracleHandler:  nil,
+		CustomRelayerHandler: nil,
+
+		UserCnt: 10,
+	}
+}
+
+func getDefaultSkylinexSystemConfig() *ApexSystemConfig {
+	return &ApexSystemConfig{
+		APIValidatorID: 1,
+		APIPortStart:   40000,
+		APIKey:         "test_api_key",
+
+		BladeValidatorCount: 4,
+
+		PrimeConfig:   NewPrimeChainConfig(),
+		VectorConfig:  NewCardanoChainConfig(false),
+		CardanoConfig: NewCardanoChainConfig(true),
+		NexusConfig:   NewNexusChainConfig(false),
 
 		CustomOracleHandler:  nil,
 		CustomRelayerHandler: nil,
@@ -141,6 +177,10 @@ func (asc *ApexSystemConfig) ServiceCount() int {
 	count := 1
 
 	if asc.VectorConfig.IsEnabled {
+		count++
+	}
+
+	if asc.CardanoConfig.IsEnabled {
 		count++
 	}
 
@@ -160,6 +200,10 @@ func (asc *ApexSystemConfig) applyPremineFundingOptions(users []*TestApexUser) {
 		asc.VectorConfig.PreminesAddresses = make([]string, 0, len(users))
 	}
 
+	if len(asc.CardanoConfig.PreminesAddresses) == 0 {
+		asc.CardanoConfig.PreminesAddresses = make([]string, 0, len(users))
+	}
+
 	if len(asc.NexusConfig.PreminesAddresses) == 0 {
 		asc.NexusConfig.PreminesAddresses = make([]types.Address, 0, len(users))
 	}
@@ -171,6 +215,11 @@ func (asc *ApexSystemConfig) applyPremineFundingOptions(users []*TestApexUser) {
 		if user.HasVectorWallet {
 			asc.VectorConfig.PreminesAddresses = append(asc.VectorConfig.PreminesAddresses,
 				hex.EncodeToString(user.VectorAddress.GetBytes()))
+		}
+
+		if user.HasCardanoWallet {
+			asc.CardanoConfig.PreminesAddresses = append(asc.CardanoConfig.PreminesAddresses,
+				hex.EncodeToString(user.CardanoAddress.GetBytes()))
 		}
 
 		if user.HasNexusWallet {

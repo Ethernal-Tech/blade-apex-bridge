@@ -20,6 +20,7 @@ import (
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -27,20 +28,24 @@ const (
 	defaultPremineAmount   = uint64(20_000_000_000)
 )
 
+type ChainType string
+
 type TestCardanoChainConfig struct {
-	IsEnabled              bool
-	ID                     int
-	NetworkType            infrawallet.CardanoNetworkType
-	NodesCount             int
-	InitialHotWalletAmount *big.Int
-	FundAmount             uint64
-	FundFeeAmount          uint64
-	PreminesAddresses      []string
-	PremineAmount          uint64
-	SlotRoundingThreshold  uint64
-	TTLInc                 uint64
-	MinBridgingFee         uint64
-	NativeTokens           []sendtx.TokenExchangeConfig
+	IsEnabled                   bool
+	ID                          int
+	NetworkType                 infrawallet.CardanoNetworkType
+	NodesCount                  int
+	InitialHotWalletAmount      *big.Int
+	InitialHotWalletTokenAmount *big.Int
+	ChainType                   ChainType
+	FundAmount                  uint64
+	FundFeeAmount               uint64
+	PreminesAddresses           []string
+	PremineAmount               uint64
+	SlotRoundingThreshold       uint64
+	TTLInc                      uint64
+	MinBridgingFee              uint64
+	NativeTokens                []sendtx.TokenExchangeConfig
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -48,6 +53,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		IsEnabled:              true,
 		ID:                     0,
 		NetworkType:            infrawallet.TestNetNetwork,
+		ChainType:              ChainType(ChainIDPrime),
 		NodesCount:             4,
 		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,
@@ -62,6 +68,22 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		IsEnabled:              isEnabled,
 		ID:                     1,
 		NetworkType:            infrawallet.VectorTestNetNetwork,
+		ChainType:              ChainType(ChainIDVector),
+		NodesCount:             4,
+		InitialHotWalletAmount: big.NewInt(0),
+		PremineAmount:          defaultPremineAmount,
+		FundAmount:             defaultFundTokenAmount,
+		FundFeeAmount:          defaultFundTokenAmount,
+		MinBridgingFee:         defaultMinBridgingFeeAmount,
+	}
+}
+
+func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
+	return &TestCardanoChainConfig{
+		IsEnabled:              isEnabled,
+		ID:                     4,
+		NetworkType:            infrawallet.TestNetNetwork,
+		ChainType:              ChainType(ChainIDCardano),
 		NodesCount:             4,
 		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,
@@ -117,7 +139,7 @@ var _ ITestApexChain = (*TestCardanoChain)(nil)
 func NewTestCardanoChain(config *TestCardanoChainConfig) ITestApexChain {
 	if !config.IsEnabled {
 		getFlag := func(suffix string) string {
-			return fmt.Sprintf("--%s-%s", GetNetworkName(config.NetworkType), suffix)
+			return fmt.Sprintf("--%s-%s", GetNetworkName(config), suffix)
 		}
 
 		return NewTestApexChainDummy([]string{
@@ -136,7 +158,7 @@ func NewTestCardanoChain(config *TestCardanoChainConfig) ITestApexChain {
 func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 	t.Helper()
 
-	networkName := GetNetworkName(ec.config.NetworkType)
+	networkName := GetGenesisType(ec.config)
 	ogmiosLogsFilePath := filepath.Join("..", "..", "e2e-logs-cardano",
 		fmt.Sprintf("ogmios-%s-%s.log", networkName, strings.ReplaceAll(t.Name(), "/", "_")))
 
@@ -186,7 +208,7 @@ func (ec *TestCardanoChain) Stop() error {
 }
 
 func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) error {
-	return validator.CardanoWalletCreate(GetNetworkName(ec.config.NetworkType))
+	return validator.CardanoWalletCreate(GetNetworkName(ec.config))
 }
 
 func (ec *TestCardanoChain) CreateAddresses(
@@ -203,7 +225,7 @@ func (ec *TestCardanoChain) CreateAddresses(
 		"--bridge-url", bridgeURL,
 		"--bridge-addr", contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
-		"--chain", GetNetworkName(ec.config.NetworkType),
+		"--chain", GetNetworkName(ec.config),
 	}
 
 	var outb bytes.Buffer
@@ -241,7 +263,23 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 			return err
 		}
 
-		fmt.Printf("%s fee addr funded: %s\n", GetNetworkName(ec.config.NetworkType), txHash)
+		fmt.Printf("%s fee addr funded: %s\n", GetNetworkName(ec.config), txHash)
+	}
+
+	if ec.config.InitialHotWalletTokenAmount != nil && ec.config.InitialHotWalletTokenAmount.Uint64() != 0 {
+		minterWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
+		if err != nil {
+			return err
+		}
+
+		tokenAmount, err := FundAddressWithToken(
+			ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()),
+			minterWallet, ec.GetHotWalletAddress(), ec.config.FundAmount, ec.config.InitialHotWalletTokenAmount.Uint64())
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("%s multisig addr funded with tokens: %+v\n", GetNetworkName(ec.config), tokenAmount)
 	}
 
 	if ec.config.FundAmount != 0 {
@@ -251,7 +289,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 			return err
 		}
 
-		fmt.Printf("%s multisig addr funded: %s\n", GetNetworkName(ec.config.NetworkType), txHash)
+		fmt.Printf("%s multisig addr funded: %s\n", GetNetworkName(ec.config), txHash)
 	}
 
 	txProvider, err := ec.GetTxProvider()
@@ -276,7 +314,8 @@ func (ec *TestCardanoChain) InitContracts(bridgeAdmin *crypto.ECDSAKey, bridgeUR
 }
 
 func (ec *TestCardanoChain) RegisterChain(validator *TestApexValidator) error {
-	return validator.RegisterChain(ec.ChainID(), ec.config.InitialHotWalletAmount, ChainTypeCardano)
+	return validator.RegisterChain(ec.ChainID(), ec.config.InitialHotWalletAmount, ec.config.InitialHotWalletTokenAmount,
+		ChainTypeCardano)
 }
 
 func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string) {
@@ -303,7 +342,12 @@ func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string)
 	return result
 }
 
-func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) {
+func (ec *TestCardanoChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) {
+	t.Helper()
+
+	genesisWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
+	require.NoError(t, err)
+
 	chainInfo := CardanoChainInfo{
 		NetworkAddress: ec.cluster.Servers[0].NetworkAddress(),
 		OgmiosURL:      ec.ogmiosURL,
@@ -312,6 +356,7 @@ func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) {
 		SocketPath:     ec.cluster.OgmiosServer.SocketPath(),
 		FundBlockHash:  ec.fundBlockHash,
 		FundBlockSlot:  ec.fundBlockSlot,
+		GenesisWallet:  genesisWallet,
 	}
 
 	switch ec.ChainID() {
@@ -319,6 +364,8 @@ func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) {
 		apexSystem.PrimeInfo = chainInfo
 	case ChainIDVector:
 		apexSystem.VectorInfo = chainInfo
+	case ChainIDCardano:
+		apexSystem.CardanoInfo = chainInfo
 	}
 }
 
@@ -327,7 +374,7 @@ func (ec *TestCardanoChain) UpdateTxSendChainConfiguration(configs map[string]se
 }
 
 func (ec *TestCardanoChain) ChainID() string {
-	return GetNetworkName(ec.config.NetworkType)
+	return GetNetworkName(ec.config)
 }
 
 func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) (*big.Int, error) {
@@ -369,6 +416,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 	privateKey string,
 	receiversMap map[string]*big.Int,
 	feeAmount *big.Int,
+	exchangeRates []sendtx.ExchangeRateEntry,
 	bridgingTypes ...sendtx.BridgingType,
 ) (string, error) {
 	paymentKey, stakeKey, err := FromCardanoPrivateKeyString(privateKey)
@@ -406,7 +454,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		walletAddr.String(),
 		receivers,
 		bridgingFeeAmount,
-		sendtx.NewExchangeRate(),
+		sendtx.NewExchangeRate(exchangeRates...),
 	)
 	if err != nil {
 		return "", err
@@ -436,7 +484,7 @@ func (ec *TestCardanoChain) SendTx(
 
 	rawTx, txHash, err := ec.txSender.CreateTxGeneric(
 		ctx,
-		GetNetworkName(ec.config.NetworkType),
+		GetNetworkName(ec.config),
 		walletAddr.String(),
 		receiverAddr,
 		metadata,
@@ -478,7 +526,7 @@ func (ec *TestCardanoChain) submitTx(
 
 	txProvider := infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL())
 
-	if err := ec.txSender.SubmitTx(ctx, GetNetworkName(ec.config.NetworkType), rawTx, signer); err != nil {
+	if err := ec.txSender.SubmitTx(ctx, GetNetworkName(ec.config), rawTx, signer); err != nil {
 		return "", err
 	}
 

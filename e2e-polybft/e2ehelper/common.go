@@ -7,13 +7,15 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 )
 
 type IApexSystem interface {
 	SubmitBridgingRequest(
 		t *testing.T, ctx context.Context,
 		sourceChain cardanofw.ChainID, destinationChain cardanofw.ChainID,
-		sender *cardanofw.TestApexUser, dfmAmount *big.Int, receivers ...*cardanofw.TestApexUser,
+		sender *cardanofw.TestApexUser, dfmAmount *big.Int, bridgingType sendtx.BridgingType,
+		receivers ...*cardanofw.TestApexUser,
 	) string
 	WaitForGreaterAmount(
 		ctx context.Context, user *cardanofw.TestApexUser, chain cardanofw.ChainID,

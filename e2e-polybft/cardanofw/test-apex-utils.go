@@ -325,15 +325,15 @@ func GetNetworkMagic(networkType wallet.CardanoNetworkType) uint {
 	}
 }
 
-func GetNetworkName(networkType wallet.CardanoNetworkType) string {
-	switch networkType {
-	case wallet.VectorTestNetNetwork:
+func GetNetworkName(networkConfig *TestCardanoChainConfig) string {
+	return string(networkConfig.ChainType)
+}
+
+func GetGenesisType(networkConfig *TestCardanoChainConfig) string {
+	switch networkConfig.NetworkType {
+	case wallet.VectorTestNetNetwork, wallet.VectorMainNetNetwork:
 		return ChainIDVector
-	case wallet.VectorMainNetNetwork:
-		return ChainIDVector
-	case wallet.MainNetNetwork:
-		return ChainIDPrime
-	case wallet.TestNetNetwork:
+	case wallet.MainNetNetwork, wallet.TestNetNetwork:
 		return ChainIDPrime
 	default:
 		return ""
