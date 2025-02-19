@@ -250,6 +250,13 @@ func setFlags(cmd *cobra.Command) {
 		"path to TLS key file, if no file is provided then key file is loaded from secrets manager",
 	)
 
+	cmd.Flags().StringVar(
+		&params.rawConfig.DBEngine,
+		dbEngineFlag,
+		defaultConfig.DBEngine,
+		"database to be used in blade, possible values 'pebble' (default) and 'leveldb'",
+	)
+
 	cmd.Flags().BoolVar(
 		&params.rawConfig.Relayer,
 		relayerFlag,

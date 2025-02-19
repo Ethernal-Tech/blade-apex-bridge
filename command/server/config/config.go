@@ -36,6 +36,7 @@ type Config struct {
 	UseTLS                   bool       `json:"use_tls" yaml:"use_tls"`
 	TLSCertFile              string     `json:"tls_cert_file" yaml:"tls_cert_file"`
 	TLSKeyFile               string     `json:"tls_key_file" yaml:"tls_key_file"`
+	DBEngine                 string     `json:"db_engine" yaml:"db_engine"`
 
 	Relayer bool `json:"relayer" yaml:"relayer"`
 
@@ -155,6 +156,7 @@ func DefaultConfig() *Config {
 		UseTLS:                   false,
 		TLSCertFile:              "",
 		TLSKeyFile:               "",
+		DBEngine:                 "pebble",
 		JSONRPCBatchRequestLimit: DefaultJSONRPCBatchRequestLimit,
 		JSONRPCBlockRangeLimit:   DefaultJSONRPCBlockRangeLimit,
 		Relayer:                  false,

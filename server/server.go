@@ -24,6 +24,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/blockchain/storagev2"
 	"github.com/0xPolygon/polygon-edge/blockchain/storagev2/leveldb"
 	"github.com/0xPolygon/polygon-edge/blockchain/storagev2/memory"
+	"github.com/0xPolygon/polygon-edge/blockchain/storagev2/pebble"
 	"github.com/0xPolygon/polygon-edge/chain"
 	"github.com/0xPolygon/polygon-edge/consensus"
 	consensusPolyBFT "github.com/0xPolygon/polygon-edge/consensus/polybft"
@@ -212,7 +213,7 @@ func NewServer(config *Config) (*Server, error) {
 	}
 
 	// start blockchain object
-	stateStorage, err := itrie.NewLevelDBStorage(filepath.Join(m.config.DataDir, "trie"), logger)
+	stateStorage, err := openItrieStorage(m.config, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -322,10 +323,7 @@ func NewServer(config *Config) (*Server, error) {
 				return nil, err
 			}
 		} else {
-			db, err = leveldb.NewLevelDBStorage(
-				filepath.Join(m.config.DataDir, "blockchain"),
-				m.logger,
-			)
+			db, err = openBlockchainStorage(m.config, m.logger)
 			if err != nil {
 				return nil, err
 			}
@@ -446,6 +444,28 @@ func NewServer(config *Config) (*Server, error) {
 	m.txpool.Start()
 
 	return m, nil
+}
+
+func openItrieStorage(config *Config, logger hclog.Logger) (itrie.Storage, error) {
+	switch config.DBEngine {
+	case common.Pebble:
+		return itrie.NewPebbleDBStorage(filepath.Join(config.DataDir, "trie"), logger)
+	case common.LevelDB:
+		return itrie.NewLevelDBStorage(filepath.Join(config.DataDir, "trie"), logger)
+	default:
+		return nil, fmt.Errorf("invalid trie database engine %s", config.DBEngine)
+	}
+}
+
+func openBlockchainStorage(config *Config, logger hclog.Logger) (*storagev2.Storage, error) {
+	switch config.DBEngine {
+	case common.Pebble:
+		return pebble.NewPebbleDBStorage(filepath.Join(config.DataDir, "blockchain"), logger)
+	case common.LevelDB:
+		return leveldb.NewLevelDBStorage(filepath.Join(config.DataDir, "blockchain"), logger)
+	default:
+		return nil, fmt.Errorf("invalid blockchain database engine %s", config.DBEngine)
+	}
 }
 
 func unaryInterceptor(

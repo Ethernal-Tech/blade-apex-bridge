@@ -1,16 +1,18 @@
-package leveldb
+package pebble
 
 import (
+	"errors"
+
 	"github.com/0xPolygon/polygon-edge/blockchain/storagev2"
 	"github.com/0xPolygon/polygon-edge/helper/common"
+	itrie "github.com/0xPolygon/polygon-edge/state/immutable-trie"
+	"github.com/cockroachdb/pebble"
 	"github.com/hashicorp/go-hclog"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
-// levelDB is the leveldb implementation of the kv storage
-type levelDB struct {
-	db *leveldb.DB
+// pebbleDB is the pebble implementation of the kv storage
+type pebbleDB struct {
+	db *pebble.DB
 }
 
 var tableMapper = map[uint8][]byte{
@@ -26,30 +28,24 @@ var tableMapper = map[uint8][]byte{
 	storagev2.TX_LOOKUP:    {},          // DB key = tx hash + mapper, value = block number
 }
 
-// NewLevelDBStorage creates the new storage reference with leveldb default options
-func NewLevelDBStorage(path string, logger hclog.Logger) (*storagev2.Storage, error) {
+// NewPebbleDBStorage creates the new storage reference with pebble default options
+func NewPebbleDBStorage(path string, logger hclog.Logger) (*storagev2.Storage, error) {
 	var ldbs [2]storagev2.Database
 
-	// Open LevelDB storage
-	// Set default options
-	options := &opt.Options{
-		BlockCacheCapacity: 64 * opt.MiB,
-		WriteBuffer:        128 * opt.MiB, // Two of these are used internally
-	}
-
-	maindb, err := openLevelDBStorage(path, options)
+	// Open pebble storage
+	maindb, err := openPebbleDBStorage(path, getPebbleDBOptions())
 	if err != nil {
 		return nil, err
 	}
 
-	ldbs[0] = &levelDB{maindb}
+	ldbs[0] = &pebbleDB{maindb}
 	ldbs[1] = nil
 
-	return storagev2.Open(logger.Named(common.LevelDB), ldbs)
+	return storagev2.Open(logger.Named(common.Pebble), ldbs)
 }
 
-func openLevelDBStorage(path string, options *opt.Options) (*leveldb.DB, error) {
-	db, err := leveldb.OpenFile(path, options)
+func openPebbleDBStorage(path string, options *pebble.Options) (*pebble.DB, error) {
+	db, err := pebble.Open(path, options)
 	if err != nil {
 		return nil, err
 	}
@@ -57,29 +53,46 @@ func openLevelDBStorage(path string, options *opt.Options) (*leveldb.DB, error) 
 	return db, nil
 }
 
-// Get retrieves the key-value pair in leveldb storage
-func (l *levelDB) Get(t uint8, k []byte) ([]byte, bool, error) {
+func getPebbleDBOptions() *pebble.Options {
+	options := &pebble.Options{
+		Logger: itrie.PebbleLogger{},
+	}
+
+	options.EnsureDefaults()
+
+	return options
+}
+
+// Get retrieves the key-value pair in pebble storage
+func (p *pebbleDB) Get(t uint8, k []byte) ([]byte, bool, error) {
 	mc := tableMapper[t]
 	k = append(k, mc...)
 
-	data, err := l.db.Get(k, nil)
+	data, closer, err := p.db.Get(k)
 	if err != nil {
-		if err.Error() == "leveldb: not found" {
+		if errors.Is(err, pebble.ErrNotFound) {
 			return nil, false, nil
 		}
 
 		return nil, false, err
 	}
 
-	return data, true, nil
+	ret := make([]byte, len(data))
+	copy(ret, data)
+
+	if err = closer.Close(); err != nil {
+		return nil, false, err
+	}
+
+	return ret, true, nil
 }
 
-// Close closes the leveldb storage instance
-func (l *levelDB) Close() error {
-	return l.db.Close()
+// Close closes the pebble storage instance
+func (p *pebbleDB) Close() error {
+	return p.db.Close()
 }
 
 // NewBatch creates batch for database write operations
-func (l *levelDB) NewBatch() storagev2.Batch {
-	return newBatchLevelDB(l.db)
+func (p *pebbleDB) NewBatch() storagev2.Batch {
+	return newBatchPebbleDB(p.db)
 }
