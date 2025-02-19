@@ -448,9 +448,9 @@ func NewServer(config *Config) (*Server, error) {
 
 func openItrieStorage(config *Config, logger hclog.Logger) (itrie.Storage, error) {
 	switch config.DBEngine {
-	case "pebble":
+	case common.Pebble:
 		return itrie.NewPebbleDBStorage(filepath.Join(config.DataDir, "trie"), logger)
-	case "leveldb":
+	case common.LevelDB:
 		return itrie.NewLevelDBStorage(filepath.Join(config.DataDir, "trie"), logger)
 	default:
 		return nil, fmt.Errorf("invalid trie database engine %s", config.DBEngine)
@@ -459,9 +459,9 @@ func openItrieStorage(config *Config, logger hclog.Logger) (itrie.Storage, error
 
 func openBlockchainStorage(config *Config, logger hclog.Logger) (*storagev2.Storage, error) {
 	switch config.DBEngine {
-	case "pebble":
+	case common.Pebble:
 		return pebble.NewPebbleDBStorage(filepath.Join(config.DataDir, "blockchain"), logger)
-	case "leveldb":
+	case common.LevelDB:
 		return leveldb.NewLevelDBStorage(filepath.Join(config.DataDir, "blockchain"), logger)
 	default:
 		return nil, fmt.Errorf("invalid blockchain database engine %s", config.DBEngine)

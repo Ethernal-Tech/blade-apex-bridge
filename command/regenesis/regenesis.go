@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/0xPolygon/polygon-edge/command"
+	"github.com/0xPolygon/polygon-edge/helper/common"
 	itrie "github.com/0xPolygon/polygon-edge/state/immutable-trie"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/cockroachdb/pebble"
@@ -59,7 +60,7 @@ func RegenesisCMD() *cobra.Command {
 			return
 		}
 
-		if params.DBEngine != "pebble" && params.DBEngine != "leveldb" {
+		if params.DBEngine != common.Pebble && params.DBEngine != common.LevelDB {
 			outputter.SetError(fmt.Errorf("wrong database engine"))
 
 			return
@@ -111,7 +112,7 @@ func RegenesisCMD() *cobra.Command {
 
 func openStorage(path, dbEngine string, isReadOnly bool) (itrie.Storage, error) {
 	switch dbEngine {
-	case "pebble":
+	case common.Pebble:
 		opts := &pebble.Options{Logger: itrie.PebbleLogger{}, ReadOnly: isReadOnly}
 
 		db, err := pebble.Open(path, opts)
@@ -120,7 +121,7 @@ func openStorage(path, dbEngine string, isReadOnly bool) (itrie.Storage, error) 
 		}
 
 		return itrie.NewPebble(db), nil
-	case "leveldb":
+	case common.LevelDB:
 		opts := &opt.Options{ReadOnly: isReadOnly}
 
 		db, err := leveldb.OpenFile(path, opts)

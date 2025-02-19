@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/0xPolygon/polygon-edge/blockchain/storagev2"
+	"github.com/0xPolygon/polygon-edge/helper/common"
 	itrie "github.com/0xPolygon/polygon-edge/state/immutable-trie"
 	"github.com/cockroachdb/pebble"
 	"github.com/hashicorp/go-hclog"
@@ -40,7 +41,7 @@ func NewPebbleDBStorage(path string, logger hclog.Logger) (*storagev2.Storage, e
 	ldbs[0] = &pebbleDB{maindb}
 	ldbs[1] = nil
 
-	return storagev2.Open(logger.Named("pebble"), ldbs)
+	return storagev2.Open(logger.Named(common.Pebble), ldbs)
 }
 
 func openPebbleDBStorage(path string, options *pebble.Options) (*pebble.DB, error) {
