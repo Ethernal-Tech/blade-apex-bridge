@@ -110,12 +110,9 @@ func RegenesisCMD() *cobra.Command {
 }
 
 func openStorage(path, dbEngine string, isReadOnly bool) (itrie.Storage, error) {
-	if dbEngine == "pebble" {
-		opts := &pebble.Options{Logger: itrie.PebbleLogger{}}
-
-		if isReadOnly {
-			opts.ReadOnly = true
-		}
+	switch dbEngine {
+	case "pebble":
+		opts := &pebble.Options{Logger: itrie.PebbleLogger{}, ReadOnly: isReadOnly}
 
 		db, err := pebble.Open(path, opts)
 		if err != nil {
@@ -123,12 +120,8 @@ func openStorage(path, dbEngine string, isReadOnly bool) (itrie.Storage, error) 
 		}
 
 		return itrie.NewPebble(db), nil
-	} else {
-		opts := &opt.Options{}
-
-		if isReadOnly {
-			opts.ReadOnly = true
-		}
+	case "leveldb":
+		opts := &opt.Options{ReadOnly: isReadOnly}
 
 		db, err := leveldb.OpenFile(path, opts)
 		if err != nil {
@@ -136,6 +129,8 @@ func openStorage(path, dbEngine string, isReadOnly bool) (itrie.Storage, error) 
 		}
 
 		return itrie.NewKV(db), nil
+	default:
+		return nil, fmt.Errorf("invalid regenesis database engine %s", dbEngine)
 	}
 }
 

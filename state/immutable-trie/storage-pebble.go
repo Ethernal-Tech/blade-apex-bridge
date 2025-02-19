@@ -20,6 +20,17 @@ type pebbleBatch struct {
 	batch *pebble.Batch
 }
 
+func NewPebbleDBStorage(path string, logger hclog.Logger) (Storage, error) {
+	opts := &pebble.Options{Logger: PebbleLogger{}}
+
+	db, err := pebble.Open(path, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pebbleStorage{db}, nil
+}
+
 func (b *pebbleBatch) Put(k, v []byte) {
 	_ = b.batch.Set(k, v, nil)
 }
@@ -104,17 +115,6 @@ func (ps *pebbleStorage) Compact(start []byte, limit []byte) error {
 
 func (ps *pebbleStorage) Close() error {
 	return ps.db.Close()
-}
-
-func NewPebbleDBStorage(path string, logger hclog.Logger) (Storage, error) {
-	opts := &pebble.Options{Logger: PebbleLogger{}}
-
-	db, err := pebble.Open(path, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pebbleStorage{db}, nil
 }
 
 // PebbleLogger is just a noop logger to disable Pebble's internal logger.
