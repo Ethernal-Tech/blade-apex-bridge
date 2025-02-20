@@ -169,8 +169,8 @@ func NewSkylineSystem(
 
 	apex.Config.applyPremineFundingOptions(apex.Users)
 
-	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = big.NewInt(1_000_000_000)
-	apex.Config.CardanoConfig.InitialHotWalletTokenAmount = big.NewInt(1_000_000_000)
+	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(DefaultTokenMintAmount)
+	apex.Config.CardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(DefaultTokenMintAmount)
 
 	apex.ExchangeService = NewExchangeService()
 
@@ -655,7 +655,7 @@ func (a *ApexSystem) WaitForGreaterAmount(
 		return val.Cmp(expectedAmountDfm) == 1
 	}, numRetries, waitTime)
 	if err != nil {
-		return fmt.Errorf("amount mismatch: expected %s, but received %s: %w",
+		return fmt.Errorf("amount mismatch: expected greater than %s, but received %s: %w",
 			expectedAmountDfm, lastAmount, err)
 	}
 

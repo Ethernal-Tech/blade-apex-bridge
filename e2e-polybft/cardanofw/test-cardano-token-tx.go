@@ -11,7 +11,7 @@ import (
 
 const (
 	defaultTokenName       = "test1"
-	defaultTokenMintAmount = uint64(1_000_000_000)
+	DefaultTokenMintAmount = uint64(1_000_000_000)
 )
 
 func FundUserWithToken(ctx context.Context, chain ChainID,
@@ -36,7 +36,7 @@ func FundUserWithToken(ctx context.Context, chain ChainID,
 	}
 
 	mintToken := cardanowallet.NewTokenAmount(
-		cardanowallet.NewToken(pid, defaultTokenName), defaultTokenMintAmount)
+		cardanowallet.NewToken(pid, defaultTokenName), DefaultTokenMintAmount)
 
 	txHash, err := MintTokens(
 		ctx, networkType, txProvider, minterWallet, lovelaceFundAmount,
@@ -85,7 +85,7 @@ func FundAddressWithToken(ctx context.Context, chain ChainID,
 
 	pid, _ := cardanowallet.NewCliUtils(cardanoCliBinary).GetPolicyID(policy)
 	mintToken := cardanowallet.NewTokenAmount(
-		cardanowallet.NewToken(pid, defaultTokenName), defaultTokenMintAmount)
+		cardanowallet.NewToken(pid, defaultTokenName), DefaultTokenMintAmount)
 
 	txHash, err := MintTokens(
 		ctx, networkType, txProvider, minterWallet, lovelaceFundAmount,
@@ -334,13 +334,12 @@ func createMintTx(
 	txOutput := cardanowallet.TxOutput{
 		Addr:   senderAddr,
 		Amount: lovelaceAmount,
-		Tokens: tokens,
+		Tokens: append(senderTokens, tokens...),
 	}
 
 	builder.AddInputs(inputs.Inputs...).AddTokenMints(tokenPolicyScripts, tokens)
 	builder.AddOutputs(txOutput, cardanowallet.TxOutput{
-		Addr:   walletAddr.String(),
-		Tokens: senderTokens,
+		Addr: senderAddr,
 	})
 
 	fee, err := builder.CalculateFee(1)
@@ -351,15 +350,16 @@ func createMintTx(
 	outputsSumMap := cardanowallet.GetOutputsSum([]cardanowallet.TxOutput{txOutput})
 	outputsSumMap[cardanowallet.AdaTokenName] += fee
 
-	changeTxOutput, err := cardanowallet.CreateTxOutputChange(cardanowallet.TxOutput{
-		Addr: senderAddr,
-	}, inputs.Sum, outputsSumMap)
-	if err != nil {
-		return nil, "", err
+	lovelaceInputAmount := inputs.Sum[cardanowallet.AdaTokenName]
+
+	change := lovelaceInputAmount - lovelaceAmount - fee
+	// handle overflow or insufficient amount
+	if change > lovelaceInputAmount || change < max(minUtxoLovelace, MinUTxODefaultValue) {
+		return []byte{}, "", fmt.Errorf("insufficient amount: %d", change)
 	}
 
-	if changeTxOutput.Amount > 0 || len(changeTxOutput.Tokens) > 0 {
-		builder.ReplaceOutput(-1, changeTxOutput)
+	if change > 0 {
+		builder.UpdateOutputAmount(-1, change)
 	} else {
 		builder.RemoveOutput(-1)
 	}

@@ -535,15 +535,5 @@ func GetGenesisWalletFromCluster(
 		return nil, err
 	}
 
-	vKey, err := wallet.NewKey(filepath.Join(dirPath, "utxo-keys", fmt.Sprintf("%s.vkey", keyFileName)))
-	if err != nil {
-		return nil, err
-	}
-
-	vKeyBytes, err := vKey.GetKeyBytes()
-	if err != nil {
-		return nil, err
-	}
-
-	return wallet.NewWallet(vKeyBytes, sKeyBytes), nil
+	return wallet.NewWallet(sKeyBytes, nil), nil
 }
