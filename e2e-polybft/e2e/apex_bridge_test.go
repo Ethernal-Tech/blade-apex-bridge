@@ -827,13 +827,28 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			}, new(big.Int).SetUint64(sendAmount))
 	})
 
-	t.Run("Both directions sequential and parallel - one node goes off in the middle", func(t *testing.T) {
+	t.Run("Both directions sequential and parallel", func(t *testing.T) {
 		const (
 			sequentialInstances = 5
 			parallelInstances   = 6
 		)
 
 		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, user, sequentialInstances, parallelInstances)
+	})
+
+	t.Run("Both directions sequential and parallel - one node goes off in the middle", func(t *testing.T) {
+		const (
+			sequentialInstances  = 5
+			parallelInstances    = 6
+			stopAfter            = time.Second * 60
+			validatorStoppingIdx = 1
+		)
+
+		PrimeVectorBothDirectionsSequentialAndParallel(
+			t, ctx, apex, user, sequentialInstances, parallelInstances,
+			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
+				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
+			}))
 	})
 
 	t.Run("Both directions sequential and parallel - two nodes goes off in the middle and then one comes back", func(t *testing.T) {
@@ -861,15 +876,6 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx1, validatorStoppingIdx2}},
 				{WaitTime: startAgainAfter, StartIndxs: []int{validatorStoppingIdx1}},
 			}))
-	})
-
-	t.Run("Both directions sequential and parallel", func(t *testing.T) {
-		const (
-			sequentialInstances = 5
-			parallelInstances   = 6
-		)
-
-		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, user, sequentialInstances, parallelInstances)
 	})
 }
 
@@ -1858,17 +1864,12 @@ func PrimeVectorBothDirectionsSequentialAndParallel(
 	t.Helper()
 
 	const (
-		sendAmount           = uint64(1_000_000)
-		stopAfter            = time.Second * 60
-		validatorStoppingIdx = 1
+		sendAmount = uint64(1_000_000)
 	)
 
 	options = append(
 		options,
 		e2ehelper.WithWaitForUnexpectedBridges(true),
-		e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
-			{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
-		}),
 	)
 
 	e2ehelper.ExecuteBridging(
