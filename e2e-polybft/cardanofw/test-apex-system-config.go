@@ -2,11 +2,13 @@ package cardanofw
 
 import (
 	"encoding/hex"
+	"fmt"
 
 	"github.com/0xPolygon/polygon-edge/types"
 )
 
 type ChainID = string
+type TelemetryConfig = int
 
 const (
 	ChainIDPrime  ChainID = "prime"
@@ -16,6 +18,10 @@ const (
 	ChainIDCardano ChainID = "cardano"
 
 	RunRelayerOnValidatorID = 1
+
+	NoTelemetry TelemetryConfig = iota
+	PrometheusTelemetry
+	PrometheusAndDataDogTelemetry
 )
 
 type ApexSystemConfig struct {
@@ -23,7 +29,7 @@ type ApexSystemConfig struct {
 	APIPortStart   int
 	APIKey         string
 
-	TelemetryConfig               string
+	TelemetryConfig               TelemetryConfig
 	TargetOneCardanoClusterServer bool
 
 	BladeValidatorCount int
@@ -77,9 +83,9 @@ func WithNexusEnabled(enabled bool) ApexSystemOptions {
 	}
 }
 
-func WithTelemetryConfig(tc string) ApexSystemOptions {
+func WithTelemetryConfig(tc TelemetryConfig) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
-		h.TelemetryConfig = tc // something like "0.0.0.0:5001,localhost:8126"
+		h.TelemetryConfig = tc
 	}
 }
 
@@ -219,5 +225,16 @@ func (asc *ApexSystemConfig) applyPremineFundingOptions(users []*TestApexUser) {
 		if user.HasNexusWallet {
 			asc.NexusConfig.PreminesAddresses = append(asc.NexusConfig.PreminesAddresses, user.NexusAddress)
 		}
+	}
+}
+
+func (asc *ApexSystemConfig) GetTelemetryForValidatorIdx(idx int) string {
+	switch asc.TelemetryConfig {
+	case PrometheusTelemetry:
+		return fmt.Sprintf("0.0.0.0:%d", 5001+idx)
+	case PrometheusAndDataDogTelemetry:
+		return fmt.Sprintf("0.0.0.0:%d,localhost:%d", 5001+idx, 8126+idx)
+	default:
+		return ""
 	}
 }

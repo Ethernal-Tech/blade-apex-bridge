@@ -54,7 +54,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			apex.Config.PrimeConfig.NetworkType, false, 0, false, 0, false)
 		require.NoError(t, err)
 
-		txProviderPrime := apex.PrimeInfo.GetTxProvider()
+		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+		require.NoError(t, err)
 
 		_, err = cardanofw.FundUserWithToken(
 			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
@@ -76,7 +77,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			apex.Config.PrimeConfig.NetworkType, false, 0, false, 0, false)
 		require.NoError(t, err)
 
-		txProviderPrime := apex.PrimeInfo.GetTxProvider()
+		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+		require.NoError(t, err)
 
 		_, err = cardanofw.FundUserWithToken(
 			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
@@ -99,7 +101,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			apex.Config.PrimeConfig.NetworkType, false, 0, true, apex.Config.CardanoConfig.NetworkType, false)
 		require.NoError(t, err)
 
-		txProviderCardano := apex.CardanoInfo.GetTxProvider()
+		txProviderCardano, err := apex.CardanoInfo.GetTxProvider()
+		require.NoError(t, err)
 
 		_, err = cardanofw.FundUserWithToken(
 			ctx, cardanofw.ChainIDCardano, apex.Config.CardanoConfig.NetworkType, txProviderCardano,
@@ -122,7 +125,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			apex.Config.PrimeConfig.NetworkType, false, 0, true, apex.Config.CardanoConfig.NetworkType, false)
 		require.NoError(t, err)
 
-		txProviderCardano := apex.CardanoInfo.GetTxProvider()
+		txProviderCardano, err := apex.CardanoInfo.GetTxProvider()
+		require.NoError(t, err)
 
 		_, err = cardanofw.FundUserWithToken(
 			ctx, cardanofw.ChainIDCardano, apex.Config.CardanoConfig.NetworkType, txProviderCardano,

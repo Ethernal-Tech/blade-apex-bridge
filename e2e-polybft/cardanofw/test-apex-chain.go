@@ -37,6 +37,7 @@ type ITestApexChain interface {
 	GetHotWalletAddress() string
 	GetAdminPrivateKey() (string, error)
 	CreateMetadata(
+		context context.Context,
 		senderAddr string,
 		dstChainID string,
 		receivers []sendtx.BridgingTxReceiver,
@@ -131,6 +132,7 @@ func (t *TestApexChainDummy) GetAdminPrivateKey() (string, error) {
 }
 
 func (t *TestApexChainDummy) CreateMetadata(
+	context context.Context,
 	senderAddr string,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,

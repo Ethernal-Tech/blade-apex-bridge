@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -92,14 +93,45 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	}
 }
 
+func NewRemotePrimeChainConfig() *TestCardanoChainConfig {
+	return &TestCardanoChainConfig{
+		IsEnabled:   true,
+		ID:          0,
+		NetworkType: infrawallet.TestNetNetwork,
+	}
+}
+
+func NewRemoteVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
+	return &TestCardanoChainConfig{
+		IsEnabled:   isEnabled,
+		ID:          1,
+		NetworkType: infrawallet.VectorTestNetNetwork,
+	}
+}
+
 type TestCardanoChain struct {
-	config          *TestCardanoChainConfig
-	cluster         *TestCardanoCluster
-	multisigAddr    string
-	multisigFeeAddr string
-	fundBlockSlot   uint64
-	fundBlockHash   string
-	txSender        *sendtx.TxSender
+	config           *TestCardanoChainConfig
+	cluster          *TestCardanoCluster
+	ogmiosURL        string
+	blockfrostURL    string
+	blockfrostAPIKey string
+	multisigAddr     string
+	multisigFeeAddr  string
+	fundBlockSlot    uint64
+	fundBlockHash    string
+	txSender         *sendtx.TxSender
+}
+
+func (ec *TestCardanoChain) GetTxProvider() (infrawallet.ITxProvider, error) {
+	if ec.ogmiosURL != "" {
+		return infrawallet.NewTxProviderOgmios(ec.ogmiosURL), nil
+	}
+
+	if ec.blockfrostURL != "" && ec.blockfrostAPIKey != "" {
+		return infrawallet.NewTxProviderBlockFrost(ec.blockfrostURL, ec.blockfrostAPIKey), nil
+	}
+
+	return nil, errors.New("neither a blockfrost nor a ogmios is specified")
 }
 
 var _ ITestApexChain = (*TestCardanoChain)(nil)
@@ -159,6 +191,8 @@ func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 	if err := cluster.WaitForBlockWithState(10, time.Second*120); err != nil {
 		return err
 	}
+
+	ec.ogmiosURL = ec.cluster.OgmiosURL()
 
 	fmt.Printf("Cluster %s (%d) is ready\n", networkName, ec.config.ID)
 
@@ -258,8 +292,13 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		fmt.Printf("%s multisig addr funded: %s\n", GetNetworkName(ec.config), txHash)
 	}
 
+	txProvider, err := ec.GetTxProvider()
+	if err != nil {
+		return err
+	}
+
 	// retrieve latest tip
-	tip, err := infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()).GetTip(ctx)
+	tip, err := txProvider.GetTip(ctx)
 	if err != nil {
 		return err
 	}
@@ -289,7 +328,7 @@ func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string)
 		getFlag("network-address"), server.NetworkAddress(),
 		getFlag("network-magic"), fmt.Sprint(GetNetworkMagic(ec.config.NetworkType)),
 		getFlag("network-id"), fmt.Sprint(ec.config.NetworkType),
-		getFlag("ogmios-url"), ec.cluster.OgmiosURL(),
+		getFlag("ogmios-url"), ec.ogmiosURL,
 	}
 
 	if ec.config.TTLInc > 0 {
@@ -311,7 +350,7 @@ func (ec *TestCardanoChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSys
 
 	chainInfo := CardanoChainInfo{
 		NetworkAddress: ec.cluster.Servers[0].NetworkAddress(),
-		OgmiosURL:      ec.cluster.OgmiosURL(),
+		OgmiosURL:      ec.ogmiosURL,
 		MultisigAddr:   ec.multisigAddr,
 		FeeAddr:        ec.multisigFeeAddr,
 		SocketPath:     ec.cluster.OgmiosServer.SocketPath(),
@@ -339,7 +378,12 @@ func (ec *TestCardanoChain) ChainID() string {
 }
 
 func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) (*big.Int, error) {
-	utxos, err := infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()).GetUtxos(ctx, addr)
+	txProvider, err := ec.GetTxProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	utxos, err := txProvider.GetUtxos(ctx, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -350,6 +394,7 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 }
 
 func (ec *TestCardanoChain) CreateMetadata(
+	context context.Context,
 	senderAddr string,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
@@ -357,7 +402,7 @@ func (ec *TestCardanoChain) CreateMetadata(
 	exchangeRate sendtx.ExchangeRate,
 ) ([]byte, error) {
 	metadata, err := ec.txSender.CreateMetadata(
-		context.Background(), senderAddr, GetNetworkName(ec.config), dstChainID, receivers, bridgingFee, exchangeRate)
+		context, senderAddr, GetNetworkName(ec.config), dstChainID, receivers, bridgingFee, exchangeRate)
 	if err != nil {
 		return nil, err
 	}
@@ -374,13 +419,12 @@ func (ec *TestCardanoChain) BridgingRequest(
 	exchangeRates []sendtx.ExchangeRateEntry,
 	bridgingTypes ...sendtx.BridgingType,
 ) (string, error) {
-	privateKeyBytes, err := hex.DecodeString(privateKey)
+	paymentKey, stakeKey, err := FromCardanoPrivateKeyString(privateKey)
 	if err != nil {
 		return "", err
 	}
 
-	wallet := infrawallet.NewWallet(
-		infrawallet.GetVerificationKeyFromSigningKey(privateKeyBytes), privateKeyBytes)
+	wallet := infrawallet.NewWallet(paymentKey, stakeKey)
 	srcChainID := GetNetworkName(ec.config)
 
 	walletAddr, err := GetAddress(ec.config.NetworkType, wallet)
@@ -426,13 +470,12 @@ func (ec *TestCardanoChain) SendTx(
 	amount *big.Int,
 	metadata []byte,
 ) (string, error) {
-	privateKeyBytes, err := hex.DecodeString(privateKey)
+	paymentKey, stakeKey, err := FromCardanoPrivateKeyString(privateKey)
 	if err != nil {
 		return "", err
 	}
 
-	wallet := infrawallet.NewWallet(
-		infrawallet.GetVerificationKeyFromSigningKey(privateKeyBytes), privateKeyBytes)
+	wallet := infrawallet.NewWallet(paymentKey, stakeKey)
 
 	walletAddr, err := GetAddress(ec.config.NetworkType, wallet)
 	if err != nil {

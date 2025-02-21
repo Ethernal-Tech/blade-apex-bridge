@@ -3,6 +3,7 @@ package cardanofw
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -26,16 +28,17 @@ const (
 
 	BatchStateFailedToExecute           = "FailedToExecuteOnDestination"
 	BatchStateIncludedInBatch           = "IncludedInBatch"
+	BatchStateSubmittedToDestination    = "SubmittedToDestination"
 	BatchStateExecuted                  = "ExecutedOnDestination"
 	BridgingRequestStatusInvalidRequest = "InvalidRequest"
 
-	minUTxODefaultValue         = uint64(1_000_000)
-	ttlSlotNumberInc            = 500
-	potentialFee                = 500_000
-	bridgingFeeAmount           = uint64(1_100_000)
-	defaultMinBridgingFeeAmount = uint64(1_000_010)
-
-	MinUtxoWithTokens = uint64(1_043_020)
+	MinUTxODefaultValue           = uint64(1_000_000)
+	ttlSlotNumberInc              = 500
+	PotentialFee                  = 500_000
+	maxInputs                     = 40
+	bridgingFeeAmount             = uint64(1_100_000)
+	defaultMinBridgingFeeAmount   = uint64(1_000_010)
+	DefaultRequestStateTimeoutSec = 300
 )
 
 func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
@@ -160,6 +163,51 @@ func SplitString(s string, mxlen int) (res []string) {
 	return res
 }
 
+func ToCardanoPrivateKeyString(paymentKey, stakeKey []byte) string {
+	paymentSK := hex.EncodeToString(paymentKey)
+	if len(stakeKey) == 0 {
+		return paymentSK
+	}
+
+	return fmt.Sprintf("%s_%s", paymentSK, hex.EncodeToString(stakeKey))
+}
+
+func FromCardanoPrivateKeyString(privateKey string) (paymentKey, stakeKey []byte, err error) {
+	var (
+		pKey = privateKey
+		sKey string
+	)
+
+	if strings.Contains(privateKey, "_") {
+		keys := strings.Split(privateKey, "_")
+		pKey = keys[0]
+		sKey = keys[1]
+	}
+
+	paymentKey, err = hex.DecodeString(pKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(sKey) > 0 {
+		stakeKey, err = hex.DecodeString(sKey)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return paymentKey, stakeKey, err
+}
+
+func JSONRPCClient(jsonRPCAddr string) (*jsonrpc.EthClient, error) {
+	clt, err := jsonrpc.NewEthClient(jsonRPCAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	return clt, nil
+}
+
 func GetBridgingRequestState(ctx context.Context, requestURL string, apiKey string) (
 	*BridgingRequestStateResponse, error,
 ) {
@@ -200,6 +248,43 @@ func GetAPIRequestGeneric[T any](ctx context.Context, requestURL string, apiKey 
 	}
 
 	return responseModel, nil
+}
+
+type FaucetRequestBody struct {
+	Addr  string `json:"address"`
+	Token string `json:"token"`
+}
+
+func FaucetRequest(ctx context.Context, addr string) (err error) {
+	requestURL := "https://developers.apexfusion.org/api/faucet"
+
+	requestBody := FaucetRequestBody{
+		Addr:  addr,
+		Token: os.Getenv("TESTNET_FAUCET_API_KEY"),
+	}
+
+	bodyBytes, err := json.Marshal(requestBody)
+	if err != nil {
+		return err
+	}
+
+	body := bytes.NewBuffer(bodyBytes)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, body)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	} else if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("http status for %s code is %d", requestURL, resp.StatusCode)
+	}
+
+	return nil
 }
 
 type BridgingRequestStateResponse struct {
@@ -364,7 +449,7 @@ func WaitForRequestStateGeneric(
 
 func WaitForBatchState(
 	ctx context.Context, apex *ApexSystem, chainID string, txHash string,
-	apiKey string, breakIfFailed bool, failAtLeastOnce bool, batchState string,
+	apiKey string, breakIfFailed bool, failAtLeastOnce bool, batchState string, otherGoodBatchStates ...string,
 ) (int, bool) {
 	failedToExecuteCount := 0
 	err := WaitForRequestStateGeneric(ctx, apex, chainID, txHash, apiKey, time.Second*300, func(status string) bool {
@@ -376,7 +461,18 @@ func WaitForBatchState(
 			}
 		}
 
-		return status == batchState && (!failAtLeastOnce || failedToExecuteCount > 0)
+		found := status == batchState
+		if !found {
+			for _, otherState := range otherGoodBatchStates {
+				if status == otherState {
+					found = true
+
+					break
+				}
+			}
+		}
+
+		return found && (!failAtLeastOnce || failedToExecuteCount > 0)
 	})
 
 	return failedToExecuteCount, err != nil
@@ -410,11 +506,15 @@ func WaitForRequestStates(
 }
 
 func WaitForInvalidState(
-	t *testing.T, ctx context.Context, apex *ApexSystem, chainID string, txHash string, apiKey string) {
+	t *testing.T, ctx context.Context, apex *ApexSystem, chainID string, txHash string, apiKey string, timeoutSec uint) {
 	t.Helper()
 
+	if timeoutSec == 0 {
+		timeoutSec = DefaultRequestStateTimeoutSec
+	}
+
 	state, err := WaitForRequestStates(
-		ctx, apex, chainID, txHash, apiKey, []string{BridgingRequestStatusInvalidRequest}, 300)
+		ctx, apex, chainID, txHash, apiKey, []string{BridgingRequestStatusInvalidRequest}, timeoutSec)
 	require.NoError(t, err)
 	require.Equal(t, BridgingRequestStatusInvalidRequest, state)
 }
@@ -435,15 +535,5 @@ func GetGenesisWalletFromCluster(
 		return nil, err
 	}
 
-	vKey, err := wallet.NewKey(filepath.Join(dirPath, "utxo-keys", fmt.Sprintf("%s.vkey", keyFileName)))
-	if err != nil {
-		return nil, err
-	}
-
-	vKeyBytes, err := vKey.GetKeyBytes()
-	if err != nil {
-		return nil, err
-	}
-
-	return wallet.NewWallet(vKeyBytes, sKeyBytes), nil
+	return wallet.NewWallet(sKeyBytes, nil), nil
 }

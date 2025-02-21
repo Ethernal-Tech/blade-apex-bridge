@@ -86,6 +86,40 @@ test-e2e-apex-bridge: check-go
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
 	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "ApexBridge"
 
+.PHONY: fund-testnet-e2e-apex-bridge
+fund-testnet-e2e-apex-bridge: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetFund"
+
+.PHONY: defund-testnet-e2e-apex-bridge
+defund-testnet-e2e-apex-bridge: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetDefund"
+
+.PHONY: testnet-e2e-apex-bridge-print-balances
+testnet-e2e-apex-bridge-print-balances: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetPrintBalances"
+
+.PHONY: test-testnet-e2e-apex-bridge
+test-testnet-e2e-apex-bridge: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "ApexTestnetBridge"
+
+.PHONY: full-test-testnet-e2e-apex-bridge
+full-test-testnet-e2e-apex-bridge: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetFund" && \
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "ApexTestnetBridge"; true
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetDefund"
+
 .PHONY: test-property-polybft
 test-property-polybft: check-go
 	go build -o artifacts/blade .
@@ -138,6 +172,11 @@ help:
 	@printf "  %-35s - %s\n" "compile-blade-contracts" "Compile blade contracts"
 	@printf "  %-35s - %s\n" "generate-smart-contract-bindings" "Generate smart contract bindings"
 	@printf "  %-35s - %s\n" "test-e2e-apex-bridge" "Run end-to-end tests for Apex Bridge"
+	@printf "  %-35s - %s\n" "fund-testnet-e2e-apex-bridge" "Fund wallets for end-to-end tests for Apex Bridge Testnet"
+	@printf "  %-35s - %s\n" "defund-testnet-e2e-apex-bridge" "Defund wallets for end-to-end tests for Apex Bridge Testnet"
+	@printf "  %-35s - %s\n" "testnet-e2e-apex-bridge-print-balances" "Print balances of wallets for end-to-end tests for Apex Bridge Testnet"
+	@printf "  %-35s - %s\n" "test-testnet-e2e-apex-bridge" "Run end-to-end tests for Apex Bridge Testnet"
+	@printf "  %-35s - %s\n" "full-test-testnet-e2e-apex-bridge" "Run fund wallets, end-to-end tests and defund wallets for Apex Bridge Testnet"
 	@printf "  %-35s - %s\n" "update-apex-contracts" "Update Apex Bridge smart contracts and bindings"
 	@printf "  %-35s - %s\n" "run-docker" "Run Docker cluster for PolyBFT"
 	@printf "  %-35s - %s\n" "stop-docker" "Stop Docker cluster for PolyBFT"

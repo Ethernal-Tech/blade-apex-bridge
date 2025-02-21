@@ -17,9 +17,11 @@ import (
 
 func ExecuteSingleBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, senderUser, receiverUser *cardanofw.TestApexUser,
-	srcChain, dstChain string, sendAmountDfm *big.Int, bridgingType sendtx.BridgingType,
+	srcChain, dstChain string, sendAmountDfm *big.Int, bridgingType sendtx.BridgingType, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
+
+	config := newExecuteBridgingConfig(options...)
 
 	prevAmountDfm, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	require.NoError(t, err)
@@ -29,7 +31,7 @@ func ExecuteSingleBridging(
 
 	expectedAmountDest := sendAmountDfm
 	if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
-		expectedAmountDest = new(big.Int).SetUint64(cardanofw.MinUtxoWithTokens)
+		expectedAmountDest = new(big.Int).SetUint64(cardanofw.MinUTxODefaultValue)
 	}
 
 	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, expectedAmountDest)
@@ -38,9 +40,11 @@ func ExecuteSingleBridging(
 
 	// check expected amount cardano
 	if bridgingType != sendtx.BridgingTypeCurrencyOnSource {
-		err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmountDfm, 100, time.Second*10)
+		err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmountDfm,
+			config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime)
 	} else {
-		err = apex.WaitForGreaterAmount(ctx, receiverUser, dstChain, prevAmountDfm, 100, time.Second*10)
+		err = apex.WaitForGreaterAmount(ctx, receiverUser, dstChain, prevAmountDfm,
+			config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime)
 	}
 
 	require.NoError(t, err)
@@ -48,9 +52,11 @@ func ExecuteSingleBridging(
 
 func ExecuteBridgingOneByOneWaitOnOtherSide(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
-	user *cardanofw.TestApexUser, srcChain, dstChain string, sendAmountDfm *big.Int,
+	user *cardanofw.TestApexUser, srcChain, dstChain string, sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
+
+	config := newExecuteBridgingConfig(options...)
 
 	for i := 0; i < txCountPerSender; i++ {
 		prevAmountDfm, err := apex.GetBalance(ctx, user, dstChain)
@@ -59,16 +65,19 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, sendtx.BridgingTypeNormal, user)
 		expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
 
-		err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm, 100, time.Second*10)
+		err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm,
+			config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime)
 		require.NoError(t, err)
 	}
 }
 
 func ExecuteBridgingWaitAfterSubmits(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
-	user *cardanofw.TestApexUser, srcChain, dstChain string, sendAmountDfm *big.Int,
+	user *cardanofw.TestApexUser, srcChain, dstChain string, sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
+
+	config := newExecuteBridgingConfig(options...)
 
 	prevAmountDfm, err := apex.GetBalance(ctx, user, dstChain)
 	require.NoError(t, err)
@@ -80,7 +89,8 @@ func ExecuteBridgingWaitAfterSubmits(
 		expectedAmountDfm = expectedAmountDfm.Add(expectedAmountDfm, sendAmountDfm)
 	}
 
-	err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm, 100, time.Second*10)
+	err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm,
+		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime)
 	require.NoError(t, err)
 }
 
@@ -133,7 +143,9 @@ func ExecuteBridging(
 				defer wgResults.Done()
 
 				err := apex.WaitForExactAmount(
-					ctx, receiverUser, dstChain, expectedAmountDfm, 100, time.Second*10)
+					ctx, receiverUser, dstChain, expectedAmountDfm,
+					len(receiverUsers)*config.timeoutConfig.bridgingNumRetries,
+					config.timeoutConfig.bridgingRetryWaitTime)
 				if err != nil {
 					errs[idx*len(dstChains)+idxChain] = fmt.Errorf("receiver %d on %s: %w", idx, dstChain, err)
 

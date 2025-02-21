@@ -188,8 +188,8 @@ func (cv *TestApexValidator) GenerateSkylineConfigs(
 		"--relayer-data-dir", cv.server.DataDir(),
 		"--prime-cardano-token-name", primeCardanoTokenName,
 		"--cardano-prime-token-name", cardanoPrimeTokenName,
-		"--cardano-utxo-min-amount", strconv.FormatUint(minUTxODefaultValue, 10),
-		"--prime-utxo-min-amount", strconv.FormatUint(minUTxODefaultValue, 10),
+		"--cardano-utxo-min-amount", strconv.FormatUint(MinUTxODefaultValue, 10),
+		"--prime-utxo-min-amount", strconv.FormatUint(MinUTxODefaultValue, 10),
 	}, args...)
 
 	if err := RunCommand(ResolveApexBridgeBinary(), args, os.Stdout); err != nil {

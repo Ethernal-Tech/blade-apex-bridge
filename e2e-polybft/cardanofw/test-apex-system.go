@@ -21,25 +21,35 @@ import (
 )
 
 type CardanoChainInfo struct {
-	NetworkAddress string
-	OgmiosURL      string
-	MultisigAddr   string
-	FeeAddr        string
-	SocketPath     string
-	FundBlockHash  string
-	FundBlockSlot  uint64
+	NetworkAddress   string
+	OgmiosURL        string
+	BlockfrostURL    string
+	BlockfrostAPIKey string
+	MultisigAddr     string
+	FeeAddr          string
+	SocketPath       string
+	FundBlockHash    string
+	FundBlockSlot    uint64
 
 	GenesisWallet *cardanowallet.Wallet
 }
 
-func (ci *CardanoChainInfo) GetTxProvider() cardanowallet.ITxProvider {
-	return cardanowallet.NewTxProviderOgmios(ci.OgmiosURL)
+func (ci *CardanoChainInfo) GetTxProvider() (cardanowallet.ITxProvider, error) {
+	if ci.OgmiosURL != "" {
+		return cardanowallet.NewTxProviderOgmios(ci.OgmiosURL), nil
+	}
+
+	if ci.BlockfrostURL != "" && ci.BlockfrostAPIKey != "" {
+		return cardanowallet.NewTxProviderBlockFrost(ci.BlockfrostURL, ci.BlockfrostAPIKey), nil
+	}
+
+	return nil, errors.New("neither a blockfrost nor a ogmios is specified")
 }
 
 type EVMChainInfo struct {
 	GatewayAddress types.Address
-	Node           *framework.TestServer
 	RelayerAddress types.Address
+	JSONRPCAddr    string
 	AdminKey       *crypto.ECDSAKey
 	FundBlockNum   uint64
 }
@@ -62,7 +72,10 @@ type ApexSystem struct {
 
 	dataDirPath string
 
-	Users []*TestApexUser
+	bridgingAPIs []string
+
+	FunderUser *TestApexUser
+	Users      []*TestApexUser
 
 	IsSkyline bool
 
@@ -156,8 +169,8 @@ func NewSkylineSystem(
 
 	apex.Config.applyPremineFundingOptions(apex.Users)
 
-	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = big.NewInt(1_000_000_000)
-	apex.Config.CardanoConfig.InitialHotWalletTokenAmount = big.NewInt(1_000_000_000)
+	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(DefaultTokenMintAmount)
+	apex.Config.CardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(DefaultTokenMintAmount)
 
 	apex.ExchangeService = NewExchangeService()
 
@@ -315,10 +328,10 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			MultiSigAddr:         a.PrimeInfo.MultisigAddr,
 			TestNetMagic:         GetNetworkMagic(a.Config.PrimeConfig.NetworkType),
 			TTLSlotNumberInc:     ttlSlotNumberInc,
-			MinUtxoValue:         minUTxODefaultValue,
+			MinUtxoValue:         MinUTxODefaultValue,
 			MinBridgingFeeAmount: a.Config.PrimeConfig.MinBridgingFee,
 			NativeTokens:         a.Config.PrimeConfig.NativeTokens,
-			PotentialFee:         potentialFee,
+			PotentialFee:         PotentialFee,
 		},
 	}
 
@@ -329,10 +342,10 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			MultiSigAddr:         a.VectorInfo.MultisigAddr,
 			TestNetMagic:         GetNetworkMagic(a.Config.VectorConfig.NetworkType),
 			TTLSlotNumberInc:     ttlSlotNumberInc,
-			MinUtxoValue:         minUTxODefaultValue,
+			MinUtxoValue:         MinUTxODefaultValue,
 			MinBridgingFeeAmount: a.Config.VectorConfig.MinBridgingFee,
 			NativeTokens:         a.Config.VectorConfig.NativeTokens,
-			PotentialFee:         potentialFee,
+			PotentialFee:         PotentialFee,
 		}
 	}
 
@@ -352,10 +365,10 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			MultiSigAddr:         a.CardanoInfo.MultisigAddr,
 			TestNetMagic:         GetNetworkMagic(a.Config.CardanoConfig.NetworkType),
 			TTLSlotNumberInc:     ttlSlotNumberInc,
-			MinUtxoValue:         minUTxODefaultValue,
+			MinUtxoValue:         MinUTxODefaultValue,
 			MinBridgingFeeAmount: a.Config.CardanoConfig.MinBridgingFee,
 			NativeTokens:         a.Config.CardanoConfig.NativeTokens,
-			PotentialFee:         potentialFee,
+			PotentialFee:         PotentialFee,
 		}
 	}
 
@@ -418,12 +431,7 @@ func (a *ApexSystem) GenerateConfigs() error {
 }
 
 func (a *ApexSystem) generateReactorConfigs() error {
-	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
-		telemetryConfig := ""
-		if i == 0 {
-			telemetryConfig = a.Config.TelemetryConfig
-		}
-
+	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
 		if a.Config.TargetOneCardanoClusterServer {
 			serverIndx = 0
@@ -435,7 +443,8 @@ func (a *ApexSystem) generateReactorConfigs() error {
 			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
 		}
 
-		err := validator.GenerateConfigs(a.Config.APIPortStart+i, a.Config.APIKey, telemetryConfig, args...)
+		err := validator.GenerateConfigs(
+			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i), args...)
 		if err != nil {
 			return err
 		}
@@ -456,15 +465,15 @@ func (a *ApexSystem) generateReactorConfigs() error {
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	return a.setBridgingAPIs()
 }
 
 func (a *ApexSystem) generateSkylineConfigs() error {
-	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
-		telemetryConfig := ""
-		if i == 0 {
-			telemetryConfig = a.Config.TelemetryConfig
-		}
-
+	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
 		if a.Config.TargetOneCardanoClusterServer {
 			serverIndx = 0
@@ -479,7 +488,8 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 		cardanoPrimeTokenName := a.Config.CardanoConfig.NativeTokens[0].TokenName
 		primeCardanoTokenName := a.Config.PrimeConfig.NativeTokens[0].TokenName
 
-		err := validator.GenerateSkylineConfigs(a.Config.APIPortStart+i, a.Config.APIKey, telemetryConfig,
+		err := validator.GenerateSkylineConfigs(
+			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i),
 			cardanoPrimeTokenName, primeCardanoTokenName, args...)
 		if err != nil {
 			return err
@@ -501,6 +511,11 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	return a.setBridgingAPIs()
 }
 
 func (a *ApexSystem) GetBridgeDefaultJSONRPCAddr() string {
@@ -565,6 +580,34 @@ func (a ApexSystem) StopRelayer() error {
 	return a.relayerNode.Stop()
 }
 
+func (a *ApexSystem) setBridgingAPIs() error {
+	var bridgingAPIs []string
+
+	for _, validator := range a.validators {
+		hasAPI := a.Config.APIValidatorID == -1 || validator.ID == a.Config.APIValidatorID
+
+		if hasAPI {
+			if validator.APIPort == 0 {
+				return fmt.Errorf("api port not defined")
+			}
+
+			bridgingAPIs = append(bridgingAPIs, fmt.Sprintf("http://localhost:%d", validator.APIPort))
+		}
+	}
+
+	a.bridgingAPIs = bridgingAPIs
+
+	return nil
+}
+
+func (a *ApexSystem) GetBridgingAPIs() ([]string, error) {
+	if len(a.bridgingAPIs) == 0 {
+		return nil, fmt.Errorf("not running API")
+	}
+
+	return a.bridgingAPIs, nil
+}
+
 func (a *ApexSystem) GetBridgingAPI() (string, error) {
 	apis, err := a.GetBridgingAPIs()
 	if err != nil {
@@ -572,26 +615,6 @@ func (a *ApexSystem) GetBridgingAPI() (string, error) {
 	}
 
 	return apis[0], nil
-}
-
-func (a *ApexSystem) GetBridgingAPIs() (res []string, err error) {
-	for _, validator := range a.validators {
-		hasAPI := a.Config.APIValidatorID == -1 || validator.ID == a.Config.APIValidatorID
-
-		if hasAPI {
-			if validator.APIPort == 0 {
-				return nil, fmt.Errorf("api port not defined")
-			}
-
-			res = append(res, fmt.Sprintf("http://localhost:%d", validator.APIPort))
-		}
-	}
-
-	if len(res) == 0 {
-		return nil, fmt.Errorf("not running API")
-	}
-
-	return res, nil
 }
 
 func (a *ApexSystem) ApexBridgeProcessesRunning() bool {
@@ -632,7 +655,7 @@ func (a *ApexSystem) WaitForGreaterAmount(
 		return val.Cmp(expectedAmountDfm) == 1
 	}, numRetries, waitTime)
 	if err != nil {
-		return fmt.Errorf("amount mismatch: expected %s, but received %s: %w",
+		return fmt.Errorf("amount mismatch: expected greater than %s, but received %s: %w",
 			expectedAmountDfm, lastAmount, err)
 	}
 
