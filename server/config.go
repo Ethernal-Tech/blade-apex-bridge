@@ -25,6 +25,7 @@ type Config struct {
 	PriceLimit         uint64
 	MaxAccountEnqueued uint64
 	MaxSlots           uint64
+	TxGossipBatchSize  uint64
 
 	Telemetry *Telemetry
 	Network   *network.Config
@@ -53,6 +54,8 @@ type Config struct {
 	MetricsInterval time.Duration
 
 	EventTracker *EventTracker
+
+	DBEngine string
 }
 
 // Telemetry holds the config details for metric services
