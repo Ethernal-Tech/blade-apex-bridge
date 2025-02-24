@@ -396,7 +396,7 @@ func (ec *TestCardanoChain) SendTx(
 		return "", err
 	}
 
-	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
+	_, err = infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
 		contains, err := infrawallet.IsTxInUtxos(ctx, txProvider, receiverAddr, txHash)
 		if err != nil {
 			return "", err
@@ -406,6 +406,11 @@ func (ec *TestCardanoChain) SendTx(
 
 		return txHash, nil
 	}, infracommon.WithRetryCount(retryCount), infracommon.WithRetryWaitTime(retryWaitTime))
+	if err != nil {
+		return "", fmt.Errorf("failed to send tx %s to receiver %s: %w", txHash, receiverAddr, err)
+	}
+
+	return txHash, nil
 }
 
 func (ec *TestCardanoChain) GetHotWalletAddress() string {
