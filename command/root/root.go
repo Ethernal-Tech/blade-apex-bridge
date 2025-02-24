@@ -18,7 +18,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/command/regenesis"
 	"github.com/0xPolygon/polygon-edge/command/sanitycheck"
 	"github.com/0xPolygon/polygon-edge/command/secrets"
-	polybftsecrets "github.com/0xPolygon/polygon-edge/command/secrets/init"
 	"github.com/0xPolygon/polygon-edge/command/server"
 	"github.com/0xPolygon/polygon-edge/command/status"
 	"github.com/0xPolygon/polygon-edge/command/txpool"
@@ -33,7 +32,7 @@ type RootCommand struct {
 func NewRootCommand() *RootCommand {
 	rootCommand := &RootCommand{
 		baseCmd: &cobra.Command{
-			Short: "Polygon Edge is a framework for building Ethereum-compatible Blockchain networks",
+			Short: "Blade is a framework for building Ethereum-compatible Blockchain networks",
 		},
 	}
 
@@ -55,7 +54,6 @@ func (rc *RootCommand) registerSubCommands() {
 		backup.GetCommand(),
 		genesis.GetCommand(),
 		server.GetCommand(),
-		polybftsecrets.GetCommand(),
 		bridge.GetCommand(),
 		regenesis.GetCommand(),
 		mint.GetCommand(),

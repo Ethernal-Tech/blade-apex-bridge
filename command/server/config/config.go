@@ -29,13 +29,14 @@ type Config struct {
 	RestoreFile              string     `json:"restore_file" yaml:"restore_file"`
 	Headers                  *Headers   `json:"headers" yaml:"headers"`
 	LogFilePath              string     `json:"log_to" yaml:"log_to"`
-	JSONRPCBatchRequestLimit uint64     `json:"json_rpc_batch_request_limit" yaml:"json_rpc_batch_request_limit"`
-	JSONRPCBlockRangeLimit   uint64     `json:"json_rpc_block_range_limit" yaml:"json_rpc_block_range_limit"`
+	JSONRPCBatchRequestLimit uint64     `json:"jsonrpc_batch_request_limit" yaml:"jsonrpc_batch_request_limit"`
+	JSONRPCBlockRangeLimit   uint64     `json:"jsonrpc_block_range_limit" yaml:"jsonrpc_block_range_limit"`
 	JSONLogFormat            bool       `json:"json_log_format" yaml:"json_log_format"`
 	CorsAllowedOrigins       []string   `json:"cors_allowed_origins" yaml:"cors_allowed_origins"`
 	UseTLS                   bool       `json:"use_tls" yaml:"use_tls"`
 	TLSCertFile              string     `json:"tls_cert_file" yaml:"tls_cert_file"`
 	TLSKeyFile               string     `json:"tls_key_file" yaml:"tls_key_file"`
+	DBEngine                 string     `json:"db_engine" yaml:"db_engine"`
 
 	Relayer bool `json:"relayer" yaml:"relayer"`
 
@@ -69,6 +70,7 @@ type TxPool struct {
 	PriceLimit         uint64 `json:"price_limit" yaml:"price_limit"`
 	MaxSlots           uint64 `json:"max_slots" yaml:"max_slots"`
 	MaxAccountEnqueued uint64 `json:"max_account_enqueued" yaml:"max_account_enqueued"`
+	TxGossipBatchSize  uint64 `json:"tx_gossip_batch_size" yaml:"tx_gossip_batch_size"`
 }
 
 // Headers defines the HTTP response headers required to enable CORS.
@@ -84,10 +86,10 @@ type EventTracker struct {
 }
 
 const (
-	// DefaultJSONRPCBatchRequestLimit maximum length allowed for json_rpc batch requests
+	// DefaultJSONRPCBatchRequestLimit maximum length allowed for jsonrpc batch requests
 	DefaultJSONRPCBatchRequestLimit uint64 = 20
 
-	// DefaultJSONRPCBlockRangeLimit maximum block range allowed for json_rpc
+	// DefaultJSONRPCBlockRangeLimit maximum block range allowed for jsonrpc
 	// requests with fromBlock/toBlock values (e.g. eth_getLogs)
 	DefaultJSONRPCBlockRangeLimit uint64 = 1000
 
@@ -143,6 +145,7 @@ func DefaultConfig() *Config {
 			PriceLimit:         0,
 			MaxSlots:           4096,
 			MaxAccountEnqueued: 128,
+			TxGossipBatchSize:  1,
 		},
 		LogLevel:    "INFO",
 		RestoreFile: "",
@@ -153,6 +156,7 @@ func DefaultConfig() *Config {
 		UseTLS:                   false,
 		TLSCertFile:              "",
 		TLSKeyFile:               "",
+		DBEngine:                 "pebble",
 		JSONRPCBatchRequestLimit: DefaultJSONRPCBatchRequestLimit,
 		JSONRPCBlockRangeLimit:   DefaultJSONRPCBlockRangeLimit,
 		Relayer:                  false,
