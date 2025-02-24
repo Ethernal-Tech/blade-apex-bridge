@@ -40,6 +40,7 @@ type TestCardanoChainConfig struct {
 	ChainType                   ChainType
 	FundAmount                  uint64
 	FundFeeAmount               uint64
+	FundTokenAmount             uint64
 	PreminesAddresses           []string
 	PremineAmount               uint64
 	SlotRoundingThreshold       uint64
@@ -59,6 +60,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		PremineAmount:          defaultPremineAmount,
 		FundAmount:             defaultFundTokenAmount,
 		FundFeeAmount:          defaultFundTokenAmount,
+		FundTokenAmount:        0,
 		MinBridgingFee:         defaultMinBridgingFeeAmount,
 	}
 }
@@ -74,6 +76,7 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		PremineAmount:          defaultPremineAmount,
 		FundAmount:             defaultFundTokenAmount,
 		FundFeeAmount:          defaultFundTokenAmount,
+		FundTokenAmount:        0,
 		MinBridgingFee:         defaultMinBridgingFeeAmount,
 	}
 }
@@ -89,6 +92,7 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		PremineAmount:          defaultPremineAmount,
 		FundAmount:             defaultFundTokenAmount,
 		FundFeeAmount:          defaultFundTokenAmount,
+		FundTokenAmount:        0,
 		MinBridgingFee:         defaultMinBridgingFeeAmount,
 	}
 }
@@ -266,7 +270,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		fmt.Printf("%s fee addr funded: %s\n", GetNetworkName(ec.config), txHash)
 	}
 
-	if ec.config.InitialHotWalletTokenAmount != nil && ec.config.InitialHotWalletTokenAmount.Uint64() != 0 {
+	if ec.config.FundTokenAmount != 0 || ec.config.FundAmount != 0 {
 		minterWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
 		if err != nil {
 			return err
@@ -274,22 +278,13 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 		tokenAmount, err := FundAddressWithToken(
 			ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()),
-			minterWallet, ec.GetHotWalletAddress(), ec.config.FundAmount, ec.config.InitialHotWalletTokenAmount.Uint64())
+			minterWallet, ec.GetHotWalletAddress(), ec.config.FundAmount, ec.config.FundTokenAmount)
 		if err != nil {
 			return err
 		}
 
-		fmt.Printf("%s multisig addr funded with tokens: %+v\n", GetNetworkName(ec.config), tokenAmount)
-	}
-
-	if ec.config.FundAmount != 0 {
-		txHash, err := ec.SendTx(
-			ctx, privateKey, ec.multisigAddr, new(big.Int).SetUint64(ec.config.FundAmount), nil)
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("%s multisig addr funded: %s\n", GetNetworkName(ec.config), txHash)
+		fmt.Printf("%s multisig addr funded with native currency: %+v and tokens: %+v\n", GetNetworkName(ec.config),
+			ec.config.FundAmount, tokenAmount)
 	}
 
 	txProvider, err := ec.GetTxProvider()
@@ -399,10 +394,10 @@ func (ec *TestCardanoChain) CreateMetadata(
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
 	bridgingFee uint64,
-	exchangeRate sendtx.ExchangeRate,
+	operationFee uint64,
 ) ([]byte, error) {
 	metadata, err := ec.txSender.CreateMetadata(
-		context, senderAddr, GetNetworkName(ec.config), dstChainID, receivers, bridgingFee, exchangeRate)
+		context, senderAddr, GetNetworkName(ec.config), dstChainID, receivers, bridgingFee, operationFee)
 	if err != nil {
 		return nil, err
 	}
@@ -416,7 +411,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 	privateKey string,
 	receiversMap map[string]*big.Int,
 	feeAmount *big.Int,
-	exchangeRates []sendtx.ExchangeRateEntry,
+	operationFee uint64,
 	bridgingTypes ...sendtx.BridgingType,
 ) (string, error) {
 	paymentKey, stakeKey, err := FromCardanoPrivateKeyString(privateKey)
@@ -454,7 +449,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		walletAddr.String(),
 		receivers,
 		bridgingFeeAmount,
-		sendtx.NewExchangeRate(exchangeRates...),
+		operationFee,
 	)
 	if err != nil {
 		return "", err

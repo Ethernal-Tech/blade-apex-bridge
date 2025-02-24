@@ -78,8 +78,6 @@ type ApexSystem struct {
 	Users      []*TestApexUser
 
 	IsSkyline bool
-
-	ExchangeService IExchangeService
 }
 
 func NewApexSystem(
@@ -125,8 +123,6 @@ func NewApexSystem(
 	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = big.NewInt(0)
 	apex.Config.VectorConfig.InitialHotWalletTokenAmount = big.NewInt(0)
 
-	apex.ExchangeService = nil
-
 	return apex, nil
 }
 
@@ -169,10 +165,8 @@ func NewSkylineSystem(
 
 	apex.Config.applyPremineFundingOptions(apex.Users)
 
-	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(DefaultTokenMintAmount)
-	apex.Config.CardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(DefaultTokenMintAmount)
-
-	apex.ExchangeService = NewExchangeService()
+	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = big.NewInt(0)
+	apex.Config.CardanoConfig.InitialHotWalletTokenAmount = big.NewInt(0)
 
 	return apex, nil
 }
@@ -801,13 +795,13 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	privateKey, err := sender.GetPrivateKey(sourceChain)
 	require.NoError(t, err)
 
-	exchangeRate := []sendtx.ExchangeRateEntry{}
-	if a.ExchangeService != nil {
-		exchangeRate = a.ExchangeService.GetExchangeRate(sourceChain, destinationChain)
+	operationFee := uint64(0)
+	if a.IsSkyline {
+		operationFee = uint64(1_000_010)
 	}
 
 	txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
-		ctx, destinationChain, privateKey, receiversMap, feeAmount, exchangeRate, bridgingType)
+		ctx, destinationChain, privateKey, receiversMap, feeAmount, operationFee, bridgingType)
 	require.NoError(t, err)
 
 	return txHash

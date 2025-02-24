@@ -28,7 +28,7 @@ type ITestApexChain interface {
 		privateKey string,
 		receivers map[string]*big.Int,
 		feeAmount *big.Int,
-		exchangeRates []sendtx.ExchangeRateEntry,
+		operationFee uint64,
 		bridgingTypes ...sendtx.BridgingType,
 	) (string, error)
 	SendTx(
@@ -42,7 +42,7 @@ type ITestApexChain interface {
 		dstChainID string,
 		receivers []sendtx.BridgingTxReceiver,
 		bridgingFee uint64,
-		exchangeRate sendtx.ExchangeRate,
+		operationFee uint64,
 	) ([]byte, error)
 }
 
@@ -62,7 +62,7 @@ func (t *TestApexChainDummy) BridgingRequest(
 	privateKey string,
 	receivers map[string]*big.Int,
 	feeAmount *big.Int,
-	exchangeRates []sendtx.ExchangeRateEntry,
+	operationFee uint64,
 	bridgingTypes ...sendtx.BridgingType,
 ) (string, error) {
 	return "", nil
@@ -137,7 +137,7 @@ func (t *TestApexChainDummy) CreateMetadata(
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
 	bridgingFee uint64,
-	exchangeRate sendtx.ExchangeRate,
+	operationFee uint64,
 ) ([]byte, error) {
 	return nil, nil
 }

@@ -304,7 +304,7 @@ func (ec *TestEVMChain) CreateMetadata(
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
 	bridgingFee uint64,
-	exchangeRate sendtx.ExchangeRate,
+	operationFee uint64,
 ) ([]byte, error) {
 	return nil, nil
 }
@@ -315,7 +315,7 @@ func (ec *TestEVMChain) BridgingRequest(
 	privateKey string,
 	receivers map[string]*big.Int,
 	feeAmount *big.Int,
-	exchangeRates []sendtx.ExchangeRateEntry,
+	operationFee uint64,
 	bridgingTypes ...sendtx.BridgingType,
 ) (string, error) {
 	params := []string{
