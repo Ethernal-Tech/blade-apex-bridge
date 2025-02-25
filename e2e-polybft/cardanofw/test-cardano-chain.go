@@ -24,8 +24,9 @@ import (
 )
 
 const (
-	defaultFundTokenAmount = uint64(100_000_000_000)
-	defaultPremineAmount   = uint64(20_000_000_000)
+	defaultFundTokenAmount   = uint64(100_000_000_000)
+	defaultPremineAmount     = uint64(20_000_000_000)
+	defaultNativeTokenAmount = uint64(0)
 )
 
 type ChainType string
@@ -51,49 +52,52 @@ type TestCardanoChainConfig struct {
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:              true,
-		ID:                     0,
-		NetworkType:            infrawallet.TestNetNetwork,
-		ChainType:              ChainType(ChainIDPrime),
-		NodesCount:             4,
-		InitialHotWalletAmount: big.NewInt(0),
-		PremineAmount:          defaultPremineAmount,
-		FundAmount:             defaultFundTokenAmount,
-		FundFeeAmount:          defaultFundTokenAmount,
-		FundTokenAmount:        0,
-		MinBridgingFee:         defaultMinBridgingFeeAmount,
+		IsEnabled:                   true,
+		ID:                          0,
+		NetworkType:                 infrawallet.TestNetNetwork,
+		ChainType:                   ChainType(ChainIDPrime),
+		NodesCount:                  4,
+		InitialHotWalletAmount:      big.NewInt(0),
+		InitialHotWalletTokenAmount: big.NewInt(0),
+		PremineAmount:               defaultPremineAmount,
+		FundAmount:                  defaultFundTokenAmount,
+		FundFeeAmount:               defaultFundTokenAmount,
+		FundTokenAmount:             defaultNativeTokenAmount,
+		MinBridgingFee:              defaultMinBridgingFeeAmount,
 	}
 }
 
 func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:              isEnabled,
-		ID:                     1,
-		NetworkType:            infrawallet.VectorTestNetNetwork,
-		ChainType:              ChainType(ChainIDVector),
-		NodesCount:             4,
-		InitialHotWalletAmount: big.NewInt(0),
-		PremineAmount:          defaultPremineAmount,
-		FundAmount:             defaultFundTokenAmount,
-		FundFeeAmount:          defaultFundTokenAmount,
-		FundTokenAmount:        0,
-		MinBridgingFee:         defaultMinBridgingFeeAmount,
+		IsEnabled:                   isEnabled,
+		ID:                          1,
+		NetworkType:                 infrawallet.VectorTestNetNetwork,
+		ChainType:                   ChainType(ChainIDVector),
+		NodesCount:                  4,
+		InitialHotWalletAmount:      big.NewInt(0),
+		InitialHotWalletTokenAmount: big.NewInt(0),
+		PremineAmount:               defaultPremineAmount,
+		FundAmount:                  defaultFundTokenAmount,
+		FundFeeAmount:               defaultFundTokenAmount,
+		FundTokenAmount:             defaultNativeTokenAmount,
+		MinBridgingFee:              defaultMinBridgingFeeAmount,
 	}
 }
 
 func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:              isEnabled,
-		ID:                     4,
-		NetworkType:            infrawallet.TestNetNetwork,
-		ChainType:              ChainType(ChainIDCardano),
-		NodesCount:             4,
-		InitialHotWalletAmount: big.NewInt(0),
-		PremineAmount:          defaultPremineAmount,
-		FundAmount:             defaultFundTokenAmount,
-		FundFeeAmount:          defaultFundTokenAmount,
-		FundTokenAmount:        0,
-		MinBridgingFee:         defaultMinBridgingFeeAmount,
+		IsEnabled:                   isEnabled,
+		ID:                          4,
+		NetworkType:                 infrawallet.TestNetNetwork,
+		ChainType:                   ChainType(ChainIDCardano),
+		NodesCount:                  4,
+		InitialHotWalletAmount:      big.NewInt(0),
+		InitialHotWalletTokenAmount: big.NewInt(0),
+		PremineAmount:               defaultPremineAmount,
+		FundAmount:                  defaultFundTokenAmount,
+		FundFeeAmount:               defaultFundTokenAmount,
+		FundTokenAmount:             defaultNativeTokenAmount,
+		MinBridgingFee:              defaultMinBridgingFeeAmount,
 	}
 }
 
@@ -270,7 +274,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		fmt.Printf("%s fee addr funded: %s\n", GetNetworkName(ec.config), txHash)
 	}
 
-	if ec.config.FundTokenAmount != 0 || ec.config.FundAmount != 0 {
+	if ec.config.FundTokenAmount != 0 {
 		minterWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
 		if err != nil {
 			return err
@@ -278,13 +282,23 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 		tokenAmount, err := FundAddressWithToken(
 			ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()),
-			minterWallet, ec.GetHotWalletAddress(), ec.config.FundAmount, ec.config.FundTokenAmount)
+			minterWallet, ec.GetHotWalletAddress(), 0, ec.config.FundTokenAmount)
 		if err != nil {
 			return err
 		}
 
 		fmt.Printf("%s multisig addr funded with native currency: %+v and tokens: %+v\n", GetNetworkName(ec.config),
 			ec.config.FundAmount, tokenAmount)
+	}
+
+	if ec.config.FundAmount != 0 {
+		txHash, err := ec.SendTx(
+			ctx, privateKey, ec.multisigAddr, new(big.Int).SetUint64(ec.config.FundAmount), nil)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("%s multisig addr funded: %s\n", GetNetworkName(ec.config), txHash)
 	}
 
 	txProvider, err := ec.GetTxProvider()

@@ -120,9 +120,6 @@ func NewApexSystem(
 
 	apex.Config.applyPremineFundingOptions(apex.Users)
 
-	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = big.NewInt(0)
-	apex.Config.VectorConfig.InitialHotWalletTokenAmount = big.NewInt(0)
-
 	return apex, nil
 }
 
@@ -164,9 +161,6 @@ func NewSkylineSystem(
 	}
 
 	apex.Config.applyPremineFundingOptions(apex.Users)
-
-	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = big.NewInt(0)
-	apex.Config.CardanoConfig.InitialHotWalletTokenAmount = big.NewInt(0)
 
 	return apex, nil
 }
@@ -797,7 +791,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 	operationFee := uint64(0)
 	if a.IsSkyline {
-		operationFee = uint64(1_000_010)
+		operationFee = DefaultMinOperationFee
 	}
 
 	txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
