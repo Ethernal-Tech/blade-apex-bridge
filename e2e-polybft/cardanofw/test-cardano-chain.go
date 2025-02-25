@@ -402,9 +402,10 @@ func (ec *TestCardanoChain) CreateMetadata(
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
 	bridgingFee uint64,
+	operationFee uint64,
 ) ([]byte, error) {
 	metadata, err := ec.txSender.CreateMetadata(
-		context, senderAddr, GetNetworkName(ec.config), dstChainID, receivers, bridgingFee, ec.config.MinOperationFee)
+		context, senderAddr, GetNetworkName(ec.config), dstChainID, receivers, bridgingFee, operationFee)
 	if err != nil {
 		return nil, err
 	}
@@ -418,6 +419,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 	privateKey string,
 	receiversMap map[string]*big.Int,
 	feeAmount *big.Int,
+	operationFee uint64,
 	bridgingTypes ...sendtx.BridgingType,
 ) (string, error) {
 	paymentKey, stakeKey, err := FromCardanoPrivateKeyString(privateKey)
@@ -455,7 +457,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		walletAddr.String(),
 		receivers,
 		bridgingFeeAmount,
-		ec.config.MinOperationFee,
+		operationFee,
 	)
 	if err != nil {
 		return "", err
