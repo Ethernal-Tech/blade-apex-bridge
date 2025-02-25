@@ -161,7 +161,7 @@ func getDefaultSkylinexSystemConfig() *ApexSystemConfig {
 		BladeValidatorCount: 4,
 
 		PrimeConfig:   NewPrimeChainConfig(),
-		VectorConfig:  NewCardanoChainConfig(false),
+		VectorConfig:  NewVectorChainConfig(false),
 		CardanoConfig: NewCardanoChainConfig(true),
 		NexusConfig:   NewNexusChainConfig(false),
 

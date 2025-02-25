@@ -131,6 +131,8 @@ func NewSkylineSystem(
 		opt(config)
 	}
 
+	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee
+
 	users := make([]*TestApexUser, config.UserCnt)
 
 	var err error
@@ -789,13 +791,8 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	privateKey, err := sender.GetPrivateKey(sourceChain)
 	require.NoError(t, err)
 
-	operationFee := uint64(0)
-	if a.IsSkyline {
-		operationFee = DefaultMinOperationFee
-	}
-
 	txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
-		ctx, destinationChain, privateKey, receiversMap, feeAmount, operationFee, bridgingType)
+		ctx, destinationChain, privateKey, receiversMap, feeAmount, bridgingType)
 	require.NoError(t, err)
 
 	return txHash
