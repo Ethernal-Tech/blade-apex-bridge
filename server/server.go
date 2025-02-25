@@ -24,6 +24,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/blockchain/storagev2"
 	"github.com/0xPolygon/polygon-edge/blockchain/storagev2/leveldb"
 	"github.com/0xPolygon/polygon-edge/blockchain/storagev2/memory"
+	"github.com/0xPolygon/polygon-edge/blockchain/storagev2/pebble"
 	"github.com/0xPolygon/polygon-edge/chain"
 	"github.com/0xPolygon/polygon-edge/consensus"
 	consensusPolyBFT "github.com/0xPolygon/polygon-edge/consensus/polybft"
@@ -212,7 +213,7 @@ func NewServer(config *Config) (*Server, error) {
 	}
 
 	// start blockchain object
-	stateStorage, err := itrie.NewLevelDBStorage(filepath.Join(m.config.DataDir, "trie"), logger)
+	stateStorage, err := openItrieStorage(m.config, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -322,10 +323,7 @@ func NewServer(config *Config) (*Server, error) {
 				return nil, err
 			}
 		} else {
-			db, err = leveldb.NewLevelDBStorage(
-				filepath.Join(m.config.DataDir, "blockchain"),
-				m.logger,
-			)
+			db, err = openBlockchainStorage(m.config, m.logger)
 			if err != nil {
 				return nil, err
 			}
@@ -384,6 +382,7 @@ func NewServer(config *Config) (*Server, error) {
 				MaxSlots:           m.config.MaxSlots,
 				PriceLimit:         m.config.PriceLimit,
 				MaxAccountEnqueued: m.config.MaxAccountEnqueued,
+				TxGossipBatchSize:  m.config.TxGossipBatchSize,
 				ChainID:            big.NewInt(m.config.Chain.Params.ChainID),
 				PeerID:             m.network.AddrInfo().ID,
 			},
@@ -393,6 +392,7 @@ func NewServer(config *Config) (*Server, error) {
 		}
 
 		m.txpool.SetSigner(signer)
+		m.executor.GetPendingTxHook = m.txpool.GetPendingTx
 	}
 
 	{
@@ -444,6 +444,28 @@ func NewServer(config *Config) (*Server, error) {
 	m.txpool.Start()
 
 	return m, nil
+}
+
+func openItrieStorage(config *Config, logger hclog.Logger) (itrie.Storage, error) {
+	switch config.DBEngine {
+	case common.Pebble:
+		return itrie.NewPebbleDBStorage(filepath.Join(config.DataDir, "trie"), logger)
+	case common.LevelDB:
+		return itrie.NewLevelDBStorage(filepath.Join(config.DataDir, "trie"), logger)
+	default:
+		return nil, fmt.Errorf("invalid trie database engine %s", config.DBEngine)
+	}
+}
+
+func openBlockchainStorage(config *Config, logger hclog.Logger) (*storagev2.Storage, error) {
+	switch config.DBEngine {
+	case common.Pebble:
+		return pebble.NewPebbleDBStorage(filepath.Join(config.DataDir, "blockchain"), logger)
+	case common.LevelDB:
+		return leveldb.NewLevelDBStorage(filepath.Join(config.DataDir, "blockchain"), logger)
+	default:
+		return nil, fmt.Errorf("invalid blockchain database engine %s", config.DBEngine)
+	}
 }
 
 func unaryInterceptor(
@@ -722,6 +744,11 @@ func (j *jsonRPCHub) Get(key string) ([]byte, error) {
 	return data, nil
 }
 
+// Verbosity sets the log verbosity ceiling.
+func (j *jsonRPCHub) Verbosity(level int) (string, error) {
+	return j.Executor.Verbosity(level)
+}
+
 func (j *jsonRPCHub) GetCode(root types.Hash, addr types.Address) ([]byte, error) {
 	account, err := getAccountImpl(j.state, root, addr)
 	if err != nil {
@@ -736,9 +763,29 @@ func (j *jsonRPCHub) GetCode(root types.Hash, addr types.Address) ([]byte, error
 	return code, nil
 }
 
+// GetCodeByCodeHash retrieves the bytecode based on the provided code hash.
+func (j *jsonRPCHub) GetCodeByCodeHash(codeHash types.Hash) ([]byte, error) {
+	code, ok := j.state.GetCode(codeHash)
+	if !ok {
+		return nil, fmt.Errorf("unable to fetch code for code hash %s", codeHash)
+	}
+
+	return code, nil
+}
+
 // Has returns true if the DB does contains the given key.
 func (j *jsonRPCHub) Has(rootHash types.Hash) bool {
 	return j.state.Has(rootHash)
+}
+
+// Stat returns a particular internal stat of the database.
+func (j *jsonRPCHub) Stat(property string) (string, error) {
+	return j.state.Stat(property)
+}
+
+// Compact flattens the underlying data store for the given key range.
+func (j *jsonRPCHub) Compact(start []byte, limit []byte) error {
+	return j.state.Compact(start, limit)
 }
 
 // DumpTree retrieves accounts based on the specified criteria for the given block.
@@ -756,6 +803,47 @@ func (j *jsonRPCHub) DumpTree(block *types.Block, opts *state.DumpInfo) (*state.
 	return dump, nil
 }
 
+// GetModifiedAccounts returns all accounts that have changed between the
+// two blocks specified. A change is defined as a difference in nonce, balance,
+// code hash, or storage hash.
+func (j *jsonRPCHub) GetModifiedAccounts(startBlock, endBlock *types.Block) ([]types.Address, error) {
+	var (
+		startBlockAddressMap = make(map[types.Address]*state.Object)
+		changedAccounts      []types.Address
+	)
+
+	for _, block := range [2]*types.Block{startBlock, endBlock} {
+		parentHeader, ok := j.GetHeaderByHash(block.ParentHash())
+		if !ok {
+			return nil, fmt.Errorf("parent header for block %s not found", block.ParentHash().String())
+		}
+
+		txn, err := j.Executor.ProcessBlock(parentHeader.StateRoot, block, types.BytesToAddress(block.Header.Miner))
+		if err != nil {
+			return nil, err
+		}
+
+		objs, err := txn.Txn().Commit(false)
+		if err != nil {
+			return nil, err
+		}
+
+		if block == startBlock {
+			for _, obj := range objs {
+				startBlockAddressMap[obj.Address] = obj
+			}
+		} else {
+			for _, obj := range objs {
+				if startObj, exists := startBlockAddressMap[obj.Address]; !exists || !obj.Equals(startObj) {
+					changedAccounts = append(changedAccounts, obj.Address)
+				}
+			}
+		}
+	}
+
+	return changedAccounts, nil
+}
+
 // GetIteratorDumpTree returns a set of accounts based on the given criteria and depends on the starting element.
 func (j *jsonRPCHub) GetIteratorDumpTree(block *types.Block, opts *state.DumpInfo) (*state.IteratorDump, error) {
 	parentHeader, ok := j.GetHeaderByHash(block.ParentHash())
@@ -771,6 +859,44 @@ func (j *jsonRPCHub) GetIteratorDumpTree(block *types.Block, opts *state.DumpInf
 	}
 
 	return itDump, nil
+}
+
+// StorageRangeAt returns the storage at the given block height and transaction index.
+func (j *jsonRPCHub) StorageRangeAt(storageRangeResult *state.StorageRangeResult, block *types.Block,
+	addr *types.Address, keyStart []byte, txIndex, maxResult int) error {
+	if block.Number() == 0 {
+		return fmt.Errorf("genesis block can't have transaction")
+	}
+
+	if txIndex < 0 || txIndex >= len(block.Transactions) {
+		return fmt.Errorf("transaction index %d out of bounds, block contains %d transactions",
+			txIndex, len(block.Transactions))
+	}
+
+	parentHeader, ok := j.GetHeaderByHash(block.ParentHash())
+	if !ok {
+		return fmt.Errorf("parent header not found for block %s", block.ParentHash().String())
+	}
+
+	blockProposer := types.BytesToAddress(block.Header.Miner)
+
+	transition, err := j.BeginTxn(parentHeader.StateRoot, block.Header, blockProposer)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	for idx, tx := range block.Transactions {
+		// Executes transactions until the target transaction is reached
+		if _, err := transition.Apply(tx); err != nil {
+			return fmt.Errorf("failed to apply transaction %d: %w", txIndex, err)
+		}
+
+		if idx == txIndex {
+			break
+		}
+	}
+
+	return transition.StorageRangeAt(storageRangeResult, addr, keyStart, maxResult)
 }
 
 func (j *jsonRPCHub) ApplyTxn(
@@ -1061,11 +1187,6 @@ func (s *Server) Close() {
 		s.logger.Error("failed to close blockchain", "err", err.Error())
 	}
 
-	// Close the networking layer
-	if err := s.network.Close(); err != nil {
-		s.logger.Error("failed to close networking", "err", err.Error())
-	}
-
 	// Close the consensus layer
 	if err := s.consensus.Close(); err != nil {
 		s.logger.Error("failed to close consensus", "err", err.Error())
@@ -1084,6 +1205,11 @@ func (s *Server) Close() {
 
 	// Close the txpool's main loop
 	s.txpool.Close()
+
+	// Close the networking layer
+	if err := s.network.Close(); err != nil {
+		s.logger.Error("failed to close networking", "err", err.Error())
+	}
 
 	// Close DataDog profiler
 	s.closeDataDogProfiler()

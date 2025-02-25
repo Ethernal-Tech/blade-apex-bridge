@@ -499,7 +499,12 @@ func (ec *TestCardanoChain) SendTx(
 		return "", err
 	}
 
-	return ec.submitTx(ctx, rawTx, txHash, receiverAddr, wallet)
+	_, err = ec.submitTx(ctx, rawTx, txHash, receiverAddr, wallet)
+	if err != nil {
+		return "", fmt.Errorf("failed to send tx %s to receiver %s: %w", txHash, receiverAddr, err)
+	}
+
+	return txHash, nil
 }
 
 func (ec *TestCardanoChain) GetHotWalletAddress() string {

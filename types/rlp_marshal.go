@@ -14,9 +14,9 @@ type RLPMarshaler interface {
 
 type marshalRLPFunc func(ar *fastrlp.Arena) *fastrlp.Value
 
-func MarshalRLPTo(obj marshalRLPFunc, dst []byte) []byte {
+func MarshalRLPTo(marshalHandler marshalRLPFunc, dst []byte) []byte {
 	ar := fastrlp.DefaultArenaPool.Get()
-	dst = obj(ar).MarshalTo(dst)
+	dst = marshalHandler(ar).MarshalTo(dst)
 	fastrlp.DefaultArenaPool.Put(ar)
 
 	return dst
@@ -188,4 +188,22 @@ func (t *Transaction) MarshalRLPTo(dst []byte) []byte {
 	}
 
 	return MarshalRLPTo(t.MarshalRLPWith, dst)
+}
+
+func (t Transactions) MarshalRLPTo(dst []byte) []byte {
+	return MarshalRLPTo(t.MarshalRLPWith, dst)
+}
+
+func (t *Transactions) MarshalRLPWith(a *fastrlp.Arena) *fastrlp.Value {
+	vv := a.NewArray()
+
+	for _, tt := range *t {
+		if tt.Type() != LegacyTxType {
+			vv.Set(a.NewCopyBytes([]byte{byte(tt.Type())}))
+		}
+
+		vv.Set(tt.MarshalRLPWith(a))
+	}
+
+	return vv
 }

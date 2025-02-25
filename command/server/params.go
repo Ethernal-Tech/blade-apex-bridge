@@ -26,8 +26,8 @@ const (
 	maxInboundPeersFlag          = "max-inbound-peers"
 	maxOutboundPeersFlag         = "max-outbound-peers"
 	priceLimitFlag               = "price-limit"
-	jsonRPCBatchRequestLimitFlag = "json-rpc-batch-request-limit"
-	jsonRPCBlockRangeLimitFlag   = "json-rpc-block-range-limit"
+	jsonRPCBatchRequestLimitFlag = "jsonrpc-batch-request-limit"
+	jsonRPCBlockRangeLimitFlag   = "jsonrpc-block-range-limit"
 	maxSlotsFlag                 = "max-slots"
 	maxEnqueuedFlag              = "max-enqueued"
 	blockGasTargetFlag           = "block-gas-target"
@@ -40,7 +40,9 @@ const (
 	useTLSFlag                   = "use-tls"
 	tlsCertFileLocationFlag      = "tls-cert-file"
 	tlsKeyFileLocationFlag       = "tls-key-file"
+	dbEngineFlag                 = "db-engine"
 	gossipMessageSizeFlag        = "gossip-msg-size"
+	txGossipBatchSizeFlag        = "tx-gossip-batch-size"
 
 	relayerFlag = "relayer"
 
@@ -183,6 +185,7 @@ func (p *serverParams) generateConfig() *server.Config {
 		PriceLimit:         p.rawConfig.TxPool.PriceLimit,
 		MaxSlots:           p.rawConfig.TxPool.MaxSlots,
 		MaxAccountEnqueued: p.rawConfig.TxPool.MaxAccountEnqueued,
+		TxGossipBatchSize:  p.rawConfig.TxPool.TxGossipBatchSize,
 		SecretsManager:     p.secretsConfig,
 		RestoreFile:        p.getRestoreFilePath(),
 		LogLevel:           hclog.LevelFromString(p.rawConfig.LogLevel),
@@ -191,6 +194,7 @@ func (p *serverParams) generateConfig() *server.Config {
 		UseTLS:             p.rawConfig.UseTLS,
 		TLSCertFile:        p.rawConfig.TLSCertFile,
 		TLSKeyFile:         p.rawConfig.TLSKeyFile,
+		DBEngine:           p.rawConfig.DBEngine,
 
 		Relayer:         p.relayer,
 		MetricsInterval: p.rawConfig.MetricsInterval,
