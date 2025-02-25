@@ -78,8 +78,6 @@ type ApexSystem struct {
 	Users      []*TestApexUser
 
 	IsSkyline bool
-
-	ExchangeService IExchangeService
 }
 
 func NewApexSystem(
@@ -122,11 +120,6 @@ func NewApexSystem(
 
 	apex.Config.applyPremineFundingOptions(apex.Users)
 
-	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = big.NewInt(0)
-	apex.Config.VectorConfig.InitialHotWalletTokenAmount = big.NewInt(0)
-
-	apex.ExchangeService = nil
-
 	return apex, nil
 }
 
@@ -137,6 +130,8 @@ func NewSkylineSystem(
 	for _, opt := range opts {
 		opt(config)
 	}
+
+	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee
 
 	users := make([]*TestApexUser, config.UserCnt)
 
@@ -168,11 +163,6 @@ func NewSkylineSystem(
 	}
 
 	apex.Config.applyPremineFundingOptions(apex.Users)
-
-	apex.Config.PrimeConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(DefaultTokenMintAmount)
-	apex.Config.CardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(DefaultTokenMintAmount)
-
-	apex.ExchangeService = NewExchangeService()
 
 	return apex, nil
 }
@@ -323,29 +313,31 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 
 	txSenderChainConfigs := map[string]sendtx.ChainConfig{
 		ChainIDPrime: {
-			CardanoCliBinary:     ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
-			TxProvider:           cardanowallet.NewTxProviderOgmios(a.PrimeInfo.OgmiosURL),
-			MultiSigAddr:         a.PrimeInfo.MultisigAddr,
-			TestNetMagic:         GetNetworkMagic(a.Config.PrimeConfig.NetworkType),
-			TTLSlotNumberInc:     ttlSlotNumberInc,
-			MinUtxoValue:         MinUTxODefaultValue,
-			MinBridgingFeeAmount: a.Config.PrimeConfig.MinBridgingFee,
-			NativeTokens:         a.Config.PrimeConfig.NativeTokens,
-			PotentialFee:         PotentialFee,
+			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
+			TxProvider:            cardanowallet.NewTxProviderOgmios(a.PrimeInfo.OgmiosURL),
+			MultiSigAddr:          a.PrimeInfo.MultisigAddr,
+			TestNetMagic:          GetNetworkMagic(a.Config.PrimeConfig.NetworkType),
+			TTLSlotNumberInc:      ttlSlotNumberInc,
+			MinUtxoValue:          MinUTxODefaultValue,
+			MinBridgingFeeAmount:  a.Config.PrimeConfig.MinBridgingFee,
+			MinOperationFeeAmount: a.Config.PrimeConfig.MinOperationFee,
+			NativeTokens:          a.Config.PrimeConfig.NativeTokens,
+			PotentialFee:          PotentialFee,
 		},
 	}
 
 	if a.Config.VectorConfig.IsEnabled {
 		txSenderChainConfigs[ChainIDVector] = sendtx.ChainConfig{
-			CardanoCliBinary:     ResolveCardanoCliBinary(a.Config.VectorConfig.NetworkType),
-			TxProvider:           cardanowallet.NewTxProviderOgmios(a.VectorInfo.OgmiosURL),
-			MultiSigAddr:         a.VectorInfo.MultisigAddr,
-			TestNetMagic:         GetNetworkMagic(a.Config.VectorConfig.NetworkType),
-			TTLSlotNumberInc:     ttlSlotNumberInc,
-			MinUtxoValue:         MinUTxODefaultValue,
-			MinBridgingFeeAmount: a.Config.VectorConfig.MinBridgingFee,
-			NativeTokens:         a.Config.VectorConfig.NativeTokens,
-			PotentialFee:         PotentialFee,
+			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.VectorConfig.NetworkType),
+			TxProvider:            cardanowallet.NewTxProviderOgmios(a.VectorInfo.OgmiosURL),
+			MultiSigAddr:          a.VectorInfo.MultisigAddr,
+			TestNetMagic:          GetNetworkMagic(a.Config.VectorConfig.NetworkType),
+			TTLSlotNumberInc:      ttlSlotNumberInc,
+			MinUtxoValue:          MinUTxODefaultValue,
+			MinBridgingFeeAmount:  a.Config.VectorConfig.MinBridgingFee,
+			MinOperationFeeAmount: a.Config.VectorConfig.MinOperationFee,
+			NativeTokens:          a.Config.VectorConfig.NativeTokens,
+			PotentialFee:          PotentialFee,
 		}
 	}
 
@@ -360,15 +352,16 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 		}
 
 		txSenderChainConfigs[ChainIDCardano] = sendtx.ChainConfig{
-			CardanoCliBinary:     ResolveCardanoCliBinary(a.Config.CardanoConfig.NetworkType),
-			TxProvider:           cardanowallet.NewTxProviderOgmios(a.CardanoInfo.OgmiosURL),
-			MultiSigAddr:         a.CardanoInfo.MultisigAddr,
-			TestNetMagic:         GetNetworkMagic(a.Config.CardanoConfig.NetworkType),
-			TTLSlotNumberInc:     ttlSlotNumberInc,
-			MinUtxoValue:         MinUTxODefaultValue,
-			MinBridgingFeeAmount: a.Config.CardanoConfig.MinBridgingFee,
-			NativeTokens:         a.Config.CardanoConfig.NativeTokens,
-			PotentialFee:         PotentialFee,
+			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.CardanoConfig.NetworkType),
+			TxProvider:            cardanowallet.NewTxProviderOgmios(a.CardanoInfo.OgmiosURL),
+			MultiSigAddr:          a.CardanoInfo.MultisigAddr,
+			TestNetMagic:          GetNetworkMagic(a.Config.CardanoConfig.NetworkType),
+			TTLSlotNumberInc:      ttlSlotNumberInc,
+			MinUtxoValue:          MinUTxODefaultValue,
+			MinBridgingFeeAmount:  a.Config.CardanoConfig.MinBridgingFee,
+			MinOperationFeeAmount: a.Config.CardanoConfig.MinOperationFee,
+			NativeTokens:          a.Config.CardanoConfig.NativeTokens,
+			PotentialFee:          PotentialFee,
 		}
 	}
 
@@ -801,13 +794,13 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	privateKey, err := sender.GetPrivateKey(sourceChain)
 	require.NoError(t, err)
 
-	exchangeRate := []sendtx.ExchangeRateEntry{}
-	if a.ExchangeService != nil {
-		exchangeRate = a.ExchangeService.GetExchangeRate(sourceChain, destinationChain)
+	operationFee := uint64(0)
+	if a.IsSkyline {
+		operationFee = DefaultMinOperationFee
 	}
 
 	txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
-		ctx, destinationChain, privateKey, receiversMap, feeAmount, exchangeRate, bridgingType)
+		ctx, destinationChain, privateKey, receiversMap, feeAmount, operationFee, bridgingType)
 	require.NoError(t, err)
 
 	return txHash

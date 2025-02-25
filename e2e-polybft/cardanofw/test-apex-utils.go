@@ -38,6 +38,7 @@ const (
 	maxInputs                     = 40
 	bridgingFeeAmount             = uint64(1_100_000)
 	defaultMinBridgingFeeAmount   = uint64(1_000_010)
+	DefaultMinOperationFee        = uint64(1_000_010)
 	DefaultRequestStateTimeoutSec = 300
 )
 
