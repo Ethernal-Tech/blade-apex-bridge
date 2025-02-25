@@ -282,7 +282,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 		tokenAmount, err := FundAddressWithToken(
 			ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()),
-			minterWallet, ec.GetHotWalletAddress(), 0, ec.config.FundTokenAmount)
+			minterWallet, ec.GetHotWalletAddress(), 2*MinUTxODefaultValue, ec.config.FundTokenAmount)
 		if err != nil {
 			return err
 		}
