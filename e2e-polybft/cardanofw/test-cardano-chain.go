@@ -285,7 +285,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		}
 
 		tokenAmount, err := FundAddressWithToken(
-			ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()),
+			ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.ogmiosURL),
 			minterWallet, ec.GetHotWalletAddress(), max(2*MinUTxODefaultValue, ec.config.FundAmount), ec.config.FundTokenAmount)
 		if err != nil {
 			return err
@@ -398,7 +398,7 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 
 func (ec *TestCardanoChain) GetNativeTokenAddressBalance(ctx context.Context, addr string, dstChainID string,
 ) (*big.Int, error) {
-	utxos, err := infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()).GetUtxos(ctx, addr)
+	utxos, err := infrawallet.NewTxProviderOgmios(ec.ogmiosURL).GetUtxos(ctx, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -552,7 +552,7 @@ func (ec *TestCardanoChain) submitTx(
 		retryWaitTime = time.Second * 5
 	)
 
-	txProvider := infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL())
+	txProvider := infrawallet.NewTxProviderOgmios(ec.ogmiosURL)
 
 	if err := ec.txSender.SubmitTx(ctx, GetNetworkName(ec.config), rawTx, signer); err != nil {
 		return "", err
