@@ -409,3 +409,8 @@ func (ec *TestEVMChain) sendTx(
 
 	return receipt, nil
 }
+
+func (ec *TestEVMChain) GetNativeTokenAddressBalance(ctx context.Context, addr string, tokenName string,
+) (*big.Int, error) {
+	return nil, nil
+}

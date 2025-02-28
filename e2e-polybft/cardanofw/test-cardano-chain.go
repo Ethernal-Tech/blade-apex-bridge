@@ -396,6 +396,26 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 	return new(big.Int).SetUint64(sum[infrawallet.AdaTokenName]), nil
 }
 
+func (ec *TestCardanoChain) GetNativeTokenAddressBalance(ctx context.Context, addr string, dstChainID string,
+) (*big.Int, error) {
+	utxos, err := infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()).GetUtxos(ctx, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	tokenName := ""
+
+	for _, token := range ec.config.NativeTokens {
+		if token.DstChainID == dstChainID {
+			tokenName = token.TokenName
+		}
+	}
+
+	sum := infrawallet.GetUtxosSum(utxos)
+
+	return new(big.Int).SetUint64(sum[tokenName]), nil
+}
+
 func (ec *TestCardanoChain) CreateMetadata(
 	context context.Context,
 	senderAddr string,

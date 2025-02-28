@@ -98,14 +98,14 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 		const instances = 5
 
 		e2ehelper.ExecuteBridgingOneByOneWaitOnOtherSide(
-			t, ctx, apex, instances, user, srcChain, dstChain, sendAmountDfm)
+			t, ctx, apex, instances, user, srcChain, dstChain, sendAmountDfm, sendtx.BridgingTypeNormal)
 	})
 
 	t.Run("From Nexus to Prime one by one - don't wait", func(t *testing.T) {
 		const instances = 5
 
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
-			t, ctx, apex, instances, user, srcChain, dstChain, sendAmountDfm)
+			t, ctx, apex, instances, user, srcChain, dstChain, sendAmountDfm, sendtx.BridgingTypeNormal)
 	})
 
 	t.Run("From Nexus to Prime - parallel", func(t *testing.T) {
@@ -119,6 +119,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				srcChain: {dstChain},
 			},
+			sendtx.BridgingTypeNormal,
 			sendAmountDfm)
 	})
 
@@ -136,6 +137,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				srcChain: {dstChain},
 			},
+			sendtx.BridgingTypeNormal,
 			sendAmountDfm)
 	})
 
@@ -165,6 +167,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				srcChain: {dstChain},
 			},
+			sendtx.BridgingTypeNormal,
 			sendAmountDfm,
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
@@ -298,7 +301,8 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 		const instances = 5
 
 		e2ehelper.ExecuteBridgingOneByOneWaitOnOtherSide(
-			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm)
+			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm,
+			sendtx.BridgingTypeNormal)
 	})
 
 	t.Run("From Prime to Nexus one by one - don't wait for other side", func(t *testing.T) {
@@ -309,7 +313,8 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 		const instances = 5
 
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
-			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm)
+			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm,
+			sendtx.BridgingTypeNormal)
 	})
 
 	t.Run("From Prime to Nexus parallel", func(t *testing.T) {
@@ -327,6 +332,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 			},
+			sendtx.BridgingTypeNormal,
 			sendAmountDfm)
 	})
 
@@ -349,6 +355,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 			},
+			sendtx.BridgingTypeNormal,
 			sendAmountDfm)
 	})
 
@@ -387,6 +394,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 			},
+			sendtx.BridgingTypeNormal,
 			sendAmountDfm,
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
@@ -410,6 +418,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 				cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 			},
+			sendtx.BridgingTypeNormal,
 			sendAmountDfm)
 	})
 
@@ -441,6 +450,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 				cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 			},
+			sendtx.BridgingTypeNormal,
 			sendAmountDfm,
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
@@ -468,6 +478,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 				cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 			},
+			sendtx.BridgingTypeNormal,
 			sendAmountDfm,
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
@@ -1272,6 +1283,7 @@ func NexusToPrimeSequentialAndParallelWithMaxReceivers(
 		map[string][]string{
 			srcChain: {dstChain},
 		},
+		sendtx.BridgingTypeNormal,
 		sendAmountDfm,
 		options...)
 }
@@ -1325,6 +1337,7 @@ func PrimeToNexusSequentialAndParallelWithMaxReceivers(
 		map[string][]string{
 			cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 		},
+		sendtx.BridgingTypeNormal,
 		sendAmountDfm,
 		options...)
 }
@@ -1347,6 +1360,7 @@ func PrimeNexusBothDirectionsSequentialAndParallel(
 			cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 			cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 		},
+		sendtx.BridgingTypeNormal,
 		sendAmountDfm,
 		options...)
 }

@@ -25,12 +25,23 @@ type IApexSystem interface {
 		ctx context.Context, user *cardanofw.TestApexUser, chain cardanofw.ChainID,
 		expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration,
 	) error
+	WaitForExactTokenAmount(
+		ctx context.Context, user *cardanofw.TestApexUser, chain cardanofw.ChainID,
+		expectedAmountDfm *big.Int, dstChainID string, numRetries int, waitTime time.Duration,
+	) error
+	WaitForGreaterTokenAmount(
+		ctx context.Context, user *cardanofw.TestApexUser, chain cardanofw.ChainID,
+		expectedAmountDfm *big.Int, dstChainID string, numRetries int, waitTime time.Duration,
+	) error
 	SubmitTx(
 		ctx context.Context, sourceChain cardanofw.ChainID, sender *cardanofw.TestApexUser,
 		receiver string, dfmAmount *big.Int, data []byte,
 	) (string, error)
 	GetBalance(
 		ctx context.Context, user *cardanofw.TestApexUser, chainID cardanofw.ChainID,
+	) (*big.Int, error)
+	GetNativeTokenBalance(
+		ctx context.Context, user *cardanofw.TestApexUser, chainID cardanofw.ChainID, dstChainID cardanofw.ChainID,
 	) (*big.Int, error)
 	GetValidator(t *testing.T, idx int) *cardanofw.TestApexValidator
 }

@@ -702,7 +702,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
 			t, ctx, apex, instances, minterUser,
-			cardanofw.ChainIDVector, cardanofw.ChainIDPrime, new(big.Int).SetUint64(sendAmountVec))
+			cardanofw.ChainIDVector, cardanofw.ChainIDPrime, new(big.Int).SetUint64(sendAmountVec), sendtx.BridgingTypeNormal)
 	})
 
 	t.Run("From prime to vector wait for each submit", func(t *testing.T) {
@@ -716,7 +716,8 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		)
 
 		e2ehelper.ExecuteBridgingOneByOneWaitOnOtherSide(
-			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, new(big.Int).SetUint64(sendAmount))
+			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, new(big.Int).SetUint64(sendAmount),
+			sendtx.BridgingTypeNormal)
 	})
 
 	t.Run("From prime to vector one by one", func(t *testing.T) {
@@ -730,7 +731,8 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		)
 
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
-			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, new(big.Int).SetUint64(sendAmount))
+			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, new(big.Int).SetUint64(sendAmount),
+			sendtx.BridgingTypeNormal)
 	})
 
 	t.Run("From prime to vector parallel", func(t *testing.T) {
@@ -748,7 +750,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			[]string{cardanofw.ChainIDPrime},
 			map[string][]string{
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDVector},
-			}, new(big.Int).SetUint64(sendAmount))
+			}, sendtx.BridgingTypeNormal, new(big.Int).SetUint64(sendAmount))
 	})
 
 	t.Run("From vector to prime one by one", func(t *testing.T) {
@@ -762,7 +764,8 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		)
 
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
-			t, ctx, apex, instances, user, cardanofw.ChainIDVector, cardanofw.ChainIDPrime, new(big.Int).SetUint64(sendAmount))
+			t, ctx, apex, instances, user, cardanofw.ChainIDVector, cardanofw.ChainIDPrime, new(big.Int).SetUint64(sendAmount),
+			sendtx.BridgingTypeNormal)
 	})
 
 	t.Run("From vector to prime parallel", func(t *testing.T) {
@@ -780,7 +783,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			[]string{cardanofw.ChainIDVector},
 			map[string][]string{
 				cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
-			}, new(big.Int).SetUint64(sendAmount))
+			}, sendtx.BridgingTypeNormal, new(big.Int).SetUint64(sendAmount))
 	})
 
 	t.Run("From prime to vector sequential and parallel", func(t *testing.T) {
@@ -827,7 +830,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
 				cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
-			}, new(big.Int).SetUint64(sendAmount))
+			}, sendtx.BridgingTypeNormal, new(big.Int).SetUint64(sendAmount))
 	})
 
 	t.Run("Both directions sequential and parallel", func(t *testing.T) {
@@ -873,7 +876,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
 				cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
-			}, new(big.Int).SetUint64(sendAmount),
+			}, sendtx.BridgingTypeNormal, new(big.Int).SetUint64(sendAmount),
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx1, validatorStoppingIdx2}},
@@ -1870,7 +1873,7 @@ func PrimeToVectorSequentialAndParallelWithMaxReceivers(
 		[]string{cardanofw.ChainIDPrime},
 		map[string][]string{
 			cardanofw.ChainIDPrime: {cardanofw.ChainIDVector},
-		}, new(big.Int).SetUint64(sendAmount),
+		}, sendtx.BridgingTypeNormal, new(big.Int).SetUint64(sendAmount),
 		options...)
 }
 
@@ -1897,6 +1900,6 @@ func PrimeVectorBothDirectionsSequentialAndParallel(
 		map[string][]string{
 			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
 			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
-		}, new(big.Int).SetUint64(sendAmount),
+		}, sendtx.BridgingTypeNormal, new(big.Int).SetUint64(sendAmount),
 		options...)
 }
