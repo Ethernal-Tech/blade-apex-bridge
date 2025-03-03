@@ -39,7 +39,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.14.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/prometheus/client_golang v1.21.0
-	github.com/quasilyte/go-ruleguard v0.4.2
+	github.com/quasilyte/go-ruleguard v0.4.4
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
 	github.com/ryanuber/columnize v2.1.2+incompatible
 	github.com/schollz/progressbar/v3 v3.18.0
