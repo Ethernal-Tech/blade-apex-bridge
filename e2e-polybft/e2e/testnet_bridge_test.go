@@ -437,7 +437,7 @@ func getUserBalances(
 					ctx, func(ctx context.Context) (*big.Int, error) {
 						balance, err := apex.GetBalance(ctx, u, c)
 
-						return new(big.Int).SetUint64(balance[cardanowallet.AdaTokenName]), err
+						return balance[cardanowallet.AdaTokenName], err
 					},
 				)
 				if err != nil {

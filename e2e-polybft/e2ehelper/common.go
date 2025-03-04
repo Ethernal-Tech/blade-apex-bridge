@@ -31,7 +31,7 @@ type IApexSystem interface {
 	) (string, error)
 	GetBalance(
 		ctx context.Context, user *cardanofw.TestApexUser, chainID cardanofw.ChainID,
-	) (map[string]uint64, error)
+	) (map[string]*big.Int, error)
 	GetTokenNameForChains(dstChain, srcChain cardanofw.ChainID) string
 	GetValidator(t *testing.T, idx int) *cardanofw.TestApexValidator
 }

@@ -36,9 +36,9 @@ func ExecuteSingleBridging(
 	if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
 		expectNativeTokens = true
 
-		prevAmount = new(big.Int).SetUint64(balance[apex.GetTokenNameForChains(dstChain, srcChain)])
+		prevAmount = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
 	} else {
-		prevAmount = new(big.Int).SetUint64(balance[cardanowallet.AdaTokenName])
+		prevAmount = balance[cardanowallet.AdaTokenName]
 	}
 
 	txHash := apex.SubmitBridgingRequest(
@@ -73,9 +73,9 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 		if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
 			expectNativeTokens = true
 
-			prevAmount = new(big.Int).SetUint64(balance[apex.GetTokenNameForChains(dstChain, srcChain)])
+			prevAmount = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
 		} else {
-			prevAmount = new(big.Int).SetUint64(balance[cardanowallet.AdaTokenName])
+			prevAmount = balance[cardanowallet.AdaTokenName]
 		}
 
 		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, receiverUser)
@@ -110,9 +110,9 @@ func ExecuteBridgingWaitAfterSubmits(
 	if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
 		expectNativeTokens = true
 
-		prevAmount = new(big.Int).SetUint64(balance[apex.GetTokenNameForChains(dstChain, srcChain)])
+		prevAmount = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
 	} else {
-		prevAmount = new(big.Int).SetUint64(balance[cardanowallet.AdaTokenName])
+		prevAmount = balance[cardanowallet.AdaTokenName]
 	}
 
 	expectedAmount := prevAmount
@@ -156,10 +156,9 @@ func ExecuteBridging(
 			if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
 				expectNativeTokens = true
 
-				expectedAmountPerChainDfm[i][dstChain] = new(big.Int).SetUint64(
-					balance[apex.GetTokenNameForChains(dstChain, srcChain)])
+				expectedAmountPerChainDfm[i][dstChain] = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
 			} else {
-				expectedAmountPerChainDfm[i][dstChain] = new(big.Int).SetUint64(balance[cardanowallet.AdaTokenName])
+				expectedAmountPerChainDfm[i][dstChain] = balance[cardanowallet.AdaTokenName]
 			}
 		}
 	}

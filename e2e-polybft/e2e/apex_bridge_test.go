@@ -403,7 +403,7 @@ func TestE2E_FundAmount(t *testing.T) {
 			balance, err := apex.GetBalance(ctx, user, tc.toChain)
 			require.NoError(t, err)
 
-			prevAmount := new(big.Int).SetUint64(balance[infrawallet.AdaTokenName])
+			prevAmount := balance[infrawallet.AdaTokenName]
 
 			fmt.Printf("prevAmount %v\n", prevAmount)
 
@@ -940,7 +940,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 				balance, err := apex.GetBalance(ctx, receivers[br.receiverIdx], br.dest)
 				require.NoError(t, err)
 
-				prevAmount := new(big.Int).SetUint64(balance[infrawallet.AdaTokenName])
+				prevAmount := balance[infrawallet.AdaTokenName]
 
 				chainPrevAmounts[key] = prevAmount
 			}
@@ -960,7 +960,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 					balance, err := apex.GetBalance(ctx, defundReceiver, br.dest)
 					require.NoError(t, err)
 
-					prevAmount := new(big.Int).SetUint64(balance[infrawallet.AdaTokenName])
+					prevAmount := balance[infrawallet.AdaTokenName]
 
 					defundReceiversPrevAmount[key] = prevAmount
 				}
@@ -1420,7 +1420,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		balance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
 		require.NoError(t, err)
 
-		prevAmount := new(big.Int).SetUint64(balance[infrawallet.AdaTokenName])
+		prevAmount := balance[infrawallet.AdaTokenName]
 
 		fmt.Printf("Sending %v transactions in %v seconds\n", instances, maxWaitTime)
 
@@ -1489,7 +1489,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		balance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
 		require.NoError(t, err)
 
-		prevAmount := new(big.Int).SetUint64(balance[infrawallet.AdaTokenName])
+		prevAmount := balance[infrawallet.AdaTokenName]
 
 		fmt.Printf("Sending %v transactions in %v seconds\n", instances, maxWaitTime)
 
@@ -1558,12 +1558,12 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		balanceVector, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
 		require.NoError(t, err)
 
-		prevAmountOnVector := new(big.Int).SetUint64(balanceVector[infrawallet.AdaTokenName])
+		prevAmountOnVector := balanceVector[infrawallet.AdaTokenName]
 
 		balancePrime, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		prevAmountOnPrime := new(big.Int).SetUint64(balancePrime[infrawallet.AdaTokenName])
+		prevAmountOnPrime := balancePrime[infrawallet.AdaTokenName]
 
 		fmt.Printf("Sending %v transactions in %v seconds\n", instances*2, maxWaitTime)
 
