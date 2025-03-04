@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
+	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
@@ -62,7 +63,7 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 			ctx, apex.NexusInfo.RelayerAddress.String())
 		require.NoError(t, err)
 
-		require.True(t, relayerBalanceAfter.Cmp(relayerBalanceBefore) == 1)
+		require.True(t, relayerBalanceAfter[cardanowallet.AdaTokenName] > relayerBalanceBefore[cardanowallet.AdaTokenName])
 	})
 }
 
@@ -595,7 +596,8 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 	t.Run("From Prime to Nexus 200x 5min 90%", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		ethBalanceBefore, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		ethBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		ethBalanceBefore := new(big.Int).SetUint64(ethBalance[cardanowallet.AdaTokenName])
 		fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
 		require.NoError(t, err)
 
@@ -656,7 +658,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 		expectedAmount.Mul(expectedAmount, sendAmountDfm)
 		expectedAmount.Add(expectedAmount, ethBalanceBefore)
 
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmount, 500, time.Second*10)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, expectedAmount, 500, time.Second*10)
 		require.NoError(t, err)
 
 		newAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
@@ -669,7 +671,8 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 	t.Run("From Prime to Nexus 1000x 20min 90%", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		ethBalanceBefore, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		ethBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		ethBalanceBefore := new(big.Int).SetUint64(ethBalance[cardanowallet.AdaTokenName])
 		fmt.Printf("ETH Amount before Tx %d\n", ethBalanceBefore)
 		require.NoError(t, err)
 
@@ -731,7 +734,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 		expectedAmount.Mul(expectedAmount, sendAmountDfm)
 		expectedAmount.Add(expectedAmount, ethBalanceBefore)
 
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmount, 500, time.Second*10)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, expectedAmount, 500, time.Second*10)
 		require.NoError(t, err)
 
 		newAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
@@ -969,8 +972,10 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		user := apex.Users[userCnt-1]
 
-		prevBalanceDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		prevBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
 		require.NoError(t, err)
+
+		prevBalanceDfm := new(big.Int).SetUint64(prevBalance[cardanowallet.AdaTokenName])
 
 		fmt.Printf("Dfm before Tx %d\n", prevBalanceDfm)
 
@@ -991,7 +996,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		require.Equal(t, failedToExecute, 1)
 		require.False(t, timeout)
 
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmount, 3, time.Second*10)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, expectedAmount, 3, time.Second*10)
 		require.NoError(t, err)
 	})
 
@@ -1024,8 +1029,10 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		user := apex.Users[userCnt-1]
 
-		prevBalanceDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		prevBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
 		require.NoError(t, err)
+
+		prevBalanceDfm := new(big.Int).SetUint64(prevBalance[cardanowallet.AdaTokenName])
 
 		fmt.Printf("DFM Amount before Tx %d\n", prevBalanceDfm)
 
@@ -1046,7 +1053,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		require.Equal(t, failedToExecute, 5)
 		require.False(t, timeout)
 
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmount, 3, time.Second*10)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, expectedAmount, 3, time.Second*10)
 		require.NoError(t, err)
 	})
 
@@ -1077,8 +1084,10 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		user := apex.Users[userCnt-1]
 
-		prevBalanceDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		prevBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
 		require.NoError(t, err)
+
+		prevBalanceDfm := new(big.Int).SetUint64(prevBalance[cardanowallet.AdaTokenName])
 
 		fmt.Printf("DFM Amount before Tx %d\n", prevBalanceDfm)
 
@@ -1103,7 +1112,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			require.False(t, timeout[i])
 		}
 
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, ethExpectedBalance, 20, time.Second*10)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, ethExpectedBalance, 20, time.Second*10)
 		require.NoError(t, err)
 	})
 
@@ -1130,8 +1139,10 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		user := apex.Users[userCnt-1]
 
-		prevBalanceDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		prevBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
 		require.NoError(t, err)
+
+		prevBalanceDfm := new(big.Int).SetUint64(prevBalance[cardanowallet.AdaTokenName])
 
 		fmt.Printf("DFM Amount before Tx %d\n", prevBalanceDfm)
 
@@ -1160,7 +1171,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			require.False(t, timeout[i])
 		}
 
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, ethExpectedBalance, 3, time.Second*10)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, ethExpectedBalance, 3, time.Second*10)
 		require.NoError(t, err)
 	})
 }
@@ -1230,8 +1241,10 @@ func TestE2E_NexusFundAmount(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			prevAmount, err := apex.GetBalance(ctx, user, tc.toChain)
+			prevBalance, err := apex.GetBalance(ctx, user, tc.toChain)
 			require.NoError(t, err)
+
+			prevAmount := new(big.Int).SetUint64(prevBalance[cardanowallet.AdaTokenName])
 
 			fmt.Printf("prevAmount %v\n", prevAmount)
 
@@ -1245,7 +1258,7 @@ func TestE2E_NexusFundAmount(t *testing.T) {
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
 
-			err = apex.WaitForExactAmount(ctx, user, tc.toChain, expectedAmount, 20, time.Second*10)
+			err = apex.WaitForExactAmount(ctx, user, tc.toChain, tc.fromChain, expectedAmount, 20, time.Second*10)
 			require.Error(t, err)
 
 			require.NoError(t, apex.FundChainHotWallet(ctx, tc.toChain, tc.fundAmountDfm))
@@ -1257,7 +1270,7 @@ func TestE2E_NexusFundAmount(t *testing.T) {
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
 
-			err = apex.WaitForExactAmount(ctx, user, tc.toChain, expectedAmount, 20, time.Second*10)
+			err = apex.WaitForExactAmount(ctx, user, tc.toChain, tc.fromChain, expectedAmount, 20, time.Second*10)
 			require.NoError(t, err)
 		})
 	}

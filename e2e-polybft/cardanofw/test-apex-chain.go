@@ -21,8 +21,7 @@ type ITestApexChain interface {
 	PopulateApexSystem(t *testing.T, apexSystem *ApexSystem)
 	UpdateTxSendChainConfiguration(configs map[string]sendtx.ChainConfig)
 	ChainID() string
-	GetAddressBalance(ctx context.Context, addr string) (*big.Int, error)
-	GetNativeTokenAddressBalance(ctx context.Context, addr string, tokenName string) (*big.Int, error)
+	GetAddressBalance(ctx context.Context, addr string) (map[string]uint64, error)
 	BridgingRequest(
 		ctx context.Context,
 		destChainID ChainID,
@@ -85,7 +84,7 @@ func (t *TestApexChainDummy) FundWallets(ctx context.Context) error {
 	return nil
 }
 
-func (t *TestApexChainDummy) GetAddressBalance(ctx context.Context, addr string) (*big.Int, error) {
+func (t *TestApexChainDummy) GetAddressBalance(ctx context.Context, addr string) (map[string]uint64, error) {
 	return nil, nil
 }
 
@@ -130,11 +129,6 @@ func (t *TestApexChainDummy) GetHotWalletAddress() string {
 
 func (t *TestApexChainDummy) GetAdminPrivateKey() (string, error) {
 	return "", nil
-}
-
-func (t *TestApexChainDummy) GetNativeTokenAddressBalance(ctx context.Context, addr string, tokenName string,
-) (*big.Int, error) {
-	return nil, nil
 }
 
 func (t *TestApexChainDummy) CreateMetadata(

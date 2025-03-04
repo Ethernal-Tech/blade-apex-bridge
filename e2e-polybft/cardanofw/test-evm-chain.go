@@ -31,6 +31,8 @@ const (
 	defaultFundEthTokenAmount        = uint64(100_000)
 	defaultPremineEthTokenAmount     = uint64(100_000)
 	defaultFundRelayerEthTokenAmount = uint64(5)
+
+	AdaTokenName = "lovelace"
 )
 
 type TestEVMChainConfig struct {
@@ -284,7 +286,7 @@ func (ec *TestEVMChain) ChainID() string {
 	return ec.config.ChainID
 }
 
-func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (*big.Int, error) {
+func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (map[string]uint64, error) {
 	rpc, err := ec.JSONRPC()
 	if err != nil {
 		return nil, err
@@ -295,7 +297,9 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (*bi
 		return nil, err
 	}
 
-	return amount, err
+	return map[string]uint64{
+		AdaTokenName: amount.Uint64(),
+	}, err
 }
 
 func (ec *TestEVMChain) CreateMetadata(
@@ -408,9 +412,4 @@ func (ec *TestEVMChain) sendTx(
 	}
 
 	return receipt, nil
-}
-
-func (ec *TestEVMChain) GetNativeTokenAddressBalance(ctx context.Context, addr string, tokenName string,
-) (*big.Int, error) {
-	return nil, nil
 }

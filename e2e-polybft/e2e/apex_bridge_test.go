@@ -400,8 +400,10 @@ func TestE2E_FundAmount(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			prevAmount, err := apex.GetBalance(ctx, user, tc.toChain)
+			balance, err := apex.GetBalance(ctx, user, tc.toChain)
 			require.NoError(t, err)
+
+			prevAmount := new(big.Int).SetUint64(balance[infrawallet.AdaTokenName])
 
 			fmt.Printf("prevAmount %v\n", prevAmount)
 
@@ -415,7 +417,7 @@ func TestE2E_FundAmount(t *testing.T) {
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
 
-			err = apex.WaitForExactAmount(ctx, user, tc.toChain, expectedAmount, 20, time.Second*10)
+			err = apex.WaitForExactAmount(ctx, user, tc.toChain, tc.fromChain, expectedAmount, 20, time.Second*10)
 			require.Error(t, err)
 
 			require.NoError(t, apex.FundChainHotWallet(ctx, tc.toChain, big.NewInt(tc.fundAmount)))
@@ -427,7 +429,7 @@ func TestE2E_FundAmount(t *testing.T) {
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
 
-			err = apex.WaitForExactAmount(ctx, user, tc.toChain, expectedAmount, 20, time.Second*10)
+			err = apex.WaitForExactAmount(ctx, user, tc.toChain, tc.fromChain, expectedAmount, 20, time.Second*10)
 			require.NoError(t, err)
 		})
 	}
@@ -902,6 +904,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 
 	type chainStageKey struct {
 		chain    string
+		srcChain string
 		receiver uint
 	}
 
@@ -932,10 +935,12 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		)
 
 		for _, br := range bridgingRequests {
-			key := chainStageKey{chain: br.dest, receiver: br.receiverIdx}
+			key := chainStageKey{chain: br.dest, srcChain: br.src, receiver: br.receiverIdx}
 			if _, exists := chainPrevAmounts[key]; !exists {
-				prevAmount, err := apex.GetBalance(ctx, receivers[br.receiverIdx], br.dest)
+				balance, err := apex.GetBalance(ctx, receivers[br.receiverIdx], br.dest)
 				require.NoError(t, err)
+
+				prevAmount := new(big.Int).SetUint64(balance[infrawallet.AdaTokenName])
 
 				chainPrevAmounts[key] = prevAmount
 			}
@@ -952,8 +957,10 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 
 			if defundAmount != nil && defundReceiver != nil {
 				if _, exists := defundReceiversPrevAmount[key]; !exists {
-					prevAmount, err := apex.GetBalance(ctx, defundReceiver, br.dest)
+					balance, err := apex.GetBalance(ctx, defundReceiver, br.dest)
 					require.NoError(t, err)
+
+					prevAmount := new(big.Int).SetUint64(balance[infrawallet.AdaTokenName])
 
 					defundReceiversPrevAmount[key] = prevAmount
 				}
@@ -1015,7 +1022,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 				expectedAmount.Add(expectedAmount, prevAmount)
 
 				err = apex.WaitForExactAmount(
-					ctx, chainReceivers[chainKey], chainKey.chain, expectedAmount, numRetries, waitTime)
+					ctx, chainReceivers[chainKey], chainKey.chain, chainKey.srcChain, expectedAmount, numRetries, waitTime)
 
 				mu.Lock()
 				defer mu.Unlock()
@@ -1410,8 +1417,10 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		successChance := 90 // 90%
 		succeededCount := int64(0)
 
-		prevAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
+		balance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
 		require.NoError(t, err)
+
+		prevAmount := new(big.Int).SetUint64(balance[infrawallet.AdaTokenName])
 
 		fmt.Printf("Sending %v transactions in %v seconds\n", instances, maxWaitTime)
 
@@ -1460,7 +1469,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		expectedAmount.Mul(expectedAmount, big.NewInt(succeededCount))
 		expectedAmount.Add(expectedAmount, prevAmount)
 
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDVector, expectedAmount, 500, time.Second*10)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDVector, cardanofw.ChainIDPrime, expectedAmount, 500, time.Second*10)
 		require.NoError(t, err)
 
 		newAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
@@ -1477,8 +1486,10 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		successChance := 90 // 90%
 		succeededCount := int64(0)
 
-		prevAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
+		balance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
 		require.NoError(t, err)
+
+		prevAmount := new(big.Int).SetUint64(balance[infrawallet.AdaTokenName])
 
 		fmt.Printf("Sending %v transactions in %v seconds\n", instances, maxWaitTime)
 
@@ -1527,7 +1538,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		expectedAmount.Mul(expectedAmount, big.NewInt(succeededCount))
 		expectedAmount.Add(expectedAmount, prevAmount)
 
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDVector, expectedAmount, 500, time.Second*10)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDVector, cardanofw.ChainIDPrime, expectedAmount, 500, time.Second*10)
 		require.NoError(t, err)
 
 		newAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
@@ -1544,10 +1555,15 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		succeededCountPrime := int64(0)
 		succeededCountVector := int64(0)
 
-		prevAmountOnVector, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
+		balanceVector, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
 		require.NoError(t, err)
-		prevAmountOnPrime, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+
+		prevAmountOnVector := new(big.Int).SetUint64(balanceVector[infrawallet.AdaTokenName])
+
+		balancePrime, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
+
+		prevAmountOnPrime := new(big.Int).SetUint64(balancePrime[infrawallet.AdaTokenName])
 
 		fmt.Printf("Sending %v transactions in %v seconds\n", instances*2, maxWaitTime)
 
@@ -1644,7 +1660,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 
 			fmt.Printf("Waiting for %v TXs on vector\n", succeededCountVector)
 
-			errs[0] = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDVector, expectedAmountOnVector, 500, time.Second*10)
+			errs[0] = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDVector, cardanofw.ChainIDPrime, expectedAmountOnVector, 500, time.Second*10)
 		}()
 
 		go func() {
@@ -1652,7 +1668,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 
 			fmt.Printf("Waiting for %v TXs on prime\n", succeededCountPrime)
 
-			errs[1] = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDPrime, expectedAmountOnPrime, 500, time.Second*10)
+			errs[1] = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, expectedAmountOnPrime, 500, time.Second*10)
 		}()
 
 		wg.Wait()
