@@ -426,10 +426,6 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 	for txType, txTypeString := range transactionTypes {
 		t.Run(fmt.Sprintf("8.%d Both directions sequential and parallel - %s", idx, txTypeString), func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
-
 			const (
 				sendAmount          = uint64(1_000_000)
 				sequentialInstances = 5
@@ -465,10 +461,6 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	for txType, txTypeString := range transactionTypes {
 		t.Run(fmt.Sprintf("9.%d Both directions sequential and parallel - one node goes off in the middle - %s",
 			idx, txTypeString), func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
-
 			const (
 				sendAmount           = uint64(1_000_000)
 				sequentialInstances  = 5
@@ -509,10 +501,6 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	for txType, txTypeString := range transactionTypes {
 		t.Run(fmt.Sprintf("10.%d Both directions sequential and parallel - one node goes off in the middle - %s",
 			idx, txTypeString), func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
-
 			const (
 				sequentialInstances   = 5
 				parallelInstances     = 10

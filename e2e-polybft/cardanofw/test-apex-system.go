@@ -674,11 +674,9 @@ func (a *ApexSystem) WaitForGreaterAmount(
 		err        error
 	)
 
-	waitForNativeToken := len(isNativeToken) > 0 && isNativeToken[0]
-
 	lastAmount, err = a.WaitForAmount(ctx, user, dstChain, srcChain, func(val *big.Int) bool {
 		return val.Cmp(expectedAmount) == 1
-	}, numRetries, waitTime, waitForNativeToken)
+	}, numRetries, waitTime, isNativeToken...)
 
 	if err != nil {
 		return fmt.Errorf("amount mismatch: expected greater than %s, but received %s: %w",
@@ -697,11 +695,9 @@ func (a *ApexSystem) WaitForExactAmount(
 		err        error
 	)
 
-	waitForNativeToken := len(isNativeToken) > 0 && isNativeToken[0]
-
 	lastAmount, err = a.WaitForAmount(ctx, user, dstChain, srcChain, func(val *big.Int) bool {
 		return val.Cmp(expectedAmount) >= 0
-	}, numRetries, waitTime, waitForNativeToken)
+	}, numRetries, waitTime, isNativeToken...)
 
 	if err != nil {
 		return fmt.Errorf("amount mismatch: expected %s, but received %s: %w",
@@ -716,7 +712,7 @@ func (a *ApexSystem) WaitForExactAmount(
 
 func (a *ApexSystem) WaitForAmount(
 	ctx context.Context, user *TestApexUser, dstChain ChainID, srcChain string,
-	cmpHandler func(*big.Int) bool, numRetries int, waitTime time.Duration, isNativeToken bool,
+	cmpHandler func(*big.Int) bool, numRetries int, waitTime time.Duration, isNativeToken ...bool,
 ) (*big.Int, error) {
 	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*big.Int, error) {
 		amounts, err := a.GetBalance(ctx, user, dstChain)
@@ -726,7 +722,7 @@ func (a *ApexSystem) WaitForAmount(
 
 		currency := cardanowallet.AdaTokenName
 
-		if isNativeToken {
+		if len(isNativeToken) > 0 && isNativeToken[0] {
 			currency = a.GetTokenNameForChains(dstChain, srcChain)
 		}
 
