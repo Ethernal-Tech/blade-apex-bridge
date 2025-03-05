@@ -24,6 +24,8 @@ import (
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
+	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+
 	"github.com/Ethernal-Tech/ethgo"
 )
 
@@ -31,8 +33,6 @@ const (
 	defaultFundEthTokenAmount        = uint64(100_000)
 	defaultPremineEthTokenAmount     = uint64(100_000)
 	defaultFundRelayerEthTokenAmount = uint64(5)
-
-	AdaTokenName = "lovelace"
 )
 
 type TestEVMChainConfig struct {
@@ -298,7 +298,7 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (map
 	}
 
 	return map[string]*big.Int{
-		AdaTokenName: ChainNativeTokenAmountToDfm(ec.ChainID(), amount),
+		cardanowallet.AdaTokenName: amount,
 	}, err
 }
 

@@ -396,7 +396,7 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 	balanceTransformed := make(map[string]*big.Int, len(balance))
 
 	for key, value := range balance {
-		balanceTransformed[key] = ChainNativeTokenAmountToDfm(ec.ChainID(), new(big.Int).SetUint64(value))
+		balanceTransformed[key] = new(big.Int).SetUint64(value)
 	}
 
 	return balanceTransformed, nil

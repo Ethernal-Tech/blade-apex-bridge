@@ -28,14 +28,12 @@ func ExecuteSingleBridging(
 	)
 
 	config := newExecuteBridgingConfig(options...)
-	expectNativeTokens := false
+	expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
 
 	balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	require.NoError(t, err)
 
-	if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
-		expectNativeTokens = true
-
+	if expectNativeTokens {
 		prevAmount = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
 	} else {
 		prevAmount = balance[cardanowallet.AdaTokenName]
@@ -65,18 +63,17 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 ) {
 	t.Helper()
 
-	var prevAmount *big.Int
-
 	config := newExecuteBridgingConfig(options...)
-	expectNativeTokens := false
 
 	for i := 0; i < txCountPerSender; i++ {
+		var prevAmount *big.Int
+
+		expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
+
 		balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 		require.NoError(t, err)
 
-		if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
-			expectNativeTokens = true
-
+		if expectNativeTokens {
 			prevAmount = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
 		} else {
 			prevAmount = balance[cardanowallet.AdaTokenName]
@@ -110,14 +107,12 @@ func ExecuteBridgingWaitAfterSubmits(
 	)
 
 	config := newExecuteBridgingConfig(options...)
-	expectNativeTokens := false
+	expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
 
 	balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	require.NoError(t, err)
 
-	if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
-		expectNativeTokens = true
-
+	if expectNativeTokens {
 		prevAmount = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
 	} else {
 		prevAmount = balance[cardanowallet.AdaTokenName]
@@ -154,7 +149,7 @@ func ExecuteBridging(
 	chainPairs := getAllChainPairs(chains, chainsDst)
 	expectedAmountPerChainDfm := make([]map[string]*big.Int, len(receiverUsers))
 
-	expectNativeTokens := false
+	expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
 
 	for i, receiverUser := range receiverUsers {
 		expectedAmountPerChainDfm[i] = make(map[string]*big.Int)
@@ -165,9 +160,7 @@ func ExecuteBridging(
 			balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 			require.NoError(t, err)
 
-			if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
-				expectNativeTokens = true
-
+			if expectNativeTokens {
 				expectedAmountPerChainDfm[i][dstChain] = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
 			} else {
 				expectedAmountPerChainDfm[i][dstChain] = balance[cardanowallet.AdaTokenName]
