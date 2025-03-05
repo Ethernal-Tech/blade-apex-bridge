@@ -380,7 +380,7 @@ func (ec *TestCardanoChain) ChainID() string {
 	return GetNetworkName(ec.config)
 }
 
-func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) (map[string]uint64, error) {
+func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error) {
 	txProvider, err := ec.GetTxProvider()
 	if err != nil {
 		return nil, err
@@ -391,7 +391,15 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 		return nil, err
 	}
 
-	return infrawallet.GetUtxosSum(utxos), nil
+	balance := infrawallet.GetUtxosSum(utxos)
+
+	balanceTransformed := make(map[string]*big.Int, len(balance))
+
+	for key, value := range balance {
+		balanceTransformed[key] = ChainNativeTokenAmountToDfm(ec.ChainID(), new(big.Int).SetUint64(value))
+	}
+
+	return balanceTransformed, nil
 }
 
 func (ec *TestCardanoChain) CreateMetadata(

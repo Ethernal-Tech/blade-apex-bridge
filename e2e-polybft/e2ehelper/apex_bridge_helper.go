@@ -41,6 +41,10 @@ func ExecuteSingleBridging(
 		prevAmount = balance[cardanowallet.AdaTokenName]
 	}
 
+	if prevAmount == nil {
+		prevAmount = big.NewInt(0)
+	}
+
 	txHash := apex.SubmitBridgingRequest(
 		t, ctx, srcChain, dstChain, senderUser, sendAmount, bridgingType, receiverUser)
 
@@ -78,6 +82,10 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 			prevAmount = balance[cardanowallet.AdaTokenName]
 		}
 
+		if prevAmount == nil {
+			prevAmount = big.NewInt(0)
+		}
+
 		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, receiverUser)
 
 		expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
@@ -113,6 +121,10 @@ func ExecuteBridgingWaitAfterSubmits(
 		prevAmount = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
 	} else {
 		prevAmount = balance[cardanowallet.AdaTokenName]
+	}
+
+	if prevAmount == nil {
+		prevAmount = big.NewInt(0)
 	}
 
 	expectedAmount := prevAmount
@@ -159,6 +171,10 @@ func ExecuteBridging(
 				expectedAmountPerChainDfm[i][dstChain] = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
 			} else {
 				expectedAmountPerChainDfm[i][dstChain] = balance[cardanowallet.AdaTokenName]
+			}
+
+			if expectedAmountPerChainDfm[i][dstChain] == nil {
+				expectedAmountPerChainDfm[i][dstChain] = big.NewInt(0)
 			}
 		}
 	}

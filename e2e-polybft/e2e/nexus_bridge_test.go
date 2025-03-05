@@ -63,7 +63,7 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 			ctx, apex.NexusInfo.RelayerAddress.String())
 		require.NoError(t, err)
 
-		require.True(t, relayerBalanceAfter[cardanowallet.AdaTokenName] > relayerBalanceBefore[cardanowallet.AdaTokenName])
+		require.True(t, relayerBalanceAfter[cardanowallet.AdaTokenName].Cmp(relayerBalanceBefore[cardanowallet.AdaTokenName]) == 1)
 	})
 }
 

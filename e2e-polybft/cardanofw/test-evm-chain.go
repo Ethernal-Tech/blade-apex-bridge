@@ -286,7 +286,7 @@ func (ec *TestEVMChain) ChainID() string {
 	return ec.config.ChainID
 }
 
-func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (map[string]uint64, error) {
+func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error) {
 	rpc, err := ec.JSONRPC()
 	if err != nil {
 		return nil, err
@@ -297,8 +297,8 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (map
 		return nil, err
 	}
 
-	return map[string]uint64{
-		AdaTokenName: amount.Uint64(),
+	return map[string]*big.Int{
+		AdaTokenName: ChainNativeTokenAmountToDfm(ec.ChainID(), amount),
 	}, err
 }
 

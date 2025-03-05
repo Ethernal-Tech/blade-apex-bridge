@@ -637,13 +637,7 @@ func (a *ApexSystem) GetBalance(
 		return nil, err
 	}
 
-	balanceTransformed := make(map[string]*big.Int, len(balance))
-
-	for key, value := range balance {
-		balanceTransformed[key] = ChainNativeTokenAmountToDfm(chainID, new(big.Int).SetUint64(value))
-	}
-
-	return balanceTransformed, err
+	return balance, err
 }
 
 func (a *ApexSystem) GetTokenNameForChains(chainID, dstChainID ChainID) string {
@@ -756,6 +750,10 @@ func (a *ApexSystem) WaitForTokenAmount(
 
 		tokenName := a.GetTokenNameForChains(dstChain, srcChain)
 		tokenBalance := newBalance[tokenName]
+
+		if tokenBalance == nil {
+			tokenBalance = big.NewInt(0)
+		}
 
 		if !cmpHandler(tokenBalance) {
 			return tokenBalance, infracommon.ErrRetryTryAgain
