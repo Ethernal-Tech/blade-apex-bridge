@@ -1940,3 +1940,52 @@ func PrimeToVectorInvalidMetadataInvalidTransactions(
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
 }
+
+func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	vectorConfig := cardanofw.NewVectorChainConfig(true)
+	vectorConfig.FundUTxOCount = 60
+	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * uint64(vectorConfig.FundUTxOCount)
+	sendAmount := vectorConfig.FundAmount - cardanofw.MinUTxODefaultValue
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx,
+		cardanofw.WithUserCnt(1),
+		cardanofw.WithVectorConfig(vectorConfig),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	lastConfirmedBatchID, err := apex.GetLastConfirmedBatchID(ctx, cardanofw.ChainIDVector)
+	require.NoError(t, err)
+
+	require.Equal(t, uint64(0), lastConfirmedBatchID)
+
+	txProviderVector, err := apex.VectorInfo.GetTxProvider()
+	require.NoError(t, err)
+
+	utxos, err := txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr)
+	require.NoError(t, err)
+
+	require.Len(t, utxos, vectorConfig.FundUTxOCount)
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[0],
+		cardanofw.ChainIDPrime, cardanofw.ChainIDVector, new(big.Int).SetUint64(sendAmount))
+
+	lastConfirmedBatchID, err = apex.GetLastConfirmedBatchID(ctx, cardanofw.ChainIDVector)
+	require.NoError(t, err)
+
+	require.Equal(t, uint64(2), lastConfirmedBatchID)
+
+	utxos, err = txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr)
+	require.NoError(t, err)
+
+	require.Len(t, utxos, 1)
+}

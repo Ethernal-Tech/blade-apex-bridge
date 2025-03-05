@@ -34,6 +34,8 @@ type TestCardanoChainConfig struct {
 	InitialHotWalletAmount *big.Int
 	FundAmount             uint64
 	FundFeeAmount          uint64
+	FundUTxOCount          int
+	FundFeeUTxOCount       int
 	PreminesAddresses      []string
 	PremineAmount          uint64
 	SlotRoundingThreshold  uint64
@@ -50,6 +52,8 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		PremineAmount:          defaultPremineAmount,
 		FundAmount:             defaultFundTokenAmount,
 		FundFeeAmount:          defaultFundTokenAmount,
+		FundUTxOCount:          1,
+		FundFeeUTxOCount:       1,
 	}
 }
 
@@ -63,6 +67,8 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		PremineAmount:          defaultPremineAmount,
 		FundAmount:             defaultFundTokenAmount,
 		FundFeeAmount:          defaultFundTokenAmount,
+		FundUTxOCount:          1,
+		FundFeeUTxOCount:       1,
 	}
 }
 
@@ -228,24 +234,26 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		return err
 	}
 
-	if ec.config.FundFeeAmount != 0 {
-		txHash, err := ec.SendTx(
-			ctx, privateKey, ec.multisigFeeAddr, new(big.Int).SetUint64(ec.config.FundFeeAmount), nil)
-		if err != nil {
-			return err
-		}
+	if totalAmount := ec.config.FundFeeAmount; totalAmount != 0 {
+		for _, amount := range SplitAmountNTimes(new(big.Int).SetUint64(totalAmount), ec.config.FundFeeUTxOCount) {
+			txHash, err := ec.SendTx(ctx, privateKey, ec.multisigFeeAddr, amount, nil)
+			if err != nil {
+				return err
+			}
 
-		fmt.Printf("%s fee addr funded: %s\n", GetNetworkName(ec.config.NetworkType), txHash)
+			fmt.Printf("%s fee addr funded with %s: %s\n", GetNetworkName(ec.config.NetworkType), amount, txHash)
+		}
 	}
 
-	if ec.config.FundAmount != 0 {
-		txHash, err := ec.SendTx(
-			ctx, privateKey, ec.multisigAddr, new(big.Int).SetUint64(ec.config.FundAmount), nil)
-		if err != nil {
-			return err
-		}
+	if totalAmount := ec.config.FundAmount; totalAmount != 0 {
+		for _, amount := range SplitAmountNTimes(new(big.Int).SetUint64(totalAmount), ec.config.FundUTxOCount) {
+			txHash, err := ec.SendTx(ctx, privateKey, ec.multisigAddr, amount, nil)
+			if err != nil {
+				return err
+			}
 
-		fmt.Printf("%s multisig addr funded: %s\n", GetNetworkName(ec.config.NetworkType), txHash)
+			fmt.Printf("%s addr funded with %s: %s\n", GetNetworkName(ec.config.NetworkType), amount, txHash)
+		}
 	}
 
 	txProvider, err := ec.GetTxProvider()
