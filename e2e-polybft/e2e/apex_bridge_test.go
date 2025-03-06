@@ -904,7 +904,6 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 
 	type chainStageKey struct {
 		chain    string
-		srcChain string
 		receiver uint
 	}
 
@@ -935,7 +934,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		)
 
 		for _, br := range bridgingRequests {
-			key := chainStageKey{chain: br.dest, srcChain: br.src, receiver: br.receiverIdx}
+			key := chainStageKey{chain: br.dest, receiver: br.receiverIdx}
 			if _, exists := chainPrevAmounts[key]; !exists {
 				balance, err := apex.GetBalance(ctx, receivers[br.receiverIdx], br.dest)
 				require.NoError(t, err)
@@ -1022,7 +1021,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 				expectedAmount.Add(expectedAmount, prevAmount)
 
 				err = apex.WaitForExactAmount(
-					ctx, chainReceivers[chainKey], chainKey.chain, chainKey.srcChain, expectedAmount, numRetries, waitTime)
+					ctx, chainReceivers[chainKey], chainKey.chain, "", expectedAmount, numRetries, waitTime)
 
 				mu.Lock()
 				defer mu.Unlock()
