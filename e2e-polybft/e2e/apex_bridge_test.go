@@ -1942,14 +1942,18 @@ func PrimeToVectorInvalidMetadataInvalidTransactions(
 }
 
 func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
-	const utxoCount = 63
+	const (
+		fundUtxoCount   = 63
+		maxFeeUtxoCount = 4
+		maxUtxoCount    = 50
+	)
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
 	vectorConfig := cardanofw.NewVectorChainConfig(true)
-	vectorConfig.FundUTxOCount = utxoCount
-	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * uint64(vectorConfig.FundUTxOCount)
+	vectorConfig.FundUTxOCount = fundUtxoCount
+	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * fundUtxoCount
 	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
 	sendAmount := vectorConfig.FundAmount - cardanofw.MinUTxODefaultValue*3
 
@@ -1974,36 +1978,8 @@ func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
 				txProvider, err := a.VectorInfo.GetTxProvider()
 				require.NoError(t, err)
 
-				multisigUtoxs, err := txProvider.GetUtxos(ctx, a.VectorInfo.MultisigAddr)
-				require.NoError(t, err)
-
-				feeUtxos, err := txProvider.GetUtxos(ctx, a.VectorInfo.FeeAddr)
-				require.NoError(t, err)
-
-				tipData, err = txProvider.GetTip(ctx)
-				require.NoError(t, err)
-
-				initialUtxos = make([]map[string]any, 0, len(multisigUtoxs)+len(feeUtxos))
-
-				utxoToMap := func(utxo infrawallet.Utxo, addr string) map[string]any {
-					bytes, _ := hex.DecodeString(utxo.Hash)
-
-					return map[string]any{
-						"id":      [32]byte(bytes),
-						"index":   utxo.Index,
-						"address": addr,
-						"amount":  utxo.Amount,
-						"slot":    tipData.Slot,
-					}
-				}
-
-				for _, utxo := range multisigUtoxs {
-					initialUtxos = append(initialUtxos, utxoToMap(utxo, a.VectorInfo.MultisigAddr))
-				}
-
-				for _, utxo := range feeUtxos {
-					initialUtxos = append(initialUtxos, utxoToMap(utxo, a.VectorInfo.FeeAddr))
-				}
+				initialUtxos, tipData = getInitialUtxosAndTip(
+					t, ctx, txProvider, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
 			}
 
 			// Vector indexer should start after multisig funding is done
@@ -2011,6 +1987,8 @@ func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
 			vcCfg["startBlockHash"] = tipData.Hash
 			vcCfg["startSlot"] = tipData.Slot
 			vcCfg["initialUtxos"] = initialUtxos
+			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
+			vcCfg["maxUtxoCount"] = maxUtxoCount
 		}, nil),
 	)
 
@@ -2042,4 +2020,144 @@ func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, utxos, 1)
+}
+
+func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
+	const (
+		fundUtxoCount             = 8
+		maxFeeUtxoCount           = 1
+		maxUtxoCount              = 4
+		sequentialInstances       = 3
+		parallelInstances         = 6
+		maxTxsPerBatch            = 5
+		numOfBatchesNeededAtLeast = uint64(parallelInstances*sequentialInstances+maxTxsPerBatch-1) / maxTxsPerBatch
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	vectorConfig.FundUTxOCount = fundUtxoCount
+	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * parallelInstances * sequentialInstances
+	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
+	primeConfig.FundUTxOCount = fundUtxoCount
+	primeConfig.FundAmount = cardanofw.MinUTxODefaultValue * parallelInstances * sequentialInstances
+	primeConfig.InitialHotWalletAmount = new(big.Int).SetUint64(primeConfig.FundAmount)
+	sendAmount := cardanofw.MinUTxODefaultValue
+
+	var (
+		initialUtxosVector, initialUtxosPrime []map[string]any
+		tipDataVector, tipDataPrime           infrawallet.QueryTipData
+		lock                                  sync.Mutex
+	)
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx,
+		cardanofw.WithUserCnt(parallelInstances+1),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithCustomConfigHandlers(func(a *cardanofw.ApexSystem, mp map[string]any) {
+			t.Helper()
+
+			lock.Lock()
+			defer lock.Unlock()
+
+			// retrieve only once for all validators
+			if len(initialUtxosVector) == 0 {
+				txProviderVector, err := a.VectorInfo.GetTxProvider()
+				require.NoError(t, err)
+
+				initialUtxosVector, tipDataVector = getInitialUtxosAndTip(
+					t, ctx, txProviderVector, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
+
+				txProviderPrime, err := a.PrimeInfo.GetTxProvider()
+				require.NoError(t, err)
+
+				initialUtxosPrime, tipDataPrime = getInitialUtxosAndTip(
+					t, ctx, txProviderPrime, a.PrimeInfo.MultisigAddr, a.PrimeInfo.FeeAddr)
+			}
+
+			// Both chains indexers should start after multisig funding is done
+			vcCfg := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDVector)
+			vcCfg["startBlockHash"] = tipDataVector.Hash
+			vcCfg["startSlot"] = tipDataVector.Slot
+			vcCfg["initialUtxos"] = initialUtxosVector
+			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
+			vcCfg["maxUtxoCount"] = maxUtxoCount
+			vcCfg = cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDPrime)
+			vcCfg["startBlockHash"] = tipDataPrime.Hash
+			vcCfg["startSlot"] = tipDataPrime.Slot
+			vcCfg["initialUtxos"] = initialUtxosPrime
+			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
+			vcCfg["maxUtxoCount"] = maxUtxoCount
+		}, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	txProviderVector, err := apex.VectorInfo.GetTxProvider()
+	require.NoError(t, err)
+
+	utxos, err := txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr)
+	require.NoError(t, err)
+
+	require.Len(t, utxos, vectorConfig.FundUTxOCount)
+
+	e2ehelper.ExecuteBridging(
+		t, ctx, apex, sequentialInstances,
+		apex.Users[:parallelInstances],
+		[]*cardanofw.TestApexUser{apex.Users[parallelInstances]},
+		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
+		map[string][]string{
+			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
+			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
+		}, new(big.Int).SetUint64(sendAmount),
+		e2ehelper.WithWaitForUnexpectedBridges(true))
+
+	lastConfirmedBatchID, err := apex.GetLastConfirmedBatchID(ctx, cardanofw.ChainIDVector)
+	require.NoError(t, err)
+
+	require.Greater(t, lastConfirmedBatchID, numOfBatchesNeededAtLeast)
+
+	lastConfirmedBatchID, err = apex.GetLastConfirmedBatchID(ctx, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+
+	require.Greater(t, lastConfirmedBatchID, numOfBatchesNeededAtLeast)
+}
+
+func getInitialUtxosAndTip(
+	t *testing.T, ctx context.Context, txProvider infrawallet.ITxProvider, multisigAddr, feeAddr string,
+) ([]map[string]any, infrawallet.QueryTipData) {
+	multisigUtoxs, err := txProvider.GetUtxos(ctx, multisigAddr)
+	require.NoError(t, err)
+
+	feeUtxos, err := txProvider.GetUtxos(ctx, feeAddr)
+	require.NoError(t, err)
+
+	tipData, err := txProvider.GetTip(ctx)
+	require.NoError(t, err)
+
+	initialUtxos := make([]map[string]any, 0, len(multisigUtoxs)+len(feeUtxos))
+
+	utxoToMap := func(utxo infrawallet.Utxo, addr string) map[string]any {
+		bytes, _ := hex.DecodeString(utxo.Hash)
+
+		return map[string]any{
+			"id":      [32]byte(bytes),
+			"index":   utxo.Index,
+			"address": addr,
+			"amount":  utxo.Amount,
+			"slot":    tipData.Slot,
+		}
+	}
+
+	for _, utxo := range multisigUtoxs {
+		initialUtxos = append(initialUtxos, utxoToMap(utxo, multisigAddr))
+	}
+
+	for _, utxo := range feeUtxos {
+		initialUtxos = append(initialUtxos, utxoToMap(utxo, feeAddr))
+	}
+
+	return initialUtxos, tipData
 }
