@@ -35,7 +35,7 @@ on: # yamllint disable-line rule:truthy
       apex_bridge_ref:
         description: The branch/commit from the Apex Bridge
         type: string
-        default: main
+        default: apex-570_utxo-consolidation
   workflow_call:
     inputs:
       lint:
