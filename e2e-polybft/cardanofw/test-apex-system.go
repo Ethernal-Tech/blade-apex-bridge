@@ -3,7 +3,6 @@ package cardanofw
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -270,25 +269,10 @@ func (a *ApexSystem) RegisterChains() error {
 }
 
 func (a *ApexSystem) GenerateConfigs() error {
-	updateJSONFile := func(fileName string, callback CustomConfigHandler) error {
-		bytes, err := os.ReadFile(fileName)
-		if err != nil {
-			return err
+	getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
+		return func(data map[string]any) {
+			callback(a, data)
 		}
-
-		var data map[string]interface{}
-		if err := json.Unmarshal(bytes, &data); err != nil {
-			return err
-		}
-
-		callback(a, data)
-
-		bytes, err = json.MarshalIndent(data, "", "    ")
-		if err != nil {
-			return err
-		}
-
-		return os.WriteFile(fileName, bytes, 0600)
 	}
 
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
@@ -310,13 +294,15 @@ func (a *ApexSystem) GenerateConfigs() error {
 		}
 
 		if handler := a.Config.CustomOracleConfigHandler; handler != nil {
-			if err := updateJSONFile(validator.GetValidatorComponentsConfig(), handler); err != nil {
+			fileName := validator.GetValidatorComponentsConfig()
+			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
 				return err
 			}
 		}
 
 		if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
-			if err := updateJSONFile(validator.GetRelayerConfig(), handler); err != nil {
+			fileName := validator.GetRelayerConfig()
+			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
 				return err
 			}
 		}
