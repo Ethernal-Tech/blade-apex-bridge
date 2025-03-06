@@ -35,7 +35,7 @@ on: # yamllint disable-line rule:truthy
       apex_bridge_ref:
         description: The branch/commit from the Apex Bridge
         type: string
-        default: apex-570_utxo-consolidation
+        default: main
   workflow_call:
     inputs:
       lint:
@@ -159,7 +159,7 @@ jobs:
     needs: build_blade
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
     with:
-      apex_bridge_ref: main
+      apex_bridge_ref: apex-570_utxo-consolidation
       e2e_apex_big_test: false
       e2e_apex_skip_redundant_tests: false
     secrets:
