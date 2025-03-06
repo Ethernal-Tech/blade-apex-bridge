@@ -96,8 +96,6 @@ type TestCardanoChain struct {
 	blockfrostAPIKey string
 	multisigAddr     string
 	multisigFeeAddr  string
-	fundBlockSlot    uint64
-	fundBlockHash    string
 }
 
 func (ec *TestCardanoChain) GetTxProvider() (infrawallet.ITxProvider, error) {
@@ -256,20 +254,6 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		}
 	}
 
-	txProvider, err := ec.GetTxProvider()
-	if err != nil {
-		return err
-	}
-
-	// retrieve latest tip
-	tip, err := txProvider.GetTip(ctx)
-	if err != nil {
-		return err
-	}
-
-	ec.fundBlockHash = tip.Hash
-	ec.fundBlockSlot = tip.Slot
-
 	return nil
 }
 
@@ -312,8 +296,6 @@ func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) {
 		MultisigAddr:   ec.multisigAddr,
 		FeeAddr:        ec.multisigFeeAddr,
 		SocketPath:     ec.cluster.OgmiosServer.SocketPath(),
-		FundBlockHash:  ec.fundBlockHash,
-		FundBlockSlot:  ec.fundBlockSlot,
 	}
 
 	switch ec.ChainID() {

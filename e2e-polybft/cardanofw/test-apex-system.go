@@ -3,6 +3,7 @@ package cardanofw
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -31,8 +32,6 @@ type CardanoChainInfo struct {
 	MultisigAddr     string
 	FeeAddr          string
 	SocketPath       string
-	FundBlockHash    string
-	FundBlockSlot    uint64
 }
 
 func (ci *CardanoChainInfo) GetTxProvider() (cardanowallet.ITxProvider, error) {
@@ -271,6 +270,27 @@ func (a *ApexSystem) RegisterChains() error {
 }
 
 func (a *ApexSystem) GenerateConfigs() error {
+	updateJSONFile := func(fileName string, callback CustomConfigHandler) error {
+		bytes, err := os.ReadFile(fileName)
+		if err != nil {
+			return err
+		}
+
+		var data map[string]interface{}
+		if err := json.Unmarshal(bytes, &data); err != nil {
+			return err
+		}
+
+		callback(a, data)
+
+		bytes, err = json.MarshalIndent(data, "", "    ")
+		if err != nil {
+			return err
+		}
+
+		return os.WriteFile(fileName, bytes, 0600)
+	}
+
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
 		if a.Config.TargetOneCardanoClusterServer {
@@ -289,16 +309,14 @@ func (a *ApexSystem) GenerateConfigs() error {
 			return err
 		}
 
-		if handler := a.Config.CustomOracleHandler; handler != nil {
-			fileName := validator.GetValidatorComponentsConfig()
-			if err := UpdateJSONFile(fileName, fileName, handler, false); err != nil {
+		if handler := a.Config.CustomOracleConfigHandler; handler != nil {
+			if err := updateJSONFile(validator.GetValidatorComponentsConfig(), handler); err != nil {
 				return err
 			}
 		}
 
-		if handler := a.Config.CustomRelayerHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
-			fileName := validator.GetRelayerConfig()
-			if err := UpdateJSONFile(fileName, fileName, handler, false); err != nil {
+		if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
+			if err := updateJSONFile(validator.GetRelayerConfig(), handler); err != nil {
 				return err
 			}
 		}
@@ -432,8 +450,8 @@ func (a *ApexSystem) GetLastConfirmedBatchID(
 		return 0, err
 	}
 
-	fn := contractsapi.ApexBridgeContracts.SignedBatches.Abi.GetMethod("getConfirmedBatchId")
-	input, err := fn.Encode([]any{ChainIDToInt(chainID)})
+	input, err := contractsapi.ApexBridgeContracts.SignedBatches.Abi.GetMethod("getConfirmedBatchId").
+		Encode([]any{ChainIDToInt(chainID)})
 	if err != nil {
 		return 0, err
 	}
