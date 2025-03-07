@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"os"
 	"os/exec"
@@ -541,4 +542,30 @@ func WaitForInvalidState(
 		ctx, apex, chainID, txHash, apiKey, []string{BridgingRequestStatusInvalidRequest}, timeoutSec)
 	require.NoError(t, err)
 	require.Equal(t, BridgingRequestStatusInvalidRequest, state)
+}
+
+func SplitAmountNTimes(totalAmount *big.Int, cnt int) []*big.Int {
+	cnt = max(1, cnt)
+	amount := new(big.Int).Div(totalAmount, big.NewInt(int64(cnt)))
+	amountWithChange := new(big.Int).Sub(totalAmount, new(big.Int).Mul(amount, big.NewInt(int64(cnt-1))))
+	result := make([]*big.Int, 0, cnt)
+
+	for range cnt - 1 {
+		result = append(result, new(big.Int).Set(amount))
+	}
+
+	return append(result, amountWithChange)
+}
+
+func ChainIDToInt(chainID string) uint8 {
+	switch chainID {
+	case ChainIDPrime:
+		return 1
+	case ChainIDVector:
+		return 2
+	case ChainIDNexus:
+		return 3
+	default:
+		return 0
+	}
 }
