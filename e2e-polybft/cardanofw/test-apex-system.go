@@ -11,12 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
-	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
-	"github.com/0xPolygon/polygon-edge/helper/common"
-	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
@@ -427,27 +423,6 @@ func (a *ApexSystem) ApexBridgeProcessesRunning() bool {
 	}
 
 	return true
-}
-func (a *ApexSystem) GetLastConfirmedBatchID(
-	ctx context.Context, chainID ChainID,
-) (uint64, error) {
-	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(a.BridgeCluster.Servers[0].JSONRPC()))
-	if err != nil {
-		return 0, err
-	}
-
-	input, err := contractsapi.ApexBridgeContracts.SignedBatches.Abi.GetMethod("getConfirmedBatchId").
-		Encode([]any{ChainIDToInt(chainID)})
-	if err != nil {
-		return 0, err
-	}
-
-	response, err := txRelayer.Call(types.ZeroAddress, contracts.SignedBatches, input)
-	if err != nil {
-		return 0, err
-	}
-
-	return common.ParseUint64orHex(&response)
 }
 
 func (a *ApexSystem) GetBalance(

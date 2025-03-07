@@ -9,14 +9,21 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
+	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
+	"github.com/0xPolygon/polygon-edge/helper/common"
+	"github.com/0xPolygon/polygon-edge/txrelayer"
+	"github.com/0xPolygon/polygon-edge/types"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1975,11 +1982,8 @@ func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
 
 			// retrieve only once for all validators
 			if len(initialUtxos) == 0 {
-				txProvider, err := a.VectorInfo.GetTxProvider()
-				require.NoError(t, err)
-
 				initialUtxos, tipData = getInitialUtxosAndTip(
-					t, ctx, txProvider, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
+					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
 			}
 
 			// Vector indexer should start after multisig funding is done
@@ -1994,13 +1998,27 @@ func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	lastConfirmedBatchID, err := apex.GetLastConfirmedBatchID(ctx, cardanofw.ChainIDVector)
+	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(apex.BridgeCluster.Servers[0].JSONRPC()))
 	require.NoError(t, err)
-
-	require.Equal(t, uint64(0), lastConfirmedBatchID)
 
 	txProviderVector, err := apex.VectorInfo.GetTxProvider()
 	require.NoError(t, err)
+
+	getLastConfirmedBatchID := func(chainID string) uint64 {
+		input, err := contractsapi.ApexBridgeContracts.SignedBatches.Abi.GetMethod("getConfirmedBatchId").
+			Encode([]any{cardanofw.ChainIDToInt(chainID)})
+		require.NoError(t, err)
+
+		response, err := txRelayer.Call(types.ZeroAddress, contracts.SignedBatches, input)
+		require.NoError(t, err)
+
+		val, err := common.ParseUint64orHex(&response)
+		require.NoError(t, err)
+
+		return val
+	}
+
+	require.Equal(t, uint64(0), getLastConfirmedBatchID(cardanofw.ChainIDVector))
 
 	utxos, err := txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr)
 	require.NoError(t, err)
@@ -2011,10 +2029,7 @@ func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
 		t, ctx, apex, apex.Users[0], apex.Users[0],
 		cardanofw.ChainIDPrime, cardanofw.ChainIDVector, new(big.Int).SetUint64(sendAmount))
 
-	lastConfirmedBatchID, err = apex.GetLastConfirmedBatchID(ctx, cardanofw.ChainIDVector)
-	require.NoError(t, err)
-
-	require.Equal(t, uint64(2), lastConfirmedBatchID)
+	require.Equal(t, uint64(2), getLastConfirmedBatchID(cardanofw.ChainIDVector))
 
 	utxos, err = txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr)
 	require.NoError(t, err)
@@ -2024,13 +2039,14 @@ func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
 
 func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 	const (
-		fundUtxoCount             = 8
-		maxFeeUtxoCount           = 1
-		maxUtxoCount              = 4
-		sequentialInstances       = 3
-		parallelInstances         = 6
-		maxTxsPerBatch            = 5
-		numOfBatchesNeededAtLeast = uint64(parallelInstances*sequentialInstances+maxTxsPerBatch-1) / maxTxsPerBatch
+		fundUtxoCount                 = 8
+		maxFeeUtxoCount               = 1
+		maxUtxoCount                  = 4
+		sequentialInstances           = 3
+		parallelInstances             = 6
+		maxTxsPerBatch                = 5
+		minimumExpectedConsolidations = uint64(3)
+		pullTimeBatchInfo             = time.Second * 10
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -2049,6 +2065,8 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 		initialUtxosVector, initialUtxosPrime []map[string]any
 		tipDataVector, tipDataPrime           infrawallet.QueryTipData
 		lock                                  sync.Mutex
+		lastBatchID                           = map[string]uint64{}
+		cntConsolidationBatches               = map[string]uint64{}
 	)
 
 	apex := cardanofw.SetupAndRunApexBridge(
@@ -2064,17 +2082,10 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 
 			// retrieve only once for all validators
 			if len(initialUtxosVector) == 0 {
-				txProviderVector, err := a.VectorInfo.GetTxProvider()
-				require.NoError(t, err)
-
 				initialUtxosVector, tipDataVector = getInitialUtxosAndTip(
-					t, ctx, txProviderVector, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
-
-				txProviderPrime, err := a.PrimeInfo.GetTxProvider()
-				require.NoError(t, err)
-
+					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
 				initialUtxosPrime, tipDataPrime = getInitialUtxosAndTip(
-					t, ctx, txProviderPrime, a.PrimeInfo.MultisigAddr, a.PrimeInfo.FeeAddr)
+					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr, a.PrimeInfo.FeeAddr)
 			}
 
 			// Both chains indexers should start after multisig funding is done
@@ -2095,13 +2106,51 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	txProviderVector, err := apex.VectorInfo.GetTxProvider()
+	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(apex.BridgeCluster.Servers[0].JSONRPC()))
 	require.NoError(t, err)
 
-	utxos, err := txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr)
-	require.NoError(t, err)
+	getConfirmedBatchFn := contractsapi.ApexBridgeContracts.SignedBatches.Abi.GetMethod("getConfirmedBatch")
 
-	require.Len(t, utxos, vectorConfig.FundUTxOCount)
+	for _, chainID := range []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector} {
+		go func(chainID string) {
+			for {
+				select {
+				case <-time.After(pullTimeBatchInfo):
+					input, err := getConfirmedBatchFn.Encode([]any{cardanofw.ChainIDToInt(chainID)})
+					require.NoError(t, err)
+
+					response, err := txRelayer.Call(types.ZeroAddress, contracts.SignedBatches, input)
+					if err != nil {
+						return // we assume this error is because the bridge is stopped already
+					}
+
+					bytes, err := hex.DecodeString(strings.TrimPrefix(response, "0x"))
+					require.NoError(t, err)
+
+					decoded, err := getConfirmedBatchFn.Outputs.Decode(bytes)
+					require.NoError(t, err)
+
+					batchInfo := decoded.(map[string]any)["_batch"].(map[string]any)
+					id := batchInfo["id"].(uint64)
+					isConsolidation := batchInfo["isConsolidation"].(bool)
+
+					lock.Lock()
+
+					if lastBatchID[chainID] != id {
+						if isConsolidation {
+							cntConsolidationBatches[chainID]++
+						}
+
+						lastBatchID[chainID] = id
+					}
+
+					lock.Unlock()
+				case <-ctx.Done():
+					return
+				}
+			}
+		}(chainID)
+	}
 
 	e2ehelper.ExecuteBridging(
 		t, ctx, apex, sequentialInstances,
@@ -2114,20 +2163,18 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 		}, new(big.Int).SetUint64(sendAmount),
 		e2ehelper.WithWaitForUnexpectedBridges(true))
 
-	lastConfirmedBatchID, err := apex.GetLastConfirmedBatchID(ctx, cardanofw.ChainIDVector)
-	require.NoError(t, err)
-
-	require.Greater(t, lastConfirmedBatchID, numOfBatchesNeededAtLeast)
-
-	lastConfirmedBatchID, err = apex.GetLastConfirmedBatchID(ctx, cardanofw.ChainIDPrime)
-	require.NoError(t, err)
-
-	require.Greater(t, lastConfirmedBatchID, numOfBatchesNeededAtLeast)
+	assert.GreaterOrEqual(t, cntConsolidationBatches[cardanofw.ChainIDPrime], minimumExpectedConsolidations)
+	assert.GreaterOrEqual(t, cntConsolidationBatches[cardanofw.ChainIDVector], minimumExpectedConsolidations)
 }
 
 func getInitialUtxosAndTip(
-	t *testing.T, ctx context.Context, txProvider infrawallet.ITxProvider, multisigAddr, feeAddr string,
+	t *testing.T, ctx context.Context, chainInfo cardanofw.CardanoChainInfo, multisigAddr, feeAddr string,
 ) ([]map[string]any, infrawallet.QueryTipData) {
+	t.Helper()
+
+	txProvider, err := chainInfo.GetTxProvider()
+	require.NoError(t, err)
+
 	multisigUtoxs, err := txProvider.GetUtxos(ctx, multisigAddr)
 	require.NoError(t, err)
 
