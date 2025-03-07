@@ -1949,6 +1949,10 @@ func PrimeToVectorInvalidMetadataInvalidTransactions(
 }
 
 func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
 	const (
 		fundUtxoCount   = 63
 		maxFeeUtxoCount = 4
@@ -2038,6 +2042,10 @@ func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
 }
 
 func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
 	const (
 		fundUtxoCount                 = 8
 		maxFeeUtxoCount               = 1
