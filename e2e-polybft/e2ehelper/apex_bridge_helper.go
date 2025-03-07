@@ -22,26 +22,14 @@ func ExecuteSingleBridging(
 ) {
 	t.Helper()
 
-	var (
-		prevAmount *big.Int
-		err        error
-	)
-
 	config := newExecuteBridgingConfig(options...)
 	expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
 
 	balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	require.NoError(t, err)
 
-	if expectNativeTokens {
-		prevAmount = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
-	} else {
-		prevAmount = balance[cardanowallet.AdaTokenName]
-	}
-
-	if prevAmount == nil {
-		prevAmount = big.NewInt(0)
-	}
+	tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
+	prevAmount := cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
 
 	txHash := apex.SubmitBridgingRequest(
 		t, ctx, srcChain, dstChain, senderUser, sendAmount, bridgingType, receiverUser)
@@ -66,22 +54,13 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 	config := newExecuteBridgingConfig(options...)
 
 	for i := 0; i < txCountPerSender; i++ {
-		var prevAmount *big.Int
-
 		expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
 
 		balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 		require.NoError(t, err)
 
-		if expectNativeTokens {
-			prevAmount = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
-		} else {
-			prevAmount = balance[cardanowallet.AdaTokenName]
-		}
-
-		if prevAmount == nil {
-			prevAmount = big.NewInt(0)
-		}
+		tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
+		prevAmount := cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
 
 		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, receiverUser)
 
@@ -101,26 +80,14 @@ func ExecuteBridgingWaitAfterSubmits(
 ) {
 	t.Helper()
 
-	var (
-		prevAmount *big.Int
-		err        error
-	)
-
 	config := newExecuteBridgingConfig(options...)
 	expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
 
 	balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	require.NoError(t, err)
 
-	if expectNativeTokens {
-		prevAmount = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
-	} else {
-		prevAmount = balance[cardanowallet.AdaTokenName]
-	}
-
-	if prevAmount == nil {
-		prevAmount = big.NewInt(0)
-	}
+	tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
+	prevAmount := cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
 
 	expectedAmount := prevAmount
 
@@ -160,15 +127,8 @@ func ExecuteBridging(
 			balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 			require.NoError(t, err)
 
-			if expectNativeTokens {
-				expectedAmountPerChainDfm[i][dstChain] = balance[apex.GetTokenNameForChains(dstChain, srcChain)]
-			} else {
-				expectedAmountPerChainDfm[i][dstChain] = balance[cardanowallet.AdaTokenName]
-			}
-
-			if expectedAmountPerChainDfm[i][dstChain] == nil {
-				expectedAmountPerChainDfm[i][dstChain] = big.NewInt(0)
-			}
+			tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
+			expectedAmountPerChainDfm[i][dstChain] = cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
 		}
 	}
 
@@ -245,4 +205,12 @@ func getSrcFromDstChain(chainPairs []srcDstChainPair, dstChain string) string {
 	}
 
 	return ""
+}
+
+func getTokenNameForChains(apex IApexSystem, dstChain, srcChain string, expectNativeTokens bool) string {
+	if expectNativeTokens {
+		return apex.GetTokenNameForChains(dstChain, srcChain)
+	}
+
+	return cardanowallet.AdaTokenName
 }
