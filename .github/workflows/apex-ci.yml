@@ -148,9 +148,9 @@ jobs:
       inputs.e2e_apex_test || 
       github.event_name == 'pull_request'
     with:
-      apex_bridge_ref: apex-570_utxo-consolidation
+      apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
       e2e_apex_big_test: ${{ inputs.e2e_apex_big_test || 'false' }}
-      e2e_apex_skip_redundant_tests: false
+      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_apex_test_push:
@@ -159,7 +159,7 @@ jobs:
     needs: build_blade
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
     with:
-      apex_bridge_ref: apex-570_utxo-consolidation
+      apex_bridge_ref: main
       e2e_apex_big_test: false
       e2e_apex_skip_redundant_tests: false
     secrets:
