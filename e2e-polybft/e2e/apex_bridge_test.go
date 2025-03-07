@@ -2044,7 +2044,6 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 		maxUtxoCount                  = 4
 		sequentialInstances           = 3
 		parallelInstances             = 6
-		maxTxsPerBatch                = 5
 		minimumExpectedConsolidations = uint64(3)
 		pullTimeBatchInfo             = time.Second * 10
 	)
