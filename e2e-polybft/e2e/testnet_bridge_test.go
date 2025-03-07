@@ -436,8 +436,11 @@ func getUserBalances(
 				balance, err := infracommon.ExecuteWithRetry(
 					ctx, func(ctx context.Context) (*big.Int, error) {
 						balance, err := apex.GetBalance(ctx, u, c)
+						if err != nil {
+							return nil, err
+						}
 
-						return balance[cardanowallet.AdaTokenName], err
+						return balance[cardanowallet.AdaTokenName], nil
 					},
 				)
 				if err != nil {
