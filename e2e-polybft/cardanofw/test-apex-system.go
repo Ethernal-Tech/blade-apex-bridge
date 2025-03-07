@@ -626,61 +626,109 @@ func (a *ApexSystem) ApexBridgeProcessesRunning() bool {
 
 func (a *ApexSystem) GetBalance(
 	ctx context.Context, user *TestApexUser, chainID ChainID,
-) (*big.Int, error) {
+) (map[string]*big.Int, error) {
 	chain, err := a.getChain(chainID)
 	if err != nil {
 		return nil, err
 	}
 
-	amount, err := chain.GetAddressBalance(ctx, user.GetAddress(chainID))
+	balance, err := chain.GetAddressBalance(ctx, user.GetAddress(chainID))
 	if err != nil {
 		return nil, err
 	}
 
-	return ChainNativeTokenAmountToDfm(chainID, amount), nil
+	for key, value := range balance {
+		balance[key] = ChainNativeTokenAmountToDfm(chainID, value)
+	}
+
+	return balance, err
+}
+
+func (a *ApexSystem) GetTokenNameForChains(chainID, dstChainID ChainID) string {
+	var nativeTokens []sendtx.TokenExchangeConfig
+
+	switch chainID {
+	case ChainIDPrime:
+		nativeTokens = a.Config.PrimeConfig.NativeTokens
+	case ChainIDVector:
+		nativeTokens = a.Config.VectorConfig.NativeTokens
+	case ChainIDCardano:
+		nativeTokens = a.Config.CardanoConfig.NativeTokens
+	}
+
+	for _, token := range nativeTokens {
+		if token.DstChainID == dstChainID {
+			return token.TokenName
+		}
+	}
+
+	return ""
 }
 
 func (a *ApexSystem) WaitForGreaterAmount(
-	ctx context.Context, user *TestApexUser, chain ChainID,
-	expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration,
+	ctx context.Context, user *TestApexUser, dstChain ChainID, srcChain ChainID,
+	expectedAmount *big.Int, numRetries int, waitTime time.Duration, isNativeToken ...bool,
 ) error {
-	lastAmount, err := a.WaitForAmount(ctx, user, chain, func(val *big.Int) bool {
-		return val.Cmp(expectedAmountDfm) == 1
-	}, numRetries, waitTime)
+	var (
+		lastAmount *big.Int
+		err        error
+	)
+
+	lastAmount, err = a.WaitForAmount(ctx, user, dstChain, srcChain, func(val *big.Int) bool {
+		return val.Cmp(expectedAmount) == 1
+	}, numRetries, waitTime, isNativeToken...)
+
 	if err != nil {
 		return fmt.Errorf("amount mismatch: expected greater than %s, but received %s: %w",
-			expectedAmountDfm, lastAmount, err)
+			expectedAmount, lastAmount, err)
 	}
 
 	return nil
 }
 
 func (a *ApexSystem) WaitForExactAmount(
-	ctx context.Context, user *TestApexUser, chain ChainID,
-	expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration,
+	ctx context.Context, user *TestApexUser, dstChain ChainID, srcChain ChainID,
+	expectedAmount *big.Int, numRetries int, waitTime time.Duration, isNativeToken ...bool,
 ) error {
-	lastAmount, err := a.WaitForAmount(ctx, user, chain, func(val *big.Int) bool {
-		return val.Cmp(expectedAmountDfm) >= 0
-	}, numRetries, waitTime)
+	var (
+		lastAmount *big.Int
+		err        error
+	)
+
+	lastAmount, err = a.WaitForAmount(ctx, user, dstChain, srcChain, func(val *big.Int) bool {
+		return val.Cmp(expectedAmount) >= 0
+	}, numRetries, waitTime, isNativeToken...)
+
 	if err != nil {
 		return fmt.Errorf("amount mismatch: expected %s, but received %s: %w",
-			expectedAmountDfm, lastAmount, err)
-	} else if lastAmount.Cmp(expectedAmountDfm) > 0 {
+			expectedAmount, lastAmount, err)
+	} else if lastAmount.Cmp(expectedAmount) > 0 {
 		return fmt.Errorf("amount mismatch: received amount %s is greater than expected %s",
-			lastAmount, expectedAmountDfm)
+			lastAmount, expectedAmount)
 	}
 
 	return nil
 }
 
 func (a *ApexSystem) WaitForAmount(
-	ctx context.Context, user *TestApexUser, chain ChainID,
-	cmpHandler func(*big.Int) bool, numRetries int, waitTime time.Duration,
+	ctx context.Context, user *TestApexUser, dstChain ChainID, srcChain string,
+	cmpHandler func(*big.Int) bool, numRetries int, waitTime time.Duration, isNativeToken ...bool,
 ) (*big.Int, error) {
 	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*big.Int, error) {
-		newBalance, err := a.GetBalance(ctx, user, chain)
+		amounts, err := a.GetBalance(ctx, user, dstChain)
 		if err != nil {
 			return nil, err
+		}
+
+		currency := cardanowallet.AdaTokenName
+
+		if len(isNativeToken) > 0 && isNativeToken[0] {
+			currency = a.GetTokenNameForChains(dstChain, srcChain)
+		}
+
+		newBalance := amounts[currency]
+		if newBalance == nil {
+			newBalance = big.NewInt(0)
 		}
 
 		if !cmpHandler(newBalance) {

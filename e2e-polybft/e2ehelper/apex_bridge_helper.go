@@ -12,92 +12,101 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
+	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
 func ExecuteSingleBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, senderUser, receiverUser *cardanofw.TestApexUser,
-	srcChain, dstChain string, sendAmountDfm *big.Int, bridgingType sendtx.BridgingType, options ...ExecuteBridgingOption,
+	srcChain, dstChain string, sendAmount *big.Int, bridgingType sendtx.BridgingType, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
 	config := newExecuteBridgingConfig(options...)
+	expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
 
-	prevAmountDfm, err := apex.GetBalance(ctx, receiverUser, dstChain)
+	balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	require.NoError(t, err)
 
+	tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
+	prevAmount := cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
+
 	txHash := apex.SubmitBridgingRequest(
-		t, ctx, srcChain, dstChain, senderUser, sendAmountDfm, bridgingType, receiverUser)
-
-	expectedAmountDest := sendAmountDfm
-	if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
-		expectedAmountDest = new(big.Int).SetUint64(cardanofw.MinUTxODefaultValue)
-	}
-
-	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, expectedAmountDest)
+		t, ctx, srcChain, dstChain, senderUser, sendAmount, bridgingType, receiverUser)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
-	// check expected amount cardano
-	if bridgingType != sendtx.BridgingTypeCurrencyOnSource {
-		err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmountDfm,
-			config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime)
-	} else {
-		err = apex.WaitForGreaterAmount(ctx, receiverUser, dstChain, prevAmountDfm,
-			config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime)
-	}
+	expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
+
+	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, srcChain, expectedAmount,
+		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, expectNativeTokens)
 
 	require.NoError(t, err)
 }
 
 func ExecuteBridgingOneByOneWaitOnOtherSide(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
-	user *cardanofw.TestApexUser, srcChain, dstChain string, sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
+	receiverUser *cardanofw.TestApexUser, srcChain, dstChain string, sendAmount *big.Int, bridgingType sendtx.BridgingType,
+	options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
 	config := newExecuteBridgingConfig(options...)
 
 	for i := 0; i < txCountPerSender; i++ {
-		prevAmountDfm, err := apex.GetBalance(ctx, user, dstChain)
+		expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
+
+		balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 		require.NoError(t, err)
 
-		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, sendtx.BridgingTypeNormal, user)
-		expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
+		tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
+		prevAmount := cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
 
-		err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm,
-			config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime)
+		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, receiverUser)
+
+		expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
+
+		err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, srcChain, expectedAmount,
+			config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, expectNativeTokens)
+
 		require.NoError(t, err)
 	}
 }
 
 func ExecuteBridgingWaitAfterSubmits(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
-	user *cardanofw.TestApexUser, srcChain, dstChain string, sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
+	receiverUser *cardanofw.TestApexUser, srcChain, dstChain string, sendAmount *big.Int, bridgingType sendtx.BridgingType,
+	options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
 	config := newExecuteBridgingConfig(options...)
+	expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
 
-	prevAmountDfm, err := apex.GetBalance(ctx, user, dstChain)
+	balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	require.NoError(t, err)
 
-	expectedAmountDfm := new(big.Int).Set(prevAmountDfm)
+	tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
+	prevAmount := cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
+
+	expectedAmount := prevAmount
 
 	for i := 0; i < txCountPerSender; i++ {
-		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, sendtx.BridgingTypeNormal, user)
-		expectedAmountDfm = expectedAmountDfm.Add(expectedAmountDfm, sendAmountDfm)
+		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, receiverUser)
+
+		expectedAmount = expectedAmount.Add(expectedAmount, sendAmount)
 	}
 
-	err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm,
-		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime)
+	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, srcChain, expectedAmount,
+		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, expectNativeTokens)
+
 	require.NoError(t, err)
 }
 
 func ExecuteBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	senderUsers []*cardanofw.TestApexUser, receiverUsers []*cardanofw.TestApexUser,
-	chains []string, chainsDst map[string][]string,
+	chains []string, chainsDst map[string][]string, bridgingType sendtx.BridgingType,
 	sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
@@ -107,18 +116,24 @@ func ExecuteBridging(
 	chainPairs := getAllChainPairs(chains, chainsDst)
 	expectedAmountPerChainDfm := make([]map[string]*big.Int, len(receiverUsers))
 
+	expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
+
 	for i, receiverUser := range receiverUsers {
 		expectedAmountPerChainDfm[i] = make(map[string]*big.Int)
 
 		for _, dstChain := range dstChains {
-			dfm, err := apex.GetBalance(ctx, receiverUser, dstChain)
+			srcChain := getSrcFromDstChain(chainPairs, dstChain)
+
+			balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 			require.NoError(t, err)
 
-			expectedAmountPerChainDfm[i][dstChain] = dfm
+			tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
+			expectedAmountPerChainDfm[i][dstChain] = cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
 		}
 	}
 
-	config.sendTxStrategy(t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender)
+	config.sendTxStrategy(t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender,
+		bridgingType)
 
 	// update expectedAmountPerChainDfm
 	for recieverUserIdx := range receiverUsers {
@@ -139,13 +154,16 @@ func ExecuteBridging(
 		for j, dstChain := range dstChains {
 			wgResults.Add(1)
 
-			go func(idx int, idxChain int, receiverUser *cardanofw.TestApexUser, dstChain string, expectedAmountDfm *big.Int) {
+			go func(idx int, idxChain int, receiverUser *cardanofw.TestApexUser, dstChain string, expectedAmount *big.Int) {
 				defer wgResults.Done()
 
-				err := apex.WaitForExactAmount(
-					ctx, receiverUser, dstChain, expectedAmountDfm,
-					len(receiverUsers)*config.timeoutConfig.bridgingNumRetries,
-					config.timeoutConfig.bridgingRetryWaitTime)
+				var err error
+
+				srcChain := getSrcFromDstChain(chainPairs, dstChain)
+
+				err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, srcChain, expectedAmount,
+					config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, expectNativeTokens)
+
 				if err != nil {
 					errs[idx*len(dstChains)+idxChain] = fmt.Errorf("receiver %d on %s: %w", idx, dstChain, err)
 
@@ -156,8 +174,11 @@ func ExecuteBridging(
 
 				if config.waitForUnexpectedBridges {
 					// nothing else should be bridged for 2 minutes
+					srcChain := getSrcFromDstChain(chainPairs, dstChain)
+
 					err = apex.WaitForGreaterAmount(
-						ctx, receiverUser, dstChain, expectedAmountDfm, 12, time.Second*10)
+						ctx, receiverUser, dstChain, srcChain, expectedAmount, 12, time.Second*10, expectNativeTokens)
+
 					if !errors.Is(err, infracommon.ErrRetryTimeout) {
 						errs[idx*len(dstChains)+idxChain] = fmt.Errorf(
 							"receiver %d on %s should not receive more tokens: %w", idx, dstChain, err)
@@ -174,4 +195,22 @@ func ExecuteBridging(
 	wgResults.Wait()
 
 	require.NoError(t, errors.Join(errs...))
+}
+
+func getSrcFromDstChain(chainPairs []srcDstChainPair, dstChain string) string {
+	for _, chainPair := range chainPairs {
+		if chainPair.dstChain == dstChain {
+			return chainPair.srcChain
+		}
+	}
+
+	return ""
+}
+
+func getTokenNameForChains(apex IApexSystem, dstChain, srcChain string, expectNativeTokens bool) string {
+	if expectNativeTokens {
+		return apex.GetTokenNameForChains(dstChain, srcChain)
+	}
+
+	return cardanowallet.AdaTokenName
 }

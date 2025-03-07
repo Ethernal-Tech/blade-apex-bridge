@@ -538,3 +538,13 @@ func GetGenesisWalletFromCluster(
 
 	return wallet.NewWallet(sKeyBytes, nil), nil
 }
+
+func SetOrDefault[T comparable](val, def T) T {
+	var zero T
+
+	if val == zero {
+		return def
+	}
+
+	return val
+}

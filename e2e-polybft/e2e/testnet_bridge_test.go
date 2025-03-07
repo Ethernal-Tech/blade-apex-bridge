@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
+	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
@@ -434,7 +435,12 @@ func getUserBalances(
 
 				balance, err := infracommon.ExecuteWithRetry(
 					ctx, func(ctx context.Context) (*big.Int, error) {
-						return apex.GetBalance(ctx, u, c)
+						balance, err := apex.GetBalance(ctx, u, c)
+						if err != nil {
+							return nil, err
+						}
+
+						return balance[cardanowallet.AdaTokenName], nil
 					},
 				)
 				if err != nil {

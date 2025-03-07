@@ -285,7 +285,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		}
 
 		tokenAmount, err := FundAddressWithToken(
-			ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL()),
+			ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.ogmiosURL),
 			minterWallet, ec.GetHotWalletAddress(), max(2*MinUTxODefaultValue, ec.config.FundAmount), ec.config.FundTokenAmount)
 		if err != nil {
 			return err
@@ -380,7 +380,7 @@ func (ec *TestCardanoChain) ChainID() string {
 	return GetNetworkName(ec.config)
 }
 
-func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) (*big.Int, error) {
+func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error) {
 	txProvider, err := ec.GetTxProvider()
 	if err != nil {
 		return nil, err
@@ -391,9 +391,15 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 		return nil, err
 	}
 
-	sum := infrawallet.GetUtxosSum(utxos)
+	balance := infrawallet.GetUtxosSum(utxos)
 
-	return new(big.Int).SetUint64(sum[infrawallet.AdaTokenName]), nil
+	balanceTransformed := make(map[string]*big.Int, len(balance))
+
+	for key, value := range balance {
+		balanceTransformed[key] = new(big.Int).SetUint64(value)
+	}
+
+	return balanceTransformed, nil
 }
 
 func (ec *TestCardanoChain) CreateMetadata(
@@ -532,7 +538,7 @@ func (ec *TestCardanoChain) submitTx(
 		retryWaitTime = time.Second * 5
 	)
 
-	txProvider := infrawallet.NewTxProviderOgmios(ec.cluster.OgmiosURL())
+	txProvider := infrawallet.NewTxProviderOgmios(ec.ogmiosURL)
 
 	if err := ec.txSender.SubmitTx(ctx, GetNetworkName(ec.config), rawTx, signer); err != nil {
 		return "", err

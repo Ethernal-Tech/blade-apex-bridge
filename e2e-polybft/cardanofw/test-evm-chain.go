@@ -24,6 +24,8 @@ import (
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
+	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+
 	"github.com/Ethernal-Tech/ethgo"
 )
 
@@ -284,7 +286,7 @@ func (ec *TestEVMChain) ChainID() string {
 	return ec.config.ChainID
 }
 
-func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (*big.Int, error) {
+func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error) {
 	rpc, err := ec.JSONRPC()
 	if err != nil {
 		return nil, err
@@ -295,7 +297,9 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (*bi
 		return nil, err
 	}
 
-	return amount, err
+	return map[string]*big.Int{
+		cardanowallet.AdaTokenName: amount,
+	}, err
 }
 
 func (ec *TestEVMChain) CreateMetadata(
