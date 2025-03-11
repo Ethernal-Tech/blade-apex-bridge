@@ -899,7 +899,7 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
 	})
 
-	t.Run("12. Submitted invalid metadata - invalid receiver address - token on source", func(t *testing.T) {
+	t.Run("12. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
 		sendAmount := uint64(1_123_000)
 		feeAmount := uint64(1_100_000)
 
