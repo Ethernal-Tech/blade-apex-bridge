@@ -2,7 +2,10 @@
 package contractsapi
 
 import (
+	"math/big"
+
 	"github.com/0xPolygon/polygon-edge/types"
+	"github.com/Ethernal-Tech/ethgo/abi"
 )
 
 type InitializeApexBridgeContractsBridgeFn struct {
@@ -247,4 +250,38 @@ func (s *SetDependenciesApexBridgeContractsAdminFn) EncodeAbi() ([]byte, error) 
 
 func (s *SetDependenciesApexBridgeContractsAdminFn) DecodeAbi(buf []byte) error {
 	return decodeMethod(ApexBridgeContracts.Admin.Abi.Methods["setDependencies"], buf, s)
+}
+
+type ApexGenesisValidator struct {
+	Addr   types.Address `abi:"addr"`
+	BlsKey [4]*big.Int   `abi:"blsKey"`
+}
+
+var ApexGenesisValidatorABIType = abi.MustNewType("tuple(address addr,uint256[4] blsKey)")
+
+func (a *ApexGenesisValidator) EncodeAbi() ([]byte, error) {
+	return ApexGenesisValidatorABIType.Encode(a)
+}
+
+func (a *ApexGenesisValidator) DecodeAbi(buf []byte) error {
+	return decodeStruct(ApexGenesisValidatorABIType, buf, &a)
+}
+
+type InitializeApexBridgeContractsStakeManagerFn struct {
+	Owner             types.Address           `abi:"_owner"`
+	Bls               types.Address           `abi:"_bls"`
+	DomainString      string                  `abi:"_domainString"`
+	GenesisValidators []*ApexGenesisValidator `abi:"_genesisValidators"`
+}
+
+func (i *InitializeApexBridgeContractsStakeManagerFn) Sig() []byte {
+	return ApexBridgeContracts.StakeManager.Abi.Methods["initialize"].ID()
+}
+
+func (i *InitializeApexBridgeContractsStakeManagerFn) EncodeAbi() ([]byte, error) {
+	return ApexBridgeContracts.StakeManager.Abi.Methods["initialize"].Encode(i)
+}
+
+func (i *InitializeApexBridgeContractsStakeManagerFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(ApexBridgeContracts.StakeManager.Abi.Methods["initialize"], buf, i)
 }

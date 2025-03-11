@@ -13,6 +13,7 @@ import (
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/0xPolygon/go-ibft/core"
+	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/chain"
 	"github.com/0xPolygon/polygon-edge/consensus"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
@@ -22,6 +23,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/forkmanager"
 	"github.com/0xPolygon/polygon-edge/helper/common"
+	"github.com/0xPolygon/polygon-edge/helper/hex"
 	"github.com/0xPolygon/polygon-edge/helper/progress"
 	"github.com/0xPolygon/polygon-edge/network"
 	"github.com/0xPolygon/polygon-edge/state"
@@ -201,7 +203,7 @@ func GenesisPostHookFactory(config *chain.Chain, engineName string) func(txn *st
 		}
 
 		// initialize StakeManager SC
-		if err = initStakeManager(polyBFTConfig, transition); err != nil {
+		if err = initApexStakeManager(polyBFTConfig, transition); err != nil {
 			return err
 		}
 
@@ -906,4 +908,39 @@ func getBurnContractAddress(config *chain.Chain, polyBFTConfig PolyBFTConfig) (t
 	}
 
 	return types.ZeroAddress, false
+}
+
+// initApexStakeManager initializes apex stake manager
+func initApexStakeManager(polyBFTConfig PolyBFTConfig, transition *state.Transition) error {
+	startValidators := make([]*contractsapi.ApexGenesisValidator, len(polyBFTConfig.InitialValidatorSet))
+
+	for i, validator := range polyBFTConfig.InitialValidatorSet {
+		blsRaw, err := hex.DecodeHex(validator.BlsKey)
+		if err != nil {
+			return err
+		}
+
+		key, err := bls.UnmarshalPublicKey(blsRaw)
+		if err != nil {
+			return err
+		}
+
+		startValidators[i] = &contractsapi.ApexGenesisValidator{
+			Addr:   validator.Address,
+			BlsKey: key.ToBigInt(),
+		}
+	}
+
+	input, err := (&contractsapi.InitializeApexBridgeContractsStakeManagerFn{
+		GenesisValidators: startValidators,
+		Bls:               contracts.BLSContract,
+		DomainString:      signer.DomainValidatorSetString,
+		Owner:             polyBFTConfig.BladeAdmin,
+	}).EncodeAbi()
+	if err != nil {
+		return fmt.Errorf("StakeManager.initialize params encoding failed: %w", err)
+	}
+
+	return callContract(contracts.SystemCaller,
+		contracts.StakeManagerContract, input, "StakeManager.initialize", transition)
 }

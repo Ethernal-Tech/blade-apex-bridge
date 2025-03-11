@@ -637,6 +637,15 @@ import (
 			},
 			[]string{},
 		},
+		{
+			"ApexBridgeContracts.StakeManager",
+			gensc.ApexBridgeContracts.StakeManager,
+			false,
+			[]string{
+				"initialize",
+			},
+			[]string{},
+		},
 	}
 
 	generatedData = generateData(contractsMetadata)
@@ -645,8 +654,10 @@ import (
 package contractsapi
 
 import (
+	"math/big"
 
 	"github.com/0xPolygon/polygon-edge/types"
+	"github.com/Ethernal-Tech/ethgo/abi"
 )
 
 `

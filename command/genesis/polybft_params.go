@@ -415,7 +415,7 @@ func (p *genesisParams) deployContracts(rewardTokenByteCode []byte,
 			address:  contracts.EpochManagerContractV1,
 		},
 		{
-			artifact: contractsapi.StakeManager,
+			artifact: contractsapi.ApexBridgeContracts.StakeManager,
 			address:  contracts.StakeManagerContractV1,
 		},
 		{

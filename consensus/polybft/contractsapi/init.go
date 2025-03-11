@@ -394,7 +394,7 @@ func init() {
 		"RootMintableERC1155PredicateACL": RootMintableERC1155PredicateACL,
 		"L2StateSender":                   L2StateSender,
 		"CustomSupernetManager":           CustomSupernetManager,
-		"StakeManager":                    StakeManager,
+		"StakeManager":                    ApexBridgeContracts.StakeManager, // use apex stake manager
 		"EpochManager":                    EpochManager,
 		"RootERC721":                      RootERC721,
 		"RootERC1155":                     RootERC1155,

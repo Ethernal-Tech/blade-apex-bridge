@@ -61,6 +61,10 @@ package contractsapi
 			"Admin.sol",
 			"ApexBridgeAdmin",
 		},
+		{
+			"blade/ApexStakeManager.sol",
+			"ApexStakeManager",
+		},
 	}
 
 	for _, v := range apexContracts {
