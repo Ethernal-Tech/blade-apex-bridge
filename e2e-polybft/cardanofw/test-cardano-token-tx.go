@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/Ethernal-Tech/cardano-infrastructure/common"
+	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
@@ -226,8 +227,14 @@ func createNativeTokenTx(
 	}
 	desiredLovelaceAmount := PotentialFee + lovelaceAmount + max(minUtxoLovelace, MinUTxODefaultValue)
 
-	inputs, err := cardanowallet.GetUTXOsForAmount(
-		allUtxos, cardanowallet.AdaTokenName, desiredLovelaceAmount, maxInputs)
+	conditions := map[string]uint64{
+		cardanowallet.AdaTokenName: desiredLovelaceAmount,
+	}
+	for _, token := range tokens {
+		conditions[token.Token.String()] = token.Amount
+	}
+
+	inputs, err := sendtx.GetUTXOsForAmounts(allUtxos, conditions, maxInputs, 1)
 	if err != nil {
 		return nil, "", err
 	}
