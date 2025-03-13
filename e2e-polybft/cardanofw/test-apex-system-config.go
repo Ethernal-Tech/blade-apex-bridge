@@ -9,6 +9,7 @@ import (
 
 type ChainID = string
 type TelemetryConfig = int
+type CustomConfigHandler = func(apex *ApexSystem, mp map[string]interface{})
 
 const (
 	ChainIDPrime  ChainID = "prime"
@@ -39,8 +40,8 @@ type ApexSystemConfig struct {
 	CardanoConfig *TestCardanoChainConfig
 	NexusConfig   *TestEVMChainConfig
 
-	CustomOracleHandler  func(mp map[string]interface{})
-	CustomRelayerHandler func(mp map[string]interface{})
+	CustomOracleConfigHandler  CustomConfigHandler
+	CustomRelayerConfigHandler CustomConfigHandler
 
 	UserCnt uint
 }
@@ -119,10 +120,10 @@ func WithNexusConfig(config *TestEVMChainConfig) ApexSystemOptions {
 	}
 }
 
-func WithCustomConfigHandlers(callbackOracle, callbackRelayer func(mp map[string]interface{})) ApexSystemOptions {
+func WithCustomConfigHandlers(callbackOracle, callbackRelayer CustomConfigHandler) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
-		h.CustomOracleHandler = callbackOracle
-		h.CustomRelayerHandler = callbackRelayer
+		h.CustomOracleConfigHandler = callbackOracle
+		h.CustomRelayerConfigHandler = callbackRelayer
 	}
 }
 
@@ -145,9 +146,6 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 		CardanoConfig: NewCardanoChainConfig(false),
 		NexusConfig:   NewNexusChainConfig(false),
 
-		CustomOracleHandler:  nil,
-		CustomRelayerHandler: nil,
-
 		UserCnt: 10,
 	}
 }
@@ -164,9 +162,6 @@ func getDefaultSkylinexSystemConfig() *ApexSystemConfig {
 		VectorConfig:  NewVectorChainConfig(false),
 		CardanoConfig: NewCardanoChainConfig(true),
 		NexusConfig:   NewNexusChainConfig(false),
-
-		CustomOracleHandler:  nil,
-		CustomRelayerHandler: nil,
 
 		UserCnt: 10,
 	}

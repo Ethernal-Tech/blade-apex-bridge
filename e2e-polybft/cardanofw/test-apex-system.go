@@ -28,8 +28,6 @@ type CardanoChainInfo struct {
 	MultisigAddr     string
 	FeeAddr          string
 	SocketPath       string
-	FundBlockHash    string
-	FundBlockSlot    uint64
 
 	GenesisWallet *cardanowallet.Wallet
 }
@@ -225,6 +223,8 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 	a.bladeProxyAdmin = bladeProxyAdmin
 	a.BridgeCluster = framework.NewTestCluster(t, a.Config.BladeValidatorCount,
 		framework.WithBladeAdmin(bladeAdmin.Address().String()),
+		framework.WithEpochReward(0),
+		framework.WithNativeTokenConfig("Blade:BLADE:18:true"),
 		framework.WithProxyContractsAdmin(bladeProxyAdmin.Address().String()),
 	)
 
@@ -424,6 +424,11 @@ func (a *ApexSystem) GenerateConfigs() error {
 }
 
 func (a *ApexSystem) generateReactorConfigs() error {
+	getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
+		return func(data map[string]any) {
+			callback(a, data)
+		}
+	}
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
 		if a.Config.TargetOneCardanoClusterServer {
@@ -442,16 +447,16 @@ func (a *ApexSystem) generateReactorConfigs() error {
 			return err
 		}
 
-		if handler := a.Config.CustomOracleHandler; handler != nil {
+		if handler := a.Config.CustomOracleConfigHandler; handler != nil {
 			fileName := validator.GetValidatorComponentsConfig()
-			if err := UpdateJSONFile(fileName, fileName, handler, false); err != nil {
+			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
 				return err
 			}
 		}
 
-		if handler := a.Config.CustomRelayerHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
+		if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
 			fileName := validator.GetRelayerConfig()
-			if err := UpdateJSONFile(fileName, fileName, handler, false); err != nil {
+			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
 				return err
 			}
 		}
@@ -466,6 +471,11 @@ func (a *ApexSystem) generateReactorConfigs() error {
 }
 
 func (a *ApexSystem) generateSkylineConfigs() error {
+	getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
+		return func(data map[string]any) {
+			callback(a, data)
+		}
+	}
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
 		if a.Config.TargetOneCardanoClusterServer {
@@ -488,16 +498,16 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 			return err
 		}
 
-		if handler := a.Config.CustomOracleHandler; handler != nil {
+		if handler := a.Config.CustomOracleConfigHandler; handler != nil {
 			fileName := validator.GetValidatorComponentsConfig()
-			if err := UpdateJSONFile(fileName, fileName, handler, false); err != nil {
+			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
 				return err
 			}
 		}
 
-		if handler := a.Config.CustomRelayerHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
+		if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
 			fileName := validator.GetRelayerConfig()
-			if err := UpdateJSONFile(fileName, fileName, handler, false); err != nil {
+			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
 				return err
 			}
 		}

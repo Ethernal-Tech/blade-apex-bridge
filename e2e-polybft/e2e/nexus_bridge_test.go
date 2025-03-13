@@ -771,7 +771,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithCustomConfigHandlers(nil, func(mp map[string]interface{}) {
+			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
 				block["gasFeeCap"] = uint64(10)
 				block["gasTipCap"] = uint64(11)
@@ -838,7 +838,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithCustomConfigHandlers(nil, func(mp map[string]interface{}) {
+			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
 				block["gasPrice"] = uint64(10)
 				block["dynamicTx"] = bool(false)
@@ -900,7 +900,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithCustomConfigHandlers(nil, func(mp map[string]interface{}) {
+			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(10)
 			}),
 		)
@@ -963,7 +963,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
+			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(1)
 			}, nil),
 		)
@@ -1020,7 +1020,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
+			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(2)
 			}, nil),
 		)
@@ -1075,7 +1075,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
+			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(3)
 			}, nil),
 		)
@@ -1130,7 +1130,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
-			cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
+			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(4)
 			}, nil),
 		)
