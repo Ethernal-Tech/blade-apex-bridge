@@ -20,6 +20,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/0xPolygon/polygon-edge/helper/common"
+	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
@@ -2030,8 +2031,7 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 		maxUtxoCount                  = 4
 		sequentialInstances           = 3
 		parallelInstances             = 6
-		minimumExpectedConsolidations = uint64(3)
-		pullTimeBatchInfo             = time.Second * 10
+		minimumExpectedConsolidations = 3
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -2050,8 +2050,6 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 		initialUtxosVector, initialUtxosPrime []map[string]any
 		tipDataVector, tipDataPrime           infrawallet.QueryTipData
 		lock                                  sync.Mutex
-		lastBatchID                           = map[string]uint64{}
-		cntConsolidationBatches               = map[string]uint64{}
 	)
 
 	apex := cardanofw.SetupAndRunApexBridge(
@@ -2091,51 +2089,13 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(apex.BridgeCluster.Servers[0].JSONRPC()))
-	require.NoError(t, err)
-
-	getConfirmedBatchFn := contractsapi.ApexBridgeContracts.SignedBatches.Abi.GetMethod("getConfirmedBatch")
-
-	for _, chainID := range []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector} {
-		go func(chainID string) {
-			for {
-				select {
-				case <-time.After(pullTimeBatchInfo):
-					input, err := getConfirmedBatchFn.Encode([]any{cardanofw.ChainIDToInt(chainID)})
-					require.NoError(t, err)
-
-					response, err := txRelayer.Call(types.ZeroAddress, contracts.SignedBatches, input)
-					if err != nil {
-						return // we assume this error is because the bridge is stopped already
-					}
-
-					bytes, err := hex.DecodeString(strings.TrimPrefix(response, "0x"))
-					require.NoError(t, err)
-
-					decoded, err := getConfirmedBatchFn.Outputs.Decode(bytes)
-					require.NoError(t, err)
-
-					batchInfo := decoded.(map[string]any)["_batch"].(map[string]any)
-					id := batchInfo["id"].(uint64)
-					isConsolidation := batchInfo["isConsolidation"].(bool)
-
-					lock.Lock()
-
-					if lastBatchID[chainID] != id {
-						if isConsolidation {
-							cntConsolidationBatches[chainID]++
-						}
-
-						lastBatchID[chainID] = id
-					}
-
-					lock.Unlock()
-				case <-ctx.Done():
-					return
-				}
-			}
-		}(chainID)
-	}
+	checkConsolidationBatchCounts(
+		t, ctx,
+		apex.BridgeCluster.Servers[0].JSONRPC(),
+		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
+		func(_ string, cnt int) {
+			assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
+		})
 
 	e2ehelper.ExecuteBridging(
 		t, ctx, apex, sequentialInstances,
@@ -2148,9 +2108,6 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 		}, sendtx.BridgingTypeNormal,
 		new(big.Int).SetUint64(sendAmount),
 		e2ehelper.WithWaitForUnexpectedBridges(true))
-
-	assert.GreaterOrEqual(t, cntConsolidationBatches[cardanofw.ChainIDPrime], minimumExpectedConsolidations)
-	assert.GreaterOrEqual(t, cntConsolidationBatches[cardanofw.ChainIDVector], minimumExpectedConsolidations)
 }
 
 func getInitialUtxosAndTip(
@@ -2194,4 +2151,78 @@ func getInitialUtxosAndTip(
 	}
 
 	return initialUtxos, tipData
+}
+
+func checkConsolidationBatchCounts(
+	t *testing.T, ctx context.Context, bridgeJSONRPC *jsonrpc.EthClient, chainIDs []string,
+	checkCallback func(chainID string, cnt int),
+) {
+	t.Helper()
+
+	const pullTimeBatchInfo = time.Second * 10
+
+	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(bridgeJSONRPC))
+	require.NoError(t, err)
+
+	var (
+		lock                    sync.Mutex
+		wg                      sync.WaitGroup
+		lastBatchID             = map[string]uint64{}
+		cntConsolidationBatches = map[string]int{}
+	)
+
+	getConfirmedBatchFn := contractsapi.ApexBridgeContracts.SignedBatches.Abi.GetMethod("getConfirmedBatch")
+
+	for _, chainID := range chainIDs {
+		wg.Add(1)
+
+		go func(chainID string) {
+			defer wg.Done()
+
+			for {
+				select {
+				case <-time.After(pullTimeBatchInfo):
+					input, err := getConfirmedBatchFn.Encode([]any{cardanofw.ChainIDToInt(chainID)})
+					require.NoError(t, err)
+
+					response, err := txRelayer.Call(types.ZeroAddress, contracts.SignedBatches, input)
+					if err != nil {
+						return // we assume this error is because the bridge is stopped already
+					}
+
+					bytes, err := hex.DecodeString(strings.TrimPrefix(response, "0x"))
+					require.NoError(t, err)
+
+					decoded, err := getConfirmedBatchFn.Outputs.Decode(bytes)
+					require.NoError(t, err)
+
+					batchInfo := decoded.(map[string]any)["_batch"].(map[string]any)
+					id := batchInfo["id"].(uint64)
+					isConsolidation := batchInfo["isConsolidation"].(bool)
+
+					lock.Lock()
+
+					if lastBatchID[chainID] != id {
+						if isConsolidation {
+							cntConsolidationBatches[chainID]++
+						}
+
+						lastBatchID[chainID] = id
+					}
+
+					lock.Unlock()
+				case <-ctx.Done():
+					return
+				}
+			}
+		}(chainID)
+	}
+
+	go func() {
+		wg.Wait()
+
+		for _, chainID := range chainIDs {
+			checkCallback(chainID, cntConsolidationBatches[chainID])
+		}
+	}()
 }
