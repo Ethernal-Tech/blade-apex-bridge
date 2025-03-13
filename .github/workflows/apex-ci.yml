@@ -3,8 +3,8 @@ name: ApexBridge CI
 on: # yamllint disable-line rule:truthy
   push:
     branches:
-      - main
       - develop
+      - feat/skyline
   pull_request:
   workflow_dispatch:
     inputs:
@@ -22,6 +22,10 @@ on: # yamllint disable-line rule:truthy
         default: true
       e2e_apex_test:
         description: E2E ApexBridge Tests
+        type: boolean
+        default: true
+      e2e_skyline_test:
+        description: E2E Skyline Tests
         type: boolean
         default: true
       e2e_apex_big_test:
@@ -54,6 +58,10 @@ on: # yamllint disable-line rule:truthy
         description: E2E ApexBridge Tests
         type: boolean
         required: true
+      e2e_skyline_test:
+        description: E2E Skyline Tests
+        type: boolean
+        required: true
       e2e_apex_big_test:
         description: E2E ApexBridge Big Tests
         type: string
@@ -82,6 +90,9 @@ on: # yamllint disable-line rule:truthy
       e2e_apex_test:
         description: E2E ApexBridge Tests output
         value: ${{ jobs.e2e_apex_test.outputs.workflow_output }}
+      e2e_skyline_test:
+        description: E2E Skyline Tests output
+        value: ${{ jobs.e2e_skyline_test.outputs.workflow_output }}
     secrets:
       PERSONAL_ACCESS_TOKEN:
         required: true
@@ -97,7 +108,7 @@ jobs:
     if: |
       inputs.lint || 
       github.event_name == 'pull_request' || 
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
+      (github.event_name == 'push' && (github.ref == 'refs/heads/feat/skyline' || github.ref == 'refs/heads/develop'))
   unit_test:
     name: Unit Tests
     uses: ./.github/workflows/unit-test.yml
@@ -105,7 +116,7 @@ jobs:
     if: |
       inputs.unit_test || 
       github.event_name == 'pull_request' || 
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
+      (github.event_name == 'push' && (github.ref == 'refs/heads/feat/skyline' || github.ref == 'refs/heads/develop'))
   inputs_check:
     name: Inputs Check
     runs-on: ubuntu-latest
@@ -135,7 +146,7 @@ jobs:
     needs: [build_blade, inputs_check]
     if: |
       inputs.e2e_polybft_test || 
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
+      (github.event_name == 'push' && (github.ref == 'refs/heads/feat/skyline' || github.ref == 'refs/heads/develop'))
     with:
       apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
     secrets:
@@ -154,13 +165,35 @@ jobs:
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_apex_test_push:
-    name: E2E ApexBridge Tests (push on main/develop branch)
+    name: E2E ApexBridge Tests (push on develop branch)
     uses: ./.github/workflows/e2e-apex-test.yml
     needs: build_blade
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
     with:
       apex_bridge_ref: main
       e2e_apex_big_test: false
+      e2e_apex_skip_redundant_tests: false
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_skyline_test:
+    name: E2E Skyline Tests
+    uses: ./.github/workflows/e2e-skyline-test.yml 
+    needs: [build_blade, inputs_check]
+    if: |
+      inputs.e2e_skyline_test ||
+      (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline')
+    with:
+      apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
+      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_skyline_test_push:
+    name: E2E Skyline Tests (push on feat/skyline branch)
+    uses: ./.github/workflows/e2e-skyline-test.yml
+    needs: build_blade
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/skyline')
+    with:
+      apex_bridge_ref: feat/skyline
       e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
