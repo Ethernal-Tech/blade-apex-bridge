@@ -15,6 +15,10 @@ on: # yamllint disable-line rule:truthy
         description: The branch/commit from the Apex Bridge
         type: string
         required: true
+      blade_apex_bridge_ref:
+        description: The branch/commit from the Blade Apex Bridge
+        type: string
+        required: true
     outputs:
       workflow_output:
         description: E2E ApexBridge Tests output
@@ -36,6 +40,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ inputs.blade_apex_bridge_ref }}
       - name: Install Go
         uses: actions/setup-go@v5.0.0
         with:
@@ -90,6 +96,8 @@ jobs:
         run: apex-bridge --help
       - name: Checkout blade
         uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ inputs.blade_apex_bridge_ref }}
       - name: Check certificate key permissions
         run: ls -l /etc/ssl/private/localhost.key
       - name: Run tests

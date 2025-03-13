@@ -17,6 +17,7 @@ jobs:
       e2e_apex_test: true
       e2e_skyline_test: false
       apex_bridge_ref: main
+      blade_apex_bridge_ref: develop
       e2e_apex_big_test: ${{ vars.RUN_E2E_BIG_TESTS }}
       e2e_apex_skip_redundant_tests: ${{ vars.SKIP_E2E_REDUNDANT_TESTS }}
     secrets:
