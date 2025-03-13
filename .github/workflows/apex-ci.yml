@@ -136,7 +136,19 @@ jobs:
         id: apex_bridge_ref_input_check
         run: |
           if [[ "${{ inputs.apex_bridge_ref }}" == "" ]]; then
-            echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              if [[ ${{ github.base_ref }} == "feat/skyline" ]]; then
+                echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
+              else
+                echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
+              fi
+            else
+              if [[ ${{ github.ref_name }} == "feat/skyline" ]]; then
+                echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
+              else
+                echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
+              fi
+            fi
           else
             echo "apex_bridge_ref=${{ inputs.apex_bridge_ref }}" >> $GITHUB_OUTPUT
           fi
