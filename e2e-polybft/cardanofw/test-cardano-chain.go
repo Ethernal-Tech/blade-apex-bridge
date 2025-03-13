@@ -289,22 +289,21 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 			return err
 		}
 
-		tokenAmounts := make([]*big.Int, 0, 2)
-		tokenAmounts = append(tokenAmounts,
-			new(big.Int).SetUint64(ec.config.FundAmount),
-			new(big.Int).SetUint64(ec.config.FundTokenAmount))
+		tokenAmounts := []*big.Int{
+			new(big.Int).SetUint64(max(2*MinUTxODefaultValue, ec.config.FundAmount)),
+			new(big.Int).SetUint64(ec.config.FundTokenAmount),
+		}
 
 		for _, amounts := range SplitAmountsNTimes(tokenAmounts, ec.config.FundUTxOCount) {
-			tokenAmount, err := FundAddressWithToken(
+			token, err := FundAddressWithToken(
 				ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.ogmiosURL),
-				minterWallet, ec.GetHotWalletAddress(), max(2*MinUTxODefaultValue, amounts[0].Uint64()), amounts[1].Uint64())
-
+				minterWallet, ec.GetHotWalletAddress(), amounts[0].Uint64(), amounts[1].Uint64())
 			if err != nil {
 				return err
 			}
 
-			fmt.Printf("%s multisig addr funded with native currency: %+v and tokens: %+v\ntokenAmount:%+v", GetNetworkName(ec.config),
-				amounts[0].Uint64(), amounts[1].Uint64(), tokenAmount)
+			fmt.Printf("%s multisig addr funded with native currency and token `%s` amount: %s, %s\n",
+				GetNetworkName(ec.config), token.TokenName(), amounts[0], amounts[1])
 		}
 	}
 
