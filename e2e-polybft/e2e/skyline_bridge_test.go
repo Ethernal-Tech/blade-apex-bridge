@@ -6,19 +6,16 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
-	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
-	"github.com/0xPolygon/polygon-edge/helper/common"
-	"github.com/0xPolygon/polygon-edge/txrelayer"
-	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1034,14 +1031,15 @@ func TestE2E_SkylineUTxOConsolidation(t *testing.T) {
 	defer cncl()
 
 	minUtxoCurrency := cardanofw.MinUTxODefaultValue * 4
-	primeConfig := cardanofw.NewPrimeChainConfig()
-	primeConfig.FundUTxOCount = fundUtxoCount
-	primeConfig.FundAmount = minUtxoCurrency * fundUtxoCount
-	primeConfig.FundTokenAmount = cardanofw.MinUTxODefaultValue * fundUtxoCount
-	primeConfig.InitialHotWalletAmount = new(big.Int).SetUint64(primeConfig.FundAmount)
-	primeConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(primeConfig.FundTokenAmount)
-	sendAmountTokens := cardanofw.MinUTxODefaultValue * 3
+	cardanoConfig := cardanofw.NewCardanoChainConfig(true)
+	cardanoConfig.FundUTxOCount = fundUtxoCount
+	cardanoConfig.FundAmount = minUtxoCurrency * fundUtxoCount
+	cardanoConfig.FundTokenAmount = cardanofw.MinUTxODefaultValue * fundUtxoCount
+	cardanoConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
+	cardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
+	sendAmountTokens := cardanofw.MinUTxODefaultValue*3 + 1
 	sendAmountCurrency := minUtxoCurrency * 3
+	consolidationBatchesCntWithTokens, consolidationBatchesCnt := uint64(0), uint64(0)
 
 	var (
 		initialUtxos []map[string]any
@@ -1052,7 +1050,7 @@ func TestE2E_SkylineUTxOConsolidation(t *testing.T) {
 	apex := cardanofw.SetupAndRunSkylineBridge(
 		t, ctx,
 		cardanofw.WithUserCnt(1),
-		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithCustomConfigHandlers(func(a *cardanofw.ApexSystem, mp map[string]any) {
 			t.Helper()
 
@@ -1062,63 +1060,81 @@ func TestE2E_SkylineUTxOConsolidation(t *testing.T) {
 			// retrieve only once for all validators
 			if len(initialUtxos) == 0 {
 				initialUtxos, tipData = getInitialUtxosAndTip(
-					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr, a.PrimeInfo.FeeAddr)
+					t, ctx, a.CardanoInfo, a.CardanoInfo.MultisigAddr, a.CardanoInfo.FeeAddr)
 			}
 
 			// Prime indexer should start after multisig funding is done
-			vcCfg := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDPrime)
+			vcCfg := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDCardano)
 			vcCfg["startBlockHash"] = tipData.Hash
 			vcCfg["startSlot"] = tipData.Slot
 			vcCfg["initialUtxos"] = initialUtxos
 			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
 			vcCfg["maxUtxoCount"] = maxUtxoCount
+			vcCfg["takeAtLeastUtxoCount"] = 1
 		}, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(apex.BridgeCluster.Servers[0].JSONRPC()))
+	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
 	require.NoError(t, err)
 
-	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	txProviderCardano, err := apex.CardanoInfo.GetTxProvider()
 	require.NoError(t, err)
 
 	_, err = cardanofw.FundUserWithToken(
 		ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-		apex.PrimeInfo.GenesisWallet, apex.Users[0], minUtxoCurrency+sendAmountCurrency, sendAmountTokens)
+		apex.PrimeInfo.GenesisWallet, apex.Users[0], 1_000_000_000, 1_000_000_000)
 	require.NoError(t, err)
 
-	getLastConfirmedBatchID := func(chainID string) uint64 {
-		input, err := contractsapi.ApexBridgeContracts.SignedBatches.Abi.GetMethod("getConfirmedBatchId").
-			Encode([]any{cardanofw.ChainIDToInt(chainID)})
-		require.NoError(t, err)
-
-		response, err := txRelayer.Call(types.ZeroAddress, contracts.SignedBatches, input)
-		require.NoError(t, err)
-
-		val, err := common.ParseUint64orHex(&response)
-		require.NoError(t, err)
-
-		return val
-	}
-
-	require.Equal(t, uint64(0), getLastConfirmedBatchID(cardanofw.ChainIDCardano))
-
-	utxos, err := txProviderPrime.GetUtxos(ctx, apex.PrimeInfo.MultisigAddr)
+	utxos, err := txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr)
 	require.NoError(t, err)
 
-	require.Len(t, utxos, primeConfig.FundUTxOCount)
+	require.Len(t, utxos, cardanoConfig.FundUTxOCount)
 
-	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.Users[0], apex.Users[0],
-		cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
-		new(big.Int).SetUint64(sendAmountTokens),
-		sendtx.BridgingTypeNativeTokenOnSource)
+	t.Run("with tokens", func(t *testing.T) {
+		ctxChild, cncl := context.WithCancel(ctx)
+		defer cncl()
 
-	require.Equal(t, uint64(2), getLastConfirmedBatchID(cardanofw.ChainIDCardano))
+		checkConsolidationBatchCounts(
+			t, ctxChild,
+			apex.BridgeCluster.Servers[0].JSONRPC(),
+			[]string{cardanofw.ChainIDPrime},
+			func(_ string, cnt int) {
+				atomic.StoreUint64(&consolidationBatchesCntWithTokens, uint64(cnt))
+			})
 
-	utxos, err = txProviderPrime.GetUtxos(ctx, apex.PrimeInfo.MultisigAddr)
+		e2ehelper.ExecuteSingleBridging(
+			t, ctxChild, apex, apex.Users[0], apex.Users[0],
+			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+			new(big.Int).SetUint64(sendAmountTokens),
+			sendtx.BridgingTypeNativeTokenOnSource)
+	})
+
+	t.Run("with currency", func(t *testing.T) {
+		ctxChild, cncl := context.WithCancel(ctx)
+		defer cncl()
+
+		checkConsolidationBatchCounts(
+			t, ctxChild,
+			apex.BridgeCluster.Servers[0].JSONRPC(),
+			[]string{cardanofw.ChainIDPrime},
+			func(_ string, cnt int) {
+				atomic.StoreUint64(&consolidationBatchesCnt, uint64(cnt))
+			})
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctxChild, apex, apex.Users[0], apex.Users[0],
+			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+			new(big.Int).SetUint64(sendAmountCurrency),
+			sendtx.BridgingTypeCurrencyOnSource)
+	})
+
+	utxos, err = txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr)
 	require.NoError(t, err)
 
-	require.Len(t, utxos, 1)
+	assert.Len(t, utxos, 1)
+
+	assert.GreaterOrEqual(t, consolidationBatchesCnt, 1)
+	assert.GreaterOrEqual(t, consolidationBatchesCntWithTokens, 1)
 }
