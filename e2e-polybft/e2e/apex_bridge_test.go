@@ -2089,13 +2089,10 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	checkConsolidationBatchCounts(
+	getCntConsolidationMap := checkConsolidationBatchCounts(
 		t, ctx,
 		apex.BridgeCluster.Servers[0].JSONRPC(),
-		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
-		func(_ string, cnt int) {
-			assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
-		})
+		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector})
 
 	e2ehelper.ExecuteBridging(
 		t, ctx, apex, sequentialInstances,
@@ -2108,6 +2105,10 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 		}, sendtx.BridgingTypeNormal,
 		new(big.Int).SetUint64(sendAmount),
 		e2ehelper.WithWaitForUnexpectedBridges(true))
+
+	for _, cnt := range getCntConsolidationMap() {
+		assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
+	}
 }
 
 func getInitialUtxosAndTip(
@@ -2155,8 +2156,7 @@ func getInitialUtxosAndTip(
 
 func checkConsolidationBatchCounts(
 	t *testing.T, ctx context.Context, bridgeJSONRPC *jsonrpc.EthClient, chainIDs []string,
-	checkCallback func(chainID string, cnt int),
-) {
+) func() map[string]int {
 	t.Helper()
 
 	const pullTimeBatchInfo = time.Second * 10
@@ -2165,19 +2165,15 @@ func checkConsolidationBatchCounts(
 	require.NoError(t, err)
 
 	var (
-		lock                    sync.Mutex
-		wg                      sync.WaitGroup
-		lastBatchID             = map[string]uint64{}
-		cntConsolidationBatches = map[string]int{}
+		lock                sync.Mutex
+		consolidationCntMap = map[string]int{}
 	)
 
 	getConfirmedBatchFn := contractsapi.ApexBridgeContracts.SignedBatches.Abi.GetMethod("getConfirmedBatch")
 
 	for _, chainID := range chainIDs {
-		wg.Add(1)
-
 		go func(chainID string) {
-			defer wg.Done()
+			var lastBatchID uint64
 
 			for {
 				select {
@@ -2200,17 +2196,15 @@ func checkConsolidationBatchCounts(
 					id := batchInfo["id"].(uint64)
 					isConsolidation := batchInfo["isConsolidation"].(bool)
 
-					lock.Lock()
+					if lastBatchID != id {
+						lastBatchID = id
 
-					if lastBatchID[chainID] != id {
 						if isConsolidation {
-							cntConsolidationBatches[chainID]++
+							lock.Lock()
+							consolidationCntMap[chainID]++
+							lock.Unlock()
 						}
-
-						lastBatchID[chainID] = id
 					}
-
-					lock.Unlock()
 				case <-ctx.Done():
 					return
 				}
@@ -2218,11 +2212,15 @@ func checkConsolidationBatchCounts(
 		}(chainID)
 	}
 
-	go func() {
-		wg.Wait()
+	return func() map[string]int {
+		lock.Lock()
+		defer lock.Unlock()
 
-		for _, chainID := range chainIDs {
-			checkCallback(chainID, cntConsolidationBatches[chainID])
+		res := make(map[string]int, len(consolidationCntMap))
+		for k, v := range consolidationCntMap {
+			res[k] = v
 		}
-	}()
+
+		return res
+	}
 }
