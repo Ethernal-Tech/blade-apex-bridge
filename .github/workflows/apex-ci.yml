@@ -126,13 +126,13 @@ jobs:
         run: |
           if [[ "${{ inputs.apex_bridge_ref }}" == "" ]]; then
             if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-              if [[ ${{ github.base_ref }} == "feat/skyline" ]]; then
+              if [[ "${{ github.base_ref }}" == "feat/skyline" ]]; then
                 echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
               else
                 echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
               fi
             else
-              if [[ ${{ github.ref }} == "refs/heads/feat/skyline" ]]; then
+              if [[ "${{ github.ref }}" == "refs/heads/feat/skyline" ]]; then
                 echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
               else
                 echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
