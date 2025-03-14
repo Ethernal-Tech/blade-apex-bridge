@@ -14,7 +14,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1037,13 +1036,13 @@ func TestE2E_SkylineUTxOConsolidation(t *testing.T) {
 	cardanoConfig.FundTokenAmount = cardanofw.MinUTxODefaultValue * fundUtxoCount
 	cardanoConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
 	cardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
-	sendAmountTokens := cardanofw.MinUTxODefaultValue*3 + 1
-	sendAmountCurrency := minUtxoCurrency * 3
+	sendAmountTokens := minUtxoCurrency * 3                 // when we send tokens, this amount of currency will be released from multisig address
+	sendAmountCurrency := cardanofw.MinUTxODefaultValue * 6 // when we send currency, this amount of native tokens will be released from multisig address
 	consolidationBatchesCntWithTokens, consolidationBatchesCnt := uint64(0), uint64(0)
 
 	var (
 		initialUtxos []map[string]any
-		tipData      infrawallet.QueryTipData
+		tipData      wallet.QueryTipData
 		lock         sync.Mutex
 	)
 
@@ -1135,6 +1134,6 @@ func TestE2E_SkylineUTxOConsolidation(t *testing.T) {
 
 	assert.Len(t, utxos, 1)
 
-	assert.GreaterOrEqual(t, consolidationBatchesCnt, 1)
-	assert.GreaterOrEqual(t, consolidationBatchesCntWithTokens, 1)
+	assert.GreaterOrEqual(t, consolidationBatchesCnt, uint64(1))
+	assert.GreaterOrEqual(t, consolidationBatchesCntWithTokens, uint64(1))
 }
