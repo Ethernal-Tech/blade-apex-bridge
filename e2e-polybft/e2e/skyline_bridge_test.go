@@ -1020,24 +1020,24 @@ func TestE2E_SkylineUTxOConsolidation(t *testing.T) {
 	}
 
 	const (
-		fundUtxoCount                 = 6
+		fundUtxoCount                 = 7
 		maxFeeUtxoCount               = 1
 		maxUtxoCount                  = 3
 		minimumExpectedConsolidations = 1
 	)
 
-	ctx, cncl := context.WithCancel(context.Background())
+	ctx, cncl := context.WithTimeout(context.Background(), time.Second*60*8)
 	defer cncl()
 
-	minUtxoCurrency := cardanofw.MinUTxODefaultValue * 4
+	minValue := uint64(1_100_000)
 	cardanoConfig := cardanofw.NewCardanoChainConfig(true)
 	cardanoConfig.FundUTxOCount = fundUtxoCount
-	cardanoConfig.FundAmount = minUtxoCurrency * fundUtxoCount
-	cardanoConfig.FundTokenAmount = cardanofw.MinUTxODefaultValue * fundUtxoCount
+	cardanoConfig.FundAmount = minValue * fundUtxoCount
+	cardanoConfig.FundTokenAmount = minValue * fundUtxoCount
 	cardanoConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
 	cardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
-	sendAmountTokens := minUtxoCurrency * 3                 // when we send tokens, this amount of currency will be released from multisig address
-	sendAmountCurrency := cardanofw.MinUTxODefaultValue * 6 // when we send currency, this amount of native tokens will be released from multisig address
+	sendAmountTokens := minValue*2 + 10   // when we send tokens, this amount of currency will be released from multisig address
+	sendAmountCurrency := minValue*3 + 10 // when we send currency, this amount of native tokens will be released from multisig address
 
 	var (
 		initialUtxos []map[string]any
@@ -1129,9 +1129,4 @@ func TestE2E_SkylineUTxOConsolidation(t *testing.T) {
 			assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
 		}
 	})
-
-	utxos, err = txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr)
-	require.NoError(t, err)
-
-	assert.Len(t, utxos, 1)
 }

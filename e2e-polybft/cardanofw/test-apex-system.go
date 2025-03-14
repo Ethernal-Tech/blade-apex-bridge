@@ -429,6 +429,7 @@ func (a *ApexSystem) generateReactorConfigs() error {
 			callback(a, data)
 		}
 	}
+
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
 		if a.Config.TargetOneCardanoClusterServer {
@@ -476,6 +477,7 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 			callback(a, data)
 		}
 	}
+
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
 		if a.Config.TargetOneCardanoClusterServer {
