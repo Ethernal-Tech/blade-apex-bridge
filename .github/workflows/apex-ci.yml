@@ -43,10 +43,6 @@ on: # yamllint disable-line rule:truthy
         description: The branch/commit from the Apex Bridge
         type: string
         default: main
-      blade_apex_bridge_ref:
-        description: The branch/commit from the Blade Apex Bridge
-        type: string
-        default: develop
   workflow_call:
     inputs:
       lint:
@@ -149,21 +145,9 @@ jobs:
         id: blade_apex_bridge_ref_input_check
         run: |
           if [[ "${{ inputs.blade_apex_bridge_ref }}" == "" ]]; then
-            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-              if [[ ${{ github.base_ref }} == "feat/skyline" ]]; then
-                echo "blade_apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
-              else
-                echo "blade_apex_bridge_ref=develop" >> $GITHUB_OUTPUT
-              fi
-            else
-              if [[ ${{ github.ref_name }} == "feat/skyline" ]]; then
-                echo "blade_apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
-              else
-                echo "blade_apex_bridge_ref=develop" >> $GITHUB_OUTPUT
-              fi
-            fi
+            echo "blade_apex_bridge_ref=${{ github.ref }}" >> $GITHUB_OUTPUT
           else
-            echo "blade_apex_bridge_ref=${{ inputs.apex_bridge_ref }}" >> $GITHUB_OUTPUT
+            echo "blade_apex_bridge_ref=${{ inputs.blade_apex_bridge_ref }}" >> $GITHUB_OUTPUT
           fi
   build_blade:
     name: Build Blade
