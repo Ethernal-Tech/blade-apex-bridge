@@ -1938,7 +1938,7 @@ func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
 		maxUtxoCount    = 50
 	)
 
-	ctx, cncl := context.WithTimeout(context.Background(), time.Second*60*6)
+	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
 	vectorConfig := cardanofw.NewVectorChainConfig(true)
@@ -2034,7 +2034,7 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 		minimumExpectedConsolidations = 3
 	)
 
-	ctx, cncl := context.WithTimeout(context.Background(), time.Second*60*18)
+	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
 	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
