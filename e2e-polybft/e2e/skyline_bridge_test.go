@@ -1027,6 +1027,13 @@ func TestE2E_SkylineUTxOConsolidation(t *testing.T) {
 
 		sequentialInstances = 3
 		parallelInstances   = 6
+
+		sendMinValueIncrement = 10
+		fundFactor            = 7
+	)
+
+	var (
+		sendMinValueFactor uint64 = maxUtxoCount - maxFeeUtxoCount + 1
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -1035,20 +1042,20 @@ func TestE2E_SkylineUTxOConsolidation(t *testing.T) {
 	minValue := uint64(1_100_000)
 	cardanoConfig := cardanofw.NewCardanoChainConfig(true)
 	cardanoConfig.FundUTxOCount = fundUtxoCount
-	cardanoConfig.FundAmount = 7 * minValue * fundUtxoCount
-	cardanoConfig.FundTokenAmount = 7 * minValue * fundUtxoCount
+	cardanoConfig.FundAmount = fundFactor * minValue * fundUtxoCount
+	cardanoConfig.FundTokenAmount = fundFactor * minValue * fundUtxoCount
 	cardanoConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
 	cardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
 
 	primeConfig := cardanofw.NewPrimeChainConfig()
 	primeConfig.FundUTxOCount = fundUtxoCount
-	primeConfig.FundAmount = 7 * minValue * fundUtxoCount
-	primeConfig.FundTokenAmount = 7 * minValue * fundUtxoCount
+	primeConfig.FundAmount = fundFactor * minValue * fundUtxoCount
+	primeConfig.FundTokenAmount = fundFactor * minValue * fundUtxoCount
 	primeConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
 	primeConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
 
-	sendAmountTokens := minValue*3*7 + 10   // when we send tokens, this amount of currency will be released from multisig address
-	sendAmountCurrency := minValue*3*7 + 10 // when we send currency, this amount of native tokens will be released from multisig address
+	sendAmountTokens := minValue*sendMinValueFactor*fundFactor + sendMinValueIncrement   // when we send tokens, this amount of currency will be released from multisig address
+	sendAmountCurrency := minValue*sendMinValueFactor*fundFactor + sendMinValueIncrement // when we send currency, this amount of native tokens will be released from multisig address
 
 	var (
 		initialUtxosCardano, initialUtxosPrime []map[string]any
@@ -1165,7 +1172,7 @@ func TestE2E_SkylineUTxOConsolidation(t *testing.T) {
 		defer cncl()
 
 		// when we send currency, this amount of native tokens will be released from multisig address
-		sendAmountCurrency := minValue*3 + 10
+		sendAmountCurrency := minValue*sendMinValueFactor + sendMinValueIncrement
 
 		getCntConsolidationMap := checkConsolidationBatchCounts(
 			t, ctxChild,
@@ -1204,6 +1211,13 @@ func TestE2E_SkylineUTxOConsolidationBothDirectionsWithCurrencyAndTokens(t *test
 
 		sequentialInstances = 3
 		parallelInstances   = 6
+
+		sendMinValueIncrement = 10
+		fundFactor            = 7
+	)
+
+	var (
+		sendMinValueFactor uint64 = maxUtxoCount - maxFeeUtxoCount + 1
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -1212,20 +1226,20 @@ func TestE2E_SkylineUTxOConsolidationBothDirectionsWithCurrencyAndTokens(t *test
 	minValue := uint64(1_100_000)
 	cardanoConfig := cardanofw.NewCardanoChainConfig(true)
 	cardanoConfig.FundUTxOCount = fundUtxoCount
-	cardanoConfig.FundAmount = 7 * minValue * fundUtxoCount
-	cardanoConfig.FundTokenAmount = 7 * minValue * fundUtxoCount
+	cardanoConfig.FundAmount = fundFactor * minValue * fundUtxoCount
+	cardanoConfig.FundTokenAmount = fundFactor * minValue * fundUtxoCount
 	cardanoConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
 	cardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
 
 	primeConfig := cardanofw.NewPrimeChainConfig()
 	primeConfig.FundUTxOCount = fundUtxoCount
-	primeConfig.FundAmount = 7 * minValue * fundUtxoCount
-	primeConfig.FundTokenAmount = 7 * minValue * fundUtxoCount
+	primeConfig.FundAmount = fundFactor * minValue * fundUtxoCount
+	primeConfig.FundTokenAmount = fundFactor * minValue * fundUtxoCount
 	primeConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
 	primeConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
 
-	sendAmountTokens := minValue*3 + 10   // when we send tokens, this amount of currency will be released from multisig address
-	sendAmountCurrency := minValue*3 + 10 // when we send currency, this amount of native tokens will be released from multisig address
+	sendAmountTokens := minValue*sendMinValueFactor + sendMinValueIncrement   // when we send tokens, this amount of currency will be released from multisig address
+	sendAmountCurrency := minValue*sendMinValueFactor + sendMinValueIncrement // when we send currency, this amount of native tokens will be released from multisig address
 
 	var (
 		initialUtxosCardano, initialUtxosPrime []map[string]any
@@ -1297,19 +1311,10 @@ func TestE2E_SkylineUTxOConsolidationBothDirectionsWithCurrencyAndTokens(t *test
 
 	require.Len(t, utxos, cardanoConfig.FundUTxOCount)
 
-	getTokenValue := func(sumMap map[string]uint64) uint64 {
-		for k, v := range sumMap {
-			if k != wallet.AdaTokenName {
-				return v
-			}
-		}
-
-		return 0
-	}
-
-	var utxosCardanoTokenSum1 uint64
-
-	var utxosCardanoTokenSum2 uint64
+	var (
+		utxosCardanoTokenSum1 uint64
+		utxosCardanoTokenSum2 uint64
+	)
 
 	t.Run("with currency from prime to cardano", func(t *testing.T) {
 		ctxChild, cncl := context.WithCancel(ctx)
@@ -1321,7 +1326,8 @@ func TestE2E_SkylineUTxOConsolidationBothDirectionsWithCurrencyAndTokens(t *test
 		utxosCardanoSum := wallet.GetUtxosSum(utxosCardano)
 
 		// sum of tokens on cardano multisig address in the beginning
-		utxosCardanoTokenSum1 = getTokenValue(utxosCardanoSum)
+		tokenName := apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime)
+		utxosCardanoTokenSum1 = utxosCardanoSum[tokenName]
 
 		getCntConsolidationMap := checkConsolidationBatchCounts(
 			t, ctxChild,
@@ -1370,9 +1376,10 @@ func TestE2E_SkylineUTxOConsolidationBothDirectionsWithCurrencyAndTokens(t *test
 		require.NoError(t, err)
 
 		utxosCardanoSum := wallet.GetUtxosSum(utxosCardano)
+		tokenName := apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime)
 
 		// sum of tokens on cardano multisig address in the end
-		utxosCardanoTokenSum2 = getTokenValue(utxosCardanoSum)
+		utxosCardanoTokenSum2 = utxosCardanoSum[tokenName]
 		require.Equal(t, utxosCardanoTokenSum1, utxosCardanoTokenSum2)
 
 		for _, cnt := range getCntConsolidationMap() {
