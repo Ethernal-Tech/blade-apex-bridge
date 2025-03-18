@@ -47,7 +47,7 @@ func GetTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 			JSONRPCAddr:    "https://rpc.nexus.testnet.apexfusion.org",
 		},
 		BridgingAPIs: []string{
-			"http://bridge-api-testnet.apexfusion.org:10003",
+			"http://internal-bridge-api-testnet.apexfusion.org:10003",
 		},
 		BridgingAPIKey: os.Getenv("TESTNET_BRIDGING_API_KEY"),
 	}
