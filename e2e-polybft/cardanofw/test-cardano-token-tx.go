@@ -85,23 +85,26 @@ func FundAddressWithToken(ctx context.Context, chain ChainID,
 	cardanoCliBinary := cardanowallet.ResolveCardanoCliBinary(networkType)
 
 	pid, _ := cardanowallet.NewCliUtils(cardanoCliBinary).GetPolicyID(policy)
-	mintToken := cardanowallet.NewTokenAmount(
-		cardanowallet.NewToken(pid, defaultTokenName), DefaultTokenMintAmount)
 
-	txHash, err := MintTokens(
-		ctx, networkType, txProvider, minterWallet, lovelaceFundAmount,
-		[]cardanowallet.TokenAmount{mintToken}, []cardanowallet.IPolicyScript{policy},
-	)
-	if err != nil {
-		return nil, err
+	if tokenFundAmount > 0 {
+		mintToken := cardanowallet.NewTokenAmount(
+			cardanowallet.NewToken(pid, defaultTokenName), DefaultTokenMintAmount)
+
+		txHash, err := MintTokens(
+			ctx, networkType, txProvider, minterWallet, lovelaceFundAmount,
+			[]cardanowallet.TokenAmount{mintToken}, []cardanowallet.IPolicyScript{policy},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Printf("Done minting tokens. txHash: %s\n", txHash)
 	}
-
-	fmt.Printf("Done minting tokens. txHash: %s\n", txHash)
 
 	fundToken := cardanowallet.NewTokenAmount(
 		cardanowallet.NewToken(pid, defaultTokenName), tokenFundAmount)
 
-	txHash, err = SendTxWithTokens(
+	txHash, err := SendTxWithTokens(
 		ctx, networkType, txProvider, minterWallet, addrToFund, lovelaceFundAmount,
 		[]cardanowallet.TokenAmount{fundToken}, nil,
 	)

@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -962,7 +963,7 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithUserCnt(1),
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
-		cardanofw.WithCustomConfigHandlers(func(mp map[string]interface{}) {
+		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["maxAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
 		}, nil),
@@ -1011,4 +1012,378 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		fundUtxoCount                 = 9
+		maxFeeUtxoCount               = 1
+		maxUtxoCount                  = 3
+		minimumExpectedConsolidations = 1
+
+		sequentialInstances = 3
+		parallelInstances   = 6
+
+		sendMinValueIncrement = 10
+		fundFactor            = 7
+	)
+
+	var (
+		sendMinValueFactor uint64 = maxUtxoCount - maxFeeUtxoCount + 1
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	minValue := uint64(1_100_000)
+	cardanoConfig := cardanofw.NewCardanoChainConfig(true)
+	cardanoConfig.FundUTxOCount = fundUtxoCount
+	cardanoConfig.FundAmount = fundFactor * minValue * fundUtxoCount
+	cardanoConfig.FundTokenAmount = fundFactor * minValue * fundUtxoCount
+	cardanoConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
+	cardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
+
+	primeConfig := cardanofw.NewPrimeChainConfig()
+	primeConfig.FundUTxOCount = fundUtxoCount
+	primeConfig.FundAmount = fundFactor * minValue * fundUtxoCount
+	primeConfig.FundTokenAmount = fundFactor * minValue * fundUtxoCount
+	primeConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
+	primeConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
+
+	sendAmountTokens := minValue*sendMinValueFactor*fundFactor + sendMinValueIncrement   // when we send tokens, this amount of currency will be released from multisig address
+	sendAmountCurrency := minValue*sendMinValueFactor*fundFactor + sendMinValueIncrement // when we send currency, this amount of native tokens will be released from multisig address
+
+	var (
+		initialUtxosCardano, initialUtxosPrime []map[string]any
+		tipDataCardano, tipDataPrime           wallet.QueryTipData
+		lock                                   sync.Mutex
+	)
+
+	//nolint:dupl
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithUserCnt(parallelInstances+1),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithCustomConfigHandlers(func(a *cardanofw.ApexSystem, mp map[string]any) {
+			t.Helper()
+
+			lock.Lock()
+			defer lock.Unlock()
+
+			// retrieve only once for all validators
+			if len(initialUtxosCardano) == 0 {
+				initialUtxosCardano, tipDataCardano = getInitialUtxosAndTip(
+					t, ctx, a.CardanoInfo, a.CardanoInfo.MultisigAddr, a.CardanoInfo.FeeAddr)
+				initialUtxosPrime, tipDataPrime = getInitialUtxosAndTip(
+					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr, a.PrimeInfo.FeeAddr,
+				)
+			}
+
+			// Prime and Cardano indexers should start after multisig funding is done
+			vcCfg := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDCardano)
+			vcCfg["startBlockHash"] = tipDataCardano.Hash
+			vcCfg["startSlot"] = tipDataCardano.Slot
+			vcCfg["initialUtxos"] = initialUtxosCardano
+			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
+			vcCfg["maxUtxoCount"] = maxUtxoCount
+			vcCfg["takeAtLeastUtxoCount"] = 1
+			vcCfg = cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDPrime)
+			vcCfg["startBlockHash"] = tipDataPrime.Hash
+			vcCfg["startSlot"] = tipDataPrime.Slot
+			vcCfg["initialUtxos"] = initialUtxosPrime
+			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
+			vcCfg["maxUtxoCount"] = maxUtxoCount
+			vcCfg["takeAtLeastUtxoCount"] = 1
+		}, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	require.NoError(t, err)
+
+	txProviderCardano, err := apex.CardanoInfo.GetTxProvider()
+	require.NoError(t, err)
+
+	for _, sender := range apex.Users[:parallelInstances] {
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+			apex.PrimeInfo.GenesisWallet, sender, uint64(2_000_000_000), uint64(2_000_000_000))
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDCardano, apex.Config.CardanoConfig.NetworkType, txProviderCardano,
+			apex.CardanoInfo.GenesisWallet, sender, uint64(2_000_000_000), uint64(2_000_000_000))
+		require.NoError(t, err)
+	}
+
+	utxos, err := txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr)
+	require.NoError(t, err)
+
+	require.Len(t, utxos, cardanoConfig.FundUTxOCount)
+
+	t.Run("with tokens", func(t *testing.T) {
+		ctxChild, cncl := context.WithCancel(ctx)
+		defer cncl()
+
+		getCntConsolidationMap := checkConsolidationBatchCounts(
+			t, ctxChild,
+			apex.BridgeCluster.Servers[0].JSONRPC(),
+			[]string{cardanofw.ChainIDCardano})
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctxChild, apex, apex.Users[0], apex.Users[0],
+			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+			new(big.Int).SetUint64(sendAmountTokens),
+			sendtx.BridgingTypeNativeTokenOnSource)
+
+		for _, cnt := range getCntConsolidationMap() {
+			assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
+		}
+	})
+
+	t.Run("with currency", func(t *testing.T) {
+		ctxChild, cncl := context.WithCancel(ctx)
+		defer cncl()
+
+		getCntConsolidationMap := checkConsolidationBatchCounts(
+			t, ctxChild,
+			apex.BridgeCluster.Servers[0].JSONRPC(),
+			[]string{cardanofw.ChainIDPrime})
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctxChild, apex, apex.Users[0], apex.Users[0],
+			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
+			new(big.Int).SetUint64(sendAmountCurrency),
+			sendtx.BridgingTypeCurrencyOnSource)
+
+		for _, cnt := range getCntConsolidationMap() {
+			assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
+		}
+	})
+
+	t.Run("both directions", func(t *testing.T) {
+		ctxChild, cncl := context.WithCancel(ctx)
+		defer cncl()
+
+		// when we send currency, this amount of native tokens will be released from multisig address
+		sendAmountCurrency := minValue*sendMinValueFactor + sendMinValueIncrement
+
+		getCntConsolidationMap := checkConsolidationBatchCounts(
+			t, ctxChild,
+			apex.BridgeCluster.Servers[0].JSONRPC(),
+			[]string{cardanofw.ChainIDCardano, cardanofw.ChainIDPrime})
+
+		e2ehelper.ExecuteBridging(
+			t, ctxChild, apex, sequentialInstances,
+			apex.Users[:parallelInstances],
+			[]*cardanofw.TestApexUser{apex.Users[parallelInstances]},
+			[]string{cardanofw.ChainIDCardano, cardanofw.ChainIDPrime},
+			map[string][]string{
+				cardanofw.ChainIDCardano: {cardanofw.ChainIDPrime},
+				cardanofw.ChainIDPrime:   {cardanofw.ChainIDCardano},
+			}, sendtx.BridgingTypeCurrencyOnSource,
+			new(big.Int).SetUint64(sendAmountCurrency),
+			e2ehelper.WithWaitForUnexpectedBridges(true),
+		)
+
+		for _, cnt := range getCntConsolidationMap() {
+			assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
+		}
+	})
+}
+
+func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		fundUtxoCount                 = 9
+		maxFeeUtxoCount               = 1
+		maxUtxoCount                  = 3
+		minimumExpectedConsolidations = 3
+
+		sequentialInstances = 3
+		parallelInstances   = 6
+
+		sendMinValueIncrement = 10
+		fundFactor            = 7
+	)
+
+	var (
+		sendMinValueFactor uint64 = maxUtxoCount - maxFeeUtxoCount + 1
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	minValue := uint64(1_100_000)
+	cardanoConfig := cardanofw.NewCardanoChainConfig(true)
+	cardanoConfig.FundUTxOCount = fundUtxoCount
+	cardanoConfig.FundAmount = fundFactor * minValue * fundUtxoCount
+	cardanoConfig.FundTokenAmount = fundFactor * minValue * fundUtxoCount
+	cardanoConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
+	cardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
+
+	primeConfig := cardanofw.NewPrimeChainConfig()
+	primeConfig.FundUTxOCount = fundUtxoCount
+	primeConfig.FundAmount = fundFactor * minValue * fundUtxoCount
+	primeConfig.FundTokenAmount = fundFactor * minValue * fundUtxoCount
+	primeConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
+	primeConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
+
+	sendAmountTokens := minValue*sendMinValueFactor + sendMinValueIncrement   // when we send tokens, this amount of currency will be released from multisig address
+	sendAmountCurrency := minValue*sendMinValueFactor + sendMinValueIncrement // when we send currency, this amount of native tokens will be released from multisig address
+
+	var (
+		initialUtxosCardano, initialUtxosPrime []map[string]any
+		tipDataCardano, tipDataPrime           wallet.QueryTipData
+		lock                                   sync.Mutex
+	)
+
+	//nolint:dupl
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithUserCnt(parallelInstances+1),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithCustomConfigHandlers(func(a *cardanofw.ApexSystem, mp map[string]any) {
+			t.Helper()
+
+			lock.Lock()
+			defer lock.Unlock()
+
+			// retrieve only once for all validators
+			if len(initialUtxosCardano) == 0 {
+				initialUtxosCardano, tipDataCardano = getInitialUtxosAndTip(
+					t, ctx, a.CardanoInfo, a.CardanoInfo.MultisigAddr, a.CardanoInfo.FeeAddr)
+				initialUtxosPrime, tipDataPrime = getInitialUtxosAndTip(
+					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr, a.PrimeInfo.FeeAddr,
+				)
+			}
+
+			// Prime and Cardano indexers should start after multisig funding is done
+			vcCfg := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDCardano)
+			vcCfg["startBlockHash"] = tipDataCardano.Hash
+			vcCfg["startSlot"] = tipDataCardano.Slot
+			vcCfg["initialUtxos"] = initialUtxosCardano
+			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
+			vcCfg["maxUtxoCount"] = maxUtxoCount
+			vcCfg["takeAtLeastUtxoCount"] = 1
+			vcCfg = cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDPrime)
+			vcCfg["startBlockHash"] = tipDataPrime.Hash
+			vcCfg["startSlot"] = tipDataPrime.Slot
+			vcCfg["initialUtxos"] = initialUtxosPrime
+			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
+			vcCfg["maxUtxoCount"] = maxUtxoCount
+			vcCfg["takeAtLeastUtxoCount"] = 1
+		}, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	require.NoError(t, err)
+
+	txProviderCardano, err := apex.CardanoInfo.GetTxProvider()
+	require.NoError(t, err)
+
+	for _, sender := range apex.Users[:parallelInstances] {
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+			apex.PrimeInfo.GenesisWallet, sender, uint64(2_000_000_000), uint64(2_000_000_000))
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDCardano, apex.Config.CardanoConfig.NetworkType, txProviderCardano,
+			apex.CardanoInfo.GenesisWallet, sender, uint64(2_000_000_000), uint64(2_000_000_000))
+		require.NoError(t, err)
+	}
+
+	utxos, err := txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr)
+	require.NoError(t, err)
+
+	require.Len(t, utxos, cardanoConfig.FundUTxOCount)
+
+	var (
+		utxosCardanoTokenSum1 uint64
+		utxosCardanoTokenSum2 uint64
+	)
+
+	t.Run("with currency from prime to cardano", func(t *testing.T) {
+		ctxChild, cncl := context.WithCancel(ctx)
+		defer cncl()
+
+		utxosCardano, err := txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr)
+		require.NoError(t, err)
+
+		utxosCardanoSum := wallet.GetUtxosSum(utxosCardano)
+
+		// sum of tokens on cardano multisig address in the beginning
+		tokenName := apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime)
+		utxosCardanoTokenSum1 = utxosCardanoSum[tokenName]
+
+		getCntConsolidationMap := checkConsolidationBatchCounts(
+			t, ctxChild,
+			apex.BridgeCluster.Servers[0].JSONRPC(),
+			[]string{cardanofw.ChainIDCardano})
+
+		e2ehelper.ExecuteBridging(
+			t, ctxChild, apex, sequentialInstances,
+			apex.Users[:parallelInstances],
+			[]*cardanofw.TestApexUser{apex.Users[parallelInstances]},
+			[]string{cardanofw.ChainIDPrime},
+			map[string][]string{
+				cardanofw.ChainIDPrime: {cardanofw.ChainIDCardano},
+			}, sendtx.BridgingTypeCurrencyOnSource,
+			new(big.Int).SetUint64(sendAmountCurrency),
+			e2ehelper.WithWaitForUnexpectedBridges(true),
+		)
+
+		for _, cnt := range getCntConsolidationMap() {
+			assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
+		}
+	})
+
+	t.Run("with tokens from cardano to prime", func(t *testing.T) {
+		ctxChild, cncl := context.WithCancel(ctx)
+		defer cncl()
+
+		getCntConsolidationMap := checkConsolidationBatchCounts(
+			t, ctxChild,
+			apex.BridgeCluster.Servers[0].JSONRPC(),
+			[]string{cardanofw.ChainIDPrime})
+
+		e2ehelper.ExecuteBridging(
+			t, ctxChild, apex, sequentialInstances,
+			apex.Users[:parallelInstances],
+			[]*cardanofw.TestApexUser{apex.Users[parallelInstances]},
+			[]string{cardanofw.ChainIDCardano},
+			map[string][]string{
+				cardanofw.ChainIDCardano: {cardanofw.ChainIDPrime},
+			}, sendtx.BridgingTypeNativeTokenOnSource,
+			new(big.Int).SetUint64(sendAmountTokens),
+			e2ehelper.WithWaitForUnexpectedBridges(true),
+		)
+
+		utxosCardano, err := txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr)
+		require.NoError(t, err)
+
+		utxosCardanoSum := wallet.GetUtxosSum(utxosCardano)
+		tokenName := apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime)
+
+		// sum of tokens on cardano multisig address in the end
+		utxosCardanoTokenSum2 = utxosCardanoSum[tokenName]
+		require.Equal(t, utxosCardanoTokenSum1, utxosCardanoTokenSum2)
+
+		for _, cnt := range getCntConsolidationMap() {
+			assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
+		}
+	})
 }

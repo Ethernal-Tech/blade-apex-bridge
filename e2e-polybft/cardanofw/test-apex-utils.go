@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"os"
 	"os/exec"
@@ -547,4 +548,55 @@ func SetOrDefault[T comparable](val, def T) T {
 	}
 
 	return val
+}
+
+func SplitAmountNTimes(totalAmount *big.Int, cnt int) []*big.Int {
+	cnt = max(1, cnt)
+	amount := new(big.Int).Div(totalAmount, big.NewInt(int64(cnt)))
+	amountWithChange := new(big.Int).Sub(totalAmount, new(big.Int).Mul(amount, big.NewInt(int64(cnt-1))))
+	result := make([]*big.Int, 0, cnt)
+
+	for range cnt - 1 {
+		result = append(result, new(big.Int).Set(amount))
+	}
+
+	return append(result, amountWithChange)
+}
+
+func SplitAmountsNTimes(totalAmounts []*big.Int, cnt int) [][]*big.Int {
+	cnt = max(1, cnt)
+	result := make([][]*big.Int, 0, cnt)
+	amounts := make([]*big.Int, len(totalAmounts))
+	amountsWithChange := make([]*big.Int, len(totalAmounts))
+
+	for i, totalAmount := range totalAmounts {
+		amounts[i] = new(big.Int).Div(totalAmount, big.NewInt(int64(cnt)))
+		amountsWithChange[i] = new(big.Int).Sub(totalAmount, new(big.Int).Mul(amounts[i], big.NewInt(int64(cnt-1))))
+	}
+
+	for range cnt - 1 {
+		subResult := make([]*big.Int, len(amounts))
+		for i, amount := range amounts {
+			subResult[i] = new(big.Int).Set(amount)
+		}
+
+		result = append(result, subResult)
+	}
+
+	return append(result, amountsWithChange)
+}
+
+func ChainIDToInt(chainID string) uint8 {
+	switch chainID {
+	case ChainIDPrime:
+		return 1
+	case ChainIDVector:
+		return 2
+	case ChainIDNexus:
+		return 3
+	case ChainIDCardano:
+		return 4
+	default:
+		return 0
+	}
 }

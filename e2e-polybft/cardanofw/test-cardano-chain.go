@@ -42,6 +42,8 @@ type TestCardanoChainConfig struct {
 	FundAmount                  uint64
 	FundFeeAmount               uint64
 	FundTokenAmount             uint64
+	FundUTxOCount               int
+	FundFeeUTxOCount            int
 	PreminesAddresses           []string
 	PremineAmount               uint64
 	SlotRoundingThreshold       uint64
@@ -64,6 +66,8 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		FundAmount:                  defaultFundTokenAmount,
 		FundFeeAmount:               defaultFundTokenAmount,
 		FundTokenAmount:             defaultNativeTokenAmount,
+		FundUTxOCount:               1,
+		FundFeeUTxOCount:            1,
 		MinBridgingFee:              defaultMinBridgingFeeAmount,
 		MinOperationFee:             uint64(0),
 	}
@@ -82,6 +86,8 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		FundAmount:                  defaultFundTokenAmount,
 		FundFeeAmount:               defaultFundTokenAmount,
 		FundTokenAmount:             defaultNativeTokenAmount,
+		FundUTxOCount:               1,
+		FundFeeUTxOCount:            1,
 		MinBridgingFee:              defaultMinBridgingFeeAmount,
 		MinOperationFee:             uint64(0),
 	}
@@ -129,8 +135,6 @@ type TestCardanoChain struct {
 	blockfrostAPIKey string
 	multisigAddr     string
 	multisigFeeAddr  string
-	fundBlockSlot    uint64
-	fundBlockHash    string
 	txSender         *sendtx.TxSender
 }
 
@@ -268,14 +272,15 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		return err
 	}
 
-	if ec.config.FundFeeAmount != 0 {
-		txHash, err := ec.SendTx(
-			ctx, privateKey, ec.multisigFeeAddr, new(big.Int).SetUint64(ec.config.FundFeeAmount), nil)
-		if err != nil {
-			return err
-		}
+	if totalAmount := ec.config.FundFeeAmount; totalAmount != 0 {
+		for _, amount := range SplitAmountNTimes(new(big.Int).SetUint64(totalAmount), ec.config.FundFeeUTxOCount) {
+			txHash, err := ec.SendTx(ctx, privateKey, ec.multisigFeeAddr, amount, nil)
+			if err != nil {
+				return err
+			}
 
-		fmt.Printf("%s fee addr funded: %s\n", GetNetworkName(ec.config), txHash)
+			fmt.Printf("%s fee addr: %s funded with %s: %s\n", GetNetworkName(ec.config), ec.multisigFeeAddr, amount, txHash)
+		}
 	}
 
 	if ec.config.FundTokenAmount != 0 || ec.config.FundAmount != 0 {
@@ -284,30 +289,23 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 			return err
 		}
 
-		tokenAmount, err := FundAddressWithToken(
-			ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.ogmiosURL),
-			minterWallet, ec.GetHotWalletAddress(), max(2*MinUTxODefaultValue, ec.config.FundAmount), ec.config.FundTokenAmount)
-		if err != nil {
-			return err
+		tokenAmounts := []*big.Int{
+			new(big.Int).SetUint64(max(2*MinUTxODefaultValue, ec.config.FundAmount)),
+			new(big.Int).SetUint64(ec.config.FundTokenAmount),
 		}
 
-		fmt.Printf("%s multisig addr funded with native currency: %+v and tokens: %+v\n", GetNetworkName(ec.config),
-			ec.config.FundAmount, tokenAmount)
-	}
+		for _, amounts := range SplitAmountsNTimes(tokenAmounts, ec.config.FundUTxOCount) {
+			token, err := FundAddressWithToken(
+				ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.ogmiosURL),
+				minterWallet, ec.GetHotWalletAddress(), amounts[0].Uint64(), amounts[1].Uint64())
+			if err != nil {
+				return err
+			}
 
-	txProvider, err := ec.GetTxProvider()
-	if err != nil {
-		return err
+			fmt.Printf("%s multisig addr funded with native currency and token `%s` amount: %s, %s\n",
+				GetNetworkName(ec.config), token.TokenName(), amounts[0], amounts[1])
+		}
 	}
-
-	// retrieve latest tip
-	tip, err := txProvider.GetTip(ctx)
-	if err != nil {
-		return err
-	}
-
-	ec.fundBlockHash = tip.Hash
-	ec.fundBlockSlot = tip.Slot
 
 	return nil
 }
@@ -357,8 +355,6 @@ func (ec *TestCardanoChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSys
 		MultisigAddr:   ec.multisigAddr,
 		FeeAddr:        ec.multisigFeeAddr,
 		SocketPath:     ec.cluster.OgmiosServer.SocketPath(),
-		FundBlockHash:  ec.fundBlockHash,
-		FundBlockSlot:  ec.fundBlockSlot,
 		GenesisWallet:  genesisWallet,
 	}
 

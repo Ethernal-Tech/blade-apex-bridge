@@ -10,14 +10,20 @@ jobs:
   build_blade:
     name: Build Blade
     uses: ./.github/workflows/build.yml
+    with:
+      blade_apex_bridge_ref: develop
   lint:
     name: Lint
     uses: ./.github/workflows/lint.yml
     needs: build_blade
+    with:
+      blade_apex_bridge_ref: develop
   e2e_apex_testnet_test:
     name: E2E ApexBridge Testnet Tests
     uses: ./.github/workflows/e2e-testnet-test.yml
     needs: build_blade
+    with:
+      blade_apex_bridge_ref: develop
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       TESTNET_BRIDGING_API_KEY: ${{ secrets.TESTNET_BRIDGING_API_KEY }}

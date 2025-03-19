@@ -1,10 +1,13 @@
 ---
+concurrency:
+  group: ${{ github.event_name }}-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 name: ApexBridge CI
 on: # yamllint disable-line rule:truthy
   push:
     branches:
-      - main
       - develop
+      - feat/skyline
   pull_request:
   workflow_dispatch:
     inputs:
@@ -22,6 +25,10 @@ on: # yamllint disable-line rule:truthy
         default: true
       e2e_apex_test:
         description: E2E ApexBridge Tests
+        type: boolean
+        default: true
+      e2e_skyline_test:
+        description: E2E Skyline Tests
         type: boolean
         default: true
       e2e_apex_big_test:
@@ -54,6 +61,10 @@ on: # yamllint disable-line rule:truthy
         description: E2E ApexBridge Tests
         type: boolean
         required: true
+      e2e_skyline_test:
+        description: E2E Skyline Tests
+        type: boolean
+        required: true
       e2e_apex_big_test:
         description: E2E ApexBridge Big Tests
         type: string
@@ -64,6 +75,10 @@ on: # yamllint disable-line rule:truthy
         required: true
       apex_bridge_ref:
         description: The branch/commit from the Apex Bridge
+        type: string
+        required: true
+      blade_apex_bridge_ref:
+        description: The branch/commit from the Blade Apex Bridge
         type: string
         required: true
     outputs:
@@ -82,36 +97,21 @@ on: # yamllint disable-line rule:truthy
       e2e_apex_test:
         description: E2E ApexBridge Tests output
         value: ${{ jobs.e2e_apex_test.outputs.workflow_output }}
+      e2e_skyline_test:
+        description: E2E Skyline Tests output
+        value: ${{ jobs.e2e_skyline_test.outputs.workflow_output }}
     secrets:
       PERSONAL_ACCESS_TOKEN:
         required: true
 
 jobs:
-  build_blade:
-    name: Build Blade
-    uses: ./.github/workflows/build.yml
-  lint:
-    name: Lint
-    uses: ./.github/workflows/lint.yml
-    needs: build_blade
-    if: |
-      inputs.lint || 
-      github.event_name == 'pull_request' || 
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
-  unit_test:
-    name: Unit Tests
-    uses: ./.github/workflows/unit-test.yml
-    needs: build_blade
-    if: |
-      inputs.unit_test || 
-      github.event_name == 'pull_request' || 
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
   inputs_check:
     name: Inputs Check
     runs-on: ubuntu-latest
     outputs:
       skip_redundant_tests: ${{ steps.redudant_test_input_check.outputs.skip_redundant_tests }}
       apex_bridge_ref: ${{ steps.apex_bridge_ref_input_check.outputs.apex_bridge_ref }}
+      blade_apex_bridge_ref: ${{ steps.blade_apex_bridge_ref_input_check.outputs.blade_apex_bridge_ref }}
     steps:
       - name: Redundant Tests Input Check
         id: redudant_test_input_check
@@ -125,42 +125,115 @@ jobs:
         id: apex_bridge_ref_input_check
         run: |
           if [[ "${{ inputs.apex_bridge_ref }}" == "" ]]; then
-            echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              if [[ "${{ github.base_ref }}" == "feat/skyline" ]]; then
+                echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
+              else
+                echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
+              fi
+            else
+              if [[ "${{ github.ref }}" == "refs/heads/feat/skyline" ]]; then
+                echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
+              else
+                echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
+              fi
+            fi
           else
             echo "apex_bridge_ref=${{ inputs.apex_bridge_ref }}" >> $GITHUB_OUTPUT
           fi
+      - name: Blade Apex Bridge Ref Input Check
+        id: blade_apex_bridge_ref_input_check
+        run: |
+          if [[ "${{ inputs.blade_apex_bridge_ref }}" == "" ]]; then
+            echo "blade_apex_bridge_ref=${{ github.ref }}" >> $GITHUB_OUTPUT
+          else
+            echo "blade_apex_bridge_ref=${{ inputs.blade_apex_bridge_ref }}" >> $GITHUB_OUTPUT
+          fi
+  build_blade:
+    name: Build Blade
+    uses: ./.github/workflows/build.yml
+    needs: inputs_check
+    with:
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
+  lint:
+    name: Lint
+    uses: ./.github/workflows/lint.yml
+    needs: [inputs_check, build_blade]
+    if: |
+      inputs.lint || 
+      github.event_name == 'pull_request' || 
+      (github.event_name == 'push' && (github.ref == 'refs/heads/feat/skyline' || github.ref == 'refs/heads/develop'))
+    with:
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
+  unit_test:
+    name: Unit Tests
+    uses: ./.github/workflows/unit-test.yml
+    needs: [inputs_check, build_blade]
+    if: |
+      inputs.unit_test || 
+      github.event_name == 'pull_request' || 
+      (github.event_name == 'push' && (github.ref == 'refs/heads/feat/skyline' || github.ref == 'refs/heads/develop'))
+    with:
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
   e2e_polybft_test:
     name: E2E PolyBFT Tests
     uses: ./.github/workflows/e2e-polybft-test.yml
-    needs: [build_blade, inputs_check]
+    needs: [inputs_check, build_blade]
     if: |
       inputs.e2e_polybft_test || 
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
+      (github.event_name == 'push' && (github.ref == 'refs/heads/feat/skyline' || github.ref == 'refs/heads/develop'))
     with:
       apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_apex_test:
     name: E2E ApexBridge Tests
-    uses: ./.github/workflows/e2e-apex-test.yml 
-    needs: [build_blade, inputs_check]
+    uses: ./.github/workflows/e2e-apex-test.yml
+    needs: [inputs_check, build_blade]
     if: |
-      inputs.e2e_apex_test ||
+      inputs.e2e_apex_test || 
       github.event_name == 'pull_request'
     with:
       apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       e2e_apex_big_test: ${{ inputs.e2e_apex_big_test || 'false' }}
       e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_apex_test_push:
-    name: E2E ApexBridge Tests (push on main/develop branch)
+    name: E2E ApexBridge Tests (push on develop branch)
     uses: ./.github/workflows/e2e-apex-test.yml
     needs: build_blade
-    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feat/skyline'))
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/develop')
+    with:
+      apex_bridge_ref: main
+      blade_apex_bridge_ref: develop
+      e2e_apex_big_test: false
+      e2e_apex_skip_redundant_tests: false
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_skyline_test:
+    name: E2E Skyline Tests
+    uses: ./.github/workflows/e2e-skyline-test.yml 
+    needs: [inputs_check, build_blade]
+    if: |
+      inputs.e2e_skyline_test ||
+      (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline')
+    with:
+      apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
+      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_skyline_test_push:
+    name: E2E Skyline Tests (push on feat/skyline branch)
+    uses: ./.github/workflows/e2e-skyline-test.yml
+    needs: build_blade
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/skyline')
     with:
       apex_bridge_ref: feat/skyline
-      e2e_apex_big_test: false
+      blade_apex_bridge_ref: feat/skyline
       e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}

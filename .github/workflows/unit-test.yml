@@ -2,6 +2,11 @@
 name: Unit Tests
 on: # yamllint disable-line rule:truthy
   workflow_call:
+    inputs:
+      blade_apex_bridge_ref:
+        description: The branch/commit from the Blade Apex Bridge
+        type: string
+        required: true
     outputs:
       workflow_output:
         description: Unit Tests output
@@ -19,6 +24,7 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          ref: ${{ inputs.blade_apex_bridge_ref }}
       - name: Setup Go
         uses: actions/setup-go@v5.0.0
         with:
