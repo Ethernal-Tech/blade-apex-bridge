@@ -1696,6 +1696,190 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 	})
 }
 
+func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		fundUtxoCount   = 63
+		maxFeeUtxoCount = 4
+		maxUtxoCount    = 50
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	vectorConfig := cardanofw.NewVectorChainConfig(true)
+	vectorConfig.FundUTxOCount = fundUtxoCount
+	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * fundUtxoCount
+	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
+	sendAmount := vectorConfig.FundAmount - cardanofw.MinUTxODefaultValue*3
+
+	var (
+		initialUtxos []map[string]any
+		tipData      infrawallet.QueryTipData
+		lock         sync.Mutex
+	)
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx, cardanofw.SystemIDReactor,
+		cardanofw.WithUserCnt(1),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithCustomConfigHandlers(func(a *cardanofw.ApexSystem, mp map[string]any) {
+			t.Helper()
+
+			lock.Lock()
+			defer lock.Unlock()
+
+			// retrieve only once for all validators
+			if len(initialUtxos) == 0 {
+				initialUtxos, tipData = getInitialUtxosAndTip(
+					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
+			}
+
+			// Vector indexer should start after multisig funding is done
+			vcCfg := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDVector)
+			vcCfg["startBlockHash"] = tipData.Hash
+			vcCfg["startSlot"] = tipData.Slot
+			vcCfg["initialUtxos"] = initialUtxos
+			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
+			vcCfg["maxUtxoCount"] = maxUtxoCount
+		}, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(apex.BridgeCluster.Servers[0].JSONRPC()))
+	require.NoError(t, err)
+
+	txProviderVector, err := apex.VectorInfo.GetTxProvider()
+	require.NoError(t, err)
+
+	getLastConfirmedBatchID := func(chainID string) uint64 {
+		input, err := contractsapi.ApexBridgeContracts.SignedBatches.Abi.GetMethod("getConfirmedBatchId").
+			Encode([]any{cardanofw.ChainIDToInt(chainID)})
+		require.NoError(t, err)
+
+		response, err := txRelayer.Call(types.ZeroAddress, contracts.SignedBatches, input)
+		require.NoError(t, err)
+
+		val, err := common.ParseUint64orHex(&response)
+		require.NoError(t, err)
+
+		return val
+	}
+
+	require.Equal(t, uint64(0), getLastConfirmedBatchID(cardanofw.ChainIDVector))
+
+	utxos, err := txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr)
+	require.NoError(t, err)
+
+	require.Len(t, utxos, vectorConfig.FundUTxOCount)
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[0],
+		cardanofw.ChainIDPrime, cardanofw.ChainIDVector, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal)
+
+	require.Equal(t, uint64(2), getLastConfirmedBatchID(cardanofw.ChainIDVector))
+
+	utxos, err = txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr)
+	require.NoError(t, err)
+
+	require.Len(t, utxos, 1)
+}
+
+func TestE2E_ApexBridge_UTxOConsolidationWithBothDirections(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		fundUtxoCount                 = 8
+		maxFeeUtxoCount               = 1
+		maxUtxoCount                  = 4
+		sequentialInstances           = 3
+		parallelInstances             = 6
+		minimumExpectedConsolidations = 3
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	vectorConfig.FundUTxOCount = fundUtxoCount
+	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * parallelInstances * sequentialInstances
+	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
+	primeConfig.FundUTxOCount = fundUtxoCount
+	primeConfig.FundAmount = cardanofw.MinUTxODefaultValue * parallelInstances * sequentialInstances
+	primeConfig.InitialHotWalletAmount = new(big.Int).SetUint64(primeConfig.FundAmount)
+	sendAmount := cardanofw.MinUTxODefaultValue
+
+	var (
+		initialUtxosVector, initialUtxosPrime []map[string]any
+		tipDataVector, tipDataPrime           infrawallet.QueryTipData
+		lock                                  sync.Mutex
+	)
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx, cardanofw.SystemIDReactor,
+		cardanofw.WithUserCnt(parallelInstances+1),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithCustomConfigHandlers(func(a *cardanofw.ApexSystem, mp map[string]any) {
+			t.Helper()
+
+			lock.Lock()
+			defer lock.Unlock()
+
+			// retrieve only once for all validators
+			if len(initialUtxosVector) == 0 {
+				initialUtxosVector, tipDataVector = getInitialUtxosAndTip(
+					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
+				initialUtxosPrime, tipDataPrime = getInitialUtxosAndTip(
+					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr, a.PrimeInfo.FeeAddr)
+			}
+
+			// Both chains indexers should start after multisig funding is done
+			vcCfg := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDVector)
+			vcCfg["startBlockHash"] = tipDataVector.Hash
+			vcCfg["startSlot"] = tipDataVector.Slot
+			vcCfg["initialUtxos"] = initialUtxosVector
+			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
+			vcCfg["maxUtxoCount"] = maxUtxoCount
+			vcCfg = cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDPrime)
+			vcCfg["startBlockHash"] = tipDataPrime.Hash
+			vcCfg["startSlot"] = tipDataPrime.Slot
+			vcCfg["initialUtxos"] = initialUtxosPrime
+			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
+			vcCfg["maxUtxoCount"] = maxUtxoCount
+		}, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	getCntConsolidationMap := checkConsolidationBatchCounts(
+		t, ctx,
+		apex.BridgeCluster.Servers[0].JSONRPC(),
+		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector})
+
+	e2ehelper.ExecuteBridging(
+		t, ctx, apex, sequentialInstances,
+		apex.Users[:parallelInstances],
+		[]*cardanofw.TestApexUser{apex.Users[parallelInstances]},
+		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
+		map[string][]string{
+			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
+			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
+		}, sendtx.BridgingTypeNormal,
+		new(big.Int).SetUint64(sendAmount),
+		e2ehelper.WithWaitForUnexpectedBridges(true))
+
+	for _, cnt := range getCntConsolidationMap() {
+		assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
+	}
+}
+
 func PrimeToVectorInvalidMetadataSlicedOff(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser, bridgingFeeAmount uint64,
 ) {
@@ -1925,190 +2109,6 @@ func PrimeVectorBothDirectionsSequentialAndParallel(
 			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
 		}, sendtx.BridgingTypeNormal, new(big.Int).SetUint64(sendAmount),
 		options...)
-}
-
-func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
-
-	const (
-		fundUtxoCount   = 63
-		maxFeeUtxoCount = 4
-		maxUtxoCount    = 50
-	)
-
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	vectorConfig := cardanofw.NewVectorChainConfig(true)
-	vectorConfig.FundUTxOCount = fundUtxoCount
-	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * fundUtxoCount
-	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
-	sendAmount := vectorConfig.FundAmount - cardanofw.MinUTxODefaultValue*3
-
-	var (
-		initialUtxos []map[string]any
-		tipData      infrawallet.QueryTipData
-		lock         sync.Mutex
-	)
-
-	apex := cardanofw.SetupAndRunApexBridge(
-		t, ctx, cardanofw.SystemIDReactor,
-		cardanofw.WithUserCnt(1),
-		cardanofw.WithVectorConfig(vectorConfig),
-		cardanofw.WithCustomConfigHandlers(func(a *cardanofw.ApexSystem, mp map[string]any) {
-			t.Helper()
-
-			lock.Lock()
-			defer lock.Unlock()
-
-			// retrieve only once for all validators
-			if len(initialUtxos) == 0 {
-				initialUtxos, tipData = getInitialUtxosAndTip(
-					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
-			}
-
-			// Vector indexer should start after multisig funding is done
-			vcCfg := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDVector)
-			vcCfg["startBlockHash"] = tipData.Hash
-			vcCfg["startSlot"] = tipData.Slot
-			vcCfg["initialUtxos"] = initialUtxos
-			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
-			vcCfg["maxUtxoCount"] = maxUtxoCount
-		}, nil),
-	)
-
-	defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(apex.BridgeCluster.Servers[0].JSONRPC()))
-	require.NoError(t, err)
-
-	txProviderVector, err := apex.VectorInfo.GetTxProvider()
-	require.NoError(t, err)
-
-	getLastConfirmedBatchID := func(chainID string) uint64 {
-		input, err := contractsapi.ApexBridgeContracts.SignedBatches.Abi.GetMethod("getConfirmedBatchId").
-			Encode([]any{cardanofw.ChainIDToInt(chainID)})
-		require.NoError(t, err)
-
-		response, err := txRelayer.Call(types.ZeroAddress, contracts.SignedBatches, input)
-		require.NoError(t, err)
-
-		val, err := common.ParseUint64orHex(&response)
-		require.NoError(t, err)
-
-		return val
-	}
-
-	require.Equal(t, uint64(0), getLastConfirmedBatchID(cardanofw.ChainIDVector))
-
-	utxos, err := txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr)
-	require.NoError(t, err)
-
-	require.Len(t, utxos, vectorConfig.FundUTxOCount)
-
-	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.Users[0], apex.Users[0],
-		cardanofw.ChainIDPrime, cardanofw.ChainIDVector, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal)
-
-	require.Equal(t, uint64(2), getLastConfirmedBatchID(cardanofw.ChainIDVector))
-
-	utxos, err = txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr)
-	require.NoError(t, err)
-
-	require.Len(t, utxos, 1)
-}
-
-func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
-
-	const (
-		fundUtxoCount                 = 8
-		maxFeeUtxoCount               = 1
-		maxUtxoCount                  = 4
-		sequentialInstances           = 3
-		parallelInstances             = 6
-		minimumExpectedConsolidations = 3
-	)
-
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
-	vectorConfig.FundUTxOCount = fundUtxoCount
-	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * parallelInstances * sequentialInstances
-	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
-	primeConfig.FundUTxOCount = fundUtxoCount
-	primeConfig.FundAmount = cardanofw.MinUTxODefaultValue * parallelInstances * sequentialInstances
-	primeConfig.InitialHotWalletAmount = new(big.Int).SetUint64(primeConfig.FundAmount)
-	sendAmount := cardanofw.MinUTxODefaultValue
-
-	var (
-		initialUtxosVector, initialUtxosPrime []map[string]any
-		tipDataVector, tipDataPrime           infrawallet.QueryTipData
-		lock                                  sync.Mutex
-	)
-
-	apex := cardanofw.SetupAndRunApexBridge(
-		t, ctx, cardanofw.SystemIDReactor,
-		cardanofw.WithUserCnt(parallelInstances+1),
-		cardanofw.WithVectorConfig(vectorConfig),
-		cardanofw.WithPrimeConfig(primeConfig),
-		cardanofw.WithCustomConfigHandlers(func(a *cardanofw.ApexSystem, mp map[string]any) {
-			t.Helper()
-
-			lock.Lock()
-			defer lock.Unlock()
-
-			// retrieve only once for all validators
-			if len(initialUtxosVector) == 0 {
-				initialUtxosVector, tipDataVector = getInitialUtxosAndTip(
-					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
-				initialUtxosPrime, tipDataPrime = getInitialUtxosAndTip(
-					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr, a.PrimeInfo.FeeAddr)
-			}
-
-			// Both chains indexers should start after multisig funding is done
-			vcCfg := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDVector)
-			vcCfg["startBlockHash"] = tipDataVector.Hash
-			vcCfg["startSlot"] = tipDataVector.Slot
-			vcCfg["initialUtxos"] = initialUtxosVector
-			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
-			vcCfg["maxUtxoCount"] = maxUtxoCount
-			vcCfg = cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDPrime)
-			vcCfg["startBlockHash"] = tipDataPrime.Hash
-			vcCfg["startSlot"] = tipDataPrime.Slot
-			vcCfg["initialUtxos"] = initialUtxosPrime
-			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
-			vcCfg["maxUtxoCount"] = maxUtxoCount
-		}, nil),
-	)
-
-	defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-	getCntConsolidationMap := checkConsolidationBatchCounts(
-		t, ctx,
-		apex.BridgeCluster.Servers[0].JSONRPC(),
-		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector})
-
-	e2ehelper.ExecuteBridging(
-		t, ctx, apex, sequentialInstances,
-		apex.Users[:parallelInstances],
-		[]*cardanofw.TestApexUser{apex.Users[parallelInstances]},
-		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
-		map[string][]string{
-			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
-			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
-		}, sendtx.BridgingTypeNormal,
-		new(big.Int).SetUint64(sendAmount),
-		e2ehelper.WithWaitForUnexpectedBridges(true))
-
-	for _, cnt := range getCntConsolidationMap() {
-		assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
-	}
 }
 
 func getInitialUtxosAndTip(

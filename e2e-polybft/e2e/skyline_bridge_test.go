@@ -1014,10 +1014,10 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 	wg.Wait()
 }
 
-func TestE2E_SkylineUTxOConsolidation(t *testing.T) {
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
+func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
+	// if cardanofw.ShouldSkipE2RRedundantTests() {
+	// 	t.Skip()
+	// }
 
 	const (
 		fundUtxoCount                 = 9
@@ -1198,10 +1198,10 @@ func TestE2E_SkylineUTxOConsolidation(t *testing.T) {
 	})
 }
 
-func TestE2E_SkylineUTxOConsolidationBothDirectionsWithCurrencyAndTokens(t *testing.T) {
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
+func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(t *testing.T) {
+	// if cardanofw.ShouldSkipE2RRedundantTests() {
+	// 	t.Skip()
+	// }
 
 	const (
 		fundUtxoCount                 = 9
