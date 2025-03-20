@@ -1387,3 +1387,870 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 		}
 	})
 }
+
+func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		apiKey       = "test_api_key"
+		userCnt      = 10
+		feeAmountDfm = 1_100_000
+	)
+
+	var (
+		err error
+	)
+
+	type chainStageKey struct {
+		chain    string
+		srcChain string
+		receiver uint
+	}
+
+	type bridingRequest struct {
+		src         string
+		dest        string
+		sender      *cardanofw.TestApexUser
+		amount      *big.Int
+		receiverIdx uint
+	}
+
+	createBridgingData := func(ctx context.Context, apex *cardanofw.ApexSystem,
+		bridgingRequests []*bridingRequest, receivers map[uint]*cardanofw.TestApexUser,
+		defundReceiver *cardanofw.TestApexUser, defundAmount *big.Int, isNativeToken bool) (
+		map[chainStageKey]*big.Int, map[chainStageKey]*big.Int,
+		map[chainStageKey]*cardanofw.TestApexUser,
+		map[chainStageKey]*big.Int, map[chainStageKey]*big.Int,
+		map[chainStageKey]*cardanofw.TestApexUser,
+	) {
+		var (
+			chainPrevAmounts     = make(map[chainStageKey]*big.Int)
+			chainExpectedAmounts = make(map[chainStageKey]*big.Int)
+			chainReceivers       = make(map[chainStageKey]*cardanofw.TestApexUser)
+
+			defundReceiversPrevAmount     = make(map[chainStageKey]*big.Int)
+			defundReceiversExpectedAmount = make(map[chainStageKey]*big.Int)
+			defundReceivers               = make(map[chainStageKey]*cardanofw.TestApexUser)
+		)
+
+		for _, br := range bridgingRequests {
+			tokenName := wallet.AdaTokenName
+
+			if isNativeToken {
+				tokenName = apex.GetTokenNameForChains(br.dest, br.src)
+			}
+
+			key := chainStageKey{chain: br.dest, srcChain: br.src, receiver: br.receiverIdx}
+			if _, exists := chainPrevAmounts[key]; !exists {
+				balance, err := apex.GetBalance(ctx, receivers[br.receiverIdx], br.dest)
+				require.NoError(t, err)
+
+				chainPrevAmounts[key] = cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
+			}
+
+			if _, exists := chainExpectedAmounts[key]; !exists {
+				chainExpectedAmounts[key] = big.NewInt(0)
+			}
+
+			chainExpectedAmounts[key].Add(chainExpectedAmounts[key], cardanofw.ApexToDfm(br.amount))
+
+			if _, exists := chainReceivers[key]; !exists {
+				chainReceivers[key] = receivers[br.receiverIdx]
+			}
+
+			if defundAmount != nil && defundReceiver != nil {
+				if _, exists := defundReceiversPrevAmount[key]; !exists {
+					balance, err := apex.GetBalance(ctx, defundReceiver, br.dest)
+					require.NoError(t, err)
+
+					defundReceiversPrevAmount[key] = cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
+				}
+
+				if _, exist := defundReceiversExpectedAmount[key]; !exist {
+					defundReceiversExpectedAmount[key] = big.NewInt(0)
+				}
+
+				defundReceiversExpectedAmount[key].Add(defundReceiversExpectedAmount[key], cardanofw.ApexToDfm(defundAmount))
+
+				if _, exists := defundReceivers[key]; !exists {
+					defundReceivers[key] = defundReceiver
+				}
+			}
+		}
+
+		return chainPrevAmounts, chainExpectedAmounts, chainReceivers, defundReceiversPrevAmount, defundReceiversExpectedAmount, defundReceivers
+	}
+
+	bridgeTransactions := func(ctx context.Context, apex *cardanofw.ApexSystem,
+		bridgingRequests []*bridingRequest, receivers map[uint]*cardanofw.TestApexUser, bridgingType sendtx.BridgingType,
+	) {
+		var wg sync.WaitGroup
+
+		for _, br := range bridgingRequests {
+			wg.Add(1)
+
+			go func(src string, dest string, sender *cardanofw.TestApexUser, receiver *cardanofw.TestApexUser, amount *big.Int) {
+				defer wg.Done()
+
+				txHash := apex.SubmitBridgingRequest(t, ctx, src, dest, sender, amount, bridgingType, receiver)
+				fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHash)
+			}(br.src, br.dest, br.sender, receivers[br.receiverIdx], cardanofw.ApexToDfm(br.amount))
+		}
+
+		wg.Wait()
+	}
+
+	waitOnDestination := func(
+		ctx context.Context, apex *cardanofw.ApexSystem,
+		chainPrevAmounts map[chainStageKey]*big.Int, chainExpectedAmounts map[chainStageKey]*big.Int,
+		chainReceivers map[chainStageKey]*cardanofw.TestApexUser, numRetries int, waitTime time.Duration, isNativeToken bool,
+	) map[chainStageKey]error {
+		var (
+			wg           sync.WaitGroup
+			errsPerChain = make(map[chainStageKey]error, len(chainPrevAmounts))
+			mu           sync.Mutex
+		)
+
+		for chainKey, prevAmount := range chainPrevAmounts {
+			wg.Add(1)
+
+			go func() {
+				defer wg.Done()
+
+				fmt.Printf("Waiting for %v Amount on %v\n", chainExpectedAmounts[chainKey], chainKey.chain)
+
+				expectedAmount := new(big.Int).Set(chainExpectedAmounts[chainKey])
+				expectedAmount.Add(expectedAmount, prevAmount)
+
+				err = apex.WaitForExactAmount(
+					ctx, chainReceivers[chainKey], chainKey.chain, chainKey.srcChain, expectedAmount, numRetries, waitTime, isNativeToken)
+
+				mu.Lock()
+				defer mu.Unlock()
+
+				errsPerChain[chainKey] = err
+			}()
+		}
+
+		wg.Wait()
+
+		return errsPerChain
+	}
+
+	fundWallets := func(
+		ctx context.Context, apex *cardanofw.ApexSystem,
+		fundAmountApex *big.Int, isNativeToken bool,
+	) error {
+		fmt.Printf("Funding hot wallets\n")
+		chains := []string{cardanofw.ChainIDPrime, cardanofw.ChainIDCardano}
+		for _, chain := range chains {
+			if isNativeToken {
+				apex.Config.PrimeConfig.FundAmount = cardanofw.ApexToDfm(fundAmountApex).Uint64()
+				apex.Config.PrimeConfig.FundTokenAmount = cardanofw.ApexToDfm(fundAmountApex).Uint64()
+				apex.Config.CardanoConfig.FundAmount = cardanofw.ApexToDfm(fundAmountApex).Uint64()
+				apex.Config.CardanoConfig.FundTokenAmount = cardanofw.ApexToDfm(fundAmountApex).Uint64()
+
+				fmt.Printf("Funding wallets with %+v\n", apex.Config.PrimeConfig.FundAmount)
+
+				if err = apex.FundWallets(ctx); err != nil {
+					return err
+				}
+			} else {
+				if err = apex.FundChainHotWallet(ctx, chain, cardanofw.ApexToDfm(fundAmountApex)); err != nil {
+					return err
+				}
+			}
+		}
+
+		fmt.Printf("Hot wallets have been funded\n")
+
+		return nil
+	}
+
+	defundWallets := func(
+		ctx context.Context, apex *cardanofw.ApexSystem,
+		defundReceiver *cardanofw.TestApexUser, defundAmountApex *big.Int,
+		defundReceiverPrevAmounts map[chainStageKey]*big.Int, defundReceiverExpectedAmounts map[chainStageKey]*big.Int,
+		defundReceivers map[chainStageKey]*cardanofw.TestApexUser, isNativeToken bool,
+	) {
+		fmt.Printf("Defunding hot wallets\n")
+
+		defundAmount := cardanofw.ApexToDfm(defundAmountApex)
+
+		require.NoError(t, apex.DefundHotWallet(
+			cardanofw.ChainIDPrime, defundReceiver.GetAddress(cardanofw.ChainIDPrime), defundAmount))
+
+		require.NoError(t, apex.DefundHotWallet(
+			cardanofw.ChainIDCardano, defundReceiver.GetAddress(cardanofw.ChainIDCardano), defundAmount))
+
+		errsPerChain := waitOnDestination(ctx, apex,
+			defundReceiverPrevAmounts, defundReceiverExpectedAmounts, defundReceivers,
+			200, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			require.NoError(t, err)
+			fmt.Printf("Defund on %v confirmed\n", chainKey.chain)
+		}
+	}
+
+	t.Run("1. Basic defund test", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
+
+		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+		primeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
+		primeConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
+		cardanoConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		cardanoConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+
+		apex := cardanofw.SetupAndRunSkylineBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithPrimeConfig(primeConfig),
+			cardanofw.WithCardanoConfig(cardanoConfig),
+		)
+
+		defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+		// give time for oracles to submit hot wallet increment claims for initial fundings
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(90 * time.Second):
+		}
+
+		var (
+			defundReceiver          = apex.Users[userCnt-2]
+			apexDefundAndFundAmount = big.NewInt(70)
+			apexSendAmount          = big.NewInt(50)
+
+			bridgignType = sendtx.BridgingTypeNativeTokenOnSource
+
+			bridgingRequests = []*bridingRequest{
+				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[0], amount: apexSendAmount, receiverIdx: 0},
+				{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[0], amount: apexSendAmount, receiverIdx: 0},
+			}
+
+			receivers = map[uint]*cardanofw.TestApexUser{
+				0: apex.Users[userCnt-1],
+			}
+		)
+
+		require.True(t, cardanofw.ApexToDfm(apexSendAmount).Uint64()+feeAmountDfm < initialFundInDfm.Uint64())
+
+		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
+
+		minterWalletPrime := apex.PrimeInfo.GenesisWallet
+		minterWalletCardano := apex.CardanoInfo.GenesisWallet
+
+		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+		require.NoError(t, err)
+
+		txProviderCardano, err := apex.CardanoInfo.GetTxProvider()
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+			minterWalletPrime, apex.Users[0], uint64(2_000_000), uint64(50_000_000))
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDCardano, apex.Config.CardanoConfig.NetworkType, txProviderCardano,
+			minterWalletCardano, apex.Users[0], uint64(2_000_000), uint64(50_000_000))
+		require.NoError(t, err)
+
+		chainPrevAmounts, chainExpectedAmounts, chainReceivers,
+			defundReceiversPrevAmount, defundReceiversExpectedAmount, defundReceivers :=
+			createBridgingData(ctx, apex, bridgingRequests, receivers, defundReceiver, apexDefundAndFundAmount, isNativeToken)
+
+		defundWallets(ctx, apex, defundReceiver, apexDefundAndFundAmount,
+			defundReceiversPrevAmount, defundReceiversExpectedAmount, defundReceivers, isNativeToken)
+
+		bridgeTransactions(ctx, apex, bridgingRequests, receivers, bridgignType)
+
+		fmt.Printf("Confirming that bridging requests will not be processed\n")
+
+		errsPerChain := waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10, isNativeToken)
+		for chain, err := range errsPerChain {
+			require.Error(t, err)
+			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chain], chain)
+		}
+
+		require.NoError(t, fundWallets(ctx, apex, apexDefundAndFundAmount, isNativeToken))
+
+		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10, isNativeToken)
+		for chain, err := range errsPerChain {
+			require.NoError(t, err)
+			fmt.Printf("%v TXs on %v confirmed\n", chainExpectedAmounts[chain], chain)
+		}
+	})
+
+	t.Run("2. Defund after bridging request is sent", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
+
+		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+		primeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
+		primeConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
+		cardanoConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		cardanoConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+
+		apex := cardanofw.SetupAndRunSkylineBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithPrimeConfig(primeConfig),
+			cardanofw.WithCardanoConfig(cardanoConfig),
+		)
+
+		defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+		// give time for oracles to submit hot wallet increment claims for initial fundings
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(90 * time.Second):
+		}
+
+		var (
+			defundReceiver          = apex.Users[userCnt-2]
+			apexDefundAndFundAmount = big.NewInt(70)
+			apexSendAmount          = big.NewInt(50)
+
+			bridgignType = sendtx.BridgingTypeNativeTokenOnSource
+
+			bridgingRequests = []*bridingRequest{
+				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[0], amount: apexSendAmount, receiverIdx: 0},
+				{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[1], amount: apexSendAmount, receiverIdx: 0},
+			}
+
+			receivers = map[uint]*cardanofw.TestApexUser{
+				0: apex.Users[userCnt-1],
+			}
+		)
+
+		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
+
+		minterWalletPrime := apex.PrimeInfo.GenesisWallet
+		minterWalletCardano := apex.CardanoInfo.GenesisWallet
+
+		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+		require.NoError(t, err)
+
+		txProviderCardano, err := apex.CardanoInfo.GetTxProvider()
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+			minterWalletPrime, apex.Users[0], uint64(2_000_000), uint64(250_000_000))
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDCardano, apex.Config.CardanoConfig.NetworkType, txProviderCardano,
+			minterWalletCardano, apex.Users[1], uint64(2_000_000), uint64(250_000_000))
+		require.NoError(t, err)
+
+		require.True(t,
+			cardanofw.ApexToDfm(apexSendAmount).Uint64()+feeAmountDfm < initialFundInDfm.Uint64())
+
+		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ :=
+			createBridgingData(ctx, apex, bridgingRequests, receivers, defundReceiver, apexDefundAndFundAmount, isNativeToken)
+
+		for _, request := range bridgingRequests {
+			bridgeTransactions(ctx, apex, []*bridingRequest{request}, receivers, bridgignType)
+
+			require.NoError(t, apex.DefundHotWallet(
+				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToDfm(apexDefundAndFundAmount)))
+		}
+
+		fmt.Printf("Confirming that bridging requests will not be processed\n")
+
+		errsPerChain := waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			require.Error(t, err)
+			fmt.Printf("As intended, %v TX on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
+		}
+
+		require.NoError(t, fundWallets(ctx, apex, apexDefundAndFundAmount, isNativeToken))
+
+		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			require.NoError(t, err)
+			fmt.Printf("%v TX on %v confirmed\n", chainExpectedAmounts[chainKey], chainKey.chain)
+		}
+	})
+
+	t.Run("3. Fund_Parallel_Send_BRs_Then_Full_Fund", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+		primeConfig.FundAmount = 0
+		cardanoConfig.FundAmount = 0
+		primeConfig.FundTokenAmount = 0
+		cardanoConfig.FundTokenAmount = 0
+
+		apex := cardanofw.SetupAndRunSkylineBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithPrimeConfig(primeConfig),
+			cardanofw.WithCardanoConfig(cardanoConfig),
+		)
+
+		defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+		var (
+			bridgingRequests = []*bridingRequest{
+				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[0], amount: big.NewInt(1), receiverIdx: 0},
+				{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[0], amount: big.NewInt(1), receiverIdx: 0},
+			}
+
+			receivers = map[uint]*cardanofw.TestApexUser{
+				0: apex.Users[userCnt-1],
+			}
+
+			bridgignType = sendtx.BridgingTypeNativeTokenOnSource
+		)
+
+		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
+
+		minterWalletPrime := apex.PrimeInfo.GenesisWallet
+		minterWalletCardano := apex.CardanoInfo.GenesisWallet
+
+		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+		require.NoError(t, err)
+
+		txProviderCardano, err := apex.CardanoInfo.GetTxProvider()
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+			minterWalletPrime, apex.Users[0], uint64(2_000_000), uint64(50_000_000))
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDCardano, apex.Config.CardanoConfig.NetworkType, txProviderCardano,
+			minterWalletCardano, apex.Users[0], uint64(2_000_000), uint64(150_000_000))
+		require.NoError(t, err)
+
+		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ := createBridgingData(ctx, apex, bridgingRequests, receivers, nil, nil, isNativeToken)
+
+		bridgeTransactions(ctx, apex, bridgingRequests, receivers, bridgignType)
+
+		fmt.Printf("Confirming that bridging requests will not be processed\n")
+
+		errsPerChain := waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			require.Error(t, err)
+			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
+		}
+
+		require.NoError(t, fundWallets(ctx, apex, big.NewInt(100), isNativeToken))
+
+		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			require.NoError(t, err)
+			fmt.Printf("%v TXs on %v confirmed\n", chainExpectedAmounts[chainKey], chainKey)
+		}
+	})
+
+	t.Run("4. Fund_Parallel_Send_BRs_Then_Fund_Twice", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+		primeConfig.FundAmount = 0
+		cardanoConfig.FundAmount = 0
+		primeConfig.FundTokenAmount = 0
+		cardanoConfig.FundTokenAmount = 0
+
+		apex := cardanofw.SetupAndRunSkylineBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithPrimeConfig(primeConfig),
+			cardanofw.WithCardanoConfig(cardanoConfig),
+		)
+
+		defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+		var (
+			bridgingRequests = []*bridingRequest{
+				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[0], amount: big.NewInt(1), receiverIdx: 0},
+				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[1], amount: big.NewInt(100), receiverIdx: 1},
+				{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[0], amount: big.NewInt(1), receiverIdx: 0},
+				{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[1], amount: big.NewInt(100), receiverIdx: 1},
+			}
+
+			receivers = map[uint]*cardanofw.TestApexUser{
+				0: apex.Users[userCnt-1],
+				1: apex.Users[userCnt-2],
+			}
+
+			bridgignType = sendtx.BridgingTypeNativeTokenOnSource
+		)
+
+		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
+
+		minterWalletPrime := apex.PrimeInfo.GenesisWallet
+		minterWalletCardano := apex.CardanoInfo.GenesisWallet
+
+		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+		require.NoError(t, err)
+
+		txProviderCardano, err := apex.CardanoInfo.GetTxProvider()
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+			minterWalletPrime, apex.Users[0], uint64(2_000_000), uint64(250_000_000))
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDCardano, apex.Config.CardanoConfig.NetworkType, txProviderCardano,
+			minterWalletCardano, apex.Users[0], uint64(2_000_000), uint64(250_000_000))
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+			minterWalletPrime, apex.Users[1], uint64(2_000_000), uint64(250_000_000))
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, cardanofw.ChainIDCardano, apex.Config.CardanoConfig.NetworkType, txProviderCardano,
+			minterWalletCardano, apex.Users[1], uint64(2_000_000), uint64(250_000_000))
+		require.NoError(t, err)
+
+		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ := createBridgingData(ctx, apex, bridgingRequests, receivers, nil, nil, isNativeToken)
+
+		bridgeTransactions(ctx, apex, bridgingRequests, receivers, bridgignType)
+
+		fmt.Printf("Confirming that bridging requests will not be processed\n")
+
+		errsPerChain := waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			require.Error(t, err)
+			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
+		}
+
+		require.NoError(t, fundWallets(ctx, apex, big.NewInt(10), isNativeToken))
+
+		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			if chainKey.receiver == 1 {
+				require.Error(t, err)
+				fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey)
+			} else {
+				require.NoError(t, err)
+				fmt.Printf("%v TXs on %v confirmed\n", chainExpectedAmounts[chainKey], chainKey.chain)
+			}
+		}
+
+		require.NoError(t, fundWallets(ctx, apex, big.NewInt(1000), isNativeToken))
+
+		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			require.NoError(t, err)
+			fmt.Printf("%v TXs on %v confirmed\n", chainExpectedAmounts[chainKey], chainKey.chain)
+		}
+	})
+
+	t.Run("5. Basic defund test - currency on src", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
+
+		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+		primeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
+		primeConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
+		cardanoConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		cardanoConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+
+		apex := cardanofw.SetupAndRunSkylineBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithPrimeConfig(primeConfig),
+			cardanofw.WithCardanoConfig(cardanoConfig),
+		)
+
+		defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+		// give time for oracles to submit hot wallet increment claims for initial fundings
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(90 * time.Second):
+		}
+
+		var (
+			defundReceiver          = apex.Users[userCnt-2]
+			apexDefundAndFundAmount = big.NewInt(70)
+			apexSendAmount          = big.NewInt(50)
+
+			bridgignType = sendtx.BridgingTypeCurrencyOnSource
+
+			bridgingRequests = []*bridingRequest{
+				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[0], amount: apexSendAmount, receiverIdx: 0},
+				{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[0], amount: apexSendAmount, receiverIdx: 0},
+			}
+
+			receivers = map[uint]*cardanofw.TestApexUser{
+				0: apex.Users[userCnt-1],
+			}
+		)
+
+		require.True(t, cardanofw.ApexToDfm(apexSendAmount).Uint64()+feeAmountDfm < initialFundInDfm.Uint64())
+
+		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
+
+		chainPrevAmounts, chainExpectedAmounts, chainReceivers,
+			defundReceiversPrevAmount, defundReceiversExpectedAmount, defundReceivers :=
+			createBridgingData(ctx, apex, bridgingRequests, receivers, defundReceiver, apexDefundAndFundAmount, isNativeToken)
+
+		defundWallets(ctx, apex, defundReceiver, apexDefundAndFundAmount,
+			defundReceiversPrevAmount, defundReceiversExpectedAmount, defundReceivers, isNativeToken)
+
+		bridgeTransactions(ctx, apex, bridgingRequests, receivers, bridgignType)
+
+		fmt.Printf("Confirming that bridging requests will not be processed\n")
+
+		errsPerChain := waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10, isNativeToken)
+		for chain, err := range errsPerChain {
+			require.Error(t, err)
+			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chain], chain)
+		}
+
+		require.NoError(t, fundWallets(ctx, apex, apexDefundAndFundAmount, isNativeToken))
+
+		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10, isNativeToken)
+		for chain, err := range errsPerChain {
+			require.NoError(t, err)
+			fmt.Printf("%v TXs on %v confirmed\n", chainExpectedAmounts[chain], chain)
+		}
+	})
+
+	t.Run("6. Defund after bridging request is sent - currency on src", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
+
+		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+		primeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
+		primeConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
+		cardanoConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		cardanoConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+
+		apex := cardanofw.SetupAndRunSkylineBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithPrimeConfig(primeConfig),
+			cardanofw.WithCardanoConfig(cardanoConfig),
+		)
+
+		defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+		// give time for oracles to submit hot wallet increment claims for initial fundings
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(90 * time.Second):
+		}
+
+		var (
+			defundReceiver          = apex.Users[userCnt-2]
+			apexDefundAndFundAmount = big.NewInt(70)
+			apexSendAmount          = big.NewInt(50)
+
+			bridgignType = sendtx.BridgingTypeCurrencyOnSource
+
+			bridgingRequests = []*bridingRequest{
+				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[0], amount: apexSendAmount, receiverIdx: 0},
+				{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[1], amount: apexSendAmount, receiverIdx: 0},
+			}
+
+			receivers = map[uint]*cardanofw.TestApexUser{
+				0: apex.Users[userCnt-1],
+			}
+		)
+
+		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
+
+		require.True(t,
+			cardanofw.ApexToDfm(apexSendAmount).Uint64()+feeAmountDfm < initialFundInDfm.Uint64())
+
+		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ :=
+			createBridgingData(ctx, apex, bridgingRequests, receivers, defundReceiver, apexDefundAndFundAmount, isNativeToken)
+
+		for _, request := range bridgingRequests {
+			bridgeTransactions(ctx, apex, []*bridingRequest{request}, receivers, bridgignType)
+
+			require.NoError(t, apex.DefundHotWallet(
+				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToDfm(apexDefundAndFundAmount)))
+		}
+
+		fmt.Printf("Confirming that bridging requests will not be processed\n")
+
+		errsPerChain := waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			require.Error(t, err)
+			fmt.Printf("As intended, %v TX on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
+		}
+
+		require.NoError(t, fundWallets(ctx, apex, apexDefundAndFundAmount, isNativeToken))
+
+		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			require.NoError(t, err)
+			fmt.Printf("%v TX on %v confirmed\n", chainExpectedAmounts[chainKey], chainKey.chain)
+		}
+	})
+
+	t.Run("7. Fund_Parallel_Send_BRs_Then_Full_Fund - currency on src", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+		primeConfig.FundAmount = 0
+		cardanoConfig.FundAmount = 0
+		primeConfig.FundTokenAmount = 0
+		cardanoConfig.FundTokenAmount = 0
+
+		apex := cardanofw.SetupAndRunSkylineBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithPrimeConfig(primeConfig),
+			cardanofw.WithCardanoConfig(cardanoConfig),
+		)
+
+		defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+		var (
+			bridgingRequests = []*bridingRequest{
+				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[0], amount: big.NewInt(1), receiverIdx: 0},
+				{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[0], amount: big.NewInt(1), receiverIdx: 0},
+			}
+
+			receivers = map[uint]*cardanofw.TestApexUser{
+				0: apex.Users[userCnt-1],
+			}
+
+			bridgignType = sendtx.BridgingTypeCurrencyOnSource
+		)
+
+		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
+
+		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ := createBridgingData(ctx, apex, bridgingRequests, receivers, nil, nil, isNativeToken)
+
+		bridgeTransactions(ctx, apex, bridgingRequests, receivers, bridgignType)
+
+		fmt.Printf("Confirming that bridging requests will not be processed\n")
+
+		errsPerChain := waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			require.Error(t, err)
+			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
+		}
+
+		require.NoError(t, fundWallets(ctx, apex, big.NewInt(100), isNativeToken))
+
+		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			require.NoError(t, err)
+			fmt.Printf("%v TXs on %v confirmed\n", chainExpectedAmounts[chainKey], chainKey)
+		}
+	})
+
+	t.Run("8. Fund_Parallel_Send_BRs_Then_Fund_Twice - currency on src", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+		primeConfig.FundAmount = 0
+		cardanoConfig.FundAmount = 0
+		primeConfig.FundTokenAmount = 0
+		cardanoConfig.FundTokenAmount = 0
+
+		apex := cardanofw.SetupAndRunSkylineBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithPrimeConfig(primeConfig),
+			cardanofw.WithCardanoConfig(cardanoConfig),
+		)
+
+		defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+		var (
+			bridgingRequests = []*bridingRequest{
+				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[0], amount: big.NewInt(1), receiverIdx: 0},
+				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[1], amount: big.NewInt(100), receiverIdx: 1},
+				{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[0], amount: big.NewInt(1), receiverIdx: 0},
+				{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[1], amount: big.NewInt(100), receiverIdx: 1},
+			}
+
+			receivers = map[uint]*cardanofw.TestApexUser{
+				0: apex.Users[userCnt-1],
+				1: apex.Users[userCnt-2],
+			}
+
+			bridgignType = sendtx.BridgingTypeCurrencyOnSource
+		)
+
+		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
+
+		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ := createBridgingData(ctx, apex, bridgingRequests, receivers, nil, nil, isNativeToken)
+
+		bridgeTransactions(ctx, apex, bridgingRequests, receivers, bridgignType)
+
+		fmt.Printf("Confirming that bridging requests will not be processed\n")
+
+		errsPerChain := waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			require.Error(t, err)
+			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
+		}
+
+		apex.Config.PrimeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
+		apex.Config.CardanoConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
+		apex.Config.PrimeConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
+		apex.Config.CardanoConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
+
+		require.NoError(t, apex.FundWallets(ctx))
+
+		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			if chainKey.receiver == 1 {
+				require.Error(t, err)
+				fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey)
+			} else {
+				require.NoError(t, err)
+				fmt.Printf("%v TXs on %v confirmed\n", chainExpectedAmounts[chainKey], chainKey.chain)
+			}
+		}
+
+		apex.Config.PrimeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
+		apex.Config.CardanoConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
+		apex.Config.PrimeConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
+		apex.Config.CardanoConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
+
+		require.NoError(t, apex.FundWallets(ctx))
+
+		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10, isNativeToken)
+		for chainKey, err := range errsPerChain {
+			require.NoError(t, err)
+			fmt.Printf("%v TXs on %v confirmed\n", chainExpectedAmounts[chainKey], chainKey.chain)
+		}
+	})
+}

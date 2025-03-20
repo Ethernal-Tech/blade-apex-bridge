@@ -766,6 +766,7 @@ func (a *ApexSystem) DefundHotWallet(
 		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
 		"--chain", chain,
 		"--amount", defundDfm.String(),
+		"--native-token-amount", defundDfm.String(),
 		"--key", pk,
 		"--addr", defundReceiverAddress,
 	}, os.Stdout)
