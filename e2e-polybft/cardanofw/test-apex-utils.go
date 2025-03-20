@@ -35,6 +35,8 @@ const (
 	MinUTxODefaultValue = uint64(1_000_000)
 
 	DefaultRequestStateTimeoutSec = 300
+
+	splitStringLength = 40
 )
 
 func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
@@ -364,7 +366,7 @@ func CreateCardanoBridgingMetaData(
 	var transactions = make([]BridgingRequestMetadataTransaction, 0, len(receivers))
 	for addr, amount := range receivers {
 		transactions = append(transactions, BridgingRequestMetadataTransaction{
-			Address: SplitString(addr, 40),
+			Address: addrToMetaDataAddr(addr),
 			Amount:  amount,
 		})
 	}
@@ -373,7 +375,7 @@ func CreateCardanoBridgingMetaData(
 		"1": map[string]interface{}{
 			"t":  "bridge",
 			"d":  destinationChain,
-			"s":  SplitString(sender, 40),
+			"s":  addrToMetaDataAddr(sender),
 			"tx": transactions,
 			"fa": feeAmount,
 		},
@@ -568,4 +570,10 @@ func ChainIDToInt(chainID string) uint8 {
 	default:
 		return 0
 	}
+}
+
+func addrToMetaDataAddr(addr string) []string {
+	addr = strings.TrimPrefix(strings.TrimPrefix(addr, "0x"), "0X")
+
+	return SplitString(addr, splitStringLength)
 }
