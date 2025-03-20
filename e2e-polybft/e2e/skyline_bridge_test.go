@@ -1544,6 +1544,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		fundAmountApex *big.Int, isNativeToken bool,
 	) error {
 		fmt.Printf("Funding hot wallets\n")
+
 		chains := []string{cardanofw.ChainIDPrime, cardanofw.ChainIDCardano}
 		for _, chain := range chains {
 			if isNativeToken {
@@ -1881,6 +1882,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
 
+		//nolint:dupl
 		var (
 			bridgingRequests = []*bridingRequest{
 				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[0], amount: big.NewInt(1), receiverIdx: 0},
@@ -2192,6 +2194,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
 
+		//nolint:dupl
 		var (
 			bridgingRequests = []*bridingRequest{
 				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[0], amount: big.NewInt(1), receiverIdx: 0},
