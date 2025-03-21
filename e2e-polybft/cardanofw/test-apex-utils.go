@@ -366,7 +366,7 @@ func CreateCardanoBridgingMetaData(
 	var transactions = make([]BridgingRequestMetadataTransaction, 0, len(receivers))
 	for addr, amount := range receivers {
 		transactions = append(transactions, BridgingRequestMetadataTransaction{
-			Address: addrToMetaDataAddr(addr),
+			Address: AddrToMetaDataAddr(addr),
 			Amount:  amount,
 		})
 	}
@@ -375,7 +375,7 @@ func CreateCardanoBridgingMetaData(
 		"1": map[string]interface{}{
 			"t":  "bridge",
 			"d":  destinationChain,
-			"s":  addrToMetaDataAddr(sender),
+			"s":  AddrToMetaDataAddr(sender),
 			"tx": transactions,
 			"fa": feeAmount,
 		},
@@ -572,7 +572,7 @@ func ChainIDToInt(chainID string) uint8 {
 	}
 }
 
-func addrToMetaDataAddr(addr string) []string {
+func AddrToMetaDataAddr(addr string) []string {
 	addr = strings.TrimPrefix(strings.TrimPrefix(addr, "0x"), "0X")
 
 	return SplitString(addr, splitStringLength)
