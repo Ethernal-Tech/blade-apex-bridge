@@ -1365,7 +1365,7 @@ func PrimeToNexusInvalidMetadataWrongType(
 	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
 	for addr, amount := range receivers {
 		transactions = append(transactions, cardanofw.BridgingRequestMetadataTransaction{
-			Address: cardanofw.SplitString(addr, 40),
+			Address: cardanofw.AddrToMetaDataAddr(addr),
 			Amount:  amount,
 		})
 	}
@@ -1374,7 +1374,7 @@ func PrimeToNexusInvalidMetadataWrongType(
 		"1": map[string]interface{}{
 			"t":  "transaction", // should be "bridge"
 			"d":  dstChain,
-			"s":  cardanofw.SplitString(user.GetAddress(srcChain), 40),
+			"s":  cardanofw.AddrToMetaDataAddr(user.GetAddress(srcChain)),
 			"tx": transactions,
 			"fa": feeAmount,
 		},
@@ -1411,7 +1411,7 @@ func PrimeToNexusInvalidMetadataInvalidDestination(
 	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
 	for addr, amount := range receivers {
 		transactions = append(transactions, cardanofw.BridgingRequestMetadataTransaction{
-			Address: cardanofw.SplitString(addr, 40),
+			Address: cardanofw.AddrToMetaDataAddr(addr),
 			Amount:  amount,
 		})
 	}
@@ -1420,7 +1420,7 @@ func PrimeToNexusInvalidMetadataInvalidDestination(
 		"1": map[string]interface{}{
 			"t":  "bridge",
 			"d":  "", // should be destination chain address
-			"s":  cardanofw.SplitString(user.GetAddress(srcChain), 40),
+			"s":  cardanofw.AddrToMetaDataAddr(user.GetAddress(srcChain)),
 			"tx": transactions,
 			"fa": feeAmount,
 		},
@@ -1455,7 +1455,7 @@ func PrimeToNexusInvalidMetadataInvalidSender(
 	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
 	for addr, amount := range receivers {
 		transactions = append(transactions, cardanofw.BridgingRequestMetadataTransaction{
-			Address: cardanofw.SplitString(addr, 40),
+			Address: cardanofw.AddrToMetaDataAddr(addr),
 			Amount:  amount,
 		})
 	}
@@ -1496,7 +1496,7 @@ func PrimeToNexusInvalidMetadataInvalidTransactions(
 		"1": map[string]interface{}{
 			"t":  "bridge",
 			"d":  dstChain,
-			"s":  cardanofw.SplitString(user.GetAddress(srcChain), 40),
+			"s":  cardanofw.AddrToMetaDataAddr(user.GetAddress(srcChain)),
 			"tx": []cardanofw.BridgingRequestMetadataTransaction{}, // should not be empty
 			"fa": feeAmount,
 		},

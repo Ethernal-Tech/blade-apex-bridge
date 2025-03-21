@@ -573,9 +573,9 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 			"1": map[string]interface{}{
 				"t": "bridge",
 				"d": cardanofw.ChainIDVector,
-				"s": cardanofw.SplitString(user.GetAddress(cardanofw.ChainIDPrime), 40),
+				"s": cardanofw.AddrToMetaDataAddr(user.GetAddress(cardanofw.ChainIDPrime)),
 				"tx": []cardanofw.BridgingRequestMetadataTransaction{{
-					Address: cardanofw.SplitString(user.GetAddress(cardanofw.ChainIDVector), 40),
+					Address: cardanofw.AddrToMetaDataAddr(user.GetAddress(cardanofw.ChainIDVector)),
 					Amount:  sendAmount - feeAmount,
 				}},
 				"fa": feeAmount,
@@ -675,9 +675,9 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			"1": map[string]interface{}{
 				"t": "bridge",
 				"d": cardanofw.ChainIDVector,
-				"s": cardanofw.SplitString(user.GetAddress(cardanofw.ChainIDPrime), 40),
+				"s": cardanofw.AddrToMetaDataAddr(user.GetAddress(cardanofw.ChainIDPrime)),
 				"tx": []cardanofw.BridgingRequestMetadataTransaction{{
-					Address: cardanofw.SplitString(user.GetAddress(cardanofw.ChainIDVector), 40),
+					Address: cardanofw.AddrToMetaDataAddr(user.GetAddress(cardanofw.ChainIDVector)),
 					Amount:  sendAmount - feeAmount,
 				}},
 				"fa": feeAmount,
@@ -1797,7 +1797,7 @@ func PrimeToVectorInvalidMetadataWrongType(
 	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
 	for addr, amount := range receivers {
 		transactions = append(transactions, cardanofw.BridgingRequestMetadataTransaction{
-			Address: cardanofw.SplitString(addr, 40),
+			Address: cardanofw.AddrToMetaDataAddr(addr),
 			Amount:  amount,
 		})
 	}
@@ -1806,7 +1806,7 @@ func PrimeToVectorInvalidMetadataWrongType(
 		"1": map[string]interface{}{
 			"t":  "transaction", // should be "bridge"
 			"d":  cardanofw.ChainIDVector,
-			"s":  cardanofw.SplitString(user.GetAddress(cardanofw.ChainIDPrime), 40),
+			"s":  cardanofw.AddrToMetaDataAddr(user.GetAddress(cardanofw.ChainIDPrime)),
 			"tx": transactions,
 			"fa": feeAmount,
 		},
@@ -1844,7 +1844,7 @@ func PrimeToVectorInvalidMetadataInvalidDestination(
 	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
 	for addr, amount := range receivers {
 		transactions = append(transactions, cardanofw.BridgingRequestMetadataTransaction{
-			Address: cardanofw.SplitString(addr, 40),
+			Address: cardanofw.AddrToMetaDataAddr(addr),
 			Amount:  amount,
 		})
 	}
@@ -1853,7 +1853,7 @@ func PrimeToVectorInvalidMetadataInvalidDestination(
 		"1": map[string]interface{}{
 			"t":  "bridge",
 			"d":  "", // should be destination chain address
-			"s":  cardanofw.SplitString(user.GetAddress(cardanofw.ChainIDPrime), 40),
+			"s":  cardanofw.AddrToMetaDataAddr(user.GetAddress(cardanofw.ChainIDPrime)),
 			"tx": transactions,
 			"fa": feeAmount,
 		},
@@ -1889,7 +1889,7 @@ func PrimeToVectorInvalidMetadataInvalidSender(
 	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
 	for addr, amount := range receivers {
 		transactions = append(transactions, cardanofw.BridgingRequestMetadataTransaction{
-			Address: cardanofw.SplitString(addr, 40),
+			Address: cardanofw.AddrToMetaDataAddr(addr),
 			Amount:  amount,
 		})
 	}
@@ -1931,7 +1931,7 @@ func PrimeToVectorInvalidMetadataInvalidTransactions(
 		"1": map[string]interface{}{
 			"t":  "bridge",
 			"d":  cardanofw.ChainIDVector,
-			"s":  cardanofw.SplitString(user.GetAddress(cardanofw.ChainIDPrime), 40),
+			"s":  cardanofw.AddrToMetaDataAddr(user.GetAddress(cardanofw.ChainIDPrime)),
 			"tx": []cardanofw.BridgingRequestMetadataTransaction{}, // should not be empty
 			"fa": feeAmount,
 		},
