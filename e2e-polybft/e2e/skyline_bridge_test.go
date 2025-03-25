@@ -1581,10 +1581,10 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		defundAmount := cardanofw.ApexToDfm(defundAmountApex)
 
 		require.NoError(t, apex.DefundHotWallet(
-			cardanofw.ChainIDPrime, defundReceiver.GetAddress(cardanofw.ChainIDPrime), defundAmount))
+			cardanofw.ChainIDPrime, defundReceiver.GetAddress(cardanofw.ChainIDPrime), defundAmount, defundAmount))
 
 		require.NoError(t, apex.DefundHotWallet(
-			cardanofw.ChainIDCardano, defundReceiver.GetAddress(cardanofw.ChainIDCardano), defundAmount))
+			cardanofw.ChainIDCardano, defundReceiver.GetAddress(cardanofw.ChainIDCardano), defundAmount, defundAmount))
 
 		errsPerChain := waitOnDestination(ctx, apex,
 			defundReceiverPrevAmounts, defundReceiverExpectedAmounts, defundReceivers,
@@ -1767,7 +1767,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			bridgeTransactions(ctx, apex, []*bridingRequest{request}, receivers, bridgignType)
 
 			require.NoError(t, apex.DefundHotWallet(
-				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToDfm(apexDefundAndFundAmount)))
+				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToDfm(apexDefundAndFundAmount), cardanofw.ApexToDfm(apexDefundAndFundAmount)))
 		}
 
 		fmt.Printf("Confirming that bridging requests will not be processed\n")
@@ -2098,7 +2098,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			bridgeTransactions(ctx, apex, []*bridingRequest{request}, receivers, bridgignType)
 
 			require.NoError(t, apex.DefundHotWallet(
-				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToDfm(apexDefundAndFundAmount)))
+				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToDfm(apexDefundAndFundAmount), cardanofw.ApexToDfm(apexDefundAndFundAmount)))
 		}
 
 		fmt.Printf("Confirming that bridging requests will not be processed\n")
