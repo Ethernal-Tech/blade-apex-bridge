@@ -53,7 +53,7 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 		cardanofw.WithUserCnt(1),
 	)
 
-	defer require.True(t, apex.ApexBridgeProcessesRunning())
+	// defer require.True(t, apex.ApexBridgeProcessesRunning())
 
 	oracleAPI, err := apex.GetBridgingAPI()
 	require.NoError(t, err)
@@ -118,6 +118,57 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 		fmt.Printf("validator %d `--telemetry` flag telemetry url(s): %s\n",
 			i+1, apex.Config.GetTelemetryForValidatorIdx(i))
 	}
+
+	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	require.NoError(t, err)
+
+	minterUser := apex.Users[0]
+
+	brSubmitterUser, err := cardanofw.NewTestApexUser(
+		apex.Config.PrimeConfig.NetworkType, false, 0, false)
+	require.NoError(t, err)
+
+	brSubmitterWallet, _ := brSubmitterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
+
+	const (
+		normalCnt        = 2
+		normalSendAmount = 1_000_000
+
+		withTokenCnt          = 2
+		withTokenSendLovelace = 2_000_000
+		withTokenSendToken    = 1_000_000
+	)
+
+	tokensFunded, err := cardanofw.FundUserWithToken(
+		ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+		minterUser, brSubmitterUser, uint64(100_000_000), uint64(withTokenSendToken*withTokenCnt*2))
+	require.NoError(t, err)
+
+	for range normalCnt {
+		_, err = apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser,
+			apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(normalSendAmount), nil)
+		require.NoError(t, err)
+	}
+
+	for range withTokenCnt {
+		_, err = cardanofw.SendTxWithTokens(ctx, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+			brSubmitterWallet, apex.PrimeInfo.MultisigAddr,
+			withTokenSendLovelace, []infrawallet.TokenAmount{*tokensFunded}, nil,
+		)
+		require.NoError(t, err)
+	}
+
+	<-time.After(2 * time.Minute)
+
+	for idx := range apex.Config.BladeValidatorCount {
+		brValidator := apex.GetValidator(t, idx)
+		err = brValidator.Stop()
+		require.NoError(t, err)
+	}
+
+	fmt.Printf("setup complete. Prime real balance: %v lovelace, usable balance: %v lovelace\n",
+		withTokenCnt*withTokenSendLovelace+normalCnt*normalSendAmount+apex.Config.PrimeConfig.FundAmount,
+		normalCnt*normalSendAmount+apex.Config.PrimeConfig.FundAmount)
 
 	signalChannel := make(chan os.Signal, 1)
 	// Notify the signalChannel when the interrupt signal is received (Ctrl+C)
