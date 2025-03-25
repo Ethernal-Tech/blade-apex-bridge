@@ -48,6 +48,9 @@ type RestartValidatorsConfig struct {
 	WaitTime   time.Duration
 	StartIndxs []int
 	StopIndxs  []int
+
+	StopBlade  bool
+	StopOracle bool
 }
 
 type SendTxStrategyFn func(
@@ -144,11 +147,26 @@ var (
 					return
 				case <-time.After(cfg.WaitTime):
 					for _, idx := range cfg.StopIndxs {
-						require.NoError(t, apex.GetValidator(t, idx).Stop())
+						if cfg.StopOracle {
+							require.NoError(t, apex.GetValidator(t, idx).Stop())
+						}
+
+						if cfg.StopBlade {
+							fmt.Printf("Stoping Blade node idx: %d\n", idx)
+							apex.GetBridgeNode(t, idx).Stop()
+						}
 					}
 
 					for _, idx := range cfg.StartIndxs {
-						require.NoError(t, apex.GetValidator(t, idx).Start(ctx, false))
+						if cfg.StopOracle {
+							require.NoError(t, apex.GetValidator(t, idx).Start(ctx, false))
+						}
+
+						if cfg.StopBlade {
+							fmt.Printf("Starting Blade node idx: %d\n", idx)
+
+							apex.GetBridgeNode(t, idx).Start()
+						}
 					}
 				}
 			}()

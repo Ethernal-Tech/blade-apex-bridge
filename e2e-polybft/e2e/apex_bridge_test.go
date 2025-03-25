@@ -600,7 +600,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
-		userCnt = 20
+		userCnt = 40
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -887,6 +887,39 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx1, validatorStoppingIdx2}},
 				{WaitTime: startAgainAfter, StartIndxs: []int{validatorStoppingIdx1}},
 			}))
+	})
+
+	t.Run("Both directions sequential and parallel - 4 nodes go off in the middle and then one comes back", func(t *testing.T) {
+		const (
+			sequentialInstances   = 10
+			parallelInstances     = 20
+			stopAfter             = time.Second * 120
+			stopAfter2            = time.Second * 800
+			startAgainAfter       = time.Second * 1000
+			validatorStoppingIdx1 = 1
+			validatorStoppingIdx2 = 2
+			sendAmount            = uint64(1_000_000)
+		)
+
+		e2ehelper.ExecuteBridging(
+			t, ctx, apex, sequentialInstances,
+			apex.Users[:parallelInstances],
+			[]*cardanofw.TestApexUser{user},
+			[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
+			map[string][]string{
+				cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
+				cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
+			}, new(big.Int).SetUint64(sendAmount),
+			e2ehelper.WithWaitForUnexpectedBridges(true),
+			e2ehelper.WithTimeoutConfig(e2ehelper.NewTimeoutConfig(
+				e2ehelper.WithBridgingNumRetries(500),
+				e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
+			)),
+			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
+				{WaitTime: stopAfter, StopIndxs: []int{0, 1}, StopBlade: true, StopOracle: false},
+				{WaitTime: stopAfter2, StopIndxs: []int{2, 3}, StartIndxs: []int{0, 1, 2, 3}, StopBlade: true, StopOracle: false},
+			}),
+		)
 	})
 
 	t.Run("Both directions sequential and parallel", func(t *testing.T) {
