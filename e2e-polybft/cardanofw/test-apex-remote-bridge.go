@@ -28,6 +28,17 @@ type ApexUsersData struct {
 	Users  []*TestApexUser
 }
 
+const TestnetEnvsInternal = "internal"
+const TestnetEnvsPartner = "partner"
+
+func GetApexBridgeConfig(setupType string) *RemoteApexBridgeConfig {
+	if setupType == TestnetEnvsPartner || os.Getenv("TESTNET_ENV") == TestnetEnvsPartner {
+		return GetPartnerTestnetApexBridgeConfig()
+	}
+
+	return GetTestnetApexBridgeConfig()
+}
+
 func GetTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 	return &RemoteApexBridgeConfig{
 		PrimeInfo: CardanoChainInfo{
@@ -50,6 +61,31 @@ func GetTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 			"http://internal-bridge-api-testnet.apexfusion.org:10003",
 		},
 		BridgingAPIKey: os.Getenv("TESTNET_BRIDGING_API_KEY"),
+	}
+}
+
+func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
+	return &RemoteApexBridgeConfig{
+		PrimeInfo: CardanoChainInfo{
+			NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
+			OgmiosURL:      "http://ogmios.prime.testnet.apexfusion.org:1337",
+			MultisigAddr:   "addr_test1wzqpmaaz67lerqfrludgl64tc892wu9g3cph5ens90l2cvqx4fllt",
+			FeeAddr:        "addr_test1wp2s7dk9nl552rwa9twkw3m8x52r4p750h3ma97l60hve0sq2m2ek",
+		},
+		VectorInfo: CardanoChainInfo{
+			NetworkAddress: "relay-0.vector.testnet.apexfusion.org:7522",
+			OgmiosURL:      "http://ogmios.vector.testnet.apexfusion.org:1337",
+			MultisigAddr:   "vector_test1w2mfypss95pq75qjzn8cxjr3xyl6vuknl0nlfwl3sldmpscauccc7",
+			FeeAddr:        "vector_test1wg6pevsxk6e63eys550u6rwju0wakxsgfw49qxlp8c96h8c0lx60g",
+		},
+		NexusInfo: EVMChainInfo{
+			GatewayAddress: types.StringToAddress("0x5a51812ADfF2A27297EF08475161E5f7B66250bd"),
+			JSONRPCAddr:    "https://rpc.nexus.testnet.apexfusion.org",
+		},
+		BridgingAPIs: []string{
+			"http://bridge-api-testnet.apexfusion.org:10003",
+		},
+		BridgingAPIKey: os.Getenv("PARTNER_TESTNET_BRIDGING_API_KEY"),
 	}
 }
 
