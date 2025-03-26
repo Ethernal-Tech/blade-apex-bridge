@@ -28,11 +28,10 @@ type ApexUsersData struct {
 	Users  []*TestApexUser
 }
 
-const TestnetEnvsInternal = "internal"
 const TestnetEnvsPartner = "partner"
 
-func GetApexBridgeConfig(setupType string) *RemoteApexBridgeConfig {
-	if setupType == TestnetEnvsPartner || os.Getenv("TESTNET_ENV") == TestnetEnvsPartner {
+func GetApexBridgeConfig() *RemoteApexBridgeConfig {
+	if os.Getenv("TESTNET_ENV") == TestnetEnvsPartner {
 		return GetPartnerTestnetApexBridgeConfig()
 	}
 

@@ -23,8 +23,6 @@ var (
 		e2ehelper.WithBridgingRetryWaitTime(defaultDstWaitTime),
 	)
 	bridgingOpts = []e2ehelper.ExecuteBridgingOption{e2ehelper.WithTimeoutConfig(timeoutConfig)}
-
-	bridgeSetup = cardanofw.TestnetEnvsInternal
 )
 
 const (
@@ -40,7 +38,7 @@ func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig(bridgeSetup))
+	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig())
 	require.NoError(t, err)
 
 	require.NotNil(t, apex.FunderUser)
@@ -67,7 +65,7 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig(bridgeSetup))
+	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig())
 	require.NoError(t, err)
 
 	require.NotNil(t, apex.FunderUser)
@@ -130,7 +128,7 @@ func Test_E2E_TestnetFund(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig(bridgeSetup))
+	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig())
 	require.NoError(t, err)
 
 	const (
@@ -195,7 +193,7 @@ func Test_E2E_SanityCheck(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig(bridgeSetup))
+	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig())
 	require.NoError(t, err)
 
 	var (
@@ -224,7 +222,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig(bridgeSetup))
+	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig())
 	require.NoError(t, err)
 
 	t.Run("From Prime to Vector sequential and parallel with max receivers", func(t *testing.T) {
@@ -287,7 +285,7 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig(bridgeSetup))
+	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig())
 	require.NoError(t, err)
 
 	const (
@@ -353,7 +351,7 @@ func Test_E2E_TestnetPrintBalances(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig(bridgeSetup))
+	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetApexBridgeConfig())
 	require.NoError(t, err)
 
 	balances := getUserBalances(ctx, apex, apex.Users)
