@@ -44,13 +44,20 @@ func NewTimeoutConfig(options ...TimeoutOption) TimeoutConfig {
 	return cfg
 }
 
+type ExecutableType int
+
+const (
+	Oracle ExecutableType = iota
+	Blade
+	BladeAndOracle
+)
+
 type RestartValidatorsConfig struct {
 	WaitTime   time.Duration
 	StartIndxs []int
 	StopIndxs  []int
 
-	StopBlade  bool
-	StopOracle bool
+	ExecutableOption ExecutableType
 }
 
 type SendTxStrategyFn func(
@@ -147,22 +154,22 @@ var (
 					return
 				case <-time.After(cfg.WaitTime):
 					for _, idx := range cfg.StopIndxs {
-						if cfg.StopOracle {
+						if cfg.ExecutableOption == Oracle || cfg.ExecutableOption == BladeAndOracle {
 							require.NoError(t, apex.GetValidator(t, idx).Stop())
 						}
 
-						if cfg.StopBlade {
+						if cfg.ExecutableOption == Blade || cfg.ExecutableOption == BladeAndOracle {
 							fmt.Printf("Stoping Blade node idx: %d\n", idx)
 							apex.GetBridgeNode(t, idx).Stop()
 						}
 					}
 
 					for _, idx := range cfg.StartIndxs {
-						if cfg.StopOracle {
+						if cfg.ExecutableOption == Oracle || cfg.ExecutableOption == BladeAndOracle {
 							require.NoError(t, apex.GetValidator(t, idx).Start(ctx, false))
 						}
 
-						if cfg.StopBlade {
+						if cfg.ExecutableOption == Blade || cfg.ExecutableOption == BladeAndOracle {
 							fmt.Printf("Starting Blade node idx: %d\n", idx)
 
 							apex.GetBridgeNode(t, idx).Start()

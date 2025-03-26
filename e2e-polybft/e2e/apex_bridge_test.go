@@ -916,8 +916,8 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 				e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
 			)),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
-				{WaitTime: stopAfter, StopIndxs: []int{0, 1}, StopBlade: true, StopOracle: false},
-				{WaitTime: stopAfter2, StopIndxs: []int{2, 3}, StartIndxs: []int{0, 1, 2, 3}, StopBlade: true, StopOracle: false},
+				{WaitTime: stopAfter, StopIndxs: []int{0, 1}, ExecutableOption: e2ehelper.Blade},
+				{WaitTime: stopAfter2, StopIndxs: []int{2, 3}, StartIndxs: []int{0, 1, 2, 3}, ExecutableOption: e2ehelper.Blade},
 			}),
 		)
 	})
