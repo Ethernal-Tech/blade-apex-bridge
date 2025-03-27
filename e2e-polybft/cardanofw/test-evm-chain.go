@@ -221,9 +221,9 @@ func (ec *TestEVMChain) InitContracts(
 		"--dir", workingDirectory,
 		"--clone",
 	}
-	tryCounter := 0
 
 	execute := func() (types.Address, error) {
+		// if everything works fine, the working directory will be reused
 		if err := common.CreateDirSafe(workingDirectory, 0750); err != nil {
 			return types.Address{}, err
 		}
@@ -245,8 +245,9 @@ func (ec *TestEVMChain) InitContracts(
 		return types.Address{}, errors.New("cannot find gateway address")
 	}
 
+	tryCounter := 0
+
 	for {
-		// do not remove directory, try to reuse it next time if still exists
 		gatewayAddr, err := execute()
 		if err == nil {
 			ec.gatewayAddr = gatewayAddr
@@ -259,6 +260,7 @@ func (ec *TestEVMChain) InitContracts(
 			return err
 		}
 
+		// remove directory if something went wrong and try again
 		if err := common.RemoveDirSafe(workingDirectory); err != nil {
 			return err
 		}

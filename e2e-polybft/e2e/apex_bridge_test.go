@@ -890,6 +890,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("Both directions sequential and parallel - 4 blade nodes goes off in the middle", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		const (
 			sequentialInstances   = 8
 			parallelInstances     = 10
