@@ -15,7 +15,7 @@ type ITestApexChain interface {
 	CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridgeURL string) error
 	FundWallets(ctx context.Context) error
 	RegisterChain(validator *TestApexValidator) error
-	InitContracts(bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error
+	InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error
 	GetGenerateConfigsParams(indx int) []string
 	PopulateApexSystem(apexSystem *ApexSystem)
 	ChainID() string
@@ -70,7 +70,7 @@ func (t *TestApexChainDummy) GetGenerateConfigsParams(indx int) []string {
 	return t.configParams
 }
 
-func (t *TestApexChainDummy) InitContracts(bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error {
+func (t *TestApexChainDummy) InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error {
 	return nil
 }
 

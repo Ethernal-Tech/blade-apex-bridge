@@ -462,3 +462,33 @@ func ToMB(data []byte) string {
 
 	return fmt.Sprintf("%.2f MB", sizeInMB)
 }
+
+// RemoveDirSafe deletes the directory if it exists and was created by the current user.
+func RemoveDirSafe(path string) error {
+	// Check if the directory exists
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return nil // If the directory doesn't exist, no need to delete
+	}
+
+	if err != nil {
+		return fmt.Errorf("error checking directory: %w", err)
+	}
+
+	// Ensure it's a directory
+	if !info.IsDir() {
+		return fmt.Errorf("path is not a directory: %s", path)
+	}
+
+	// Perform ownership and permission checks before deletion
+	if err := verifyFileOwnerAndPermissions(path, info, info.Mode()); err != nil {
+		return fmt.Errorf("safety check failed: %w", err)
+	}
+
+	// Remove the directory and all its contents
+	if err := os.RemoveAll(path); err != nil {
+		return fmt.Errorf("failed to remove directory: %w", err)
+	}
+
+	return nil
+}

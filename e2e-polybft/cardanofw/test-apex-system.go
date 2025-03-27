@@ -223,7 +223,7 @@ func (a *ApexSystem) CreateAddresses() error {
 func (a *ApexSystem) InitContracts(ctx context.Context) error {
 	// must not be parallelized because each request use same admin wallet
 	for _, chain := range a.chains {
-		if err := chain.InitContracts(a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr()); err != nil {
+		if err := chain.InitContracts(ctx, a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr()); err != nil {
 			return err
 		}
 	}

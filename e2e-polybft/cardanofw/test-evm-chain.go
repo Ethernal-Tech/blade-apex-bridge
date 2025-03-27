@@ -30,6 +30,9 @@ const (
 	defaultFundEthTokenAmount        = uint64(100_000)
 	defaultPremineEthTokenAmount     = uint64(100_000)
 	defaultFundRelayerEthTokenAmount = uint64(5)
+
+	initContractsTryCount      = 3
+	initContractsRetryWaitTime = time.Second * 5
 )
 
 type TestEVMChainConfig struct {
@@ -194,13 +197,9 @@ func (ec *TestEVMChain) FundWallets(ctx context.Context) error {
 	return nil
 }
 
-func (ec *TestEVMChain) InitContracts(bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error {
-	workingDirectory := filepath.Join(os.TempDir(), "deploy-apex-bridge-evm-gateway")
-	// do not remove directory, try to reuse it next time if still exists
-	if err := common.CreateDirSafe(workingDirectory, 0750); err != nil {
-		return err
-	}
-
+func (ec *TestEVMChain) InitContracts(
+	ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string,
+) error {
 	pk, err := ec.admin.MarshallPrivateKey()
 	if err != nil {
 		return err
@@ -211,35 +210,65 @@ func (ec *TestEVMChain) InitContracts(bridgeAdmin *crypto.ECDSAKey, bridgeURL st
 		return err
 	}
 
-	var (
-		b      bytes.Buffer
-		params = []string{
-			"deploy-evm",
-			"--url", ec.jsonRPCAddr,
-			"--key", hex.EncodeToString(pk),
-			"--bridge-url", bridgeURL,
-			"--bridge-addr", contracts.Bridge.String(),
-			"--bridge-key", hex.EncodeToString(bridgeAdminPk),
-			"--dir", workingDirectory,
-			"--clone",
+	workingDirectory := filepath.Join(os.TempDir(), "deploy-apex-bridge-evm-gateway")
+	params := []string{
+		"deploy-evm",
+		"--url", ec.jsonRPCAddr,
+		"--key", hex.EncodeToString(pk),
+		"--bridge-url", bridgeURL,
+		"--bridge-addr", contracts.Bridge.String(),
+		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
+		"--dir", workingDirectory,
+		"--clone",
+	}
+	tryCounter := 0
+
+	execute := func() (types.Address, error) {
+		if err := common.CreateDirSafe(workingDirectory, 0750); err != nil {
+			return types.Address{}, err
 		}
-	)
 
-	err = RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
-	if err != nil {
-		return err
+		var b bytes.Buffer
+
+		err = RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
+		if err != nil {
+			return types.Address{}, err
+		}
+
+		output := b.String()
+		reGateway := regexp.MustCompile(`Gateway Proxy Address\s*=\s*0x([a-fA-F0-9]+)`)
+
+		if match := reGateway.FindStringSubmatch(output); len(match) > 0 {
+			return types.StringToAddress(match[1]), nil
+		}
+
+		return types.Address{}, errors.New("cannot find gateway address")
 	}
 
-	output := b.String()
-	reGateway := regexp.MustCompile(`Gateway Proxy Address\s*=\s*0x([a-fA-F0-9]+)`)
+	for {
+		// do not remove directory, try to reuse it next time if still exists
+		gatewayAddr, err := execute()
+		if err == nil {
+			ec.gatewayAddr = gatewayAddr
 
-	if match := reGateway.FindStringSubmatch(output); len(match) > 0 {
-		ec.gatewayAddr = types.StringToAddress(match[1])
+			return nil
+		}
 
-		return nil
+		tryCounter++
+		if tryCounter >= initContractsTryCount {
+			return err
+		}
+
+		if err := common.RemoveDirSafe(workingDirectory); err != nil {
+			return err
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(initContractsRetryWaitTime):
+		}
 	}
-
-	return errors.New("cannot find gateway address")
 }
 
 func (ec *TestEVMChain) RegisterChain(validator *TestApexValidator) error {
