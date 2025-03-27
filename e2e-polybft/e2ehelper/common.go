@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 )
 
 type IApexSystem interface {
@@ -31,6 +32,7 @@ type IApexSystem interface {
 		ctx context.Context, user *cardanofw.TestApexUser, chainID cardanofw.ChainID,
 	) (*big.Int, error)
 	GetValidator(t *testing.T, idx int) *cardanofw.TestApexValidator
+	GetBridgeNode(t *testing.T, idx int) *framework.TestServer
 }
 
 func getAllDestionationChains(chains []string, chainsDst map[string][]string) (res []string) {
