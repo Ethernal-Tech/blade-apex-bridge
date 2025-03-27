@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 )
 
@@ -34,6 +35,7 @@ type IApexSystem interface {
 	) (map[string]*big.Int, error)
 	GetTokenNameForChains(dstChain, srcChain cardanofw.ChainID) string
 	GetValidator(t *testing.T, idx int) *cardanofw.TestApexValidator
+	GetBridgeNode(t *testing.T, idx int) *framework.TestServer
 }
 
 func getAllDestionationChains(chains []string, chainsDst map[string][]string) (res []string) {
