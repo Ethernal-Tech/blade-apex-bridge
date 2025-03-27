@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ func TestLoadRunner(t *testing.T) {
 		Mnemonnic:       "code code code code code code code code code code code quality",
 		LoadTestType:    "erc20",
 		LoadTestName:    "test",
-		JSONRPCUrl:      "http://localhost:10002",
+		JSONRPCUrls:     []string{"http://localhost:10002"},
 		VUs:             10,
 		TxsPerUser:      100,
 		ReceiptsTimeout: 30 * time.Second,
@@ -36,5 +37,5 @@ func TestLoadRunner(t *testing.T) {
 
 	runner := &LoadTestRunner{}
 
-	require.NoError(t, runner.Run(cfg))
+	require.NoError(t, runner.Run(context.Background(), cfg))
 }
