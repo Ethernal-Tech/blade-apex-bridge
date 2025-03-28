@@ -257,7 +257,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	return nil
 }
 
-func (ec *TestCardanoChain) InitContracts(bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error {
+func (ec *TestCardanoChain) InitContracts(_ context.Context, _ *crypto.ECDSAKey, _ string) error {
 	return nil
 }
 
