@@ -289,6 +289,61 @@ func createNativeTokenTx(
 	return txSigned, txHash, nil
 }
 
+func getInputs(
+	allUtxos []cardanowallet.Utxo,
+	desiredLovelaceAmount uint64,
+	tokens []cardanowallet.TokenAmount,
+) (*cardanowallet.TxInputs, error) {
+	inputsMap := make(map[string]cardanowallet.TxInput)
+
+	inputsLovelace, err := cardanowallet.GetUTXOsForAmount(
+		allUtxos, cardanowallet.AdaTokenName, desiredLovelaceAmount, maxInputs)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, input := range inputsLovelace.Inputs {
+		inputsMap[input.String()] = input
+	}
+
+	for _, token := range tokens {
+		inputsToken, err := cardanowallet.GetUTXOsForAmount(
+			allUtxos, token.TokenName(), token.Amount, maxInputs)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, input := range inputsToken.Inputs {
+			inputsMap[input.String()] = input
+		}
+	}
+
+	utxoMap := make(map[string]cardanowallet.Utxo, len(allUtxos))
+	for _, utxo := range allUtxos {
+		utxoMap[fmt.Sprintf("%s#%d", utxo.Hash, utxo.Index)] = utxo
+	}
+
+	inputs := cardanowallet.TxInputs{
+		Inputs: make([]cardanowallet.TxInput, 0, len(inputsMap)),
+		Sum:    make(map[string]uint64),
+	}
+	for _, input := range inputsMap {
+		inputs.Inputs = append(inputs.Inputs, input)
+
+		utxo, exists := utxoMap[input.String()]
+		if !exists {
+			return nil, fmt.Errorf("can not find utxo for input %v", input.String())
+		}
+
+		inputs.Sum[cardanowallet.AdaTokenName] += utxo.Amount
+		for _, token := range utxo.Tokens {
+			inputs.Sum[token.TokenName()] += token.Amount
+		}
+	}
+
+	return &inputs, nil
+}
+
 func createMintTx(
 	ctx context.Context,
 	networkType cardanowallet.CardanoNetworkType,

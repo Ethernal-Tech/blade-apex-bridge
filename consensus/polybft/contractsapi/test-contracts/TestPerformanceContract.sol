@@ -106,8 +106,8 @@ contract TestPerformanceContract {
             );
 
             if (lastBatchID < _batchID) {
-                 lastBatchID = _batchID;
-             }
+                lastBatchID = _batchID;
+            }
 
             if (deleteTemporaryMappingsAfterQuorum) {
                 // remove from storage but for that exactly hash
