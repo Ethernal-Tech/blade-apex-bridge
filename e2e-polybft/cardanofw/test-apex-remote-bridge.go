@@ -30,15 +30,15 @@ type ApexUsersData struct {
 
 const TestnetEnvsPartner = "partner"
 
-func GetApexBridgeConfig() *RemoteApexBridgeConfig {
+func GetTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 	if os.Getenv("TESTNET_ENV") == TestnetEnvsPartner {
 		return GetPartnerTestnetApexBridgeConfig()
 	}
 
-	return GetTestnetApexBridgeConfig()
+	return GetInternalTestnetApexBridgeConfig()
 }
 
-func GetTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
+func GetInternalTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 	return &RemoteApexBridgeConfig{
 		PrimeInfo: CardanoChainInfo{
 			NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
