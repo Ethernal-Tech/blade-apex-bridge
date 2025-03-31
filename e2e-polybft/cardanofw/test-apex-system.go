@@ -239,6 +239,14 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 	a.BridgeCluster.WaitForReady(t)
 }
 
+func (a *ApexSystem) GetBridgeNode(t *testing.T, idx int) *framework.TestServer {
+	t.Helper()
+
+	require.True(t, idx >= 0 && idx < len(a.BridgeCluster.Servers))
+
+	return a.BridgeCluster.Servers[idx]
+}
+
 func (a *ApexSystem) CreateWallets() (err error) {
 	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		for _, chain := range a.chains {
@@ -266,7 +274,7 @@ func (a *ApexSystem) CreateAddresses() error {
 func (a *ApexSystem) InitContracts(ctx context.Context) error {
 	// must not be parallelized because each request use same admin wallet
 	for _, chain := range a.chains {
-		if err := chain.InitContracts(a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr()); err != nil {
+		if err := chain.InitContracts(ctx, a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr()); err != nil {
 			return err
 		}
 	}

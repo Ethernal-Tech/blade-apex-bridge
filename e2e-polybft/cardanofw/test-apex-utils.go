@@ -41,6 +41,8 @@ const (
 	defaultMinBridgingFeeAmount   = uint64(1_000_010)
 	DefaultMinOperationFee        = uint64(1_000_010)
 	DefaultRequestStateTimeoutSec = 300
+
+	splitStringLength = 40
 )
 
 func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
@@ -599,4 +601,10 @@ func ChainIDToInt(chainID string) uint8 {
 	default:
 		return 0
 	}
+}
+
+func AddrToMetaDataAddr(addr string) []string {
+	addr = strings.TrimPrefix(strings.TrimPrefix(addr, "0x"), "0X")
+
+	return SplitString(addr, splitStringLength)
 }
