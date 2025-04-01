@@ -32,7 +32,7 @@ const (
 
 func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 	const (
-		apexAmountToBridge = 10
+		apexAmountToBridge = 10_000
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
