@@ -30,6 +30,7 @@ const (
 	defaultDstWaitTime   = 30 * time.Second
 )
 
+// This is called manually when needed. It is not called on every run.
 func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 	const (
 		apexAmountToBridge = 10_000
