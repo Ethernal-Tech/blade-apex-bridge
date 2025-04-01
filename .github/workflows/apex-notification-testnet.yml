@@ -1,5 +1,5 @@
 ---
-name: ApexBridge Notification - Testnet
+name: ApexBridge Main Notification - Internal/Partner Reactor Testnet
 on: # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
@@ -15,8 +15,12 @@ on: # yamllint disable-line rule:truthy
         description: Lint output
         type: string
         required: true
-      e2e_apex_testnet_test_output:
-        description: E2E ApexBridge Testnet Tests output
+      e2e_apex_internal_testnet_test_output:
+        description: E2E ApexBridge Internal Testnet Tests output
+        type: string
+        required: true
+      e2e_apex_partner_testnet_test_output:
+        description: E2E ApexBridge Partner Testnet Tests output
         type: string
         required: true
     secrets:
@@ -48,7 +52,7 @@ jobs:
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "Apex Bridge"
+                    "text": "Apex Bridge Testnet Tests"
                   }
                 },
                 {
@@ -60,7 +64,7 @@ jobs:
                         "type": "plain_text",
                         "text": "Workflow Run"
                       },
-                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.e2e_apex_testnet_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
+                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.e2e_apex_internal_testnet_test_output == '' && inputs.e2e_apex_partner_testnet_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
                       "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                     }
                   ]
@@ -94,7 +98,11 @@ jobs:
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_apex_testnet_test_output == '' && env.succeed_job || env.failed_job }} *E2E ApexBridge Testnet Tests*"
+                      "text": "${{ inputs.e2e_apex_internal_testnet_test_output == '' && env.succeed_job || env.failed_job }} *E2E ApexBridge Internal Testnet Tests*"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "${{ inputs.e2e_apex_partner_testnet_test_output == '' && env.succeed_job || env.failed_job }} *E2E ApexBridge Partner Testnet Tests*"
                     }
                   ]
                 }

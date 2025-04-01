@@ -1,10 +1,19 @@
 ---
-name: ApexBridge Testnet
+name: ApexBridge Internal/Partner Reactor Testnet
 on: # yamllint disable-line rule:truthy
   schedule:
     # * is a special character in YAML so you have to quote this string
     - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      run_blade_apex_bridge_internal:
+        description: Run E2E Tests on Internal Testnet
+        type: boolean
+        default: true
+      run_blade_apex_bridge_partner:
+        description: Run E2E Tests on Partner Testnet
+        type: boolean
+        default: true
 
 jobs:
   build_blade:
@@ -18,25 +27,63 @@ jobs:
     needs: build_blade
     with:
       blade_apex_bridge_ref: develop
-  e2e_apex_testnet_test:
-    name: E2E ApexBridge Testnet Tests
+  inputs_check:
+    name: Inputs Check
+    runs-on: ubuntu-latest
+    outputs:
+      run_blade_apex_bridge_internal: ${{ steps.internal_input_check.outputs.run_blade_apex_bridge_internal }}
+      run_blade_apex_bridge_partner: ${{ steps.internal_input_check.outputs.run_blade_apex_bridge_partner }}
+    steps:
+      - name: Internal Input Check
+        id: internal_input_check
+        run: |
+          if [[ "${{ inputs.run_blade_apex_bridge_internal }}" != "false" ]]; then
+            echo "run_blade_apex_bridge_internal=true" >> $GITHUB_OUTPUT
+          else
+            echo "run_blade_apex_bridge_internal=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Partner Input Check
+        id: partner_input_check
+        run: |
+          if [[ "${{ inputs.run_blade_apex_bridge_partner }}" != "false" ]]; then
+            echo "run_blade_apex_bridge_partner=true" >> $GITHUB_OUTPUT
+          else
+            echo "run_blade_apex_bridge_partner=false" >> $GITHUB_OUTPUT
+          fi
+  e2e_apex_internal_testnet_test:
+    name: E2E ApexBridge Internal Testnet Tests
     uses: ./.github/workflows/e2e-testnet-test.yml
-    needs: build_blade
+    needs: [build_blade, inputs_check]
+    if: (${{ needs.inputs_check.outputs.run_blade_apex_bridge_internal }} == 'true')
     with:
       blade_apex_bridge_ref: develop
+      blade_apex_bridge_version: internal
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       TESTNET_BRIDGING_API_KEY: ${{ secrets.TESTNET_BRIDGING_API_KEY }}
       E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.E2E_TESTNET_WALLET_KEYS_CONTENT }}
+  e2e_apex_partner_testnet_test:
+    name: E2E ApexBridge Partner Testnet Tests
+    uses: ./.github/workflows/e2e-testnet-test.yml
+    needs: [build_blade, inputs_check, e2e_apex_internal_testnet_test]
+    if: (${{ needs.inputs_check.outputs.run_blade_apex_bridge_partner }} == 'true') && !cancelled()
+    with:
+      blade_apex_bridge_ref: develop
+      blade_apex_bridge_version: partner
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      PARTNER_TESTNET_BRIDGING_API_KEY: ${{ secrets.PARTNER_TESTNET_BRIDGING_API_KEY }}
+      E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.E2E_TESTNET_WALLET_KEYS_CONTENT }}
   notification_apex_testnet:
     name: ApexBridge Testnet Notification
     uses: ./.github/workflows/apex-notification-testnet.yml
-    needs: [build_blade, lint, e2e_apex_testnet_test]
+    needs: [build_blade, lint, e2e_apex_internal_testnet_test, e2e_apex_partner_testnet_test]
     if: success() || failure()
     with:
       environment: testnet
       build_blade_output: ${{ needs.build_blade.outputs.workflow_output }}
       lint_output: ${{ needs.lint.outputs.workflow_output }}
-      e2e_apex_testnet_test_output: ${{ needs.e2e_apex_testnet_test.outputs.workflow_output }}
+      e2e_apex_internal_testnet_test_output: ${{ needs.e2e_apex_internal_testnet_test.outputs.workflow_output }}
+      e2e_apex_partner_testnet_test_output: ${{ needs.e2e_apex_partner_testnet_test.outputs.workflow_output }}
     secrets:
       APEX_SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}
