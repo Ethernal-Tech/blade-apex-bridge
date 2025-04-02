@@ -93,7 +93,6 @@ jobs:
     needs: [build_blade, inputs_check, lint, e2e_apex_internal_testnet_test, e2e_apex_partner_testnet_test]
     if: needs.inputs_check.outputs.notification == 'true' && !cancelled()
     with:
-      environment: testnet
       build_blade_output: ${{ needs.build_blade.outputs.workflow_output }}
       lint_output: ${{ needs.lint.outputs.workflow_output }}
       e2e_apex_internal_testnet_test_output: ${{ needs.e2e_apex_internal_testnet_test.outputs.workflow_output }}
