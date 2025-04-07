@@ -5,12 +5,16 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
+	"github.com/0xPolygon/polygon-edge/helper/hex"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/assert"
@@ -24,6 +28,87 @@ type testConfig struct {
 	srcMinterWallet *wallet.Wallet
 	srcNetworkType  wallet.CardanoNetworkType
 	srcTxProvider   wallet.ITxProvider
+}
+
+// cd e2e-polybft/e2e
+// ONLY_RUN_SKYLINE_BRIDGE=true go test -v -timeout 0 -run ^Test_OnlyRunSkylineBridge$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e
+func Test_OnlyRunSkylineBridge(t *testing.T) {
+	if !cardanofw.IsEnvVarTrue("ONLY_RUN_SKYLINE_BRIDGE") {
+		t.Skip()
+	}
+
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig.FundTokenAmount = 1_000_000_000
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithUserCnt(1),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	oracleAPI, err := apex.GetBridgingAPI()
+	require.NoError(t, err)
+
+	fmt.Printf("oracle API: %s\n", oracleAPI)
+	fmt.Printf("oracle API key: %s\n", apiKey)
+
+	fmt.Printf("prime network url: %s\n", apex.PrimeInfo.NetworkAddress)
+	fmt.Printf("prime ogmios url: %s\n", apex.PrimeInfo.OgmiosURL)
+	fmt.Printf("prime bridging addr: %s\n", apex.PrimeInfo.MultisigAddr)
+	fmt.Printf("prime fee addr: %s\n", apex.PrimeInfo.FeeAddr)
+	fmt.Printf("prime socket path: %s\n", apex.PrimeInfo.SocketPath)
+
+	fmt.Printf("cardano network url: %s\n", apex.CardanoInfo.NetworkAddress)
+	fmt.Printf("cardano ogmios url: %s\n", apex.CardanoInfo.OgmiosURL)
+	fmt.Printf("cardano bridging addr: %s\n", apex.CardanoInfo.MultisigAddr)
+	fmt.Printf("cardano fee addr: %s\n", apex.CardanoInfo.FeeAddr)
+	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
+
+	user := apex.Users[0]
+	userPrimeSK, err := user.GetPrivateKey(cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+	userCardanoSK, err := user.GetPrivateKey(cardanofw.ChainIDCardano)
+	require.NoError(t, err)
+
+	fmt.Printf("user prime addr: %s\n", user.GetAddress(cardanofw.ChainIDPrime))
+	fmt.Printf("user prime signing key hex: %s\n", userPrimeSK)
+	fmt.Printf("user cardano addr: %s\n", user.GetAddress(cardanofw.ChainIDCardano))
+	fmt.Printf("user cardano signing key hex: %s\n", userCardanoSK)
+
+	proxyAdminPrivateKeyRaw, err := apex.GetBridgeProxyAdmin().MarshallPrivateKey()
+	require.NoError(t, err)
+
+	privateKeyRaw, err := apex.GetBridgeAdmin().MarshallPrivateKey()
+	require.NoError(t, err)
+
+	fmt.Printf("bridge url: %s\n", apex.GetBridgeDefaultJSONRPCAddr())
+	fmt.Printf("bridge admin key: %s\n", hex.EncodeToString(privateKeyRaw))
+	fmt.Printf("bridge admin address: %s\n", apex.GetBridgeAdmin().Address())
+	fmt.Printf("bridge proxy admin key: %s\n", hex.EncodeToString(proxyAdminPrivateKeyRaw))
+	fmt.Printf("bridge proxy admin address: %s\n", apex.GetBridgeProxyAdmin().Address())
+
+	for i := 0; i < apex.GetValidatorsCount(); i++ {
+		fmt.Printf("validator %d `--telemetry` flag telemetry url(s): %s\n",
+			i+1, apex.Config.GetTelemetryForValidatorIdx(i))
+	}
+
+	signalChannel := make(chan os.Signal, 1)
+	// Notify the signalChannel when the interrupt signal is received (Ctrl+C)
+	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
+
+	<-signalChannel
 }
 
 func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
