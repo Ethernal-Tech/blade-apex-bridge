@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BRANCH=feat/skyline
+BRANCH=skyline/AD-583_merge-main-changes
 
 # build Apex-bridge smartcontracts
 cd ./apex-bridge-smartcontracts
