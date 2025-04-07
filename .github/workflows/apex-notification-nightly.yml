@@ -57,7 +57,7 @@ jobs:
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "Nightly build"
+                    "text": "ApexBridge Main Notification - Nightly Tests"
                   }
                 },
                 {
