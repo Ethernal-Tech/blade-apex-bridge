@@ -61,7 +61,7 @@ jobs:
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "Skyline Nightly build"
+                    "text": "Skyline Nightly Local Tests"
                   }
                 },
                 {
