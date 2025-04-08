@@ -1406,7 +1406,7 @@ func PrimeToNexusSubmitterNotEnoughFunds(
 		ctx, srcChain, user, receiverAddr, sendAmountDfm, metadata)
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "not enough funds")
+	require.ErrorContains(t, err, "couldn't select UTXOs")
 }
 
 func PrimeToNexusInvalidMetadataSlicedOff(
