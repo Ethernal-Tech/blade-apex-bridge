@@ -160,7 +160,7 @@ func NewTestCardanoChain(config *TestCardanoChainConfig) ITestApexChain {
 
 		return NewTestApexChainDummy([]string{
 			getFlag("network-address"), "localhost:1000",
-			getFlag("network-magic"), fmt.Sprint(GetNetworkMagic(config.NetworkType)),
+			getFlag("network-magic"), fmt.Sprint(GetNetworkMagic(config.NetworkType, ChainID(config.ChainType))),
 			getFlag("network-id"), fmt.Sprint(config.NetworkType),
 			getFlag("ogmios-url"), "http://localhost:5500",
 		})
@@ -174,7 +174,7 @@ func NewTestCardanoChain(config *TestCardanoChainConfig) ITestApexChain {
 func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 	t.Helper()
 
-	networkName := GetGenesisType(ec.config)
+	networkName := string(ec.config.ChainType)
 	ogmiosLogsFilePath := filepath.Join("..", "..", "e2e-logs-cardano",
 		fmt.Sprintf("ogmios-%s-%s.log", networkName, strings.ReplaceAll(t.Name(), "/", "_")))
 
@@ -185,6 +185,7 @@ func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 		WithPort(5100+ec.config.ID*100),
 		WithOgmiosPort(1337+ec.config.ID),
 		WithNetworkType(ec.config.NetworkType),
+		WithChainType(ec.config.ChainType),
 		WithConfigGenesisDir(networkName),
 		WithInitialFunds(ec.config.PreminesAddresses, ec.config.PremineAmount),
 	)
@@ -327,7 +328,7 @@ func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string)
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	result = []string{
 		getFlag("network-address"), server.NetworkAddress(),
-		getFlag("network-magic"), fmt.Sprint(GetNetworkMagic(ec.config.NetworkType)),
+		getFlag("network-magic"), fmt.Sprint(GetNetworkMagic(ec.config.NetworkType, ChainID(ec.config.ChainType))),
 		getFlag("network-id"), fmt.Sprint(ec.config.NetworkType),
 		getFlag("ogmios-url"), ec.ogmiosURL,
 	}
