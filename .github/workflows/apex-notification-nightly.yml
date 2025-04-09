@@ -1,5 +1,5 @@
 ---
-name: ApexBridge Notification - Nightly
+name: ApexBridge Main Notification - Nightly Tests
 on: # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
@@ -57,7 +57,7 @@ jobs:
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "Nightly build"
+                    "text": "ApexBridge Main Notification - Nightly Tests"
                   }
                 },
                 {

@@ -1,10 +1,14 @@
 ---
-name: E2E ApexBridge Testnet Tests
+name: E2E ApexBridge Internal/Partner Reactor Testnet
 on: # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
       blade_apex_bridge_ref:
         description: The branch/commit from the Blade Apex Bridge
+        type: string
+        required: true
+      blade_apex_bridge_version:
+        description: The Bridge version
         type: string
         required: true
     outputs:
@@ -15,7 +19,9 @@ on: # yamllint disable-line rule:truthy
       PERSONAL_ACCESS_TOKEN:
         required: true
       TESTNET_BRIDGING_API_KEY:
-        required: true
+        required: false
+      PARTNER_TESTNET_BRIDGING_API_KEY:
+        required: false
       E2E_TESTNET_WALLET_KEYS_CONTENT:
         required: true
 
@@ -28,7 +34,9 @@ jobs:
       E2E_LOGS: true
       CI_VERBOSE: true
       TESTNET_BRIDGING_API_KEY: ${{ secrets.TESTNET_BRIDGING_API_KEY }}
+      PARTNER_TESTNET_BRIDGING_API_KEY: ${{ secrets.PARTNER_TESTNET_BRIDGING_API_KEY }}
       E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.E2E_TESTNET_WALLET_KEYS_CONTENT }}
+      TESTNET_ENV: ${{ inputs.blade_apex_bridge_version }}
     outputs:
       e2e_apex_testnet_output_failure: ${{ steps.run_e2e_apex_testnet_failure.outputs.test_output }}
     steps:
