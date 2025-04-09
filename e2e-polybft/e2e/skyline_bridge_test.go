@@ -922,7 +922,7 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 			}, bridgingFeeAmount, operationFee)
 		require.NoError(t, err)
 
-		txHash, err := cardanofw.SendTxWithTokens(ctx, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+		txHash, err := cardanofw.SendTxWithTokens(ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
 			brSubmitterWallet, apex.PrimeInfo.MultisigAddr,
 			feeAmount+operationFee, []wallet.TokenAmount{*tokensFunded}, metadata,
 		)
@@ -976,7 +976,7 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 
 		brSubmitterWallet, _ := brSubmitterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
 
-		txHash, err := cardanofw.SendTxWithTokens(ctx, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+		txHash, err := cardanofw.SendTxWithTokens(ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
 			brSubmitterWallet, apex.PrimeInfo.MultisigAddr,
 			sendAmount+operationFee, []wallet.TokenAmount{*tokensFunded}, metadata,
 		)
@@ -1016,7 +1016,7 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 		bridgingRequestMetadata := bytes.Replace(metadata,
 			[]byte("1123000"), []byte("1000000"), 1)
 
-		txHash, err := cardanofw.SendTxWithTokens(ctx, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+		txHash, err := cardanofw.SendTxWithTokens(ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
 			brSubmitterWallet, apex.PrimeInfo.MultisigAddr,
 			feeAmount+operationFee, []wallet.TokenAmount{*tokensFunded}, bridgingRequestMetadata,
 		)

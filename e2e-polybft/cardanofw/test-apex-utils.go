@@ -314,15 +314,23 @@ type OracleStateResponse struct {
 	BlockHash string                   `json:"hash"`
 }
 
-func GetNetworkMagic(networkType wallet.CardanoNetworkType) uint {
+func GetNetworkMagic(networkType wallet.CardanoNetworkType, chainID ChainID) uint {
 	switch networkType {
 	case wallet.VectorTestNetNetwork:
 		return wallet.VectorTestNetProtocolMagic
 	case wallet.VectorMainNetNetwork:
 		return wallet.VectorMainNetProtocolMagic
 	case wallet.MainNetNetwork:
+		if chainID == ChainIDCardano {
+			return wallet.MainNetProtocolMagic
+		}
+
 		return wallet.PrimeMainNetProtocolMagic
 	case wallet.TestNetNetwork:
+		if chainID == ChainIDCardano {
+			return wallet.PreviewProtocolMagic
+		}
+
 		return wallet.PrimeTestNetProtocolMagic
 	default:
 		return 0
@@ -331,17 +339,6 @@ func GetNetworkMagic(networkType wallet.CardanoNetworkType) uint {
 
 func GetNetworkName(networkConfig *TestCardanoChainConfig) string {
 	return string(networkConfig.ChainType)
-}
-
-func GetGenesisType(networkConfig *TestCardanoChainConfig) string {
-	switch networkConfig.NetworkType {
-	case wallet.VectorTestNetNetwork, wallet.VectorMainNetNetwork:
-		return ChainIDVector
-	case wallet.MainNetNetwork, wallet.TestNetNetwork:
-		return ChainIDPrime
-	default:
-		return ""
-	}
 }
 
 func GetAddress(networkType wallet.CardanoNetworkType, cardanoWallet *wallet.Wallet) (*wallet.CardanoAddress, error) {

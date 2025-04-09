@@ -319,12 +319,13 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 		},
 	}
 
+	primeMagic := GetNetworkMagic(a.Config.PrimeConfig.NetworkType, ChainID(a.Config.PrimeConfig.ChainType))
 	txSenderChainConfigs := map[string]sendtx.ChainConfig{
 		ChainIDPrime: {
 			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
 			TxProvider:            cardanowallet.NewTxProviderOgmios(a.PrimeInfo.OgmiosURL),
 			MultiSigAddr:          a.PrimeInfo.MultisigAddr,
-			TestNetMagic:          GetNetworkMagic(a.Config.PrimeConfig.NetworkType),
+			TestNetMagic:          primeMagic,
 			TTLSlotNumberInc:      ttlSlotNumberInc,
 			MinUtxoValue:          MinUTxODefaultValue,
 			MinBridgingFeeAmount:  a.Config.PrimeConfig.MinBridgingFee,
@@ -335,11 +336,12 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 	}
 
 	if a.Config.VectorConfig.IsEnabled {
+		vectorMagic := GetNetworkMagic(a.Config.VectorConfig.NetworkType, ChainID(a.Config.VectorConfig.ChainType))
 		txSenderChainConfigs[ChainIDVector] = sendtx.ChainConfig{
 			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.VectorConfig.NetworkType),
 			TxProvider:            cardanowallet.NewTxProviderOgmios(a.VectorInfo.OgmiosURL),
 			MultiSigAddr:          a.VectorInfo.MultisigAddr,
-			TestNetMagic:          GetNetworkMagic(a.Config.VectorConfig.NetworkType),
+			TestNetMagic:          vectorMagic,
 			TTLSlotNumberInc:      ttlSlotNumberInc,
 			MinUtxoValue:          MinUTxODefaultValue,
 			MinBridgingFeeAmount:  a.Config.VectorConfig.MinBridgingFee,
@@ -359,11 +361,12 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			},
 		}
 
+		cardanoMagic := GetNetworkMagic(a.Config.CardanoConfig.NetworkType, ChainID(a.Config.CardanoConfig.ChainType))
 		txSenderChainConfigs[ChainIDCardano] = sendtx.ChainConfig{
 			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.CardanoConfig.NetworkType),
 			TxProvider:            cardanowallet.NewTxProviderOgmios(a.CardanoInfo.OgmiosURL),
 			MultiSigAddr:          a.CardanoInfo.MultisigAddr,
-			TestNetMagic:          GetNetworkMagic(a.Config.CardanoConfig.NetworkType),
+			TestNetMagic:          cardanoMagic,
 			TTLSlotNumberInc:      ttlSlotNumberInc,
 			MinUtxoValue:          MinUTxODefaultValue,
 			MinBridgingFeeAmount:  a.Config.CardanoConfig.MinBridgingFee,
