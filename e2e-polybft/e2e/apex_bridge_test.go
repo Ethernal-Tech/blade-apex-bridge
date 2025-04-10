@@ -571,8 +571,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 		minterUser := apex.Users[userCnt-1]
 
-		brSubmitterUser, err := cardanofw.NewTestApexUser(
-			apex.Config.PrimeConfig.NetworkType, false, 0, false)
+		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
 		minterWallet, _ := minterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
@@ -645,8 +644,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 
 		minterUser := apex.Users[userCnt-2]
 
-		brSubmitterUser, err := cardanofw.NewTestApexUser(
-			apex.Config.PrimeConfig.NetworkType, false, 0, false)
+		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
 		minterWallet, _ := minterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
@@ -674,8 +672,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 
 		minterUser := apex.Users[userCnt-3]
 
-		brSubmitterUser, err := cardanofw.NewTestApexUser(
-			apex.Config.PrimeConfig.NetworkType, false, 0, false)
+		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
 		minterWallet, _ := minterUser.GetCardanoWallet(cardanofw.ChainIDPrime)

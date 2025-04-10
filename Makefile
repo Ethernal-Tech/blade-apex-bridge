@@ -126,6 +126,40 @@ full-test-testnet-e2e-apex-bridge: check-go
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
 	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_TestnetDefund"
 
+.PHONY: fund-testnet-e2e-skyline-bridge
+fund-testnet-e2e-skyline-bridge: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_SkylineTestnetFund"
+
+.PHONY: defund-testnet-e2e-skyline-bridge
+defund-testnet-e2e-skyline-bridge: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_SkylineTestnetDefund"
+
+.PHONY: testnet-e2e-skyline-bridge-print-balances
+testnet-e2e-skyline-bridge-print-balances: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_SkylineTestnetPrintBalances"
+
+.PHONY: test-testnet-e2e-skyline-bridge
+test-testnet-e2e-skyline-bridge: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "SkylineTestnetBridge"
+
+.PHONY: full-test-testnet-e2e-skyline-bridge
+full-test-testnet-e2e-skyline-bridge: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_SkylineTestnetFund" && \
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "SkylineTestnetBridge"; true
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=1h ./e2e-polybft/e2e/... -run "Test_E2E_SkylineTestnetDefund"	
+
 .PHONY: test-property-polybft
 test-property-polybft: check-go
 	go build -o artifacts/blade .

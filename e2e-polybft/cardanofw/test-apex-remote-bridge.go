@@ -7,12 +7,12 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/polygon-edge/types"
-	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
 type RemoteApexBridgeConfig struct {
 	PrimeInfo      CardanoChainInfo
 	VectorInfo     CardanoChainInfo
+	CardanoInfo    CardanoChainInfo
 	NexusInfo      EVMChainInfo
 	BridgingAPIs   []string
 	BridgingAPIKey string
@@ -88,6 +88,56 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 	}
 }
 
+func GetTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
+	if os.Getenv("TESTNET_ENV") == TestnetEnvsPartner {
+		return GetPartnerTestnetSkylineBridgeConfig()
+	}
+
+	return GetInternalTestnetSkylineBridgeConfig()
+}
+
+func GetInternalTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
+	return &RemoteApexBridgeConfig{
+		PrimeInfo: CardanoChainInfo{
+			NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
+			OgmiosURL:      "http://ogmios.prime.testnet.apexfusion.org:1337",
+			MultisigAddr:   "addr_test1wrz24vv4tvfqsywkxn36rv5zagys2d7euafcgt50gmpgqpq4ju9uv",
+			FeeAddr:        "addr_test1wq5dw0g9mpmjy0xd6g58kncapdf6vgcka9el4llhzwy5vhqz80tcq",
+		},
+		CardanoInfo: CardanoChainInfo{
+			NetworkAddress: "relay-0.vector.testnet.apexfusion.org:7522",
+			OgmiosURL:      "http://ogmios.vector.testnet.apexfusion.org:1337",
+			MultisigAddr:   "vector_test1w2h482rf4gf44ek0rekamxksulazkr64yf2fhmm7f5gxjpsdm4zsg",
+			FeeAddr:        "vector_test1wtyslvqxffyppmzhs7ecwunsnpq6g2p6kf9r4aa8ntfzc4qj925fr",
+		},
+		BridgingAPIs: []string{
+			"http://internal-bridge-api-testnet.apexfusion.org:10003",
+		},
+		BridgingAPIKey: os.Getenv("TESTNET_BRIDGING_API_KEY"),
+	}
+}
+
+func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
+	return &RemoteApexBridgeConfig{
+		PrimeInfo: CardanoChainInfo{
+			NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
+			OgmiosURL:      "http://ogmios.prime.testnet.apexfusion.org:1337",
+			MultisigAddr:   "addr_test1wzqpmaaz67lerqfrludgl64tc892wu9g3cph5ens90l2cvqx4fllt",
+			FeeAddr:        "addr_test1wp2s7dk9nl552rwa9twkw3m8x52r4p750h3ma97l60hve0sq2m2ek",
+		},
+		CardanoInfo: CardanoChainInfo{
+			NetworkAddress: "relay-0.vector.testnet.apexfusion.org:7522",
+			OgmiosURL:      "http://ogmios.vector.testnet.apexfusion.org:1337",
+			MultisigAddr:   "vector_test1w2mfypss95pq75qjzn8cxjr3xyl6vuknl0nlfwl3sldmpscauccc7",
+			FeeAddr:        "vector_test1wg6pevsxk6e63eys550u6rwju0wakxsgfw49qxlp8c96h8c0lx60g",
+		},
+		BridgingAPIs: []string{
+			"http://bridge-api-testnet.apexfusion.org:10003",
+		},
+		BridgingAPIKey: os.Getenv("PARTNER_TESTNET_BRIDGING_API_KEY"),
+	}
+}
+
 func GetTestnetUserKeys() (*ApexKeysData, error) {
 	content := os.Getenv("E2E_TESTNET_WALLET_KEYS_CONTENT")
 	if len(content) > 0 {
@@ -114,16 +164,13 @@ func GetTestnetUserKeys() (*ApexKeysData, error) {
 	return nil, errors.New("E2E_TESTNET_WALLET_KEYS_CONTENT nor E2E_TESTNET_WALLET_KEYS_PATH env variables defined")
 }
 
-func GetTestnetApexUsers(
-	primeNetworkType wallet.CardanoNetworkType,
-	vectorNetworkType wallet.CardanoNetworkType,
-) (*ApexUsersData, error) {
+func GetTestnetApexUsers(networks *ApexNetworkTypes) (*ApexUsersData, error) {
 	userKeysData, err := GetTestnetUserKeys()
 	if err != nil {
 		return nil, err
 	}
 
-	funder, err := userKeysData.Funder.User(primeNetworkType, vectorNetworkType)
+	funder, err := userKeysData.Funder.User(networks)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +178,7 @@ func GetTestnetApexUsers(
 	users := make([]*TestApexUser, len(userKeysData.Users))
 
 	for i, keys := range userKeysData.Users {
-		user, err := keys.User(primeNetworkType, vectorNetworkType)
+		user, err := keys.User(networks)
 		if err != nil {
 			return nil, err
 		}
@@ -153,7 +200,7 @@ func SetupRemoteApexBridge(
 	t.Helper()
 
 	apexConfig := &ApexSystemConfig{
-		PrimeConfig:  NewRemotePrimeChainConfig(),
+		PrimeConfig:  NewRemotePrimeChainConfig(0, 0),
 		VectorConfig: NewRemoteVectorChainConfig(true),
 		NexusConfig:  NewRemoteNexusChainConfig(true),
 		APIKey:       remoteConfig.BridgingAPIKey,
@@ -188,8 +235,7 @@ func SetupRemoteApexBridge(
 	}
 
 	usersData, err := GetTestnetApexUsers(
-		apexConfig.PrimeConfig.NetworkType,
-		apexConfig.VectorConfig.NetworkType)
+		NewApexNetworkTypes(apexConfig.PrimeConfig, apexConfig.VectorConfig, nil, apexConfig.NexusConfig))
 	if err != nil {
 		return nil, err
 	}
@@ -205,6 +251,62 @@ func SetupRemoteApexBridge(
 	apexSystem.PrimeInfo = remoteConfig.PrimeInfo
 	apexSystem.VectorInfo = remoteConfig.VectorInfo
 	apexSystem.NexusInfo = remoteConfig.NexusInfo
+
+	return apexSystem, nil
+}
+
+func SetupSkylineRemoteBridge(
+	t *testing.T,
+	remoteConfig *RemoteApexBridgeConfig,
+	apexOpts ...ApexSystemOptions,
+) (*ApexSystem, error) {
+	t.Helper()
+
+	apexConfig := &ApexSystemConfig{
+		PrimeConfig:   NewRemotePrimeChainConfig(defaultMinBridgingFeeAmount, 0),
+		CardanoConfig: NewRemoteCardanoChainConfig(true, defaultMinBridgingFeeAmount, 0),
+		APIKey:        remoteConfig.BridgingAPIKey,
+	}
+
+	for _, opt := range apexOpts {
+		opt(apexConfig)
+	}
+
+	primeChain := &TestCardanoChain{
+		config:           apexConfig.PrimeConfig,
+		multisigAddr:     remoteConfig.PrimeInfo.MultisigAddr,
+		multisigFeeAddr:  remoteConfig.PrimeInfo.FeeAddr,
+		ogmiosURL:        remoteConfig.PrimeInfo.OgmiosURL,
+		blockfrostURL:    remoteConfig.PrimeInfo.BlockfrostURL,
+		blockfrostAPIKey: remoteConfig.PrimeInfo.BlockfrostAPIKey,
+	}
+
+	cardanoChain := &TestCardanoChain{
+		config:           apexConfig.CardanoConfig,
+		multisigAddr:     remoteConfig.CardanoInfo.MultisigAddr,
+		multisigFeeAddr:  remoteConfig.CardanoInfo.FeeAddr,
+		ogmiosURL:        remoteConfig.CardanoInfo.OgmiosURL,
+		blockfrostURL:    remoteConfig.CardanoInfo.BlockfrostURL,
+		blockfrostAPIKey: remoteConfig.CardanoInfo.BlockfrostAPIKey,
+	}
+
+	usersData, err := GetTestnetApexUsers(
+		NewApexNetworkTypes(apexConfig.PrimeConfig, nil, apexConfig.CardanoConfig, nil))
+	if err != nil {
+		return nil, err
+	}
+
+	apexSystem := &ApexSystem{
+		Config:       apexConfig,
+		FunderUser:   usersData.Funder,
+		Users:        usersData.Users,
+		IsSkyline:    true,
+		chains:       []ITestApexChain{primeChain, cardanoChain},
+		bridgingAPIs: remoteConfig.BridgingAPIs,
+	}
+
+	apexSystem.PrimeInfo = remoteConfig.PrimeInfo
+	apexSystem.CardanoInfo = remoteConfig.CardanoInfo
 
 	return apexSystem, nil
 }

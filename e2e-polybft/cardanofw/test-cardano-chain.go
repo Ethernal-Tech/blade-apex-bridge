@@ -111,11 +111,14 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	}
 }
 
-func NewRemotePrimeChainConfig() *TestCardanoChainConfig {
+func NewRemotePrimeChainConfig(minBridgingFeeAmount, minOperationFee uint64) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:   true,
-		ID:          0,
-		NetworkType: infrawallet.TestNetNetwork,
+		IsEnabled:       true,
+		ID:              0,
+		NetworkType:     infrawallet.TestNetNetwork,
+		ChainType:       ChainType(ChainIDPrime),
+		MinBridgingFee:  minBridgingFeeAmount,
+		MinOperationFee: minOperationFee,
 	}
 }
 
@@ -124,6 +127,20 @@ func NewRemoteVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		IsEnabled:   isEnabled,
 		ID:          1,
 		NetworkType: infrawallet.VectorTestNetNetwork,
+		ChainType:   ChainType(ChainIDVector),
+	}
+}
+
+func NewRemoteCardanoChainConfig(
+	isEnabled bool, minBridgingFeeAmount, minOperationFee uint64,
+) *TestCardanoChainConfig {
+	return &TestCardanoChainConfig{
+		IsEnabled:       isEnabled,
+		ID:              4,
+		NetworkType:     infrawallet.VectorTestNetNetwork,
+		ChainType:       ChainType(ChainIDVector),
+		MinBridgingFee:  minBridgingFeeAmount,
+		MinOperationFee: minOperationFee,
 	}
 }
 

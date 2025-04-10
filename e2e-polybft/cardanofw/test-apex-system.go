@@ -94,11 +94,7 @@ func NewApexSystem(
 	users := make([]*TestApexUser, config.UserCnt)
 	for i := range users {
 		users[i], err = NewTestApexUser(
-			config.PrimeConfig.NetworkType,
-			config.VectorConfig.IsEnabled,
-			config.VectorConfig.NetworkType,
-			config.NexusConfig.IsEnabled,
-		)
+			NewApexNetworkTypes(config.PrimeConfig, config.VectorConfig, config.CardanoConfig, config.NexusConfig))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a new apex user: %w", err)
 		}
@@ -136,14 +132,8 @@ func NewSkylineSystem(
 	var err error
 
 	for i := range users {
-		users[i], err = NewTestApexUserSkyline(
-			config.PrimeConfig.NetworkType,
-			config.VectorConfig.IsEnabled,
-			config.VectorConfig.NetworkType,
-			config.CardanoConfig.IsEnabled,
-			config.CardanoConfig.NetworkType,
-			config.NexusConfig.IsEnabled,
-		)
+		users[i], err = NewTestApexUser(
+			NewApexNetworkTypes(config.PrimeConfig, config.VectorConfig, config.CardanoConfig, config.NexusConfig))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a new skyline user: %w", err)
 		}

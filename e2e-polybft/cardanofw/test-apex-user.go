@@ -9,6 +9,60 @@ import (
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
+type ApexNetworkTypes struct {
+	Prime            cardanowallet.CardanoNetworkType
+	Vector           cardanowallet.CardanoNetworkType
+	IsVectorEnabled  bool
+	Cardano          cardanowallet.CardanoNetworkType
+	IsCardanoEnabled bool
+	IsNexusEnabled   bool
+}
+
+func NewApexNetworkTypes(
+	primeConfig, vectorConfig, cardanoConfig *TestCardanoChainConfig,
+	nexusConfig *TestEVMChainConfig,
+) *ApexNetworkTypes {
+	var (
+		vectorNetworkType, cardanoNetworkType             cardanowallet.CardanoNetworkType
+		vectorIsEnabled, cardanoIsEnabled, nexusIsEnabled bool
+	)
+
+	if vectorConfig != nil {
+		vectorNetworkType = vectorConfig.NetworkType
+		vectorIsEnabled = vectorConfig.IsEnabled
+	}
+
+	if cardanoConfig != nil {
+		cardanoNetworkType = cardanoConfig.NetworkType
+		cardanoIsEnabled = cardanoConfig.IsEnabled
+	}
+
+	if nexusConfig != nil {
+		nexusIsEnabled = nexusConfig.IsEnabled
+	}
+
+	return &ApexNetworkTypes{
+		Prime:            primeConfig.NetworkType,
+		Vector:           vectorNetworkType,
+		IsVectorEnabled:  vectorIsEnabled,
+		Cardano:          cardanoNetworkType,
+		IsCardanoEnabled: cardanoIsEnabled,
+		IsNexusEnabled:   nexusIsEnabled,
+	}
+}
+
+func NewApexNetworkTypesFromSystem(apex *ApexSystem) *ApexNetworkTypes {
+	return NewApexNetworkTypes(
+		apex.Config.PrimeConfig, apex.Config.VectorConfig, apex.Config.CardanoConfig, apex.Config.NexusConfig)
+}
+
+type apexUserWallets struct {
+	Prime   *cardanowallet.Wallet
+	Vector  *cardanowallet.Wallet
+	Nexus   *crypto.ECDSAKey
+	Cardano *cardanowallet.Wallet
+}
+
 type TestApexUser struct {
 	PrimeWallet  *cardanowallet.Wallet
 	PrimeAddress *cardanowallet.CardanoAddress
@@ -27,21 +81,7 @@ type TestApexUser struct {
 }
 
 func NewTestApexUser(
-	primeNetworkType cardanowallet.CardanoNetworkType,
-	vectorEnabled bool,
-	vectorNetworkType cardanowallet.CardanoNetworkType,
-	nexusEnabled bool,
-) (*TestApexUser, error) {
-	return NewTestApexUserSkyline(primeNetworkType, vectorEnabled, vectorNetworkType, false, 0, nexusEnabled)
-}
-
-func NewTestApexUserSkyline(
-	primeNetworkType cardanowallet.CardanoNetworkType,
-	vectorEnabled bool,
-	vectorNetworkType cardanowallet.CardanoNetworkType,
-	cardanoEnabled bool,
-	cardanoNetworkType cardanowallet.CardanoNetworkType,
-	nexusEnabled bool,
+	networks *ApexNetworkTypes,
 ) (*TestApexUser, error) {
 	var (
 		vectorWallet       *cardanowallet.Wallet         = nil
@@ -57,36 +97,36 @@ func NewTestApexUserSkyline(
 		return nil, err
 	}
 
-	primeUserAddress, err := GetAddress(primeNetworkType, primeWallet)
+	primeUserAddress, err := GetAddress(networks.Prime, primeWallet)
 	if err != nil {
 		return nil, err
 	}
 
-	if vectorEnabled {
+	if networks.IsVectorEnabled {
 		vectorWallet, err = cardanowallet.GenerateWallet(false)
 		if err != nil {
 			return nil, err
 		}
 
-		vectorUserAddress, err = GetAddress(vectorNetworkType, vectorWallet)
+		vectorUserAddress, err = GetAddress(networks.Vector, vectorWallet)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if cardanoEnabled {
+	if networks.IsCardanoEnabled {
 		cardanoWallet, err = cardanowallet.GenerateWallet(false)
 		if err != nil {
 			return nil, err
 		}
 
-		cardanoUserAddress, err = GetAddress(cardanoNetworkType, cardanoWallet)
+		cardanoUserAddress, err = GetAddress(networks.Cardano, cardanoWallet)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if nexusEnabled {
+	if networks.IsNexusEnabled {
 		nexusWallet, err = crypto.GenerateECDSAKey()
 		if err != nil {
 			return nil, err
@@ -100,51 +140,60 @@ func NewTestApexUserSkyline(
 		PrimeAddress:     primeUserAddress,
 		VectorWallet:     vectorWallet,
 		VectorAddress:    vectorUserAddress,
-		HasVectorWallet:  vectorEnabled,
+		HasVectorWallet:  networks.IsVectorEnabled,
 		CardanoWallet:    cardanoWallet,
 		CardanoAddress:   cardanoUserAddress,
-		HasCardanoWallet: cardanoEnabled,
+		HasCardanoWallet: networks.IsCardanoEnabled,
 		NexusWallet:      nexusWallet,
 		NexusAddress:     nexusUserAddress,
-		HasNexusWallet:   nexusEnabled,
+		HasNexusWallet:   networks.IsNexusEnabled,
 	}, nil
 }
 
 func NewExistingTestApexUser(
-	primeWallet, vectorWallet *cardanowallet.Wallet, nexusWallet *crypto.ECDSAKey,
-	primeNetworkType cardanowallet.CardanoNetworkType,
-	vectorNetworkType cardanowallet.CardanoNetworkType,
+	wallets *apexUserWallets,
+	networks *ApexNetworkTypes,
 ) (*TestApexUser, error) {
 	var (
-		vectorUserAddress *cardanowallet.CardanoAddress = nil
-		nexusUserAddress                                = types.Address{}
+		vectorUserAddress, cardanoUserAddress *cardanowallet.CardanoAddress
+		nexusUserAddress                      types.Address
 	)
 
-	primeUserAddress, err := GetAddress(primeNetworkType, primeWallet)
+	primeUserAddress, err := GetAddress(networks.Prime, wallets.Prime)
 	if err != nil {
 		return nil, err
 	}
 
-	if vectorWallet != nil {
-		vectorUserAddress, err = GetAddress(vectorNetworkType, vectorWallet)
+	if wallets.Vector != nil && networks.IsVectorEnabled {
+		vectorUserAddress, err = GetAddress(networks.Vector, wallets.Vector)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if nexusWallet != nil {
-		nexusUserAddress = nexusWallet.Address()
+	if wallets.Nexus != nil && networks.IsNexusEnabled {
+		nexusUserAddress = wallets.Nexus.Address()
+	}
+
+	if wallets.Cardano != nil && networks.IsCardanoEnabled {
+		cardanoUserAddress, err = GetAddress(networks.Cardano, wallets.Cardano)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &TestApexUser{
-		PrimeWallet:     primeWallet,
-		PrimeAddress:    primeUserAddress,
-		VectorWallet:    vectorWallet,
-		VectorAddress:   vectorUserAddress,
-		HasVectorWallet: vectorWallet != nil,
-		NexusWallet:     nexusWallet,
-		NexusAddress:    nexusUserAddress,
-		HasNexusWallet:  nexusWallet != nil,
+		PrimeWallet:      wallets.Prime,
+		PrimeAddress:     primeUserAddress,
+		VectorWallet:     wallets.Vector,
+		VectorAddress:    vectorUserAddress,
+		HasVectorWallet:  wallets.Vector != nil,
+		NexusWallet:      wallets.Nexus,
+		NexusAddress:     nexusUserAddress,
+		HasNexusWallet:   wallets.Nexus != nil,
+		CardanoWallet:    wallets.Cardano,
+		CardanoAddress:   cardanoUserAddress,
+		HasCardanoWallet: wallets.Cardano != nil,
 	}, nil
 }
 
