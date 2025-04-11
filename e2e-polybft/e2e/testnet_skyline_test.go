@@ -17,6 +17,74 @@ import (
 
 var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDCardano}
 
+func Test_E2E_SkylineTestnetFund(t *testing.T) {
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
+	require.NoError(t, err)
+
+	const tokensToFund = 100
+
+	require.NotNil(t, apex.FunderUser)
+
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		addrErrs []error
+	)
+
+	balances, _ := cardanofw.GetUsersBalances(ctx, apex, skylineChains, apex.Users)
+	printSkylineUserBalances(t, apex, apex.Users, balances)
+
+	fmt.Printf("funding the wallets\n")
+
+	for _, chain := range skylineChains {
+		tokens := cardanofw.GetAllTokensForChainWithAmounts(t, apex, chain, skylineChains, tokensToFund)
+
+		info, networkType := apex.PrimeInfo, apex.Config.PrimeConfig.NetworkType
+		if chain == cardanofw.ChainIDCardano {
+			info, networkType = apex.CardanoInfo, apex.Config.CardanoConfig.NetworkType
+		}
+
+		txProvider, err := info.GetTxProvider()
+		require.NoError(t, err)
+
+		funderWallet, _ := apex.FunderUser.GetCardanoWallet(chain)
+
+		for _, user := range apex.Users {
+			wg.Add(1)
+
+			go func(user *cardanofw.TestApexUser, chain string) {
+				defer wg.Done()
+
+				receiverAddr := user.GetAddress(chain)
+
+				fmt.Printf("Funding %s address: %s\n", chain, receiverAddr)
+
+				_, err := cardanofw.SendTxWithTokens(
+					ctx, chain, networkType, txProvider, funderWallet, receiverAddr, tokensToFund, tokens, nil)
+				if err != nil {
+					fmt.Printf("error while funding %s address: %s, err: %v\n", chain, receiverAddr, err)
+
+					mu.Lock()
+					addrErrs = append(addrErrs, fmt.Errorf("addr %s: %w", receiverAddr, err))
+					mu.Unlock()
+				}
+			}(user, chain)
+		}
+
+		wg.Wait()
+	}
+
+	require.NoError(t, errors.Join(addrErrs...))
+
+	balances, _ = cardanofw.GetUsersBalances(ctx, apex, skylineChains, apex.Users)
+	printSkylineUserBalances(t, apex, apex.Users, balances)
+
+	fmt.Printf("done\n")
+}
+
 func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
@@ -99,74 +167,6 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 	}
 
 	wg.Wait()
-
-	require.NoError(t, errors.Join(addrErrs...))
-
-	balances, _ = cardanofw.GetUsersBalances(ctx, apex, skylineChains, apex.Users)
-	printSkylineUserBalances(t, apex, apex.Users, balances)
-
-	fmt.Printf("done\n")
-}
-
-func Test_E2E_SkylineTestnetFund(t *testing.T) {
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
-	require.NoError(t, err)
-
-	const tokensToFund = 100
-
-	require.NotNil(t, apex.FunderUser)
-
-	var (
-		wg       sync.WaitGroup
-		mu       sync.Mutex
-		addrErrs []error
-	)
-
-	balances, _ := cardanofw.GetUsersBalances(ctx, apex, skylineChains, apex.Users)
-	printSkylineUserBalances(t, apex, apex.Users, balances)
-
-	fmt.Printf("funding the wallets\n")
-
-	for _, chain := range skylineChains {
-		tokens := cardanofw.GetAllTokensForChainWithAmounts(t, apex, chain, skylineChains, tokensToFund)
-
-		info, networkType := apex.PrimeInfo, apex.Config.PrimeConfig.NetworkType
-		if chain == cardanofw.ChainIDCardano {
-			info, networkType = apex.CardanoInfo, apex.Config.CardanoConfig.NetworkType
-		}
-
-		txProvider, err := info.GetTxProvider()
-		require.NoError(t, err)
-
-		funderWallet, _ := apex.FunderUser.GetCardanoWallet(chain)
-
-		for _, user := range apex.Users {
-			wg.Add(1)
-
-			go func(user *cardanofw.TestApexUser, chain string) {
-				defer wg.Done()
-
-				receiverAddr := user.GetAddress(chain)
-
-				fmt.Printf("Funding %s address: %s\n", chain, receiverAddr)
-
-				_, err := cardanofw.SendTxWithTokens(
-					ctx, chain, networkType, txProvider, funderWallet, receiverAddr, tokensToFund, tokens, nil)
-				if err != nil {
-					fmt.Printf("error while funding %s address: %s, err: %v\n", chain, receiverAddr, err)
-
-					mu.Lock()
-					addrErrs = append(addrErrs, fmt.Errorf("addr %s: %w", receiverAddr, err))
-					mu.Unlock()
-				}
-			}(user, chain)
-		}
-
-		wg.Wait()
-	}
 
 	require.NoError(t, errors.Join(addrErrs...))
 

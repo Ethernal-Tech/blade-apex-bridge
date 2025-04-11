@@ -338,10 +338,6 @@ func GetNetworkMagic(networkType wallet.CardanoNetworkType, chainID ChainID) uin
 	}
 }
 
-func GetNetworkName(networkConfig *TestCardanoChainConfig) string {
-	return string(networkConfig.ChainType)
-}
-
 func GetAddress(networkType wallet.CardanoNetworkType, cardanoWallet *wallet.Wallet) (*wallet.CardanoAddress, error) {
 	if len(cardanoWallet.StakeVerificationKey) > 0 {
 		return wallet.NewBaseAddress(networkType,
@@ -661,7 +657,13 @@ func GetAllTokensForChainWithAmounts(
 
 	for _, otherChain := range chains {
 		if otherChain != chain {
-			token, err := wallet.NewTokenWithFullName(apex.GetTokenNameForChains(chain, otherChain), true)
+			tokenName := apex.GetTokenNameForChains(chain, otherChain)
+
+			token, err := wallet.NewTokenWithFullName(tokenName, true)
+			if err != nil {
+				token, err = wallet.NewTokenWithFullName(tokenName, false)
+			}
+
 			require.NoError(t, err)
 
 			tokens = append(tokens, wallet.NewTokenAmount(token, amount))
@@ -669,4 +671,25 @@ func GetAllTokensForChainWithAmounts(
 	}
 
 	return tokens
+}
+
+func GetTokenAndPolicyForVerificationKey(
+	chainID ChainID, networkType wallet.CardanoNetworkType, verificationKey []byte, tokenName string,
+) (wallet.Token, wallet.PolicyScript, error) {
+	keyHash, err := wallet.GetKeyHash(verificationKey)
+	if err != nil {
+		return wallet.Token{}, wallet.PolicyScript{}, err
+	}
+
+	policy := wallet.PolicyScript{
+		Type:    wallet.PolicyScriptSigType,
+		KeyHash: keyHash,
+	}
+
+	pid, err := wallet.NewCliUtils(wallet.ResolveCardanoCliBinary(networkType)).GetPolicyID(policy)
+	if err != nil {
+		return wallet.Token{}, wallet.PolicyScript{}, err
+	}
+
+	return wallet.NewToken(pid, tokenName), policy, nil
 }

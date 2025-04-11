@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/polygon-edge/types"
+	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
+	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
 type RemoteApexBridgeConfig struct {
@@ -101,19 +103,33 @@ func GetInternalTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 		PrimeInfo: CardanoChainInfo{
 			NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
 			OgmiosURL:      "http://ogmios.prime.testnet.apexfusion.org:1337",
-			MultisigAddr:   "addr_test1wrz24vv4tvfqsywkxn36rv5zagys2d7euafcgt50gmpgqpq4ju9uv",
-			FeeAddr:        "addr_test1wq5dw0g9mpmjy0xd6g58kncapdf6vgcka9el4llhzwy5vhqz80tcq",
+			MultisigAddr:   "addr_test1wr943cc3l8hxhjcnh8mjrh67yshksw2ugydx0r9a4k7xrfqsp4p7y",
+			FeeAddr:        "addr_test1wpp9wrzm5249ksfucal6f9rdth9y0rlwecu0r608gysjmcsf764mj",
+			NativeTokens: []sendtx.TokenExchangeConfig{
+				{
+					DstChainID: ChainIDCardano,
+					TokenName: cardanowallet.NewToken(
+						"a59a8df821056ddcaeae4eb16f272565a0b3581c61e04a9bd18d4b32", "WADA").String(),
+				},
+			},
 		},
 		CardanoInfo: CardanoChainInfo{
-			NetworkAddress: "relay-0.vector.testnet.apexfusion.org:7522",
-			OgmiosURL:      "http://ogmios.vector.testnet.apexfusion.org:1337",
-			MultisigAddr:   "vector_test1w2h482rf4gf44ek0rekamxksulazkr64yf2fhmm7f5gxjpsdm4zsg",
-			FeeAddr:        "vector_test1wtyslvqxffyppmzhs7ecwunsnpq6g2p6kf9r4aa8ntfzc4qj925fr",
+			NetworkAddress: "http://preview-services-skyline.testnet.ethernal.work:5521",
+			OgmiosURL:      "http://preview-services-skyline.testnet.ethernal.work:1733",
+			MultisigAddr:   "addr_test1wrntyxdelrw98ps0vrpuf4rr2mmknem83y9ywxfn0a3jeasxtsjz5",
+			FeeAddr:        "addr_test1wz3q8gnjsuyf7etplmcuw8rfusckmn5dmjwnhwdsap6savqcx8xg3",
+			NativeTokens: []sendtx.TokenExchangeConfig{
+				{
+					DstChainID: ChainIDPrime,
+					TokenName: cardanowallet.NewToken(
+						"64c6ea243c3133d44f2022299e74b027f02b1c13397324819e8465c7", "WAPEX").String(),
+				},
+			},
 		},
 		BridgingAPIs: []string{
-			"http://internal-bridge-api-testnet.apexfusion.org:10003",
+			"http://validators-oracle-api-skyline.testnet.ethernal.work",
 		},
-		BridgingAPIKey: os.Getenv("TESTNET_BRIDGING_API_KEY"),
+		BridgingAPIKey: "ae8cf1ec-2ab8-1337-9840-9b442e59aee1",
 	}
 }
 
@@ -122,19 +138,33 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 		PrimeInfo: CardanoChainInfo{
 			NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
 			OgmiosURL:      "http://ogmios.prime.testnet.apexfusion.org:1337",
-			MultisigAddr:   "addr_test1wzqpmaaz67lerqfrludgl64tc892wu9g3cph5ens90l2cvqx4fllt",
-			FeeAddr:        "addr_test1wp2s7dk9nl552rwa9twkw3m8x52r4p750h3ma97l60hve0sq2m2ek",
+			MultisigAddr:   "addr_test1wr943cc3l8hxhjcnh8mjrh67yshksw2ugydx0r9a4k7xrfqsp4p7y",
+			FeeAddr:        "addr_test1wpp9wrzm5249ksfucal6f9rdth9y0rlwecu0r608gysjmcsf764mj",
+			NativeTokens: []sendtx.TokenExchangeConfig{
+				{
+					DstChainID: ChainIDCardano,
+					TokenName: cardanowallet.NewToken(
+						"a59a8df821056ddcaeae4eb16f272565a0b3581c61e04a9bd18d4b32", "WADA").String(),
+				},
+			},
 		},
 		CardanoInfo: CardanoChainInfo{
-			NetworkAddress: "relay-0.vector.testnet.apexfusion.org:7522",
-			OgmiosURL:      "http://ogmios.vector.testnet.apexfusion.org:1337",
-			MultisigAddr:   "vector_test1w2mfypss95pq75qjzn8cxjr3xyl6vuknl0nlfwl3sldmpscauccc7",
-			FeeAddr:        "vector_test1wg6pevsxk6e63eys550u6rwju0wakxsgfw49qxlp8c96h8c0lx60g",
+			NetworkAddress: "http://preview-services-skyline.testnet.ethernal.work:5521",
+			OgmiosURL:      "http://preview-services-skyline.testnet.ethernal.work:1733",
+			MultisigAddr:   "addr_test1wrntyxdelrw98ps0vrpuf4rr2mmknem83y9ywxfn0a3jeasxtsjz5",
+			FeeAddr:        "addr_test1wz3q8gnjsuyf7etplmcuw8rfusckmn5dmjwnhwdsap6savqcx8xg3",
+			NativeTokens: []sendtx.TokenExchangeConfig{
+				{
+					DstChainID: ChainIDPrime,
+					TokenName: cardanowallet.NewToken(
+						"64c6ea243c3133d44f2022299e74b027f02b1c13397324819e8465c7", "WAPEX").String(),
+				},
+			},
 		},
 		BridgingAPIs: []string{
-			"http://bridge-api-testnet.apexfusion.org:10003",
+			"http://validators-oracle-api-skyline.testnet.ethernal.work",
 		},
-		BridgingAPIKey: os.Getenv("PARTNER_TESTNET_BRIDGING_API_KEY"),
+		BridgingAPIKey: "ae8cf1ec-2ab8-1337-9840-9b442e59aee1",
 	}
 }
 

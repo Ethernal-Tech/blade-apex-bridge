@@ -29,7 +29,32 @@ type CardanoChainInfo struct {
 	FeeAddr          string
 	SocketPath       string
 
+	NativeTokens  []sendtx.TokenExchangeConfig
 	GenesisWallet *cardanowallet.Wallet
+}
+
+func (ci *CardanoChainInfo) initNativeTokens(
+	t *testing.T, config *TestCardanoChainConfig, isSkyline bool, dstChainID string, tokenName string,
+) {
+	t.Helper()
+
+	// do not initialize native tokens if they are already set or it is not skyline
+	if !isSkyline || len(ci.NativeTokens) > 0 {
+		return
+	}
+
+	require.NotNil(t, ci.GenesisWallet)
+
+	token, _, err := GetTokenAndPolicyForVerificationKey(
+		config.ChainType, config.NetworkType, ci.GenesisWallet.VerificationKey, tokenName)
+	require.NoError(t, err)
+
+	ci.NativeTokens = []sendtx.TokenExchangeConfig{
+		{
+			DstChainID: dstChainID,
+			TokenName:  token.String(),
+		},
+	}
 }
 
 func (ci *CardanoChainInfo) GetTxProvider() (cardanowallet.ITxProvider, error) {
@@ -272,26 +297,6 @@ func (a *ApexSystem) InitContracts(ctx context.Context) error {
 	return nil
 }
 
-func (a *ApexSystem) GetTokenName(t *testing.T, minterWallet *cardanowallet.Wallet, chainID ChainID,
-	networkType cardanowallet.CardanoNetworkType) string {
-	t.Helper()
-
-	keyHash, err := cardanowallet.GetKeyHash(minterWallet.VerificationKey)
-	require.NoError(t, err)
-
-	policy := cardanowallet.PolicyScript{
-		Type:    cardanowallet.PolicyScriptSigType,
-		KeyHash: keyHash,
-	}
-
-	cardanoCliBinary := cardanowallet.ResolveCardanoCliBinary(networkType)
-
-	pid, err := cardanowallet.NewCliUtils(cardanoCliBinary).GetPolicyID(policy)
-	require.NoError(t, err)
-
-	return cardanowallet.NewToken(pid, defaultTokenName).String()
-}
-
 func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 	t.Helper()
 
@@ -300,16 +305,9 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 		chain.PopulateApexSystem(t, a)
 	}
 
-	minterWalletPrime := a.PrimeInfo.GenesisWallet
+	a.PrimeInfo.initNativeTokens(t, a.Config.PrimeConfig, a.IsSkyline, ChainIDCardano, defaultTokenName)
 
-	a.Config.PrimeConfig.NativeTokens = []sendtx.TokenExchangeConfig{
-		{
-			DstChainID: ChainIDCardano,
-			TokenName:  a.GetTokenName(t, minterWalletPrime, ChainIDPrime, a.Config.PrimeConfig.NetworkType),
-		},
-	}
-
-	primeMagic := GetNetworkMagic(a.Config.PrimeConfig.NetworkType, ChainID(a.Config.PrimeConfig.ChainType))
+	primeMagic := GetNetworkMagic(a.Config.PrimeConfig.NetworkType, a.Config.PrimeConfig.ChainType)
 	txSenderChainConfigs := map[string]sendtx.ChainConfig{
 		ChainIDPrime: {
 			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
@@ -320,13 +318,13 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			MinUtxoValue:          MinUTxODefaultValue,
 			MinBridgingFeeAmount:  a.Config.PrimeConfig.MinBridgingFee,
 			MinOperationFeeAmount: a.Config.PrimeConfig.MinOperationFee,
-			NativeTokens:          a.Config.PrimeConfig.NativeTokens,
+			NativeTokens:          a.PrimeInfo.NativeTokens,
 			PotentialFee:          PotentialFee,
 		},
 	}
 
 	if a.Config.VectorConfig.IsEnabled {
-		vectorMagic := GetNetworkMagic(a.Config.VectorConfig.NetworkType, ChainID(a.Config.VectorConfig.ChainType))
+		vectorMagic := GetNetworkMagic(a.Config.VectorConfig.NetworkType, a.Config.VectorConfig.ChainType)
 		txSenderChainConfigs[ChainIDVector] = sendtx.ChainConfig{
 			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.VectorConfig.NetworkType),
 			TxProvider:            cardanowallet.NewTxProviderOgmios(a.VectorInfo.OgmiosURL),
@@ -336,22 +334,14 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			MinUtxoValue:          MinUTxODefaultValue,
 			MinBridgingFeeAmount:  a.Config.VectorConfig.MinBridgingFee,
 			MinOperationFeeAmount: a.Config.VectorConfig.MinOperationFee,
-			NativeTokens:          a.Config.VectorConfig.NativeTokens,
 			PotentialFee:          PotentialFee,
 		}
 	}
 
 	if a.Config.CardanoConfig.IsEnabled {
-		minterWalletCardano := a.CardanoInfo.GenesisWallet
+		a.CardanoInfo.initNativeTokens(t, a.Config.CardanoConfig, a.IsSkyline, ChainIDPrime, defaultTokenName)
 
-		a.Config.CardanoConfig.NativeTokens = []sendtx.TokenExchangeConfig{
-			{
-				DstChainID: ChainIDPrime,
-				TokenName:  a.GetTokenName(t, minterWalletCardano, ChainIDCardano, a.Config.CardanoConfig.NetworkType),
-			},
-		}
-
-		cardanoMagic := GetNetworkMagic(a.Config.CardanoConfig.NetworkType, ChainID(a.Config.CardanoConfig.ChainType))
+		cardanoMagic := GetNetworkMagic(a.Config.CardanoConfig.NetworkType, a.Config.CardanoConfig.ChainType)
 		txSenderChainConfigs[ChainIDCardano] = sendtx.ChainConfig{
 			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.CardanoConfig.NetworkType),
 			TxProvider:            cardanowallet.NewTxProviderOgmios(a.CardanoInfo.OgmiosURL),
@@ -361,7 +351,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			MinUtxoValue:          MinUTxODefaultValue,
 			MinBridgingFeeAmount:  a.Config.CardanoConfig.MinBridgingFee,
 			MinOperationFeeAmount: a.Config.CardanoConfig.MinOperationFee,
-			NativeTokens:          a.Config.CardanoConfig.NativeTokens,
+			NativeTokens:          a.CardanoInfo.NativeTokens,
 			PotentialFee:          PotentialFee,
 		}
 	}
@@ -491,8 +481,8 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
 		}
 
-		cardanoPrimeTokenName := a.Config.CardanoConfig.NativeTokens[0].TokenName
-		primeCardanoTokenName := a.Config.PrimeConfig.NativeTokens[0].TokenName
+		cardanoPrimeTokenName := a.CardanoInfo.NativeTokens[0].TokenName
+		primeCardanoTokenName := a.PrimeInfo.NativeTokens[0].TokenName
 
 		err := validator.GenerateSkylineConfigs(
 			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i),
@@ -658,18 +648,7 @@ func (a *ApexSystem) GetBalance(
 }
 
 func (a *ApexSystem) GetTokenNameForChains(chainID, dstChainID ChainID) string {
-	var nativeTokens []sendtx.TokenExchangeConfig
-
-	switch chainID {
-	case ChainIDPrime:
-		nativeTokens = a.Config.PrimeConfig.NativeTokens
-	case ChainIDVector:
-		nativeTokens = a.Config.VectorConfig.NativeTokens
-	case ChainIDCardano:
-		nativeTokens = a.Config.CardanoConfig.NativeTokens
-	}
-
-	for _, token := range nativeTokens {
+	for _, token := range a.getCardanoInfo(chainID).NativeTokens {
 		if token.DstChainID == dstChainID {
 			return token.TokenName
 		}
@@ -925,4 +904,17 @@ func (a *ApexSystem) getChain(chainID string) (ITestApexChain, error) {
 	}
 
 	return nil, fmt.Errorf("unknown chain: %s", chainID)
+}
+
+func (a *ApexSystem) getCardanoInfo(chainID string) CardanoChainInfo {
+	switch chainID {
+	case ChainIDPrime:
+		return a.PrimeInfo
+	case ChainIDVector:
+		return a.VectorInfo
+	case ChainIDCardano:
+		return a.CardanoInfo
+	default:
+		return CardanoChainInfo{}
+	}
 }
