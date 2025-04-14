@@ -453,7 +453,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		})
 	}
 
-	rawTx, txHash, _, err := ec.txSender.CreateBridgingTx(
+	txInfo, _, err := ec.txSender.CreateBridgingTx(
 		ctx,
 		srcChainID,
 		dstChainID,
@@ -466,7 +466,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		return "", err
 	}
 
-	return ec.submitTx(ctx, rawTx, txHash, ec.multisigAddr, wallet)
+	return ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, ec.multisigAddr, wallet)
 }
 
 func (ec *TestCardanoChain) SendTx(
@@ -488,7 +488,7 @@ func (ec *TestCardanoChain) SendTx(
 		return "", err
 	}
 
-	rawTx, txHash, err := ec.txSender.CreateTxGeneric(
+	txInfo, err := ec.txSender.CreateTxGeneric(
 		ctx,
 		GetNetworkName(ec.config),
 		walletAddr.String(),
@@ -502,12 +502,12 @@ func (ec *TestCardanoChain) SendTx(
 		return "", err
 	}
 
-	_, err = ec.submitTx(ctx, rawTx, txHash, receiverAddr, wallet)
+	_, err = ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, receiverAddr, wallet)
 	if err != nil {
-		return "", fmt.Errorf("failed to send tx %s to receiver %s: %w", txHash, receiverAddr, err)
+		return "", fmt.Errorf("failed to send tx %s to receiver %s: %w", txInfo.TxHash, receiverAddr, err)
 	}
 
-	return txHash, nil
+	return txInfo.TxHash, nil
 }
 
 func (ec *TestCardanoChain) GetHotWalletAddress() string {
