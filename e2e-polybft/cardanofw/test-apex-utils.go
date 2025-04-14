@@ -622,14 +622,12 @@ func GetUsersBalances(
 		for _, chain := range chains {
 			wg.Add(1)
 
-			go func(u *TestApexUser, c string) {
+			go func(user *TestApexUser, chain string, addr string) {
 				defer wg.Done()
-
-				addr := user.GetAddress(chain)
 
 				balance, err := infracommon.ExecuteWithRetry(
 					ctx, func(ctx context.Context) (map[string]*big.Int, error) {
-						return apex.GetBalance(ctx, u, c)
+						return apex.GetBalance(ctx, user, chain)
 					},
 				)
 
@@ -641,7 +639,7 @@ func GetUsersBalances(
 				} else {
 					balances[addr] = balance
 				}
-			}(user, chain)
+			}(user, chain, user.GetAddress(chain))
 		}
 	}
 
@@ -657,13 +655,7 @@ func GetAllTokensForChainWithAmounts(
 
 	for _, otherChain := range chains {
 		if otherChain != chain {
-			tokenName := apex.GetTokenNameForChains(chain, otherChain)
-
-			token, err := wallet.NewTokenWithFullName(tokenName, true)
-			if err != nil {
-				token, err = wallet.NewTokenWithFullName(tokenName, false)
-			}
-
+			token, err := wallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(chain, otherChain))
 			require.NoError(t, err)
 
 			tokens = append(tokens, wallet.NewTokenAmount(token, amount))
@@ -692,22 +684,4 @@ func GetTokenAndPolicyForVerificationKey(
 	}
 
 	return wallet.NewToken(pid, tokenName), policy, nil
-}
-
-func AreAllUtxosTokensAmountsUsed(sumMap map[string]uint64, tokens []wallet.TokenAmount) bool {
-	for _, token := range tokens {
-		tokenName := token.TokenName()
-
-		if value, exists := sumMap[tokenName]; exists {
-			sumMap[tokenName] -= min(token.Amount, value)
-		}
-	}
-
-	for tokenKey, tokenAmount := range sumMap {
-		if tokenKey != wallet.AdaTokenName && tokenAmount > 0 {
-			return false
-		}
-	}
-
-	return true
 }

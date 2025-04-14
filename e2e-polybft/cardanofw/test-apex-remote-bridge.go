@@ -276,11 +276,10 @@ func SetupRemoteApexBridge(
 		Users:        usersData.Users,
 		chains:       []ITestApexChain{primeChain, vectorChain, nexusChain},
 		bridgingAPIs: remoteConfig.BridgingAPIs,
+		PrimeInfo:    remoteConfig.PrimeInfo,
+		VectorInfo:   remoteConfig.VectorInfo,
+		NexusInfo:    remoteConfig.NexusInfo,
 	}
-
-	apexSystem.PrimeInfo = remoteConfig.PrimeInfo
-	apexSystem.VectorInfo = remoteConfig.VectorInfo
-	apexSystem.NexusInfo = remoteConfig.NexusInfo
 
 	return apexSystem, nil
 }
@@ -333,10 +332,11 @@ func SetupSkylineRemoteBridge(
 		IsSkyline:    true,
 		chains:       []ITestApexChain{primeChain, cardanoChain},
 		bridgingAPIs: remoteConfig.BridgingAPIs,
+		PrimeInfo:    remoteConfig.PrimeInfo,
+		CardanoInfo:  remoteConfig.CardanoInfo,
 	}
 
-	apexSystem.PrimeInfo = remoteConfig.PrimeInfo
-	apexSystem.CardanoInfo = remoteConfig.CardanoInfo
+	apexSystem.InitTxSendChainConfiguration()
 
 	return apexSystem, nil
 }

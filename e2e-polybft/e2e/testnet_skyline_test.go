@@ -117,6 +117,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 		protParams, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
 			return txProvider.GetProtocolParameters(ctx)
 		})
+		require.NoError(t, err)
 
 		funderReceiverAddr := apex.FunderUser.GetAddress(chain)
 

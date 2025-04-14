@@ -362,7 +362,7 @@ func submitTokenTx(
 	receiverAddr string,
 ) error {
 	if err := txProvider.SubmitTx(ctx, txRaw); err != nil {
-		return err
+		return fmt.Errorf("error while submitting tx %s: %w", txHash, err)
 	}
 
 	fmt.Println("transaction has been submitted. hash =", txHash)
@@ -382,7 +382,7 @@ func submitTokenTx(
 		return nil, common.ErrRetryTryAgain
 	}, common.WithRetryCount(60))
 	if err != nil {
-		return err
+		return fmt.Errorf("error while waiting for tx %s to be included in a block: %w", txHash, err)
 	}
 
 	fmt.Printf("transaction has been included in block. hash = %s, balance = %v\n", txHash, newAmounts)

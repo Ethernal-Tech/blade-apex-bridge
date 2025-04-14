@@ -33,30 +33,6 @@ type CardanoChainInfo struct {
 	GenesisWallet *cardanowallet.Wallet
 }
 
-func (ci *CardanoChainInfo) initNativeTokens(
-	t *testing.T, config *TestCardanoChainConfig, isSkyline bool, dstChainID string, tokenName string,
-) {
-	t.Helper()
-
-	// do not initialize native tokens if they are already set or it is not skyline
-	if !isSkyline || len(ci.NativeTokens) > 0 {
-		return
-	}
-
-	require.NotNil(t, ci.GenesisWallet)
-
-	token, _, err := GetTokenAndPolicyForVerificationKey(
-		config.ChainType, config.NetworkType, ci.GenesisWallet.VerificationKey, tokenName)
-	require.NoError(t, err)
-
-	ci.NativeTokens = []sendtx.TokenExchangeConfig{
-		{
-			DstChainID: dstChainID,
-			TokenName:  token.String(),
-		},
-	}
-}
-
 func (ci *CardanoChainInfo) GetTxProvider() (cardanowallet.ITxProvider, error) {
 	if ci.OgmiosURL != "" {
 		return cardanowallet.NewTxProviderOgmios(ci.OgmiosURL), nil
@@ -305,15 +281,46 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 		chain.PopulateApexSystem(t, a)
 	}
 
-	a.PrimeInfo.initNativeTokens(t, a.Config.PrimeConfig, a.IsSkyline, ChainIDCardano, defaultTokenName)
+	if a.IsSkyline {
+		require.NotNil(t, a.PrimeInfo.GenesisWallet)
+		require.NotNil(t, a.CardanoInfo.GenesisWallet)
 
-	primeMagic := GetNetworkMagic(a.Config.PrimeConfig.NetworkType, a.Config.PrimeConfig.ChainType)
+		tokenPrime, _, err := GetTokenAndPolicyForVerificationKey(
+			a.Config.PrimeConfig.ChainType, a.Config.PrimeConfig.NetworkType,
+			a.PrimeInfo.GenesisWallet.VerificationKey, defaultTokenName)
+		require.NoError(t, err)
+
+		tokenCardano, _, err := GetTokenAndPolicyForVerificationKey(
+			a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
+			a.CardanoInfo.GenesisWallet.VerificationKey, defaultTokenName)
+		require.NoError(t, err)
+
+		a.PrimeInfo.NativeTokens = []sendtx.TokenExchangeConfig{
+			{
+				DstChainID: ChainIDCardano,
+				TokenName:  tokenPrime.String(),
+			},
+		}
+		a.CardanoInfo.NativeTokens = []sendtx.TokenExchangeConfig{
+			{
+				DstChainID: ChainIDPrime,
+				TokenName:  tokenCardano.String(),
+			},
+		}
+	}
+
+	a.InitTxSendChainConfiguration()
+
+	return nil
+}
+
+func (a *ApexSystem) InitTxSendChainConfiguration() {
 	txSenderChainConfigs := map[string]sendtx.ChainConfig{
 		ChainIDPrime: {
 			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
 			TxProvider:            cardanowallet.NewTxProviderOgmios(a.PrimeInfo.OgmiosURL),
 			MultiSigAddr:          a.PrimeInfo.MultisigAddr,
-			TestNetMagic:          primeMagic,
+			TestNetMagic:          GetNetworkMagic(a.Config.PrimeConfig.NetworkType, a.Config.PrimeConfig.ChainType),
 			TTLSlotNumberInc:      ttlSlotNumberInc,
 			MinUtxoValue:          MinUTxODefaultValue,
 			MinBridgingFeeAmount:  a.Config.PrimeConfig.MinBridgingFee,
@@ -323,13 +330,12 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 		},
 	}
 
-	if a.Config.VectorConfig.IsEnabled {
-		vectorMagic := GetNetworkMagic(a.Config.VectorConfig.NetworkType, a.Config.VectorConfig.ChainType)
+	if a.Config.VectorConfig != nil && a.Config.VectorConfig.IsEnabled {
 		txSenderChainConfigs[ChainIDVector] = sendtx.ChainConfig{
 			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.VectorConfig.NetworkType),
 			TxProvider:            cardanowallet.NewTxProviderOgmios(a.VectorInfo.OgmiosURL),
 			MultiSigAddr:          a.VectorInfo.MultisigAddr,
-			TestNetMagic:          vectorMagic,
+			TestNetMagic:          GetNetworkMagic(a.Config.VectorConfig.NetworkType, a.Config.VectorConfig.ChainType),
 			TTLSlotNumberInc:      ttlSlotNumberInc,
 			MinUtxoValue:          MinUTxODefaultValue,
 			MinBridgingFeeAmount:  a.Config.VectorConfig.MinBridgingFee,
@@ -338,15 +344,12 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 		}
 	}
 
-	if a.Config.CardanoConfig.IsEnabled {
-		a.CardanoInfo.initNativeTokens(t, a.Config.CardanoConfig, a.IsSkyline, ChainIDPrime, defaultTokenName)
-
-		cardanoMagic := GetNetworkMagic(a.Config.CardanoConfig.NetworkType, a.Config.CardanoConfig.ChainType)
+	if a.Config.CardanoConfig != nil && a.Config.CardanoConfig.IsEnabled {
 		txSenderChainConfigs[ChainIDCardano] = sendtx.ChainConfig{
 			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.CardanoConfig.NetworkType),
 			TxProvider:            cardanowallet.NewTxProviderOgmios(a.CardanoInfo.OgmiosURL),
 			MultiSigAddr:          a.CardanoInfo.MultisigAddr,
-			TestNetMagic:          cardanoMagic,
+			TestNetMagic:          GetNetworkMagic(a.Config.CardanoConfig.NetworkType, a.Config.CardanoConfig.ChainType),
 			TTLSlotNumberInc:      ttlSlotNumberInc,
 			MinUtxoValue:          MinUTxODefaultValue,
 			MinBridgingFeeAmount:  a.Config.CardanoConfig.MinBridgingFee,
@@ -356,7 +359,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 		}
 	}
 
-	if a.Config.NexusConfig.IsEnabled {
+	if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
 		txSenderChainConfigs[ChainIDNexus] = sendtx.ChainConfig{
 			MinBridgingFeeAmount: a.Config.NexusConfig.MinBridgingFee,
 		}
@@ -366,8 +369,6 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 	for _, chain := range a.chains {
 		chain.UpdateTxSendChainConfiguration(txSenderChainConfigs)
 	}
-
-	return nil
 }
 
 func (a *ApexSystem) FundWallets(ctx context.Context) error {
@@ -797,14 +798,14 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	)
 
 	// check if bridging direction is supported
-	require.False(t,
-		!a.Config.VectorConfig.IsEnabled && (sourceChain == ChainIDVector || destinationChain == ChainIDVector))
-	require.False(t,
-		!a.Config.CardanoConfig.IsEnabled && (sourceChain == ChainIDCardano || destinationChain == ChainIDCardano))
-	require.False(t,
-		!a.Config.NexusConfig.IsEnabled && (sourceChain == ChainIDNexus || destinationChain == ChainIDNexus))
+	require.False(t, (a.Config.VectorConfig == nil || !a.Config.VectorConfig.IsEnabled) &&
+		(sourceChain == ChainIDVector || destinationChain == ChainIDVector))
+	require.False(t, (a.Config.CardanoConfig == nil || !a.Config.CardanoConfig.IsEnabled) &&
+		(sourceChain == ChainIDCardano || destinationChain == ChainIDCardano))
+	require.False(t, (a.Config.NexusConfig == nil || !a.Config.NexusConfig.IsEnabled) &&
+		(sourceChain == ChainIDNexus || destinationChain == ChainIDNexus))
 	require.True(t,
-		sourceChain == ChainIDPrime ||
+		(sourceChain == ChainIDPrime || destinationChain != ChainIDPrime) ||
 			(sourceChain == ChainIDVector && destinationChain == ChainIDPrime) ||
 			(sourceChain == ChainIDNexus && destinationChain == ChainIDPrime) ||
 			(sourceChain == ChainIDCardano && destinationChain == ChainIDPrime),
