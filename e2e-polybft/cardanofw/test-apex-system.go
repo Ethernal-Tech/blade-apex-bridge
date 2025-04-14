@@ -464,6 +464,21 @@ func (a *ApexSystem) WaitForGreaterAmount(
 	return nil
 }
 
+func (a *ApexSystem) WaitForAmountInRange(
+	ctx context.Context, user *TestApexUser, chain ChainID,
+	lowerBoundaryDfm *big.Int, higherBoundaryDfm *big.Int, numRetries int, waitTime time.Duration,
+) error {
+	lastAmount, err := a.WaitForAmount(ctx, user, chain, func(val *big.Int) bool {
+		return val.Cmp(lowerBoundaryDfm) == 1 && val.Cmp(higherBoundaryDfm) == -1
+	}, numRetries, waitTime)
+	if err != nil {
+		return fmt.Errorf("amount mismatch: expected amount between %s and %s, but received %s: %w",
+			lowerBoundaryDfm, higherBoundaryDfm, lastAmount, err)
+	}
+
+	return nil
+}
+
 func (a *ApexSystem) WaitForExactAmount(
 	ctx context.Context, user *TestApexUser, chain ChainID,
 	expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration,
