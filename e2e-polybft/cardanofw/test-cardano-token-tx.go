@@ -163,7 +163,9 @@ func createNativeTokenTx(
 		builder.SetMetaData(metadata)
 	}
 
-	allUtxos, err := txProvider.GetUtxos(ctx, senderAddr)
+	allUtxos, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) ([]cardanowallet.Utxo, error) {
+		return txProvider.GetUtxos(ctx, senderAddr)
+	})
 	if err != nil {
 		return nil, "", err
 	}

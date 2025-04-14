@@ -135,7 +135,7 @@ func NewRemoteCardanoChainConfig(
 		IsEnabled:       isEnabled,
 		ID:              4,
 		NetworkType:     infrawallet.TestNetNetwork,
-		ChainType:       ChainIDVector,
+		ChainType:       ChainIDCardano,
 		MinBridgingFee:  minBridgingFeeAmount,
 		MinOperationFee: minOperationFee,
 	}

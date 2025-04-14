@@ -10,6 +10,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
+	"github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
@@ -21,10 +22,11 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	tokensToFundBigInt := cardanofw.ApexToDfm(big.NewInt(100))
+	tokensToFund := tokensToFundBigInt.Uint64()
+
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
-
-	const tokensToFund = 100
 
 	require.NotNil(t, apex.FunderUser)
 
@@ -40,24 +42,24 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 	fmt.Printf("funding the wallets\n")
 
 	for _, chain := range skylineChains {
-		tokens := cardanofw.GetAllTokensForChainWithAmounts(t, apex, chain, skylineChains, tokensToFund)
+		wg.Add(1)
 
-		info, networkType := apex.PrimeInfo, apex.Config.PrimeConfig.NetworkType
-		if chain == cardanofw.ChainIDCardano {
-			info, networkType = apex.CardanoInfo, apex.Config.CardanoConfig.NetworkType
-		}
+		go func(chain string) {
+			defer wg.Done()
 
-		txProvider, err := info.GetTxProvider()
-		require.NoError(t, err)
+			funderWallet, _ := apex.FunderUser.GetCardanoWallet(chain)
 
-		funderWallet, _ := apex.FunderUser.GetCardanoWallet(chain)
+			tokens := cardanofw.GetAllTokensForChainWithAmounts(t, apex, chain, skylineChains, tokensToFund)
 
-		for _, user := range apex.Users {
-			wg.Add(1)
+			info, networkType := apex.PrimeInfo, apex.Config.PrimeConfig.NetworkType
+			if chain == cardanofw.ChainIDCardano {
+				info, networkType = apex.CardanoInfo, apex.Config.CardanoConfig.NetworkType
+			}
 
-			go func(user *cardanofw.TestApexUser, chain string) {
-				defer wg.Done()
+			txProvider, err := info.GetTxProvider()
+			require.NoError(t, err)
 
+			for _, user := range apex.Users {
 				receiverAddr := user.GetAddress(chain)
 
 				fmt.Printf("Funding %s address: %s\n", chain, receiverAddr)
@@ -65,17 +67,15 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 				_, err := cardanofw.SendTxWithTokens(
 					ctx, chain, networkType, txProvider, funderWallet, receiverAddr, tokensToFund, tokens, nil)
 				if err != nil {
-					fmt.Printf("error while funding %s address: %s, err: %v\n", chain, receiverAddr, err)
-
 					mu.Lock()
-					addrErrs = append(addrErrs, fmt.Errorf("addr %s: %w", receiverAddr, err))
+					addrErrs = append(addrErrs, fmt.Errorf("error while funding %s addr %s: %w", chain, receiverAddr, err))
 					mu.Unlock()
 				}
-			}(user, chain)
-		}
-
-		wg.Wait()
+			}
+		}(chain)
 	}
+
+	wg.Wait()
 
 	require.NoError(t, errors.Join(addrErrs...))
 
@@ -106,8 +106,6 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 	fmt.Printf("defunding the wallets\n")
 
 	for _, chain := range skylineChains {
-		tokens := cardanofw.GetAllTokensForChainWithAmounts(t, apex, chain, skylineChains, 0)
-
 		info, networkType := apex.PrimeInfo, apex.Config.PrimeConfig.NetworkType
 		if chain == cardanofw.ChainIDCardano {
 			info, networkType = apex.CardanoInfo, apex.Config.CardanoConfig.NetworkType
@@ -116,34 +114,47 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 		txProvider, err := info.GetTxProvider()
 		require.NoError(t, err)
 
+		protParams, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
+			return txProvider.GetProtocolParameters(ctx)
+		})
+
 		funderReceiverAddr := apex.FunderUser.GetAddress(chain)
+
+		txBuilder, err := cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary(networkType))
+		require.NoError(t, err)
 
 		for _, user := range apex.Users {
 			senderWallet, senderAddr := user.GetCardanoWallet(chain)
 
-			change := new(big.Int).SetUint64(cardanofw.MinUTxODefaultValue + cardanofw.PotentialFee)
-			balanceAtleast := big.NewInt(0).Add(new(big.Int).SetUint64(cardanofw.MinUTxODefaultValue), change)
-
-			balance, exists := balances[senderAddr.String()]
+			balanceBigInt, exists := balances[senderAddr.String()]
 			if !exists {
 				continue
 			}
 
-			lovelaceBalance := balance[cardanowallet.AdaTokenName]
+			balance := make(map[string]uint64, len(balanceBigInt))
+			for tokenName, amount := range balanceBigInt {
+				balance[tokenName] = amount.Uint64()
+			}
 
-			if lovelaceBalance.Cmp(balanceAtleast) != 1 {
+			// bring back all tokens from user to funderReceiverAddr
+			tokens, err := cardanowallet.GetTokensFromSumMap(balance)
+			require.NoError(t, err)
+
+			receiverMinUtxo, err := txBuilder.SetProtocolParameters(protParams).CalculateMinUtxo(cardanowallet.TxOutput{
+				Addr:   senderAddr.String(),
+				Tokens: tokens,
+			})
+			require.NoError(t, err)
+
+			changePlusPotentialFee := cardanofw.MinUTxODefaultValue + cardanofw.PotentialFee
+			balanceAtLeast := receiverMinUtxo + changePlusPotentialFee
+
+			lovelaceBalance := balance[cardanowallet.AdaTokenName]
+			if lovelaceBalance < balanceAtLeast {
 				continue
 			}
 
-			toDefundLovelace := big.NewInt(0).Sub(lovelaceBalance, change)
-
-			for i, token := range tokens {
-				for tokenName, amount := range balance {
-					if token.TokenName() == tokenName {
-						tokens[i].Amount = amount.Uint64()
-					}
-				}
-			}
+			refundAmountLovelace := lovelaceBalance - changePlusPotentialFee
 
 			wg.Add(1)
 
@@ -154,16 +165,16 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 
 				_, err := cardanofw.SendTxWithTokens(
 					ctx, chain, networkType, txProvider, senderWallet, funderReceiverAddr,
-					toDefundLovelace.Uint64(), tokens, nil)
+					refundAmountLovelace, tokens, nil)
 				if err != nil {
-					fmt.Printf("error while funding %s address: %s, err: %v\n", chain, senderAddr, err)
-
 					mu.Lock()
-					addrErrs = append(addrErrs, fmt.Errorf("addr %s: %w", senderAddr, err))
+					addrErrs = append(addrErrs, fmt.Errorf("error while defunding addr %s: %w", senderAddr, err))
 					mu.Unlock()
 				}
 			}(user, chain)
 		}
+
+		txBuilder.Dispose()
 	}
 
 	wg.Wait()

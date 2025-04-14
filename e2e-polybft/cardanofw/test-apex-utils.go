@@ -693,3 +693,21 @@ func GetTokenAndPolicyForVerificationKey(
 
 	return wallet.NewToken(pid, tokenName), policy, nil
 }
+
+func AreAllUtxosTokensAmountsUsed(sumMap map[string]uint64, tokens []wallet.TokenAmount) bool {
+	for _, token := range tokens {
+		tokenName := token.TokenName()
+
+		if value, exists := sumMap[tokenName]; exists {
+			sumMap[tokenName] -= min(token.Amount, value)
+		}
+	}
+
+	for tokenKey, tokenAmount := range sumMap {
+		if tokenKey != wallet.AdaTokenName && tokenAmount > 0 {
+			return false
+		}
+	}
+
+	return true
+}
