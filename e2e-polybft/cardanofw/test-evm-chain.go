@@ -333,8 +333,17 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (map
 	}, err
 }
 
+func (ec *TestEVMChain) GetBridgingFee(
+	_ context.Context,
+	_ string,
+	_ []sendtx.BridgingTxReceiver,
+	bridgingFee uint64,
+	_ uint64,
+) (uint64, error) {
+	return bridgingFee, nil
+}
+
 func (ec *TestEVMChain) CreateMetadata(
-	context context.Context,
 	senderAddr string,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,

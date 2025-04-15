@@ -36,8 +36,15 @@ type ITestApexChain interface {
 	) (string, error)
 	GetHotWalletAddress() string
 	GetAdminPrivateKey() (string, error)
+	// on skyline, txSender will in some cases correct the bridging fee based on the calculated min utxo
+	GetBridgingFee(
+		ctx context.Context,
+		dstChainID string,
+		receivers []sendtx.BridgingTxReceiver,
+		bridgingFee uint64,
+		operationFee uint64,
+	) (uint64, error)
 	CreateMetadata(
-		context context.Context,
 		senderAddr string,
 		dstChainID string,
 		receivers []sendtx.BridgingTxReceiver,
@@ -131,8 +138,17 @@ func (t *TestApexChainDummy) GetAdminPrivateKey() (string, error) {
 	return "", nil
 }
 
+func (t *TestApexChainDummy) GetBridgingFee(
+	ctx context.Context,
+	dstChainID string,
+	receivers []sendtx.BridgingTxReceiver,
+	bridgingFee uint64,
+	operationFee uint64,
+) (uint64, error) {
+	return 0, nil
+}
+
 func (t *TestApexChainDummy) CreateMetadata(
-	context context.Context,
 	senderAddr string,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
