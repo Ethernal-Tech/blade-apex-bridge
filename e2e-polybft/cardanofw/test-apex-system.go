@@ -845,9 +845,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	require.Greater(t, len(receivers), 0)
 	require.Less(t, len(receivers), 5)
 
-	const feeAmountDfm = uint64(1_100_000)
-
-	feeAmount := DfmToChainNativeTokenAmount(sourceChain, new(big.Int).SetUint64(feeAmountDfm))
+	feeAmount := DfmToChainNativeTokenAmount(sourceChain, new(big.Int).SetUint64(defaultMinBridgingFeeAmount))
 
 	receiversMap := make(map[string]*big.Int, len(receivers))
 

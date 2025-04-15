@@ -459,7 +459,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		dstChainID,
 		walletAddr.String(),
 		receivers,
-		bridgingFeeAmount,
+		feeAmount.Uint64(),
 		operationFee,
 	)
 	if err != nil {
