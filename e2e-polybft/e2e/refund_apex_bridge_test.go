@@ -94,7 +94,7 @@ func TestE2E_Apex_Bridge_Refund_ValidScenarios(t *testing.T) {
 		feeAmount := uint64(1_100_000)
 
 		transactions := []cardanofw.BridgingRequestMetadataTransaction{
-			cardanofw.BridgingRequestMetadataTransaction{
+			{
 				Address: cardanofw.AddrToMetaDataAddr(user.GetAddress(cardanofw.ChainIDVector)),
 				Amount:  sendAmount,
 			},
@@ -140,7 +140,7 @@ func TestE2E_Apex_Bridge_Refund_ValidScenarios(t *testing.T) {
 		feeAmount := uint64(1_100_000)
 
 		transactions := []cardanofw.BridgingRequestMetadataTransaction{
-			cardanofw.BridgingRequestMetadataTransaction{
+			{
 				Address: cardanofw.AddrToMetaDataAddr(user.GetAddress(cardanofw.ChainIDVector)),
 				Amount:  sendAmount,
 			},
@@ -225,7 +225,7 @@ func TestE2E_Apex_Bridge_Refund_ValidScenarios(t *testing.T) {
 		feeAmount := uint64(1_100_000)
 
 		transactions := []cardanofw.BridgingRequestMetadataTransaction{
-			cardanofw.BridgingRequestMetadataTransaction{
+			{
 				Address: cardanofw.AddrToMetaDataAddr(user.GetAddress(cardanofw.ChainIDVector)),
 				Amount:  sendAmount,
 			},
