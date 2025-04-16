@@ -221,7 +221,13 @@ func createNativeTokenTx(
 		return nil, "", err
 	}
 
-	minUtxoLovelace, err := cardanowallet.GetTokenCostSum(builder, senderWalletAddr.String(), allUtxos)
+	minUtxoLovelace, err := cardanowallet.GetMinUtxoForSumMap(
+		builder,
+		senderWalletAddr.String(),
+		cardanowallet.SubtractSumMaps(
+			cardanowallet.GetUtxosSum(allUtxos),
+			cardanowallet.GetTokensSumMap(tokens...),
+		))
 	if err != nil {
 		return nil, "", err
 	}
@@ -327,7 +333,13 @@ func createMintTx(
 		return nil, "", err
 	}
 
-	minUtxoLovelace, err := cardanowallet.GetTokenCostSum(builder, senderAddr, allUtxos)
+	minUtxoLovelace, err := cardanowallet.GetMinUtxoForSumMap(
+		builder,
+		senderAddr,
+		cardanowallet.AddSumMaps(
+			cardanowallet.GetUtxosSum(allUtxos),
+			cardanowallet.GetTokensSumMap(tokens...),
+		))
 	if err != nil {
 		return nil, "", err
 	}

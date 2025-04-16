@@ -630,7 +630,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 					const feeAmount = 1_100_000
 
 					metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-						ctx, apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDNexus,
+						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDNexus,
 						[]sendtx.BridgingTxReceiver{
 							{
 								Addr:         user.GetAddress(cardanofw.ChainIDNexus),
@@ -706,7 +706,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 					const feeAmount = 1_100_000
 
 					metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-						ctx, apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDNexus,
+						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDNexus,
 						[]sendtx.BridgingTxReceiver{
 							{
 								Addr:         user.GetAddress(cardanofw.ChainIDNexus),
@@ -1398,7 +1398,7 @@ func PrimeToNexusSubmitterNotEnoughFunds(
 	}
 
 	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
-		ctx, user.GetAddress(srcChain), dstChain,
+		user.GetAddress(srcChain), dstChain,
 		receivers, bridgingFeeAmount, operationFee)
 	require.NoError(t, err)
 
@@ -1429,7 +1429,7 @@ func PrimeToNexusInvalidMetadataSlicedOff(
 	}
 
 	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
-		ctx, user.GetAddress(srcChain), dstChain,
+		user.GetAddress(srcChain), dstChain,
 		receivers, bridgingFeeAmount, operationFee)
 	require.NoError(t, err)
 
@@ -1455,7 +1455,7 @@ func PrimeToNexusInvalidMetadataWrongType(
 	feeAmount := uint64(1_100_000)
 
 	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
-		ctx, user.GetAddress(srcChain), dstChain,
+		user.GetAddress(srcChain), dstChain,
 		[]sendtx.BridgingTxReceiver{
 			{
 				Addr:   user.GetAddress(dstChain),
@@ -1490,7 +1490,7 @@ func PrimeToNexusInvalidMetadataInvalidDestination(
 	feeAmount := uint64(1_100_000)
 
 	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
-		ctx, user.GetAddress(srcChain), dstChain,
+		user.GetAddress(srcChain), dstChain,
 		[]sendtx.BridgingTxReceiver{
 			{
 				Addr:   user.GetAddress(dstChain),
@@ -1524,7 +1524,7 @@ func PrimeToNexusInvalidMetadataInvalidSender(
 	feeAmount := uint64(1_100_000)
 
 	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
-		ctx, "dummy", dstChain,
+		"dummy", dstChain,
 		[]sendtx.BridgingTxReceiver{
 			{
 				Addr:   user.GetAddress(dstChain),
@@ -1559,7 +1559,7 @@ func PrimeToNexusInvalidMetadataInvalidTransactions(
 	feeAmount := uint64(1_100_000)
 
 	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
-		ctx, user.GetAddress(srcChain), dstChain,
+		user.GetAddress(srcChain), dstChain,
 		[]sendtx.BridgingTxReceiver{},
 		bridgingFeeAmount, operationFee)
 	require.NoError(t, err)

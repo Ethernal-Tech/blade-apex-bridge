@@ -37,9 +37,8 @@ const (
 	ttlSlotNumberInc              = 500
 	PotentialFee                  = 500_000
 	maxInputs                     = 40
-	bridgingFeeAmount             = uint64(1_100_000)
 	defaultMinBridgingFeeAmount   = uint64(1_000_010)
-	DefaultMinOperationFee        = uint64(1_000_010)
+	DefaultMinOperationFee        = uint64(0)
 	DefaultRequestStateTimeoutSec = 300
 
 	splitStringLength = 40

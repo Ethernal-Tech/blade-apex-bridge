@@ -399,8 +399,18 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 	return balanceTransformed, nil
 }
 
+func (ec *TestCardanoChain) GetBridgingFee(
+	ctx context.Context,
+	dstChainID string,
+	receivers []sendtx.BridgingTxReceiver,
+	bridgingFee uint64,
+	operationFee uint64,
+) (uint64, error) {
+	return ec.txSender.GetBridgingFee(
+		ctx, ec.ChainID(), dstChainID, receivers, bridgingFee, operationFee)
+}
+
 func (ec *TestCardanoChain) CreateMetadata(
-	context context.Context,
 	senderAddr string,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
@@ -408,7 +418,7 @@ func (ec *TestCardanoChain) CreateMetadata(
 	operationFee uint64,
 ) ([]byte, error) {
 	metadata, err := ec.txSender.CreateMetadata(
-		context, senderAddr, GetNetworkName(ec.config), dstChainID, receivers, bridgingFee, operationFee)
+		senderAddr, ec.ChainID(), dstChainID, receivers, bridgingFee, operationFee)
 	if err != nil {
 		return nil, err
 	}
@@ -453,20 +463,20 @@ func (ec *TestCardanoChain) BridgingRequest(
 		})
 	}
 
-	rawTx, txHash, _, err := ec.txSender.CreateBridgingTx(
+	txInfo, _, err := ec.txSender.CreateBridgingTx(
 		ctx,
 		srcChainID,
 		dstChainID,
 		walletAddr.String(),
 		receivers,
-		bridgingFeeAmount,
+		feeAmount.Uint64(),
 		operationFee,
 	)
 	if err != nil {
 		return "", err
 	}
 
-	return ec.submitTx(ctx, rawTx, txHash, ec.multisigAddr, wallet)
+	return ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, ec.multisigAddr, wallet)
 }
 
 func (ec *TestCardanoChain) SendTx(
@@ -488,26 +498,25 @@ func (ec *TestCardanoChain) SendTx(
 		return "", err
 	}
 
-	rawTx, txHash, err := ec.txSender.CreateTxGeneric(
+	txInfo, err := ec.txSender.CreateTxGeneric(
 		ctx,
 		GetNetworkName(ec.config),
 		walletAddr.String(),
 		receiverAddr,
 		metadata,
 		amount.Uint64(),
-		0,
-		"",
+		nil,
 	)
 	if err != nil {
 		return "", err
 	}
 
-	_, err = ec.submitTx(ctx, rawTx, txHash, receiverAddr, wallet)
+	_, err = ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, receiverAddr, wallet)
 	if err != nil {
-		return "", fmt.Errorf("failed to send tx %s to receiver %s: %w", txHash, receiverAddr, err)
+		return "", fmt.Errorf("failed to send tx %s to receiver %s: %w", txInfo.TxHash, receiverAddr, err)
 	}
 
-	return txHash, nil
+	return txInfo.TxHash, nil
 }
 
 func (ec *TestCardanoChain) GetHotWalletAddress() string {
