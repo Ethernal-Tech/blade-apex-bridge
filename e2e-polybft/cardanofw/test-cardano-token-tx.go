@@ -155,7 +155,10 @@ func createNativeTokenTx(
 
 	builder.SetTestNetMagic(GetNetworkMagic(networkType, chainID))
 
-	if err := builder.SetProtocolParametersAndTTL(ctx, txProvider, 0); err != nil {
+	_, err = common.ExecuteWithRetry(ctx, func(ctx context.Context) (bool, error) {
+		return true, builder.SetProtocolParametersAndTTL(ctx, txProvider, 0)
+	})
+	if err != nil {
 		return nil, "", err
 	}
 
@@ -273,7 +276,10 @@ func createMintTx(
 
 	builder.SetTestNetMagic(GetNetworkMagic(networkType, chainID))
 
-	if err := builder.SetProtocolParametersAndTTL(ctx, txProvider, 0); err != nil {
+	_, err = common.ExecuteWithRetry(ctx, func(ctx context.Context) (bool, error) {
+		return true, builder.SetProtocolParametersAndTTL(ctx, txProvider, 0)
+	})
+	if err != nil {
 		return nil, "", err
 	}
 

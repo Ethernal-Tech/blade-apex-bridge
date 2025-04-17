@@ -353,7 +353,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				}
 
 				const (
-					sendAmount = uint64(1_000_001)
+					sendAmount = uint64(1_000_000)
 					instances  = 5
 				)
 
