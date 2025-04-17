@@ -86,6 +86,12 @@ test-e2e-apex-bridge: check-go
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
 	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "ApexBridge"
 
+.PHONY: test-e2e-refund-apex-bridge
+test-e2e-refund-apex-bridge: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "Apex_Bridge_Refund"
+
 .PHONY: fund-testnet-e2e-apex-bridge
 fund-testnet-e2e-apex-bridge: check-go
 	go build -o artifacts/blade .
