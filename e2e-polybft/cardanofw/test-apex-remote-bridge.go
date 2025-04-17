@@ -129,7 +129,7 @@ func GetInternalTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 		BridgingAPIs: []string{
 			"http://validators-oracle-api-skyline.testnet.ethernal.work",
 		},
-		BridgingAPIKey: "ae8cf1ec-2ab8-1337-9840-9b442e59aee1",
+		BridgingAPIKey: os.Getenv("TESTNET_SKYLINE_BRIDGING_API_KEY"),
 	}
 }
 
@@ -164,7 +164,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 		BridgingAPIs: []string{
 			"http://validators-oracle-api-skyline.testnet.ethernal.work",
 		},
-		BridgingAPIKey: "ae8cf1ec-2ab8-1337-9840-9b442e59aee1",
+		BridgingAPIKey: os.Getenv("PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY"),
 	}
 }
 
