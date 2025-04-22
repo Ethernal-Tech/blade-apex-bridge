@@ -15,10 +15,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
+	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -336,10 +338,6 @@ func GetNetworkMagic(networkType wallet.CardanoNetworkType, chainID ChainID) uin
 	}
 }
 
-func GetNetworkName(networkConfig *TestCardanoChainConfig) string {
-	return string(networkConfig.ChainType)
-}
-
 func GetAddress(networkType wallet.CardanoNetworkType, cardanoWallet *wallet.Wallet) (*wallet.CardanoAddress, error) {
 	if len(cardanoWallet.StakeVerificationKey) > 0 {
 		return wallet.NewBaseAddress(networkType,
@@ -603,4 +601,87 @@ func AddrToMetaDataAddr(addr string) []string {
 	addr = strings.TrimPrefix(strings.TrimPrefix(addr, "0x"), "0X")
 
 	return SplitString(addr, splitStringLength)
+}
+
+func GetUsersBalances(
+	ctx context.Context, apex *ApexSystem, chains []ChainID, users []*TestApexUser,
+) (map[string]map[string]*big.Int, error) {
+	var (
+		balances = make(map[string]map[string]*big.Int, len(users)*len(chains))
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		errs     []error
+	)
+
+	baseUsers := []*TestApexUser(nil)
+	if apex.FunderUser != nil {
+		baseUsers = append(baseUsers, apex.FunderUser)
+	}
+
+	for _, user := range append(baseUsers, users...) {
+		for _, chain := range chains {
+			wg.Add(1)
+
+			go func(user *TestApexUser, chain string, addr string) {
+				defer wg.Done()
+
+				balance, err := infracommon.ExecuteWithRetry(
+					ctx, func(ctx context.Context) (map[string]*big.Int, error) {
+						return apex.GetBalance(ctx, user, chain)
+					},
+				)
+
+				mu.Lock()
+				defer mu.Unlock()
+
+				if err != nil {
+					errs = append(errs, fmt.Errorf("failed to get balance for (%s, %s): %w", chain, addr, err))
+				} else {
+					balances[addr] = balance
+				}
+			}(user, chain, user.GetAddress(chain))
+		}
+	}
+
+	wg.Wait()
+
+	return balances, errors.Join(errs...)
+}
+
+func GetAllTokensForChainWithAmounts(
+	t *testing.T, apex *ApexSystem, chain ChainID, chains []ChainID, amount uint64,
+) (tokens []wallet.TokenAmount) {
+	t.Helper()
+
+	for _, otherChain := range chains {
+		if otherChain != chain {
+			token, err := wallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(chain, otherChain))
+			require.NoError(t, err)
+
+			tokens = append(tokens, wallet.NewTokenAmount(token, amount))
+		}
+	}
+
+	return tokens
+}
+
+func GetTokenAndPolicyForVerificationKey(
+	chainID ChainID, networkType wallet.CardanoNetworkType, verificationKey []byte, tokenName string,
+) (wallet.Token, wallet.PolicyScript, error) {
+	keyHash, err := wallet.GetKeyHash(verificationKey)
+	if err != nil {
+		return wallet.Token{}, wallet.PolicyScript{}, err
+	}
+
+	policy := wallet.PolicyScript{
+		Type:    wallet.PolicyScriptSigType,
+		KeyHash: keyHash,
+	}
+
+	pid, err := wallet.NewCliUtils(wallet.ResolveCardanoCliBinary(networkType)).GetPolicyID(policy)
+	if err != nil {
+		return wallet.Token{}, wallet.PolicyScript{}, err
+	}
+
+	return wallet.NewToken(pid, tokenName), policy, nil
 }

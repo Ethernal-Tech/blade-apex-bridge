@@ -186,8 +186,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := big.NewInt(1_500_000)
 
-		brSubmitterUser, err := cardanofw.NewTestApexUserSkyline(
-			apex.Config.PrimeConfig.NetworkType, false, 0, false, 0, false)
+		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
 		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
@@ -210,8 +209,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := big.NewInt(1_500_000)
 
-		brSubmitterUser, err := cardanofw.NewTestApexUserSkyline(
-			apex.Config.PrimeConfig.NetworkType, false, 0, false, 0, false)
+		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
 		_, err = cardanofw.FundUserWithToken(
@@ -231,8 +229,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := big.NewInt(1_500_000)
 
-		brSubmitterUser, err := cardanofw.NewTestApexUserSkyline(
-			apex.Config.PrimeConfig.NetworkType, false, 0, true, apex.Config.CardanoConfig.NetworkType, false)
+		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
 		_, err = cardanofw.FundUserWithToken(
@@ -252,8 +249,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := big.NewInt(1_500_000)
 
-		brSubmitterUser, err := cardanofw.NewTestApexUserSkyline(
-			apex.Config.PrimeConfig.NetworkType, false, 0, true, apex.Config.CardanoConfig.NetworkType, false)
+		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
 		_, err = cardanofw.FundUserWithToken(
@@ -266,19 +262,16 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			sendtx.BridgingTypeNativeTokenOnSource)
 	})
 
-	idx := 1
-
-	for _, cfg := range testConfigs {
+	for idx, cfg := range testConfigs {
 		for txType, txTypeString := range transactionTypes {
-			t.Run(fmt.Sprintf("1.%d %s -> %s - %s", idx, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
+			t.Run(fmt.Sprintf("1.%d %s -> %s - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
 
 				sendAmountDfm := big.NewInt(1_500_000)
 
-				brSubmitterUser, err := cardanofw.NewTestApexUserSkyline(
-					apex.Config.PrimeConfig.NetworkType, false, 0, true, apex.Config.CardanoConfig.NetworkType, false)
+				brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 				require.NoError(t, err)
 
 				_, err = cardanofw.FundUserWithToken(
@@ -290,16 +283,12 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 					t, ctx, apex, brSubmitterUser, user, cfg.srcChainID, cfg.dstChainID, sendAmountDfm,
 					txType)
 			})
-
-			idx++
 		}
 	}
 
-	idx = 1
-
-	for _, cfg := range testConfigs {
+	for idx, cfg := range testConfigs {
 		for txType, txTypeString := range transactionTypes {
-			t.Run(fmt.Sprintf("2.%d %s -> %s - Submitter has tokens - %s", idx, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
+			t.Run(fmt.Sprintf("2.%d %s -> %s - Submitter has tokens - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
@@ -307,8 +296,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				sendAmountDfm := big.NewInt(5_000_000)
 				minterUser := apex.Users[userCnt-2]
 
-				brSubmitterUser, err := cardanofw.NewTestApexUserSkyline(
-					apex.Config.PrimeConfig.NetworkType, false, 0, true, apex.Config.CardanoConfig.NetworkType, false)
+				brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 				require.NoError(t, err)
 
 				minterWallet, _ := minterUser.GetCardanoWallet(cfg.srcChainID)
@@ -327,16 +315,12 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 					t, ctx, apex, brSubmitterUser, user, cfg.srcChainID, cfg.dstChainID, sendAmountDfm,
 					txType)
 			})
-
-			idx++
 		}
 	}
 
-	idx = 1
-	//nolint:dupl
-	for _, cfg := range testConfigs {
+	for idx, cfg := range testConfigs {
 		for txType, txTypeString := range transactionTypes {
-			t.Run(fmt.Sprintf("3.%d %s -> %s - wait for each submit - %s", idx, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
+			t.Run(fmt.Sprintf("3.%d %s -> %s - wait for each submit - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
@@ -346,8 +330,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 					instances  = 5
 				)
 
-				brSubmitterUser, err := cardanofw.NewTestApexUserSkyline(
-					apex.Config.PrimeConfig.NetworkType, false, 0, true, apex.Config.CardanoConfig.NetworkType, false)
+				brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 				require.NoError(t, err)
 
 				_, err = cardanofw.FundUserWithToken(
@@ -359,16 +342,12 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 					t, ctx, apex, instances, brSubmitterUser, cfg.srcChainID, cfg.dstChainID, new(big.Int).SetUint64(sendAmount),
 					txType)
 			})
-
-			idx++
 		}
 	}
 
-	idx = 1
-	//nolint:dupl
-	for _, cfg := range testConfigs {
+	for idx, cfg := range testConfigs {
 		for txType, txTypeString := range transactionTypes {
-			t.Run(fmt.Sprintf("4.%d %s -> %s - one by one - %s", idx, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
+			t.Run(fmt.Sprintf("4.%d %s -> %s - one by one - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
@@ -378,8 +357,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 					instances  = 5
 				)
 
-				brSubmitterUser, err := cardanofw.NewTestApexUserSkyline(
-					apex.Config.PrimeConfig.NetworkType, false, 0, true, apex.Config.CardanoConfig.NetworkType, false)
+				brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 				require.NoError(t, err)
 
 				_, err = cardanofw.FundUserWithToken(
@@ -391,16 +369,12 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 					t, ctx, apex, instances, brSubmitterUser, cfg.srcChainID, cfg.dstChainID, new(big.Int).SetUint64(sendAmount),
 					txType)
 			})
-
-			idx++
 		}
 	}
 
-	idx = 1
-
-	for _, cfg := range testConfigs {
+	for idx, cfg := range testConfigs {
 		for txType, txTypeString := range transactionTypes {
-			t.Run(fmt.Sprintf("5.%d %s -> %s - parallel - %s", idx, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
+			t.Run(fmt.Sprintf("5.%d %s -> %s - parallel - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
@@ -426,16 +400,12 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 						cfg.srcChainID: {cfg.dstChainID},
 					}, txType, new(big.Int).SetUint64(sendAmount))
 			})
-
-			idx++
 		}
 	}
 
-	idx = 1
-
-	for _, cfg := range testConfigs {
+	for idx, cfg := range testConfigs {
 		for txType, txTypeString := range transactionTypes {
-			t.Run(fmt.Sprintf("6.%d %s -> %s - sequential and parallel - %s", idx, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
+			t.Run(fmt.Sprintf("6.%d %s -> %s - sequential and parallel - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
@@ -466,12 +436,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 					}, txType, new(big.Int).SetUint64(sendAmount),
 				)
 			})
-
-			idx++
 		}
 	}
 
-	idx = 1
+	idx := 1
 
 	for txType, txTypeString := range transactionTypes {
 		t.Run(fmt.Sprintf("7.%d Both directions sequential - %s", idx, txTypeString), func(t *testing.T) {
@@ -484,8 +452,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				instances  = 5
 			)
 
-			brSubmitterUser, err := cardanofw.NewTestApexUserSkyline(
-				apex.Config.PrimeConfig.NetworkType, false, 0, true, apex.Config.CardanoConfig.NetworkType, false)
+			brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 			require.NoError(t, err)
 
 			for _, cfg := range testConfigs {
@@ -669,31 +636,9 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
 
 	t.Run("1. Mismatch submitted and receiver amounts", func(t *testing.T) {
-		sendAmount := uint64(1_000_000)
-
-		receivers := []sendtx.BridgingTxReceiver{
-			{
-				Addr:         user.GetAddress(cardanofw.ChainIDCardano),
-				Amount:       sendAmount * 10,
-				BridgingType: sendtx.BridgingTypeCurrencyOnSource,
-			},
-		}
-
-		feeAmount, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingFee(
-			ctx, cardanofw.ChainIDCardano, receivers, bridgingFeeAmount, operationFee)
-		require.NoError(t, err)
-
-		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDCardano,
-			receivers, feeAmount, operationFee)
-		require.NoError(t, err)
-
-		txHash, err := apex.SubmitTx(
-			ctx, cardanofw.ChainIDPrime, user,
-			apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), metadata)
-		require.NoError(t, err)
-
-		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, 0)
+		executeSkylineMismatchedAndReceivedAmounts(
+			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+			bridgingFeeAmount, operationFee, 0)
 	})
 
 	t.Run("2. Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
@@ -925,8 +870,7 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 	t.Run("9. Submitted invalid metadata - invalid receiver address - token on source", func(t *testing.T) {
 		sendAmount := uint64(1_000_000)
 
-		brSubmitterUser, err := cardanofw.NewTestApexUser(
-			apex.Config.PrimeConfig.NetworkType, false, 0, false)
+		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
 		brSubmitterWallet, _ := brSubmitterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
@@ -994,8 +938,7 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 
 		minterUser := apex.Users[userCnt-1]
 
-		brSubmitterUser, err := cardanofw.NewTestApexUser(
-			apex.Config.PrimeConfig.NetworkType, false, 0, false)
+		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
 		minterWallet, _ := minterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
@@ -1036,8 +979,7 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 	t.Run("12. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
 		sendAmount := uint64(1_123_000)
 
-		brSubmitterUser, err := cardanofw.NewTestApexUser(
-			apex.Config.PrimeConfig.NetworkType, false, 0, false)
+		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
 		brSubmitterWallet, _ := brSubmitterUser.GetCardanoWallet(cardanofw.ChainIDPrime)

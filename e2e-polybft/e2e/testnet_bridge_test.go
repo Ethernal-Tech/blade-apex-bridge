@@ -11,7 +11,6 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
-	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/ethgo"
@@ -46,7 +45,7 @@ func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 
 	require.NotNil(t, apex.FunderUser)
 
-	balances := getUserBalances(ctx, apex, nil)
+	balances := getUserLovelaceBalances(ctx, apex, nil)
 	printUserBalances(apex, nil, balances)
 
 	sendAmountDfm := cardanofw.ApexToDfm(new(big.Int).SetUint64(apexAmountToBridge))
@@ -60,7 +59,7 @@ func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm, sendtx.BridgingTypeNormal, bridgingOpts...)
 
-	balances = getUserBalances(ctx, apex, nil)
+	balances = getUserLovelaceBalances(ctx, apex, nil)
 	printUserBalances(apex, nil, balances)
 }
 func Test_E2E_TestnetDefund(t *testing.T) {
@@ -74,7 +73,7 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	balances := getUserBalances(ctx, apex, apex.Users)
+	balances := getUserLovelaceBalances(ctx, apex, apex.Users)
 	printUserBalances(apex, apex.Users, balances)
 
 	fmt.Printf("defunding the wallets\n")
@@ -120,7 +119,7 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 
 	wg.Wait()
 
-	balances = getUserBalances(ctx, apex, apex.Users)
+	balances = getUserLovelaceBalances(ctx, apex, apex.Users)
 	printUserBalances(apex, apex.Users, balances)
 
 	fmt.Printf("done\n")
@@ -145,7 +144,7 @@ func Test_E2E_TestnetFund(t *testing.T) {
 		addrErrs = make(map[string]error)
 	)
 
-	balances := getUserBalances(ctx, apex, apex.Users)
+	balances := getUserLovelaceBalances(ctx, apex, apex.Users)
 	printUserBalances(apex, apex.Users, balances)
 
 	fmt.Printf("funding the wallets\n")
@@ -177,7 +176,7 @@ func Test_E2E_TestnetFund(t *testing.T) {
 		wg.Wait()
 	}
 
-	balances = getUserBalances(ctx, apex, apex.Users)
+	balances = getUserLovelaceBalances(ctx, apex, apex.Users)
 	printUserBalances(apex, apex.Users, balances)
 
 	errs := make([]error, 0, len(addrErrs))
@@ -384,7 +383,7 @@ func Test_E2E_TestnetPrintBalances(t *testing.T) {
 	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetTestnetApexBridgeConfig())
 	require.NoError(t, err)
 
-	balances := getUserBalances(ctx, apex, apex.Users)
+	balances := getUserLovelaceBalances(ctx, apex, apex.Users)
 	printUserBalances(apex, apex.Users, balances)
 }
 
@@ -412,53 +411,16 @@ func printUserBalances(apex *cardanofw.ApexSystem, users []*cardanofw.TestApexUs
 	}
 }
 
-func getUserBalances(
+func getUserLovelaceBalances(
 	ctx context.Context, apex *cardanofw.ApexSystem,
 	users []*cardanofw.TestApexUser,
 ) map[string]*big.Int {
-	var (
-		balances = make(map[string]*big.Int, len(users)*len(chains))
-		wg       sync.WaitGroup
-		mu       sync.Mutex
-	)
+	balances, _ := cardanofw.GetUsersBalances(ctx, apex, chains, users)
+	result := make(map[string]*big.Int, len(balances))
 
-	fmt.Printf("getting the balances\n")
-
-	allUsers := append([]*cardanofw.TestApexUser{apex.FunderUser}, users...)
-	for _, user := range allUsers {
-		for _, chain := range chains {
-			wg.Add(1)
-
-			go func(u *cardanofw.TestApexUser, c string) {
-				defer wg.Done()
-
-				addr := user.GetAddress(chain)
-
-				balance, err := infracommon.ExecuteWithRetry(
-					ctx, func(ctx context.Context) (*big.Int, error) {
-						balance, err := apex.GetBalance(ctx, u, c)
-						if err != nil {
-							return nil, err
-						}
-
-						return balance[cardanowallet.AdaTokenName], nil
-					},
-				)
-				if err != nil {
-					fmt.Printf("error while getting balance of %s address: %s, err: %v\n", chain, addr, err)
-
-					return
-				}
-
-				mu.Lock()
-				defer mu.Unlock()
-
-				balances[addr] = balance
-			}(user, chain)
-		}
+	for addr, balances := range balances {
+		result[addr] = balances[cardanowallet.AdaTokenName]
 	}
 
-	wg.Wait()
-
-	return balances
+	return result
 }

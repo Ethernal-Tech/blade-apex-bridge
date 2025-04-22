@@ -19,76 +19,29 @@ func FundUserWithToken(ctx context.Context, chain ChainID,
 	networkType cardanowallet.CardanoNetworkType, txProvider cardanowallet.ITxProvider,
 	minterWallet *cardanowallet.Wallet, userToFund *TestApexUser, lovelaceFundAmount uint64, tokenFundAmount uint64,
 ) (*cardanowallet.TokenAmount, error) {
-	keyHash, err := cardanowallet.GetKeyHash(minterWallet.VerificationKey)
-	if err != nil {
-		return nil, err
-	}
-
-	policy := cardanowallet.PolicyScript{
-		Type:    cardanowallet.PolicyScriptSigType,
-		KeyHash: keyHash,
-	}
-
-	cardanoCliBinary := cardanowallet.ResolveCardanoCliBinary(networkType)
-
-	pid, err := cardanowallet.NewCliUtils(cardanoCliBinary).GetPolicyID(policy)
-	if err != nil {
-		return nil, err
-	}
-
-	mintToken := cardanowallet.NewTokenAmount(
-		cardanowallet.NewToken(pid, defaultTokenName), DefaultTokenMintAmount)
-
-	txHash, err := MintTokens(
-		ctx, chain, networkType, txProvider, minterWallet, lovelaceFundAmount,
-		[]cardanowallet.TokenAmount{mintToken}, []cardanowallet.IPolicyScript{policy},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Printf("Done minting tokens. txHash: %s\n", txHash)
-
-	userToFundAddr := userToFund.GetAddress(chain)
-	fundToken := cardanowallet.NewTokenAmount(
-		cardanowallet.NewToken(pid, defaultTokenName), tokenFundAmount)
-
-	txHash, err = SendTxWithTokens(
-		ctx, chain, networkType, txProvider, minterWallet, userToFundAddr, lovelaceFundAmount,
-		[]cardanowallet.TokenAmount{fundToken}, nil,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Printf("Funded user %s with lovelace + native tokens. txHash: %s\n", userToFundAddr, txHash)
-	fmt.Printf("User funded with TokenAmount: %+v\n", fundToken)
-
-	return &fundToken, nil
+	return FundAddressWithToken(
+		ctx, chain, networkType, txProvider, minterWallet,
+		userToFund.GetAddress(chain), lovelaceFundAmount, tokenFundAmount)
 }
 
 func FundAddressWithToken(ctx context.Context, chain ChainID,
 	networkType cardanowallet.CardanoNetworkType, txProvider cardanowallet.ITxProvider,
-	minterWallet *cardanowallet.Wallet, addrToFund string, lovelaceFundAmount uint64,
-	tokenFundAmount uint64,
+	minterWallet *cardanowallet.Wallet, addrToFund string,
+	lovelaceFundAmount uint64, tokenFundAmount uint64,
 ) (*cardanowallet.TokenAmount, error) {
-	keyHash, err := cardanowallet.GetKeyHash(minterWallet.VerificationKey)
+	token, policy, err := GetTokenAndPolicyForVerificationKey(
+		chain, networkType, minterWallet.VerificationKey, defaultTokenName)
 	if err != nil {
 		return nil, err
 	}
 
-	policy := cardanowallet.PolicyScript{
-		Type:    cardanowallet.PolicyScriptSigType,
-		KeyHash: keyHash,
-	}
-
-	cardanoCliBinary := cardanowallet.ResolveCardanoCliBinary(networkType)
-
-	pid, _ := cardanowallet.NewCliUtils(cardanoCliBinary).GetPolicyID(policy)
+	var (
+		fundTokenAmountObj = cardanowallet.NewTokenAmount(token, tokenFundAmount)
+		tokens             []cardanowallet.TokenAmount
+	)
 
 	if tokenFundAmount > 0 {
-		mintToken := cardanowallet.NewTokenAmount(
-			cardanowallet.NewToken(pid, defaultTokenName), DefaultTokenMintAmount)
+		mintToken := cardanowallet.NewTokenAmount(token, DefaultTokenMintAmount)
 
 		txHash, err := MintTokens(
 			ctx, chain, networkType, txProvider, minterWallet, lovelaceFundAmount,
@@ -98,23 +51,21 @@ func FundAddressWithToken(ctx context.Context, chain ChainID,
 			return nil, err
 		}
 
-		fmt.Printf("Done minting tokens. txHash: %s\n", txHash)
+		tokens = append(tokens, fundTokenAmountObj)
+
+		fmt.Printf("Done minting tokens: %d. txHash: %s\n", tokenFundAmount, txHash)
 	}
 
-	fundToken := cardanowallet.NewTokenAmount(
-		cardanowallet.NewToken(pid, defaultTokenName), tokenFundAmount)
-
 	txHash, err := SendTxWithTokens(
-		ctx, chain, networkType, txProvider, minterWallet, addrToFund, lovelaceFundAmount,
-		[]cardanowallet.TokenAmount{fundToken}, nil,
-	)
+		ctx, chain, networkType, txProvider, minterWallet, addrToFund, lovelaceFundAmount, tokens, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Printf("Funded user %s with lovelace + native tokens. txHash: %s\n", addrToFund, txHash)
+	fmt.Printf("Funded %s with lovelace: %d, native tokens: %s. txHash: %s\n",
+		addrToFund, lovelaceFundAmount, fundTokenAmountObj, txHash)
 
-	return &fundToken, nil
+	return &fundTokenAmountObj, nil
 }
 
 func SendTxWithTokens(
@@ -128,10 +79,6 @@ func SendTxWithTokens(
 	tokens []cardanowallet.TokenAmount,
 	metadata []byte,
 ) (string, error) {
-	if len(tokens) == 0 {
-		return "", errors.New("no tokens")
-	}
-
 	txRaw, txHash, err := createNativeTokenTx(
 		ctx, chainID, networkType, txProvider, senderWallet, receiverAddr, lovelaceAmount, tokens, metadata)
 	if err != nil {
@@ -208,7 +155,10 @@ func createNativeTokenTx(
 
 	builder.SetTestNetMagic(GetNetworkMagic(networkType, chainID))
 
-	if err := builder.SetProtocolParametersAndTTL(ctx, txProvider, 0); err != nil {
+	_, err = common.ExecuteWithRetry(ctx, func(ctx context.Context) (bool, error) {
+		return true, builder.SetProtocolParametersAndTTL(ctx, txProvider, 0)
+	})
+	if err != nil {
 		return nil, "", err
 	}
 
@@ -216,7 +166,9 @@ func createNativeTokenTx(
 		builder.SetMetaData(metadata)
 	}
 
-	allUtxos, err := txProvider.GetUtxos(ctx, senderAddr)
+	allUtxos, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) ([]cardanowallet.Utxo, error) {
+		return txProvider.GetUtxos(ctx, senderAddr)
+	})
 	if err != nil {
 		return nil, "", err
 	}
@@ -324,7 +276,10 @@ func createMintTx(
 
 	builder.SetTestNetMagic(GetNetworkMagic(networkType, chainID))
 
-	if err := builder.SetProtocolParametersAndTTL(ctx, txProvider, 0); err != nil {
+	_, err = common.ExecuteWithRetry(ctx, func(ctx context.Context) (bool, error) {
+		return true, builder.SetProtocolParametersAndTTL(ctx, txProvider, 0)
+	})
+	if err != nil {
 		return nil, "", err
 	}
 
@@ -413,7 +368,7 @@ func submitTokenTx(
 	receiverAddr string,
 ) error {
 	if err := txProvider.SubmitTx(ctx, txRaw); err != nil {
-		return err
+		return fmt.Errorf("error while submitting tx %s: %w", txHash, err)
 	}
 
 	fmt.Println("transaction has been submitted. hash =", txHash)
@@ -433,7 +388,7 @@ func submitTokenTx(
 		return nil, common.ErrRetryTryAgain
 	}, common.WithRetryCount(60))
 	if err != nil {
-		return err
+		return fmt.Errorf("error while waiting for tx %s to be included in a block: %w", txHash, err)
 	}
 
 	fmt.Printf("transaction has been included in block. hash = %s, balance = %v\n", txHash, newAmounts)

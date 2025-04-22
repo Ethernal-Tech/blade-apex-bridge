@@ -243,12 +243,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Big receiver amount", func(t *testing.T) {
-		unfundedUser, err := cardanofw.NewTestApexUser(
-			apex.Config.PrimeConfig.NetworkType,
-			apex.Config.VectorConfig.IsEnabled,
-			apex.Config.VectorConfig.NetworkType,
-			apex.Config.NexusConfig.IsEnabled,
-		)
+		unfundedUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
 		unfundedUserPk, err := unfundedUser.GetPrivateKey(cardanofw.ChainIDNexus)
@@ -1309,12 +1304,7 @@ func NexusToPrimeSubmitterNotEnoughFunds(
 	fee := cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDNexus, new(big.Int).SetUint64(uint64(1_100_000)))
 	sendAmountWei := ethgo.Ether(uint64(2))
 
-	unfundedUser, err := cardanofw.NewTestApexUser(
-		apex.Config.PrimeConfig.NetworkType,
-		apex.Config.VectorConfig.IsEnabled,
-		apex.Config.VectorConfig.NetworkType,
-		apex.Config.NexusConfig.IsEnabled,
-	)
+	unfundedUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 	require.NoError(t, err)
 
 	unfundedUserPk, err := unfundedUser.GetPrivateKey(cardanofw.ChainIDNexus)

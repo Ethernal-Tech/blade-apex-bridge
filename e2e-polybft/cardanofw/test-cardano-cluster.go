@@ -28,7 +28,7 @@ const hostIP = "127.0.0.1"
 type TestCardanoClusterConfig struct {
 	ID             int
 	NetworkType    wallet.CardanoNetworkType
-	ChainType      ChainType
+	ChainType      ChainID
 	SecurityParam  int
 	NodesCount     int
 	StartNodeID    int
@@ -115,7 +115,7 @@ func WithNetworkType(networkID wallet.CardanoNetworkType) CardanoClusterOption {
 	}
 }
 
-func WithChainType(chainType ChainType) CardanoClusterOption {
+func WithChainType(chainType ChainID) CardanoClusterOption {
 	return func(h *TestCardanoClusterConfig) {
 		h.ChainType = chainType
 	}
@@ -131,7 +131,7 @@ func WithInitialFunds(initialFundsKeys []string, initialFundsAmount uint64) Card
 func NewCardanoTestCluster(opts ...CardanoClusterOption) (cluster *TestCardanoCluster, err error) {
 	config := &TestCardanoClusterConfig{
 		NetworkType:    wallet.TestNetNetwork,
-		ChainType:      ChainType(ChainIDPrime),
+		ChainType:      ChainIDPrime,
 		SecurityParam:  10,
 		NodesCount:     3,
 		InitialSupply:  new(big.Int).SetUint64(11_111_111_112_000_000),
@@ -197,7 +197,7 @@ func (c *TestCardanoCluster) NewTestServer(id int, port int) error {
 		//StdOut:       c.Config.GetStdout(fmt.Sprintf("node-%d", id)),
 		ConfigFile:   c.Config.Dir("configuration.yaml"),
 		NodeDir:      c.Config.Dir(fmt.Sprintf("node-spo%d", id)),
-		NetworkMagic: GetNetworkMagic(c.Config.NetworkType, ChainID(c.Config.ChainType)),
+		NetworkMagic: GetNetworkMagic(c.Config.NetworkType, c.Config.ChainType),
 		NetworkID:    c.Config.NetworkType,
 	})
 	if err != nil {
@@ -453,7 +453,7 @@ func (c *TestCardanoCluster) InitGenesis(startTime int64, genesisDir string) err
 		return err
 	}
 
-	magic := GetNetworkMagic(c.Config.NetworkType, ChainID(c.Config.ChainType))
+	magic := GetNetworkMagic(c.Config.NetworkType, c.Config.ChainType)
 	args := []string{
 		"byron", "genesis", "genesis",
 		"--protocol-magic", strconv.FormatUint(uint64(magic), 10),
@@ -642,7 +642,7 @@ func (c *TestCardanoCluster) GenesisCreateStaked(startTime time.Time) error {
 		"--gen-pools", strconv.Itoa(c.Config.NodesCount),
 		"--gen-stake-delegs", strconv.Itoa(c.Config.NodesCount),
 		"--gen-utxo-keys", strconv.Itoa(c.Config.NodesCount),
-	}, GetTestNetMagicArgs(GetNetworkMagic(c.Config.NetworkType, ChainID(c.Config.ChainType)))...)
+	}, GetTestNetMagicArgs(GetNetworkMagic(c.Config.NetworkType, c.Config.ChainType))...)
 
 	err := RunCommand(ResolveCardanoCliBinary(c.Config.NetworkType), args, os.Stdout)
 	if strings.Contains(err.Error(), exprectedErr) {

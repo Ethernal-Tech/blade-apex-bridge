@@ -9,53 +9,65 @@ import (
 )
 
 type ApexPrivateKeys struct {
-	PrimePaymentSigningKeyCborHex  string `json:"primePaymentSKCborHex"`
-	PrimeStakeSigningKeyCborHex    string `json:"primeStakeSKCborHex"`
-	VectorPaymentSigningKeyCborHex string `json:"vectorPaymentSKCborHex"`
-	NexusPrivateKey                string `json:"nexusPK"`
+	PrimePaymentSigningKeyCborHex   string `json:"primePaymentSKCborHex"`
+	PrimeStakeSigningKeyCborHex     string `json:"primeStakeSKCborHex"`
+	VectorPaymentSigningKeyCborHex  string `json:"vectorPaymentSKCborHex"`
+	NexusPrivateKey                 string `json:"nexusPK"`
+	CardanoPaymentSigningKeyCborHex string `json:"cardanoPaymentSKCborHex"`
+	CardanoStakeSigningKeyCborHex   string `json:"cardanoStakeSKCborHex"`
 }
 
-func (keys *ApexPrivateKeys) Wallets() (
-	prime *wallet.Wallet, vector *wallet.Wallet,
-	nexus *crypto.ECDSAKey, err error,
-) {
-	prime, err = newCardanoWalletFromCborHex(
+func (keys *ApexPrivateKeys) Wallets() (*apexUserWallets, error) {
+	prime, err := newCardanoWalletFromCborHex(
 		keys.PrimePaymentSigningKeyCborHex, keys.PrimeStakeSigningKeyCborHex)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
+
+	var (
+		vector, cardano *wallet.Wallet
+		nexus           *crypto.ECDSAKey
+	)
 
 	if len(keys.VectorPaymentSigningKeyCborHex) > 0 {
 		vector, err = newCardanoWalletFromCborHex(keys.VectorPaymentSigningKeyCborHex, "")
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, err
 		}
 	}
 
 	if len(keys.NexusPrivateKey) > 0 {
 		nexus, err = newNexusWallet(keys.NexusPrivateKey)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, err
 		}
 	}
 
-	return prime, vector, nexus, nil
+	if len(keys.CardanoPaymentSigningKeyCborHex) > 0 {
+		cardano, err = newCardanoWalletFromCborHex(
+			keys.CardanoPaymentSigningKeyCborHex, keys.CardanoStakeSigningKeyCborHex)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &apexUserWallets{
+		Prime:   prime,
+		Vector:  vector,
+		Nexus:   nexus,
+		Cardano: cardano,
+	}, nil
 }
 
 func (keys *ApexPrivateKeys) User(
-	primeNetworkType wallet.CardanoNetworkType,
-	vectorNetworkType wallet.CardanoNetworkType,
+	networks *ApexNetworkTypes,
 ) (*TestApexUser, error) {
-	primeWallet, vectorWallet, nexusWallet, err := keys.Wallets()
+	wallets, err := keys.Wallets()
 	if err != nil {
 		return nil, err
 	}
 
-	return NewExistingTestApexUser(
-		primeWallet, vectorWallet, nexusWallet,
-		primeNetworkType,
-		vectorNetworkType,
-	)
+	return NewExistingTestApexUser(wallets, networks)
 }
 
 func newNexusWallet(privateKey string) (*crypto.ECDSAKey, error) {
