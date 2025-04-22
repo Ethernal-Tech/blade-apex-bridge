@@ -85,7 +85,7 @@ jobs:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       - name: Build apex-bridge
         run: |
-          go build
+          go build -tags testenv
           sudo mv apex-bridge /usr/local/bin/
       - name: Verify apex-bridge executable
         run: apex-bridge --help
