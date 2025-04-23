@@ -314,7 +314,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Submitted invalid metadata - wrong type", func(t *testing.T) {
-		excuteInvalidMetadataType(
+		executeInvalidMetadataType(
 			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, requestStateTimeoutSec)
 	})
 

@@ -60,7 +60,7 @@ func executeInvalidMismatchSendLovelaceAmount(
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, timeoutSec)
 }
 
-func excuteInvalidMetadataType(
+func executeInvalidMetadataType(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
 	srcChain, dstChain cardanofw.ChainID, bridgingFee, operationFee uint64, timeoutSec uint,
 ) {
