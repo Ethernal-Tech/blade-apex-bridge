@@ -496,7 +496,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 			txHash, err := apex.SubmitTx(
 				ctx, cardanofw.ChainIDPrime, apex.Users[i],
-				apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+				apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 			require.NoError(t, err)
 
 			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
@@ -533,7 +533,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 				txHashes[idx], err = apex.SubmitTx(
 					ctx, cardanofw.ChainIDPrime, testUser,
-					apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+					apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 				require.NoError(t, err)
 			}(i)
 		}
@@ -1496,7 +1496,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 					require.NoError(t, err)
 
 					_, err = apex.SubmitTx(ctx, cardanofw.ChainIDPrime, apex.Users[idx], apex.PrimeInfo.MultisigAddr,
-						new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+						new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 					require.NoError(t, err)
 				}
 			}(i)
@@ -1565,7 +1565,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 					require.NoError(t, err)
 
 					_, err = apex.SubmitTx(ctx, cardanofw.ChainIDPrime, apex.Users[idx], apex.PrimeInfo.MultisigAddr,
-						new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+						new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 					require.NoError(t, err)
 				}
 			}(i)
@@ -1641,7 +1641,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 					require.NoError(t, err)
 
 					_, err = apex.SubmitTx(ctx, cardanofw.ChainIDPrime, apex.Users[idx], apex.PrimeInfo.MultisigAddr,
-						new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+						new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 					require.NoError(t, err)
 				}
 			}(i)
@@ -1674,7 +1674,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 					require.NoError(t, err)
 
 					_, err = apex.SubmitTx(ctx, cardanofw.ChainIDVector, apex.Users[idx], apex.VectorInfo.MultisigAddr,
-						new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+						new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 					require.NoError(t, err)
 				}
 			}(i)
@@ -1942,7 +1942,7 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 
 	_, err = apex.SubmitTx(
 		ctx, cardanofw.ChainIDPrime, user,
-		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 	require.Error(t, err)
 }
 
@@ -1971,7 +1971,7 @@ func PrimeToVectorInvalidMetadataWrongType(
 
 	txHash, err := apex.SubmitTx(
 		ctx, cardanofw.ChainIDPrime, user,
-		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
+		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	_, err = cardanofw.WaitForRequestStates(ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, nil, requestStateTimeoutSec)
@@ -2004,7 +2004,7 @@ func PrimeToVectorInvalidMetadataInvalidDestination(
 		[]byte(fmt.Sprintf("\"%s\"", cardanofw.ChainIDVector)), []byte("\"hector\""), 1)
 
 	txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user,
-		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
+		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
@@ -2036,7 +2036,7 @@ func PrimeToVectorInvalidMetadataInvalidSender(
 		[]byte("[\"dummy\"]"), []byte("\"\""), 1)
 
 	txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr,
-		new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
+		new(big.Int).SetUint64(sendAmount+feeAmount), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
@@ -2058,7 +2058,7 @@ func PrimeToVectorInvalidMetadataInvalidTransactions(
 	require.NoError(t, err)
 
 	txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr,
-		new(big.Int).SetUint64(sendAmount), metadata)
+		new(big.Int).SetUint64(sendAmount), nil, metadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, 0)
@@ -2090,7 +2090,7 @@ func PrimeToVectorMismatchSubmittedAndReceiverAmounts(
 
 	txHash, err := apex.SubmitTx(
 		ctx, cardanofw.ChainIDPrime, user,
-		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)

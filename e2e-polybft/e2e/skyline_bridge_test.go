@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"math/big"
@@ -567,7 +566,7 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
 
 	t.Run("1. Mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeSkylineMismatchedAndReceivedAmounts(
+		executeInvalidMismatchSendLovelaceAmount(
 			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, 0)
 	})
 
@@ -594,7 +593,7 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 
 			txHash, err := apex.SubmitTx(
 				ctx, cardanofw.ChainIDPrime, apex.Users[i],
-				apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), metadata)
+				apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 			require.NoError(t, err)
 
 			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
@@ -635,7 +634,7 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 
 				txHashes[idx], err = apex.SubmitTx(
 					ctx, cardanofw.ChainIDPrime, testUser,
-					apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), metadata)
+					apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 				require.NoError(t, err)
 			}(i)
 		}
@@ -672,7 +671,7 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 
 		_, err = apex.SubmitTx(
 			ctx, cardanofw.ChainIDPrime, user,
-			apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), metadata)
+			apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 		require.Error(t, err)
 	})
 
@@ -681,7 +680,7 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("6. Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestionation(t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, 0)
+		executeInvalidDestination(t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, 0)
 	})
 
 	t.Run("7. Submitted invalid metadata - invalid sender", func(t *testing.T) {
@@ -692,50 +691,8 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 		executeInvalidBridgingFee(t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, 0)
 	})
 
-	t.Run("9. Submitted invalid metadata - invalid receiver address - token on source", func(t *testing.T) {
-		sendAmount := uint64(1_000_000)
-
-		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
-		require.NoError(t, err)
-
-		brSubmitterWallet, _ := brSubmitterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
-
-		minterWallet := apex.PrimeInfo.GenesisWallet
-
-		tokensFunded, err := cardanofw.FundUserWithToken(
-			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			minterWallet, brSubmitterUser, uint64(10_000_000), uint64(1_000_000))
-		require.NoError(t, err)
-
-		receivers := []sendtx.BridgingTxReceiver{
-			{
-				Addr:         user.GetAddress(cardanofw.ChainIDCardano),
-				Amount:       sendAmount,
-				BridgingType: sendtx.BridgingTypeNativeTokenOnSource,
-			},
-			{
-				Addr:         apex.CardanoInfo.FeeAddr,
-				Amount:       bridgingFee,
-				BridgingType: sendtx.BridgingTypeNativeTokenOnSource,
-			},
-		}
-
-		feeAmount, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingFee(
-			ctx, cardanofw.ChainIDCardano, receivers, bridgingFee, operationFee)
-		require.NoError(t, err)
-
-		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-			"dummy", cardanofw.ChainIDCardano,
-			receivers, feeAmount, operationFee)
-		require.NoError(t, err)
-
-		txHash, err := cardanofw.SendTxWithTokens(ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			brSubmitterWallet, apex.PrimeInfo.MultisigAddr,
-			feeAmount+operationFee, []wallet.TokenAmount{*tokensFunded}, metadata,
-		)
-		require.NoError(t, err)
-
-		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, 0)
+	t.Run("9. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
+		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, 0)
 	})
 
 	t.Run("10. Submitted invalid metadata - empty receivers", func(t *testing.T) {
@@ -743,91 +700,33 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, 0)
 	})
 
-	t.Run("11. Submitted with tokens to bridging addr", func(t *testing.T) {
-		sendAmount := uint64(5_000_000)
-
-		minterUser := apex.Users[userCnt-1]
-
-		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
-		require.NoError(t, err)
-
-		minterWallet, _ := minterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
+	t.Run("11. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
+		sendAmount := uint64(1_500_000)
+		user := apex.Users[userCnt-1]
+		minterWallet, _ := user.GetCardanoWallet(cardanofw.ChainIDPrime)
 
 		tokensFunded, err := cardanofw.FundUserWithToken(
 			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			minterWallet, brSubmitterUser, uint64(10_000_000), uint64(1_000_000))
+			minterWallet, user, uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		receivers := []sendtx.BridgingTxReceiver{
-			{
-				Addr:         user.GetAddress(cardanofw.ChainIDCardano),
-				Amount:       sendAmount,
-				BridgingType: sendtx.BridgingTypeCurrencyOnSource,
-			},
-		}
-
-		feeAmount, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingFee(
-			ctx, cardanofw.ChainIDCardano, receivers, bridgingFee, operationFee)
-		require.NoError(t, err)
-
-		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDCardano,
-			receivers, feeAmount, operationFee)
-		require.NoError(t, err)
-
-		brSubmitterWallet, _ := brSubmitterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
-
-		txHash, err := cardanofw.SendTxWithTokens(ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			brSubmitterWallet, apex.PrimeInfo.MultisigAddr,
-			sendAmount+feeAmount+operationFee, []wallet.TokenAmount{*tokensFunded}, metadata,
-		)
-		require.NoError(t, err)
-
-		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
+		executeInvalidSendUnknownToken(
+			t, ctx, apex, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+			bridgingFee, operationFee, sendAmount, *tokensFunded, 0)
 	})
 
 	t.Run("12. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
-		sendAmount := uint64(1_123_000)
-
-		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
+		user, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
-
-		brSubmitterWallet, _ := brSubmitterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
-
-		minterWallet := apex.PrimeInfo.GenesisWallet
 
 		tokensFunded, err := cardanofw.FundUserWithToken(
 			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			minterWallet, brSubmitterUser, uint64(10_000_000), sendAmount)
+			apex.PrimeInfo.GenesisWallet, user, uint64(10_000_000), uint64(1_123_000))
 		require.NoError(t, err)
 
-		receivers := []sendtx.BridgingTxReceiver{
-			{
-				Addr:         user.GetAddress(cardanofw.ChainIDCardano),
-				Amount:       sendAmount,
-				BridgingType: sendtx.BridgingTypeNativeTokenOnSource,
-			},
-		}
-
-		feeAmount, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingFee(
-			ctx, cardanofw.ChainIDCardano, receivers, bridgingFee, operationFee)
-		require.NoError(t, err)
-
-		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-			"dummy", cardanofw.ChainIDCardano,
-			receivers, feeAmount, operationFee)
-		require.NoError(t, err)
-
-		bridgingRequestMetadata := bytes.Replace(metadata,
-			[]byte("1123000"), []byte("1000000"), 1)
-
-		txHash, err := cardanofw.SendTxWithTokens(ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			brSubmitterWallet, apex.PrimeInfo.MultisigAddr,
-			feeAmount+operationFee, []wallet.TokenAmount{*tokensFunded}, bridgingRequestMetadata,
-		)
-		require.NoError(t, err)
-
-		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, 0)
+		executeInvalidMismatchSendNativeTokenAmount(
+			t, ctx, apex, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+			bridgingFee, operationFee, *tokensFunded, 0)
 	})
 }
 

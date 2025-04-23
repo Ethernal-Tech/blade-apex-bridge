@@ -250,7 +250,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = apex.SubmitTx(
-			ctx, cardanofw.ChainIDNexus, nexusAdminUser, unfundedUser.NexusAddress.String(), big.NewInt(10), nil)
+			ctx, cardanofw.ChainIDNexus, nexusAdminUser, unfundedUser.NexusAddress.String(), big.NewInt(10), nil, nil)
 		require.NoError(t, err)
 
 		sendAmountWei := ethgo.Ether(uint64(20)) // try to send 20 ethers with users without enough funds
@@ -636,7 +636,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 					require.NoError(t, err)
 
 					txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, apex.Users[idx], apex.PrimeInfo.MultisigAddr,
-						new(big.Int).SetUint64(sendAmountDfm.Uint64()+feeAmount), metadata)
+						new(big.Int).SetUint64(sendAmountDfm.Uint64()+feeAmount), nil, metadata)
 
 					require.NoError(t, err)
 
@@ -712,7 +712,7 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 					require.NoError(t, err)
 
 					txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, apex.Users[idx], apex.PrimeInfo.MultisigAddr,
-						new(big.Int).SetUint64(sendAmountDfm.Uint64()+feeAmount), metadata)
+						new(big.Int).SetUint64(sendAmountDfm.Uint64()+feeAmount), nil, metadata)
 
 					require.NoError(t, err)
 
@@ -1393,7 +1393,7 @@ func PrimeToNexusSubmitterNotEnoughFunds(
 	require.NoError(t, err)
 
 	_, err = apex.SubmitTx(
-		ctx, srcChain, user, receiverAddr, sendAmountDfm, metadata)
+		ctx, srcChain, user, receiverAddr, sendAmountDfm, nil, metadata)
 
 	require.Error(t, err)
 	require.ErrorContains(t, err, "couldn't select UTXOs")
@@ -1427,7 +1427,7 @@ func PrimeToNexusInvalidMetadataSlicedOff(
 	metadata = metadata[0 : len(metadata)/2]
 
 	_, err = apex.SubmitTx(
-		ctx, srcChain, user, receiverAddr, sendAmountDfm, metadata)
+		ctx, srcChain, user, receiverAddr, sendAmountDfm, nil, metadata)
 	require.Error(t, err)
 }
 
@@ -1458,7 +1458,7 @@ func PrimeToNexusInvalidMetadataWrongType(
 
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
-		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), bridgingRequestMetadata)
+		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	_, err = cardanofw.WaitForRequestStates(ctx, apex, srcChain, txHash, apex.Config.APIKey, nil, requestStateTimeoutSec)
@@ -1494,7 +1494,7 @@ func PrimeToNexusInvalidMetadataInvalidDestination(
 
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
-		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), bridgingRequestMetadata)
+		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
@@ -1529,7 +1529,7 @@ func PrimeToNexusInvalidMetadataInvalidSender(
 
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
-		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), bridgingRequestMetadata)
+		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
@@ -1556,7 +1556,7 @@ func PrimeToNexusInvalidMetadataInvalidTransactions(
 
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
-		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), metadata)
+		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), nil, metadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)

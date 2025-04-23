@@ -289,7 +289,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 	if totalAmount := ec.config.FundFeeAmount; totalAmount != 0 {
 		for _, amount := range SplitAmountNTimes(new(big.Int).SetUint64(totalAmount), ec.config.FundFeeUTxOCount) {
-			txHash, err := ec.SendTx(ctx, privateKey, ec.multisigFeeAddr, amount, nil)
+			txHash, err := ec.SendTx(ctx, privateKey, ec.multisigFeeAddr, amount, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -498,6 +498,7 @@ func (ec *TestCardanoChain) SendTx(
 	privateKey string,
 	receiverAddr string,
 	amount *big.Int,
+	nativeTokenAmount *infrawallet.TokenAmount,
 	metadata []byte,
 ) (string, error) {
 	paymentKey, stakeKey, err := FromCardanoPrivateKeyString(privateKey)
@@ -519,7 +520,7 @@ func (ec *TestCardanoChain) SendTx(
 		receiverAddr,
 		metadata,
 		amount.Uint64(),
-		nil,
+		nativeTokenAmount,
 	)
 	if err != nil {
 		return "", err

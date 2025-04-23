@@ -309,7 +309,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	)
 
 	t.Run("Mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeSkylineMismatchedAndReceivedAmounts(
+		executeInvalidMismatchSendLovelaceAmount(
 			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, requestStateTimeoutSec)
 	})
 
@@ -334,8 +334,55 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestionation(
+		executeInvalidDestination(
 			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, requestStateTimeoutSec)
+	})
+
+	t.Run("Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
+		executeInvalidFeeReceiverAddr(
+			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, requestStateTimeoutSec)
+	})
+
+	t.Run("Submitted with unknown tokens to bridging addr", func(t *testing.T) {
+		srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDCardano
+		sendAmount := uint64(1_500_000)
+		user := apex.Users[len(apex.Users)-1]
+
+		srcInfo := apex.GetCardanoInfo(srcChain)
+		txProviderSrc, err := srcInfo.GetTxProvider()
+		require.NoError(t, err)
+
+		networkTypeSrc := apex.Config.PrimeConfig.NetworkType
+		if srcChain == cardanofw.ChainIDCardano {
+			networkTypeSrc = apex.Config.CardanoConfig.NetworkType
+		}
+
+		minterWallet, _ := user.GetCardanoWallet(srcChain)
+
+		tokensFunded, err := cardanofw.FundUserWithToken(
+			ctx, srcChain, networkTypeSrc, txProviderSrc,
+			minterWallet, user, uint64(1_500_000), uint64(1_000_000))
+		require.NoError(t, err)
+
+		executeInvalidSendUnknownToken(
+			t, ctx, apex, user, srcChain, dstChain,
+			bridgingFee, operationFee, sendAmount, *tokensFunded, requestStateTimeoutSec)
+	})
+
+	t.Run("Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
+		srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDCardano
+
+		token, err := cardanowallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(srcChain, dstChain))
+		require.NoError(t, err)
+
+		tokenAmount := &cardanowallet.TokenAmount{
+			Amount: 1_123_000,
+			Token:  token,
+		}
+
+		executeInvalidMismatchSendNativeTokenAmount(
+			t, ctx, apex, apex.Users[len(apex.Users)-1], srcChain, dstChain,
+			bridgingFee, operationFee, *tokenAmount, requestStateTimeoutSec)
 	})
 }
 

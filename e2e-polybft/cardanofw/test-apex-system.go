@@ -389,7 +389,7 @@ func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, dfm
 	}
 
 	_, err = chain.SendTx(
-		ctx, pk, chain.GetHotWalletAddress(), DfmToChainNativeTokenAmount(chainID, dfmAmount), nil)
+		ctx, pk, chain.GetHotWalletAddress(), DfmToChainNativeTokenAmount(chainID, dfmAmount), nil, nil)
 
 	return err
 }
@@ -755,7 +755,7 @@ func (a *ApexSystem) DefundHotWallet(
 
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
-	receiverAddr string, dfmAmount *big.Int, data []byte,
+	receiverAddr string, lovelaceDfmAmount *big.Int, nativeTokenAmount *cardanowallet.TokenAmount, data []byte,
 ) (string, error) {
 	privateKey, err := sender.GetPrivateKey(sourceChain)
 	if err != nil {
@@ -769,7 +769,7 @@ func (a *ApexSystem) SubmitTx(
 
 	return chain.SendTx(
 		ctx, privateKey, receiverAddr,
-		DfmToChainNativeTokenAmount(sourceChain, dfmAmount), data)
+		DfmToChainNativeTokenAmount(sourceChain, lovelaceDfmAmount), nativeTokenAmount, data)
 }
 
 func (a *ApexSystem) SubmitBridgingRequest(

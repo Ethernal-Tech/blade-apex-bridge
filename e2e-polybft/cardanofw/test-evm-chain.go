@@ -396,7 +396,8 @@ func (ec *TestEVMChain) BridgingRequest(
 }
 
 func (ec *TestEVMChain) SendTx(
-	ctx context.Context, privateKey string, receiver string, amount *big.Int, data []byte,
+	ctx context.Context, privateKey string, receiver string,
+	amount *big.Int, _nativeTokenAmount *cardanowallet.TokenAmount, data []byte,
 ) (string, error) {
 	rec, err := ec.sendTx(privateKey, receiver, amount, data)
 	if err != nil {
