@@ -323,8 +323,8 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, requestStateTimeoutSec)
 	})
 
-	t.Run("Submitted invalid metadata - invalid operationFee", func(t *testing.T) {
-		executeInvalidOperationFee(
+	t.Run("Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
+		executeInvalidBridgingFee(
 			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, requestStateTimeoutSec)
 	})
 

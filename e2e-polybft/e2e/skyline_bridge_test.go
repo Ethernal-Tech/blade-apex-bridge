@@ -688,8 +688,8 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 		executeInvalidMetadataSender(t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, 0)
 	})
 
-	t.Run("8. Submitted invalid metadata - invalid operationFee", func(t *testing.T) {
-		executeInvalidOperationFee(t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, 0)
+	t.Run("8. Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
+		executeInvalidBridgingFee(t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, 0)
 	})
 
 	t.Run("9. Submitted invalid metadata - invalid receiver address - token on source", func(t *testing.T) {
