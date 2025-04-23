@@ -649,7 +649,7 @@ func (a *ApexSystem) GetBalance(
 }
 
 func (a *ApexSystem) GetTokenNameForChains(chainID, dstChainID ChainID) string {
-	for _, token := range a.getCardanoInfo(chainID).NativeTokens {
+	for _, token := range a.GetCardanoInfo(chainID).NativeTokens {
 		if token.DstChainID == dstChainID {
 			return token.TokenName
 		}
@@ -907,7 +907,7 @@ func (a *ApexSystem) getChain(chainID string) (ITestApexChain, error) {
 	return nil, fmt.Errorf("unknown chain: %s", chainID)
 }
 
-func (a *ApexSystem) getCardanoInfo(chainID string) CardanoChainInfo {
+func (a *ApexSystem) GetCardanoInfo(chainID string) CardanoChainInfo {
 	switch chainID {
 	case ChainIDPrime:
 		return a.PrimeInfo
