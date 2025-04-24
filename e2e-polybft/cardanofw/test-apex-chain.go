@@ -34,7 +34,7 @@ type ITestApexChain interface {
 	) (string, error)
 	SendTx(
 		ctx context.Context, privateKey string, receiver string,
-		amount *big.Int, nativeTokenAmount *infrawallet.TokenAmount, data []byte,
+		amount *big.Int, nativeTokenAmounts []infrawallet.TokenAmount, data []byte,
 	) (string, error)
 	GetHotWalletAddress() string
 	GetAdminPrivateKey() (string, error)
@@ -124,7 +124,7 @@ func (*TestApexChainDummy) RunChain(t *testing.T) error {
 
 func (t *TestApexChainDummy) SendTx(
 	ctx context.Context, privateKey string, receiver string,
-	amount *big.Int, nativeTokenAmount *infrawallet.TokenAmount, data []byte,
+	amount *big.Int, nativeTokenAmounts []infrawallet.TokenAmount, data []byte,
 ) (string, error) {
 	return "", nil
 }

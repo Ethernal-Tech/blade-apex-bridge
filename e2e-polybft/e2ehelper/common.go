@@ -29,7 +29,7 @@ type IApexSystem interface {
 	) error
 	SubmitTx(
 		ctx context.Context, sourceChain cardanofw.ChainID, sender *cardanofw.TestApexUser,
-		receiver string, dfmAmount *big.Int, nativeTokenAmount *cardanowallet.TokenAmount, data []byte,
+		receiver string, dfmAmount *big.Int, nativeTokenAmounts []cardanowallet.TokenAmount, data []byte,
 	) (string, error)
 	GetBalance(
 		ctx context.Context, user *cardanofw.TestApexUser, chainID cardanofw.ChainID,

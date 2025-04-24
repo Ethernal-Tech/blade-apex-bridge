@@ -224,7 +224,7 @@ func executeInvalidMismatchSendNativeTokenAmount(
 
 	txHash, err := apex.SubmitTx(ctx, srcChain,
 		user, apex.GetCardanoInfo(srcChain).MultisigAddr,
-		new(big.Int).SetUint64(feeAmount+operationFee), &nativeTokenAmount, bridgingRequestMetadata,
+		new(big.Int).SetUint64(feeAmount+operationFee), []wallet.TokenAmount{nativeTokenAmount}, bridgingRequestMetadata,
 	)
 	require.NoError(t, err)
 
@@ -251,7 +251,7 @@ func executeInvalidSendUnknownToken(
 
 	txHash, err := apex.SubmitTx(ctx, srcChain,
 		user, apex.GetCardanoInfo(srcChain).MultisigAddr,
-		new(big.Int).SetUint64(lovelaceAmount+feeAmount+operationFee), &nativeTokenAmount, metadata)
+		new(big.Int).SetUint64(lovelaceAmount+feeAmount+operationFee), []wallet.TokenAmount{nativeTokenAmount}, metadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, timeoutSec)

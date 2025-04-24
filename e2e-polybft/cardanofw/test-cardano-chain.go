@@ -311,8 +311,10 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 		for _, amounts := range SplitAmountsNTimes(tokenAmounts, ec.config.FundUTxOCount) {
 			token, err := FundAddressWithToken(
-				ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.ogmiosURL),
-				minterWallet, ec.GetHotWalletAddress(), amounts[0].Uint64(), amounts[1].Uint64())
+				ctx, ec,
+				minterWallet, ec.GetHotWalletAddress(),
+				DefaultTokenName, DefaultTokenMintAmount,
+				amounts[0].Uint64(), amounts[1].Uint64())
 			if err != nil {
 				return err
 			}
@@ -498,7 +500,7 @@ func (ec *TestCardanoChain) SendTx(
 	privateKey string,
 	receiverAddr string,
 	amount *big.Int,
-	nativeTokenAmount *infrawallet.TokenAmount,
+	nativeTokenAmounts []infrawallet.TokenAmount,
 	metadata []byte,
 ) (string, error) {
 	paymentKey, stakeKey, err := FromCardanoPrivateKeyString(privateKey)
@@ -520,7 +522,7 @@ func (ec *TestCardanoChain) SendTx(
 		receiverAddr,
 		metadata,
 		amount.Uint64(),
-		nativeTokenAmount,
+		nativeTokenAmounts,
 	)
 	if err != nil {
 		return "", err

@@ -287,12 +287,12 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 
 		tokenPrime, _, err := GetTokenAndPolicyForVerificationKey(
 			a.Config.PrimeConfig.ChainType, a.Config.PrimeConfig.NetworkType,
-			a.PrimeInfo.GenesisWallet.VerificationKey, defaultTokenName)
+			a.PrimeInfo.GenesisWallet.VerificationKey, DefaultTokenName)
 		require.NoError(t, err)
 
 		tokenCardano, _, err := GetTokenAndPolicyForVerificationKey(
 			a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
-			a.CardanoInfo.GenesisWallet.VerificationKey, defaultTokenName)
+			a.CardanoInfo.GenesisWallet.VerificationKey, DefaultTokenName)
 		require.NoError(t, err)
 
 		a.PrimeInfo.NativeTokens = []sendtx.TokenExchangeConfig{
@@ -755,7 +755,7 @@ func (a *ApexSystem) DefundHotWallet(
 
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
-	receiverAddr string, lovelaceDfmAmount *big.Int, nativeTokenAmount *cardanowallet.TokenAmount, data []byte,
+	receiverAddr string, lovelaceDfmAmount *big.Int, nativeTokenAmounts []cardanowallet.TokenAmount, data []byte,
 ) (string, error) {
 	privateKey, err := sender.GetPrivateKey(sourceChain)
 	if err != nil {
@@ -769,7 +769,7 @@ func (a *ApexSystem) SubmitTx(
 
 	return chain.SendTx(
 		ctx, privateKey, receiverAddr,
-		DfmToChainNativeTokenAmount(sourceChain, lovelaceDfmAmount), nativeTokenAmount, data)
+		DfmToChainNativeTokenAmount(sourceChain, lovelaceDfmAmount), nativeTokenAmounts, data)
 }
 
 func (a *ApexSystem) SubmitBridgingRequest(

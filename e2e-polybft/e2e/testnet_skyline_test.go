@@ -49,25 +49,15 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 		go func(chain string) {
 			defer wg.Done()
 
-			funderWallet, _ := apex.FunderUser.GetCardanoWallet(chain)
-
 			tokens := cardanofw.GetAllTokensForChainWithAmounts(t, apex, chain, skylineChains, tokensToFund)
-
-			info, networkType := apex.PrimeInfo, apex.Config.PrimeConfig.NetworkType
-			if chain == cardanofw.ChainIDCardano {
-				info, networkType = apex.CardanoInfo, apex.Config.CardanoConfig.NetworkType
-			}
-
-			txProvider, err := info.GetTxProvider()
-			require.NoError(t, err)
 
 			for _, user := range apex.Users {
 				receiverAddr := user.GetAddress(chain)
 
 				fmt.Printf("Funding %s address: %s\n", chain, receiverAddr)
 
-				_, err := cardanofw.SendTxWithTokens(
-					ctx, chain, networkType, txProvider, funderWallet, receiverAddr, tokensToFund, tokens, nil)
+				_, err := apex.SubmitTx(ctx, chain, apex.FunderUser, receiverAddr,
+					tokensToFundBigInt, tokens, nil)
 				if err != nil {
 					mu.Lock()
 					addrErrs = append(addrErrs, fmt.Errorf("error while funding %s addr %s: %w", chain, receiverAddr, err))
@@ -127,7 +117,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, user := range apex.Users {
-			senderWallet, senderAddr := user.GetCardanoWallet(chain)
+			_, senderAddr := user.GetCardanoWallet(chain)
 
 			balanceBigInt, exists := balances[senderAddr.String()]
 			if !exists {
@@ -166,9 +156,9 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 
 				fmt.Printf("Defunding %s address: %s\n", chain, senderAddr)
 
-				_, err := cardanofw.SendTxWithTokens(
-					ctx, chain, networkType, txProvider, senderWallet, funderReceiverAddr,
-					refundAmountLovelace, tokens, nil)
+				_, err := apex.SubmitTx(ctx, chain, user, funderReceiverAddr,
+					new(big.Int).SetUint64(refundAmountLovelace), tokens, nil)
+
 				if err != nil {
 					mu.Lock()
 					addrErrs = append(addrErrs, fmt.Errorf("error while defunding addr %s: %w", senderAddr, err))
@@ -348,20 +338,13 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 		sendAmount := uint64(1_500_000)
 		user := apex.Users[len(apex.Users)-1]
 
-		srcInfo := apex.GetCardanoInfo(srcChain)
-		txProviderSrc, err := srcInfo.GetTxProvider()
-		require.NoError(t, err)
-
-		networkTypeSrc := apex.Config.PrimeConfig.NetworkType
-		if srcChain == cardanofw.ChainIDCardano {
-			networkTypeSrc = apex.Config.CardanoConfig.NetworkType
-		}
-
 		minterWallet, _ := user.GetCardanoWallet(srcChain)
 
 		tokensFunded, err := cardanofw.FundUserWithToken(
-			ctx, srcChain, networkTypeSrc, txProviderSrc,
-			minterWallet, user, uint64(1_500_000), uint64(1_000_000))
+			ctx, apex, srcChain,
+			minterWallet, user,
+			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
 		executeInvalidSendUnknownToken(
