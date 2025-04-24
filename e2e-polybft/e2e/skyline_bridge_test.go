@@ -135,9 +135,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	fmt.Println("cardano fee addr: ", apex.CardanoInfo.FeeAddr)
 	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
 
-	transactionTypes := map[sendtx.BridgingType]string{
-		sendtx.BridgingTypeCurrencyOnSource:    "BridgingTypeCurrencyOnSource",
-		sendtx.BridgingTypeNativeTokenOnSource: "BridgingTypeNativeTokenOnSource",
+	transactionTypes := []sendtx.BridgingType{
+		sendtx.BridgingTypeCurrencyOnSource, sendtx.BridgingTypeNativeTokenOnSource,
 	}
 	testConfigPrime := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano)
 	testConfigCardano := newTestConfig(t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime)
@@ -215,8 +214,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	})
 
 	for idx, cfg := range testConfigs {
-		for txType, txTypeString := range transactionTypes {
-			t.Run(fmt.Sprintf("1.%d %s -> %s - Submitter has tokens - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
+		for _, txType := range transactionTypes {
+			t.Run(fmt.Sprintf("1.%d %s -> %s - Submitter has tokens - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txType), func(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
@@ -251,8 +250,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	}
 
 	for idx, cfg := range testConfigs {
-		for txType, txTypeString := range transactionTypes {
-			t.Run(fmt.Sprintf("2.%d %s -> %s - wait for each submit - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
+		for _, txType := range transactionTypes {
+			t.Run(fmt.Sprintf("2.%d %s -> %s - wait for each submit - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txType), func(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
@@ -280,8 +279,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	}
 
 	for idx, cfg := range testConfigs {
-		for txType, txTypeString := range transactionTypes {
-			t.Run(fmt.Sprintf("3.%d %s -> %s - one by one - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
+		for _, txType := range transactionTypes {
+			t.Run(fmt.Sprintf("3.%d %s -> %s - one by one - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txType), func(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
@@ -309,8 +308,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	}
 
 	for idx, cfg := range testConfigs {
-		for txType, txTypeString := range transactionTypes {
-			t.Run(fmt.Sprintf("4.%d %s -> %s - parallel - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
+		for _, txType := range transactionTypes {
+			t.Run(fmt.Sprintf("4.%d %s -> %s - parallel - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txType), func(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
@@ -342,8 +341,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	}
 
 	for idx, cfg := range testConfigs {
-		for txType, txTypeString := range transactionTypes {
-			t.Run(fmt.Sprintf("5.%d %s -> %s - sequential and parallel - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
+		for _, txType := range transactionTypes {
+			t.Run(fmt.Sprintf("5.%d %s -> %s - sequential and parallel - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txType), func(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
@@ -381,8 +380,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 	idx := 1
 
-	for txType, txTypeString := range transactionTypes {
-		t.Run(fmt.Sprintf("6.%d Both directions sequential - %s", idx, txTypeString), func(t *testing.T) {
+	for _, txType := range transactionTypes {
+		t.Run(fmt.Sprintf("6.%d Both directions sequential - %s", idx, txType), func(t *testing.T) {
 			if cardanofw.ShouldSkipE2RRedundantTests() {
 				t.Skip()
 			}
@@ -421,8 +420,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 	idx = 1
 
-	for txType, txTypeString := range transactionTypes {
-		t.Run(fmt.Sprintf("7.%d Both directions sequential and parallel - %s", idx, txTypeString), func(t *testing.T) {
+	for _, txType := range transactionTypes {
+		t.Run(fmt.Sprintf("7.%d Both directions sequential and parallel - %s", idx, txType), func(t *testing.T) {
 			const (
 				sendAmount          = uint64(1_000_000)
 				sequentialInstances = 5
@@ -457,9 +456,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 	idx = 1
 
-	for txType, txTypeString := range transactionTypes {
+	for _, txType := range transactionTypes {
 		t.Run(fmt.Sprintf("8.%d Both directions sequential and parallel - one node goes off in the middle - %s",
-			idx, txTypeString), func(t *testing.T) {
+			idx, txType), func(t *testing.T) {
 			const (
 				sendAmount           = uint64(1_000_000)
 				sequentialInstances  = 5
@@ -499,9 +498,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 	idx = 1
 
-	for txType, txTypeString := range transactionTypes {
+	for _, txType := range transactionTypes {
 		t.Run(fmt.Sprintf("9.%d Both directions sequential and parallel - one node goes off in the middle - %s",
-			idx, txTypeString), func(t *testing.T) {
+			idx, txType), func(t *testing.T) {
 			const (
 				sequentialInstances   = 5
 				parallelInstances     = 10

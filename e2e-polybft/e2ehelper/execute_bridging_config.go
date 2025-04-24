@@ -78,7 +78,7 @@ type RestartValidatorsConfig struct {
 }
 
 type SendTxStrategyFn func(
-	t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
+	t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
 	bridgingType sendtx.BridgingType)
 
@@ -135,7 +135,7 @@ func WithTimeoutConfig(tc TimeoutConfig) ExecuteBridgingOption {
 
 var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
-		t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
+		t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
 		bridgingType sendtx.BridgingType) {
 		t.Helper()
@@ -143,21 +143,23 @@ var (
 		var wg sync.WaitGroup
 
 		for i, sender := range senders {
-			for _, chainPair := range chains {
+			for srcChain, dstChains := range chainsDst {
 				wg.Add(1)
 
-				go func(idx int, senderUser *cardanofw.TestApexUser, chainPair srcDstChainPair) {
+				go func(idx int, senderUser *cardanofw.TestApexUser, srcChain string, dstChains []string) {
 					defer wg.Done()
 
 					for j := 0; j < txCountPerSender; j++ {
-						txHash := apex.SubmitBridgingRequest(
-							t, ctx, chainPair.srcChain, chainPair.dstChain, senderUser, sendAmountDfm,
-							bridgingType, receivers...)
+						for _, dstChain := range dstChains {
+							txHash := apex.SubmitBridgingRequest(
+								t, ctx, srcChain, dstChain, senderUser, sendAmountDfm,
+								bridgingType, receivers...)
 
-						fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
-							idx+1, j+1, chainPair.srcChain, chainPair.dstChain, txHash)
+							fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
+								idx+1, j+1, srcChain, dstChain, txHash)
+						}
 					}
-				}(i, sender, chainPair)
+				}(i, sender, srcChain, dstChains)
 			}
 		}
 

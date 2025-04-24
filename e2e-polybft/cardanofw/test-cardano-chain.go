@@ -466,12 +466,12 @@ func (ec *TestCardanoChain) BridgingRequest(
 
 	receivers := make([]sendtx.BridgingTxReceiver, 0, len(receiversMap))
 
-	for receiverAddress, receiverAmount := range receiversMap {
-		bridgingType := sendtx.BridgingTypeNormal
-		if idx := len(receivers); idx < len(bridgingTypes) {
-			bridgingType = bridgingTypes[idx]
-		}
+	bridgingType := sendtx.BridgingTypeNormal
+	if len(bridgingTypes) > 0 {
+		bridgingType = bridgingTypes[0]
+	}
 
+	for receiverAddress, receiverAmount := range receiversMap {
 		receivers = append(receivers, sendtx.BridgingTxReceiver{
 			Addr:         receiverAddress,
 			Amount:       DfmToChainNativeTokenAmount(srcChainID, receiverAmount).Uint64(),

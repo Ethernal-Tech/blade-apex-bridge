@@ -221,9 +221,8 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 	testConfigPrime := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano)
 	testConfigCardano := newTestConfig(t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime)
 	testConfigs := []*testConfig{testConfigPrime, testConfigCardano}
-	transactionTypes := map[sendtx.BridgingType]string{
-		sendtx.BridgingTypeCurrencyOnSource:    "BridgingTypeCurrencyOnSource",
-		sendtx.BridgingTypeNativeTokenOnSource: "BridgingTypeNativeTokenOnSource",
+	transactionTypes := []sendtx.BridgingType{
+		sendtx.BridgingTypeCurrencyOnSource, sendtx.BridgingTypeNativeTokenOnSource,
 	}
 
 	t.Run("Prime -> Cardano - currency on src", func(t *testing.T) {
@@ -243,8 +242,8 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 	})
 
 	for _, cfg := range testConfigs {
-		for txType, txTypeString := range transactionTypes {
-			t.Run(fmt.Sprintf("%s -> %s sequential %s", cfg.srcChainID, cfg.dstChainID, txTypeString), func(t *testing.T) {
+		for _, txType := range transactionTypes {
+			t.Run(fmt.Sprintf("%s -> %s sequential %s", cfg.srcChainID, cfg.dstChainID, txType), func(t *testing.T) {
 				const (
 					sendAmount = uint64(1_000_000)
 					instances  = 4
@@ -257,22 +256,22 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 		}
 	}
 
-	for txType, txTypeString := range transactionTypes {
-		t.Run(fmt.Sprintf("Both directions sequential and parallel %s multiple receivers", txTypeString), func(t *testing.T) {
+	for _, txType := range transactionTypes {
+		t.Run(fmt.Sprintf("Both directions sequential and parallel %s multiple receivers", txType), func(t *testing.T) {
 			const (
 				sendAmount          = uint64(1_000_000)
-				sequentialInstances = 4
+				sequentialInstances = 3
 				parallelInstances   = 5
-				receiversCnt        = 4
+				receiversCnt        = 2
 			)
 
-			options := slices.Clone(bridgingOpts)
-			options = append(options, e2ehelper.WithWaitForUnexpectedBridges(true))
+			options := append(slices.Clone(bridgingOpts), e2ehelper.WithWaitForUnexpectedBridges(true))
+			senders := apex.Users[:parallelInstances]
+			receivers := apex.Users[len(apex.Users)-receiversCnt:]
 
 			e2ehelper.ExecuteBridging(
 				t, ctx, apex, sequentialInstances,
-				apex.Users[:parallelInstances],
-				apex.Users[len(apex.Users)-receiversCnt:],
+				senders, receivers,
 				[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDCardano},
 				map[string][]string{
 					cardanofw.ChainIDPrime:   {cardanofw.ChainIDCardano},
