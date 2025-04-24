@@ -14,8 +14,10 @@ import (
 )
 
 type TimeoutConfig struct {
-	bridgingRetryWaitTime time.Duration
-	bridgingNumRetries    int
+	bridgingRetryWaitTime          time.Duration
+	bridgingNumRetries             int
+	unexpectedBridgesRetryWaitTime time.Duration
+	unexpectedBridgesNumRetries    int
 }
 
 type TimeoutOption func(*TimeoutConfig)
@@ -32,10 +34,24 @@ func WithBridgingNumRetries(retries int) TimeoutOption {
 	}
 }
 
+func WithUnexpectedBridgesRetryWaitTime(unexpectedBridgesRetryWaitTime time.Duration) TimeoutOption {
+	return func(cfg *TimeoutConfig) {
+		cfg.unexpectedBridgesRetryWaitTime = unexpectedBridgesRetryWaitTime
+	}
+}
+
+func WithUnexpectedBridgesNumRetries(retries int) TimeoutOption {
+	return func(cfg *TimeoutConfig) {
+		cfg.unexpectedBridgesNumRetries = retries
+	}
+}
+
 func NewTimeoutConfig(options ...TimeoutOption) TimeoutConfig {
 	cfg := TimeoutConfig{
-		bridgingRetryWaitTime: 10 * time.Second,
-		bridgingNumRetries:    100,
+		bridgingRetryWaitTime:          10 * time.Second,
+		bridgingNumRetries:             100,
+		unexpectedBridgesRetryWaitTime: 10 * time.Second,
+		unexpectedBridgesNumRetries:    12,
 	}
 
 	for _, opt := range options {
