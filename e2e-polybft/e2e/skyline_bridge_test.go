@@ -153,11 +153,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := big.NewInt(1_500_000)
 
-		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
-		require.NoError(t, err)
-
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
+			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
 			sendtx.BridgingTypeCurrencyOnSource)
 	})
 
@@ -190,11 +187,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := big.NewInt(1_500_000)
 
-		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
-		require.NoError(t, err)
-
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
 			sendtx.BridgingTypeCurrencyOnSource)
 	})
 
