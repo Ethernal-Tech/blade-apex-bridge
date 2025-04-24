@@ -114,7 +114,7 @@ func ExecuteBridging(
 		err        error
 		config     = newExecuteBridgingConfig(options...)
 		chainPairs = getAllChainPairs(chains, chainsDst)
-		// per each reciever -> per each chain -> per each token
+		// per each receiver -> per each chain -> per each token
 		expectedAmountsPerRecv = make([]map[string]map[string]*big.Int, len(receiverUsers))
 		expectNativeTokens     = bridgingType == sendtx.BridgingTypeCurrencyOnSource
 	)
@@ -161,14 +161,19 @@ func ExecuteBridging(
 }
 
 func waitForAmounts(
-	ctx context.Context, apex IApexSystem, config *executeBridgingConfig, chainPairs []srcDstChainPair,
-	receiverUsers []*cardanofw.TestApexUser, expectedAmountsPerRecv []map[string]map[string]*big.Int, expectNativeTokens bool,
+	ctx context.Context,
+	apex IApexSystem,
+	config *executeBridgingConfig,
+	chainPairs []srcDstChainPair,
+	receiverUsers []*cardanofw.TestApexUser,
+	expectedAmountsPerRecv []map[string]map[string]*big.Int,
+	expectNativeTokens bool,
 ) error {
 	var (
 		wg   sync.WaitGroup
 		lock sync.Mutex
 		errs []error
-		// WaitForExactAmount recieves srcChain instead of tokenName so we need mapping
+		// WaitForExactAmount receives srcChain instead of tokenName so we need mapping
 		srcChainMap = map[string]string{}
 	)
 
