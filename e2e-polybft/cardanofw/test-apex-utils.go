@@ -43,8 +43,6 @@ const (
 	DefaultMinOperationFee        = uint64(0)
 	DefaultRequestStateTimeoutSec = 300
 
-	splitStringLength = 40
-
 	DefaultTokenName       = "test1"
 	DefaultTokenMintAmount = uint64(1_000_000_000)
 )
@@ -600,12 +598,6 @@ func ChainIDToInt(chainID string) uint8 {
 	}
 }
 
-func AddrToMetaDataAddr(addr string) []string {
-	addr = strings.TrimPrefix(strings.TrimPrefix(addr, "0x"), "0X")
-
-	return SplitString(addr, splitStringLength)
-}
-
 func GetUsersBalances(
 	ctx context.Context, apex *ApexSystem, chains []ChainID, users []*TestApexUser,
 ) (map[string]map[string]*big.Int, error) {
@@ -716,27 +708,29 @@ func FundAddressWithToken(
 	tokenName string, mintAmount uint64,
 	lovelaceFundAmount uint64, tokenFundAmount uint64,
 ) (*wallet.TokenAmount, error) {
-	if lovelaceFundAmount == 0 || tokenFundAmount == 0 {
-		return nil, fmt.Errorf("lovelace amount and token amount must be greater than zero")
+	if lovelaceFundAmount == 0 {
+		return nil, fmt.Errorf("lovelace amount must be greater than zero")
 	}
 
-	args := []string{
-		"bridge-admin", "mint-native-token",
-		"--key", hex.EncodeToString(minterWallet.SigningKey),
-		"--ogmios", chain.ogmiosURL,
-		"--network-id", fmt.Sprintf("%v", chain.config.NetworkType),
-		"--testnet-magic", fmt.Sprintf("%v", GetNetworkMagic(chain.config.NetworkType, chain.ChainID())),
-		"--token-name", tokenName,
-		"--amount", fmt.Sprintf("%v", mintAmount),
-	}
+	if mintAmount > 0 {
+		args := []string{
+			"bridge-admin", "mint-native-token",
+			"--key", hex.EncodeToString(minterWallet.SigningKey),
+			"--ogmios", chain.ogmiosURL,
+			"--network-id", fmt.Sprintf("%v", chain.config.NetworkType),
+			"--testnet-magic", fmt.Sprintf("%v", GetNetworkMagic(chain.config.NetworkType, chain.ChainID())),
+			"--token-name", tokenName,
+			"--amount", fmt.Sprintf("%v", mintAmount),
+		}
 
-	if len(minterWallet.StakeSigningKey) > 0 {
-		args = append(args, "--stake-key", hex.EncodeToString(minterWallet.StakeSigningKey))
-	}
+		if len(minterWallet.StakeSigningKey) > 0 {
+			args = append(args, "--stake-key", hex.EncodeToString(minterWallet.StakeSigningKey))
+		}
 
-	err := RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
-	if err != nil {
-		return nil, err
+		err := RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	token, _, err := GetTokenAndPolicyForVerificationKey(
