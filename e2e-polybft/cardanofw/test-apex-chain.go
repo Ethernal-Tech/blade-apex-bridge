@@ -7,6 +7,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
+	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
 type ITestApexChain interface {
@@ -32,7 +33,8 @@ type ITestApexChain interface {
 		bridgingTypes ...sendtx.BridgingType,
 	) (string, error)
 	SendTx(
-		ctx context.Context, privateKey string, receiver string, amount *big.Int, data []byte,
+		ctx context.Context, privateKey string, receiver string,
+		amount *big.Int, nativeTokenAmounts []infrawallet.TokenAmount, data []byte,
 	) (string, error)
 	GetHotWalletAddress() string
 	GetAdminPrivateKey() (string, error)
@@ -121,7 +123,8 @@ func (*TestApexChainDummy) RunChain(t *testing.T) error {
 }
 
 func (t *TestApexChainDummy) SendTx(
-	ctx context.Context, privateKey string, receiver string, amount *big.Int, data []byte,
+	ctx context.Context, privateKey string, receiver string,
+	amount *big.Int, nativeTokenAmounts []infrawallet.TokenAmount, data []byte,
 ) (string, error) {
 	return "", nil
 }

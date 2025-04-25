@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
@@ -111,100 +110,128 @@ func ExecuteBridging(
 ) {
 	t.Helper()
 
-	config := newExecuteBridgingConfig(options...)
-	dstChains := getAllDestionationChains(chains, chainsDst)
-	chainPairs := getAllChainPairs(chains, chainsDst)
-	expectedAmountPerChainDfm := make([]map[string]*big.Int, len(receiverUsers))
-
-	expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
+	var (
+		err        error
+		config     = newExecuteBridgingConfig(options...)
+		chainPairs = getAllChainPairs(chains, chainsDst)
+		// per each receiver -> per each chain -> per each token
+		expectedAmountsPerRecv = make([]map[string]map[string]*big.Int, len(receiverUsers))
+		expectNativeTokens     = bridgingType == sendtx.BridgingTypeCurrencyOnSource
+	)
 
 	for i, receiverUser := range receiverUsers {
-		expectedAmountPerChainDfm[i] = make(map[string]*big.Int)
+		expectedAmountsPerRecv[i] = map[string]map[string]*big.Int{}
+		balancePerChain := map[string]map[string]*big.Int{}
 
-		for _, dstChain := range dstChains {
-			srcChain := getSrcFromDstChain(chainPairs, dstChain)
+		for _, pair := range chainPairs {
+			balance, exists := balancePerChain[pair.dstChain]
+			if !exists {
+				balance, err = apex.GetBalance(ctx, receiverUser, pair.dstChain)
+				require.NoError(t, err)
 
-			balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
-			require.NoError(t, err)
+				balancePerChain[pair.dstChain] = balance
+				expectedAmountsPerRecv[i][pair.dstChain] = map[string]*big.Int{}
+			}
 
-			tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
-			expectedAmountPerChainDfm[i][dstChain] = cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
+			tokenName := getTokenNameForChains(apex, pair.dstChain, pair.srcChain, expectNativeTokens)
+			expectedAmountsPerRecv[i][pair.dstChain][tokenName] = cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
 		}
 	}
 
-	config.sendTxStrategy(t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender,
-		bridgingType)
+	config.sendTxStrategy(
+		t, ctx, apex, chainsDst, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender, bridgingType)
 
 	// update expectedAmountPerChainDfm
-	for recieverUserIdx := range receiverUsers {
-		for _, chainPair := range chainPairs {
-			tmp := expectedAmountPerChainDfm[recieverUserIdx][chainPair.dstChain]
-			tmp.Add(tmp, new(big.Int).Mul(sendAmountDfm, big.NewInt(int64(txCountPerSender)*int64(len(senderUsers)))))
+	incrementPerReceiver := new(big.Int).Mul(
+		sendAmountDfm, big.NewInt(int64(txCountPerSender)*int64(len(senderUsers))))
+
+	for _, perChainMap := range expectedAmountsPerRecv {
+		for _, perTokenMap := range perChainMap {
+			for _, amount := range perTokenMap {
+				amount.Add(amount, incrementPerReceiver)
+			}
 		}
 	}
 
 	config.restartValidatorStrategy(t, ctx, apex, config.restartValidatorsConfigs)
 
+	err = waitForAmounts(
+		ctx, apex, config, chainPairs, receiverUsers, expectedAmountsPerRecv, expectNativeTokens)
+	require.NoError(t, err)
+}
+
+func waitForAmounts(
+	ctx context.Context,
+	apex IApexSystem,
+	config *executeBridgingConfig,
+	chainPairs []srcDstChainPair,
+	receiverUsers []*cardanofw.TestApexUser,
+	expectedAmountsPerRecv []map[string]map[string]*big.Int,
+	expectNativeTokens bool,
+) error {
 	var (
-		wgResults sync.WaitGroup
-		errs      = make([]error, len(receiverUsers)*len(dstChains))
+		wg   sync.WaitGroup
+		lock sync.Mutex
+		errs []error
+		// WaitForExactAmount receives srcChain instead of tokenName so we need mapping
+		srcChainMap = map[string]string{}
 	)
 
-	for i, user := range receiverUsers {
-		for j, dstChain := range dstChains {
-			wgResults.Add(1)
+	for _, pair := range chainPairs {
+		tokenName := getTokenNameForChains(apex, pair.dstChain, pair.srcChain, expectNativeTokens)
+		key := fmt.Sprintf("%s-%s", pair.dstChain, tokenName)
+		// It doesn't matter if two source chains have the same token name (e.g., "lovelace")
+		// for the same destination chain — just pick any one.
+		srcChainMap[key] = pair.srcChain
+	}
 
-			go func(idx int, idxChain int, receiverUser *cardanofw.TestApexUser, dstChain string, expectedAmount *big.Int) {
-				defer wgResults.Done()
+	for i, perChainMap := range expectedAmountsPerRecv {
+		for dstChain, perTokenMap := range perChainMap {
+			for tokenName, expectedAmount := range perTokenMap {
+				wg.Add(1)
 
-				var err error
+				go func(idx int, receiver *cardanofw.TestApexUser, dstChain string, srcChain string, expectedAmount *big.Int) {
+					defer wg.Done()
 
-				srcChain := getSrcFromDstChain(chainPairs, dstChain)
-
-				err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, srcChain, expectedAmount,
-					config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, expectNativeTokens)
-
-				if err != nil {
-					errs[idx*len(dstChains)+idxChain] = fmt.Errorf("receiver %d on %s: %w", idx, dstChain, err)
-
-					return
-				}
-
-				fmt.Printf("TXs on %s for user %d expected amount received\n", dstChain, idx)
-
-				if config.waitForUnexpectedBridges {
-					// nothing else should be bridged for 2 minutes
-					srcChain := getSrcFromDstChain(chainPairs, dstChain)
-
-					err = apex.WaitForGreaterAmount(
-						ctx, receiverUser, dstChain, srcChain, expectedAmount, 12, time.Second*10, expectNativeTokens)
-
-					if !errors.Is(err, infracommon.ErrRetryTimeout) {
-						errs[idx*len(dstChains)+idxChain] = fmt.Errorf(
-							"receiver %d on %s should not receive more tokens: %w", idx, dstChain, err)
+					err := apex.WaitForExactAmount(
+						ctx, receiver, dstChain, srcChain, expectedAmount,
+						config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime,
+						expectNativeTokens)
+					if err != nil {
+						lock.Lock()
+						errs = append(errs, fmt.Errorf("receiver %d on %s->%s error: %w", idx, srcChain, dstChain, err))
+						lock.Unlock()
 
 						return
 					}
 
-					fmt.Printf("TXs on %s for user %d finished with success\n", dstChain, idx)
-				}
-			}(i, j, user, dstChain, expectedAmountPerChainDfm[i][dstChain])
+					fmt.Printf("TXs on %s for user %d expected amount received\n", dstChain, idx)
+
+					if config.waitForUnexpectedBridges {
+						// nothing else should be bridged for 2 minutes
+						err := apex.WaitForGreaterAmount(
+							ctx, receiver, dstChain, srcChain, expectedAmount,
+							config.timeoutConfig.unexpectedBridgesNumRetries, config.timeoutConfig.unexpectedBridgesRetryWaitTime,
+							expectNativeTokens)
+						if !errors.Is(err, infracommon.ErrRetryTimeout) {
+							lock.Lock()
+							errs = append(errs, fmt.Errorf(
+								"receiver %d on %s->%s received more than expected tokens: %w", idx, srcChain, dstChain, err))
+							lock.Unlock()
+
+							return
+						}
+
+						fmt.Printf("TXs on %s for user %d finished with success\n", dstChain, idx)
+					}
+				}(i, receiverUsers[i], dstChain, srcChainMap[fmt.Sprintf("%s-%s", dstChain, tokenName)], expectedAmount)
+			}
 		}
 	}
 
-	wgResults.Wait()
+	wg.Wait()
 
-	require.NoError(t, errors.Join(errs...))
-}
-
-func getSrcFromDstChain(chainPairs []srcDstChainPair, dstChain string) string {
-	for _, chainPair := range chainPairs {
-		if chainPair.dstChain == dstChain {
-			return chainPair.srcChain
-		}
-	}
-
-	return ""
+	return errors.Join(errs...)
 }
 
 func getTokenNameForChains(apex IApexSystem, dstChain, srcChain string, expectNativeTokens bool) string {

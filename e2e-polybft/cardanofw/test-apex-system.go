@@ -287,12 +287,12 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 
 		tokenPrime, _, err := GetTokenAndPolicyForVerificationKey(
 			a.Config.PrimeConfig.ChainType, a.Config.PrimeConfig.NetworkType,
-			a.PrimeInfo.GenesisWallet.VerificationKey, defaultTokenName)
+			a.PrimeInfo.GenesisWallet.VerificationKey, DefaultTokenName)
 		require.NoError(t, err)
 
 		tokenCardano, _, err := GetTokenAndPolicyForVerificationKey(
 			a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
-			a.CardanoInfo.GenesisWallet.VerificationKey, defaultTokenName)
+			a.CardanoInfo.GenesisWallet.VerificationKey, DefaultTokenName)
 		require.NoError(t, err)
 
 		a.PrimeInfo.NativeTokens = []sendtx.TokenExchangeConfig{
@@ -389,7 +389,7 @@ func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, dfm
 	}
 
 	_, err = chain.SendTx(
-		ctx, pk, chain.GetHotWalletAddress(), DfmToChainNativeTokenAmount(chainID, dfmAmount), nil)
+		ctx, pk, chain.GetHotWalletAddress(), DfmToChainNativeTokenAmount(chainID, dfmAmount), nil, nil)
 
 	return err
 }
@@ -649,7 +649,7 @@ func (a *ApexSystem) GetBalance(
 }
 
 func (a *ApexSystem) GetTokenNameForChains(chainID, dstChainID ChainID) string {
-	for _, token := range a.getCardanoInfo(chainID).NativeTokens {
+	for _, token := range a.GetCardanoInfo(chainID).NativeTokens {
 		if token.DstChainID == dstChainID {
 			return token.TokenName
 		}
@@ -755,7 +755,7 @@ func (a *ApexSystem) DefundHotWallet(
 
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
-	receiverAddr string, dfmAmount *big.Int, data []byte,
+	receiverAddr string, lovelaceDfmAmount *big.Int, nativeTokenAmounts []cardanowallet.TokenAmount, data []byte,
 ) (string, error) {
 	privateKey, err := sender.GetPrivateKey(sourceChain)
 	if err != nil {
@@ -769,7 +769,7 @@ func (a *ApexSystem) SubmitTx(
 
 	return chain.SendTx(
 		ctx, privateKey, receiverAddr,
-		DfmToChainNativeTokenAmount(sourceChain, dfmAmount), data)
+		DfmToChainNativeTokenAmount(sourceChain, lovelaceDfmAmount), nativeTokenAmounts, data)
 }
 
 func (a *ApexSystem) SubmitBridgingRequest(
@@ -907,7 +907,7 @@ func (a *ApexSystem) getChain(chainID string) (ITestApexChain, error) {
 	return nil, fmt.Errorf("unknown chain: %s", chainID)
 }
 
-func (a *ApexSystem) getCardanoInfo(chainID string) CardanoChainInfo {
+func (a *ApexSystem) GetCardanoInfo(chainID string) CardanoChainInfo {
 	switch chainID {
 	case ChainIDPrime:
 		return a.PrimeInfo

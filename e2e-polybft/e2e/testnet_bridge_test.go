@@ -109,7 +109,7 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 
 				fmt.Printf("Defunding %s address: %s\n", chain, addr)
 
-				_, err := apex.SubmitTx(ctx, chain, user, apex.FunderUser.GetAddress(chain), toDefund, nil)
+				_, err := apex.SubmitTx(ctx, chain, user, apex.FunderUser.GetAddress(chain), toDefund, nil, nil)
 				if err != nil {
 					fmt.Printf("error while defunding %s address: %s, err: %v\n", chain, addr, err)
 				}
@@ -162,7 +162,7 @@ func Test_E2E_TestnetFund(t *testing.T) {
 
 				fmt.Printf("Funding %s address: %s\n", chain, addr)
 
-				_, err := apex.SubmitTx(ctx, chain, apex.FunderUser, addr, cardanofw.ApexToDfm(big.NewInt(apexToFund)), nil)
+				_, err := apex.SubmitTx(ctx, chain, apex.FunderUser, addr, cardanofw.ApexToDfm(big.NewInt(apexToFund)), nil, nil)
 				if err != nil {
 					fmt.Printf("error while funding %s address: %s, err: %v\n", chain, addr, err)
 

@@ -261,7 +261,7 @@ func (u *TestApexUser) GetPrivateKey(chain ChainID) (string, error) {
 		return "", fmt.Errorf("user doesn't have a vector wallet")
 	case ChainIDCardano:
 		if u.HasCardanoWallet {
-			return hex.EncodeToString(u.CardanoWallet.SigningKey), nil
+			return ToCardanoPrivateKeyString(u.CardanoWallet.SigningKey, u.CardanoWallet.StakeSigningKey), nil
 		}
 
 		return "", fmt.Errorf("user doesn't have a cardano wallet")

@@ -289,7 +289,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 	if totalAmount := ec.config.FundFeeAmount; totalAmount != 0 {
 		for _, amount := range SplitAmountNTimes(new(big.Int).SetUint64(totalAmount), ec.config.FundFeeUTxOCount) {
-			txHash, err := ec.SendTx(ctx, privateKey, ec.multisigFeeAddr, amount, nil)
+			txHash, err := ec.SendTx(ctx, privateKey, ec.multisigFeeAddr, amount, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -311,8 +311,10 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 		for _, amounts := range SplitAmountsNTimes(tokenAmounts, ec.config.FundUTxOCount) {
 			token, err := FundAddressWithToken(
-				ctx, ec.ChainID(), ec.config.NetworkType, infrawallet.NewTxProviderOgmios(ec.ogmiosURL),
-				minterWallet, ec.GetHotWalletAddress(), amounts[0].Uint64(), amounts[1].Uint64())
+				ctx, ec,
+				minterWallet, ec.GetHotWalletAddress(),
+				DefaultTokenName, DefaultTokenMintAmount,
+				amounts[0].Uint64(), amounts[1].Uint64())
 			if err != nil {
 				return err
 			}
@@ -464,12 +466,12 @@ func (ec *TestCardanoChain) BridgingRequest(
 
 	receivers := make([]sendtx.BridgingTxReceiver, 0, len(receiversMap))
 
-	for receiverAddress, receiverAmount := range receiversMap {
-		bridgingType := sendtx.BridgingTypeNormal
-		if idx := len(receivers); idx < len(bridgingTypes) {
-			bridgingType = bridgingTypes[idx]
-		}
+	bridgingType := sendtx.BridgingTypeNormal
+	if len(bridgingTypes) > 0 {
+		bridgingType = bridgingTypes[0]
+	}
 
+	for receiverAddress, receiverAmount := range receiversMap {
 		receivers = append(receivers, sendtx.BridgingTxReceiver{
 			Addr:         receiverAddress,
 			Amount:       DfmToChainNativeTokenAmount(srcChainID, receiverAmount).Uint64(),
@@ -498,6 +500,7 @@ func (ec *TestCardanoChain) SendTx(
 	privateKey string,
 	receiverAddr string,
 	amount *big.Int,
+	nativeTokenAmounts []infrawallet.TokenAmount,
 	metadata []byte,
 ) (string, error) {
 	paymentKey, stakeKey, err := FromCardanoPrivateKeyString(privateKey)
@@ -519,7 +522,7 @@ func (ec *TestCardanoChain) SendTx(
 		receiverAddr,
 		metadata,
 		amount.Uint64(),
-		nil,
+		nativeTokenAmounts,
 	)
 	if err != nil {
 		return "", err
