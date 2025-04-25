@@ -41,6 +41,10 @@ func (t *TestCardanoServer) IsRunning() bool {
 }
 
 func (t *TestCardanoServer) Stop() error {
+	if t.node == nil {
+		return nil
+	}
+
 	if err := t.node.Stop(); err != nil {
 		return err
 	}
