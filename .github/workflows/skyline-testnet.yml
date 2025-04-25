@@ -6,6 +6,10 @@ on: # yamllint disable-line rule:truthy
     - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
+      blade_apex_bridge_ref:
+        description: The branch/commit from the Blade Apex Bridge
+        type: string
+        required: true
       run_blade_apex_bridge_internal:
         description: Run E2E Tests on Internal Testnet
         type: boolean
@@ -16,22 +20,12 @@ on: # yamllint disable-line rule:truthy
         default: true
 
 jobs:
-  build_blade:
-    name: Build Blade
-    uses: ./.github/workflows/build.yml
-    with:
-      blade_apex_bridge_ref: feat/skyline
-  lint:
-    name: Lint
-    uses: ./.github/workflows/lint.yml
-    needs: build_blade
-    with:
-      blade_apex_bridge_ref: feat/skyline
   inputs_check:
     name: Inputs Check
     runs-on: ubuntu-latest
     outputs:
       run_blade_apex_bridge_internal: ${{ steps.internal_input_check.outputs.run_blade_apex_bridge_internal }}
+      blade_apex_bridge_ref: ${{ steps.blade_apex_bridge_ref_input_check.outputs.blade_apex_bridge_ref }}
       notification: ${{ steps.notification_input_check.outputs.notification }}
     steps:
       - name: Internal Input Check
@@ -42,6 +36,14 @@ jobs:
           else
             echo "run_blade_apex_bridge_internal=false" >> $GITHUB_OUTPUT
           fi
+      - name: Blade Apex Bridge Ref Input Check
+        id: blade_apex_bridge_ref_input_check
+        run: |
+          if [[ "${{ inputs.blade_apex_bridge_ref }}" == "" ]]; then
+            echo "blade_apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
+          else
+            echo "blade_apex_bridge_ref=${{ inputs.blade_apex_bridge_ref }}" >> $GITHUB_OUTPUT
+          fi
       - name: Notification Input Check
         id: notification_input_check
         run: |
@@ -50,25 +52,37 @@ jobs:
           else
             echo "notification=false" >> $GITHUB_OUTPUT
           fi
+  build_blade:
+    name: Build Blade
+    uses: ./.github/workflows/build.yml
+    needs: inputs_check
+    with:
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
+  lint:
+    name: Lint
+    uses: ./.github/workflows/lint.yml
+    needs: [inputs_check, build_blade]
+    with:
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
   e2e_apex_internal_testnet_test:
     name: E2E Apex Bridge Internal Testnet Tests
-    uses: ./.github/workflows/e2e-testnet-test.yml
-    needs: [build_blade, inputs_check]
+    uses: ./.github/workflows/skyline-e2e-testnet-test.yml
+    needs: [inputs_check, build_blade]
     if: needs.inputs_check.outputs.run_blade_apex_bridge_internal == 'true'
     with:
-      blade_apex_bridge_ref: feat/skyline
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       blade_apex_bridge_version: internal
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.TESTNET_SKYLINE_BRIDGING_API_KEY }}
-      E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT }}
+      SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT }}
   notification_apex_testnet:
     name: Apex Bridge Testnet Notification
     uses: ./.github/workflows/skyline-notification-testnet.yml
-    needs: [build_blade, inputs_check, lint, e2e_apex_internal_testnet_test]
+    needs: [inputs_check, build_blade, lint, e2e_apex_internal_testnet_test]
     if: needs.inputs_check.outputs.notification == 'true' && !cancelled()
     with:
-      blade_apex_bridge_ref: feat/skyline
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       build_blade_output: ${{ needs.build_blade.outputs.workflow_output }}
       lint_output: ${{ needs.lint.outputs.workflow_output }}
       e2e_apex_internal_testnet_test_output: ${{ needs.e2e_apex_internal_testnet_test.outputs.workflow_output }}
