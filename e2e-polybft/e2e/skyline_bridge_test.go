@@ -457,7 +457,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	idx = 1
 
 	for _, txType := range transactionTypes {
-		t.Run(fmt.Sprintf("8.%d Both directions sequential and parallel - one node goes off in the middle - %s",
+		t.Run(fmt.Sprintf("8.%d Both directions sequential and parallel - one node goes offline midway - %s",
 			idx, txType), func(t *testing.T) {
 			const (
 				sendAmount           = uint64(1_000_000)
@@ -499,7 +499,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	idx = 1
 
 	for _, txType := range transactionTypes {
-		t.Run(fmt.Sprintf("9.%d Both directions sequential and parallel - one node goes off in the middle - %s",
+		t.Run(fmt.Sprintf("9.%d Both directions sequential and parallel — two nodes go offline midway, one node recovers - %s",
 			idx, txType), func(t *testing.T) {
 			const (
 				sequentialInstances   = 5

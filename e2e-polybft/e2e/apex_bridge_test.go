@@ -839,7 +839,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, user, sequentialInstances, parallelInstances)
 	})
 
-	t.Run("Both directions sequential and parallel - one node goes off in the middle", func(t *testing.T) {
+	t.Run("Both directions sequential and parallel - one node goes offline midway", func(t *testing.T) {
 		const (
 			sequentialInstances  = 5
 			parallelInstances    = 6
@@ -854,7 +854,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			}))
 	})
 
-	t.Run("Both directions sequential and parallel - two nodes goes off in the middle and then one comes back", func(t *testing.T) {
+	t.Run("Both directions sequential and parallel — two nodes go offline midway, one node recovers", func(t *testing.T) {
 		const (
 			sequentialInstances   = 5
 			parallelInstances     = 10
