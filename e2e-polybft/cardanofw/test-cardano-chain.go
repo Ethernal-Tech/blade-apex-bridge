@@ -567,14 +567,19 @@ func (ec *TestCardanoChain) submitTx(
 		return "", err
 	}
 
-	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
+	_, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (bool, error) {
 		contains, err := infrawallet.IsTxInUtxos(ctx, txProvider, receiverAddr, txHash)
 		if err != nil {
-			return "", err
+			return false, err
 		} else if !contains {
-			return "", infracommon.ErrRetryTryAgain
+			return false, infracommon.ErrRetryTryAgain
 		}
 
-		return txHash, nil
+		return true, nil
 	}, infracommon.WithRetryCount(retryCount), infracommon.WithRetryWaitTime(retryWaitTime))
+	if err != nil {
+		return "", fmt.Errorf("failed to send tx %s to receiver %s: %w", txHash, receiverAddr, err)
+	}
+
+	return txHash, nil
 }
