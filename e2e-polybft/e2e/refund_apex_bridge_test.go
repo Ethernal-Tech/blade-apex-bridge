@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -386,4 +387,198 @@ func TestE2E_Apex_Bridge_Refund_BatchRecreated(t *testing.T) {
 	require.NoError(t, err)
 
 	fmt.Println("newAmountDfm", newAmountDfm)
+}
+
+func TestE2E_Apex_Bridge_Refund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 10
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig.PremineAmount = 100_700_000_000
+	vectorConfig.PremineAmount = 500_000_000
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+			mp["refundEnabled"] = true
+			tryCountLimitsSettings := cardanofw.GetMapFromInterfaceKey(mp, "tryCountLimits")
+			tryCountLimitsSettings["maxSubmitTryCount"] = 2
+		}, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+
+	t.Run("From prime to vector - MaxSubmitTryCount exceeded", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		const (
+			sendAmount  = uint64(100_600_000_000)
+			sendAmount2 = uint64(1_000_000)
+			feeAmount   = uint64(1_100_000)
+			instances   = 5
+		)
+
+		beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
+		txHash := apex.SubmitBridgingRequest(t, ctx,
+			cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
+			user, new(big.Int).SetUint64(sendAmount), user,
+		)
+
+		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
+
+		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
+
+		e2ehelper.ExecuteBridging(
+			t, ctx, apex, 1, apex.Users[1:instances+1], []*cardanofw.TestApexUser{user},
+			[]string{cardanofw.ChainIDPrime},
+			map[string][]string{
+				cardanofw.ChainIDPrime: {cardanofw.ChainIDVector},
+			}, new(big.Int).SetUint64(sendAmount2))
+
+		err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, lowerBoundaryDfm, beforeSendingAmountDfm,
+			20, time.Second*30)
+		require.NoError(t, err)
+
+		newAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
+		fmt.Println("newAmountDfm", newAmountDfm)
+	})
+}
+
+func TestE2E_Apex_Bridge_Refund_ComplexScenarios_MaxBatchTryCount(t *testing.T) {
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 10
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig.PremineAmount = 100_700_000_000
+	vectorConfig.PremineAmount = 500_000_000
+	vectorConfig.TTLInc, vectorConfig.SlotRoundingThreshold = 1, 30
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+			mp["refundEnabled"] = true
+			tryCountLimitsSettings := cardanofw.GetMapFromInterfaceKey(mp, "tryCountLimits")
+			tryCountLimitsSettings["maxBatchTryCount"] = 1
+			tryCountLimitsSettings["maxSubmitTryCount"] = 2
+		}, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+
+	t.Run("From prime to vector - MaxBatchTryCount exceeded", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		const (
+			sendAmount = uint64(80_000_000_000)
+			feeAmount  = uint64(1_100_000)
+		)
+
+		beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
+		txHash := apex.SubmitBridgingRequest(t, ctx,
+			cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
+			user, new(big.Int).SetUint64(sendAmount), user,
+		)
+
+		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
+
+		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
+
+		err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, lowerBoundaryDfm, beforeSendingAmountDfm,
+			50, time.Second*30)
+		require.NoError(t, err)
+
+		newAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
+		fmt.Println("newAmountDfm", newAmountDfm)
+	})
+}
+
+func TestE2E_Apex_Bridge_Refund_ComplexScenarios_MaxRefundTryCount(t *testing.T) {
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 1
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig.PremineAmount = 100_700_000_000
+	vectorConfig.PremineAmount = 500_000_000
+	primeConfig.TTLInc, primeConfig.SlotRoundingThreshold = 1, 20
+	vectorConfig.TTLInc, vectorConfig.SlotRoundingThreshold = 1, 30
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+			mp["refundEnabled"] = true
+			tryCountLimitsSettings := cardanofw.GetMapFromInterfaceKey(mp, "tryCountLimits")
+			tryCountLimitsSettings["maxBatchTryCount"] = 1
+			tryCountLimitsSettings["maxSubmitTryCount"] = 1
+			tryCountLimitsSettings["maxRefundTryCount"] = 1
+		}, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+
+	t.Run("From prime to vector - MaxRefundTryCount exceeded", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		const (
+			sendAmount = uint64(100_000_000)
+		)
+
+		txHash := apex.SubmitBridgingRequest(t, ctx,
+			cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
+			user, new(big.Int).SetUint64(sendAmount), user,
+		)
+
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+		_, timeout := cardanofw.WaitForBatchState(
+			ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, false, true,
+			cardanofw.BridgingRequestStatusInvalidRequest, cardanofw.BridgingRequestStatusInvalidRequest)
+		require.False(t, timeout)
+	})
 }

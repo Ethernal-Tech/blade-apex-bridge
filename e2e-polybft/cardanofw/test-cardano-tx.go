@@ -39,12 +39,58 @@ func SendTx(ctx context.Context,
 		}
 
 		txRaw, txHash, err := createTx(
-			ctx, txBuilder, txProvider, caddr.String(), amount, receiver, networkType, metadata)
+			ctx, txBuilder, txProvider, caddr.String(), amount, receiver, networkType, metadata, nil)
 		if err != nil {
 			return "", err
 		}
 
 		signedTx, err := txBuilder.SignTx(txRaw, []wallet.ITxSigner{senderWallet})
+		if err != nil {
+			return "", err
+		}
+
+		return txHash, txProvider.SubmitTx(ctx, signedTx)
+	})
+}
+
+func SendTxMsg(ctx context.Context,
+	txProvider wallet.ITxProvider,
+	senderWallets []*wallet.Wallet,
+	msgAddress string,
+	amount uint64,
+	receiver string,
+	networkType wallet.CardanoNetworkType,
+	metadata []byte,
+) (string, error) {
+	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
+		txBuilder, err := wallet.NewTxBuilder(ResolveCardanoCliBinary(networkType))
+		if err != nil {
+			return "", err
+		}
+
+		defer txBuilder.Dispose()
+
+		keyHashes := make([]string, len(senderWallets))
+
+		for i, sender := range senderWallets {
+			keyHashes[i], err = wallet.GetKeyHash(sender.VerificationKey)
+			if err != nil {
+				return "", err
+			}
+		}
+
+		txRaw, txHash, err := createTx(
+			ctx, txBuilder, txProvider, msgAddress, amount, receiver, networkType, metadata, keyHashes)
+		if err != nil {
+			return "", err
+		}
+
+		var wallets []wallet.ITxSigner
+		for idx := range senderWallets {
+			wallets = append(wallets, senderWallets[idx])
+		}
+
+		signedTx, err := txBuilder.SignTx(txRaw, wallets)
 		if err != nil {
 			return "", err
 		}
@@ -62,6 +108,7 @@ func createTx(
 	receiverAddr string,
 	networkType wallet.CardanoNetworkType,
 	metadata []byte,
+	keyHashes []string,
 ) ([]byte, string, error) {
 	allUtxos, err := txProvider.GetUtxos(ctx, senderAddr)
 	if err != nil {
@@ -100,7 +147,14 @@ func createTx(
 		return nil, "", fmt.Errorf("failed to create tokens from sum map. err: %w", err)
 	}
 
-	txBuilder.AddInputs(inputs.Inputs...).AddOutputs(wallet.TxOutput{
+	if len(keyHashes) != 0 {
+		script := wallet.NewPolicyScript(keyHashes, len(keyHashes)*2/3+1)
+		txBuilder.AddInputsWithScript(script, inputs.Inputs...)
+	} else {
+		txBuilder.AddInputs(inputs.Inputs...)
+	}
+
+	txBuilder.AddOutputs(wallet.TxOutput{
 		Addr:   receiverAddr,
 		Amount: amount,
 	}, wallet.TxOutput{
@@ -108,7 +162,7 @@ func createTx(
 		Tokens: senderTokens,
 	})
 
-	fee, err := txBuilder.CalculateFee(1)
+	fee, err := txBuilder.CalculateFee(len(keyHashes))
 	if err != nil {
 		return nil, "", err
 	}
