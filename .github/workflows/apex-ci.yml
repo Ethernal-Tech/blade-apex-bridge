@@ -1,6 +1,6 @@
 ---
 concurrency:
-  group: ${{ github.event_name }}-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.event_name }}-${{ github.workflow }}-${{ github.ref }}-${{ inputs.apex_bridge_ref || 'main' }}
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
 name: ApexBridge CI
 on: # yamllint disable-line rule:truthy
