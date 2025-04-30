@@ -47,7 +47,7 @@ on: # yamllint disable-line rule:truthy
       apex_bridge_ref:
         description: The branch/commit from the Apex Bridge
         type: string
-        default: main
+        default: feat/refund
   workflow_call:
     inputs:
       lint:
