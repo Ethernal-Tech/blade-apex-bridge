@@ -3,7 +3,6 @@ package cardanofw
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -78,28 +77,6 @@ func (cv *TestApexValidator) CardanoWalletCreate(chain ChainID) error {
 		"--chain", chain,
 		"--validator-data-dir", cv.server.DataDir(),
 	}, os.Stdout)
-}
-
-func (cv *TestApexValidator) GetCardanoWallet(chainID string) (*CardanoWallet, error) {
-	secretsMngr, err := cv.getSecretsManager(cv.dataDirPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load wallet: %w", err)
-	}
-
-	keyName := fmt.Sprintf("%s%s_key", secretsCardano.CardanoKeyLocalPrefix, chainID)
-
-	bytes, err := secretsMngr.GetSecret(keyName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load wallet: %w", err)
-	}
-
-	var cardanoWallet *CardanoWallet
-
-	if err := json.Unmarshal(bytes, &cardanoWallet); err != nil {
-		return nil, fmt.Errorf("failed to load wallet: %w", err)
-	}
-
-	return cardanoWallet, nil
 }
 
 func (cv *TestApexValidator) RegisterChain(
