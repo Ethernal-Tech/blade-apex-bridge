@@ -1,0 +1,39 @@
+---
+name: Refund Nightly Local Tests
+on: # yamllint disable-line rule:truthy
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  refund_ci:
+    name: Refund CI
+    uses: ./.github/workflows/apex-ci.yml
+    with:
+      lint: true
+      unit_test: true
+      e2e_polybft_test: true
+      e2e_apex_test: true
+      e2e_skyline_test: true
+      apex_bridge_ref: feat/refund
+      blade_apex_bridge_ref: feat/refund
+      e2e_apex_big_test: ${{ vars.RUN_E2E_BIG_TESTS }}
+      e2e_apex_skip_redundant_tests: ${{ vars.SKIP_E2E_REDUNDANT_TESTS }}
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  notification_skyline_nightly:
+    name: Skyline Nightly Notification
+    uses: ./.github/workflows/skyline-notification-nightly.yml
+    needs: refund_ci
+    if: success() || failure()
+    with:
+      environment: nightly
+      build_blade_output: ${{ needs.refund_ci.outputs.build_blade }}
+      lint_output: ${{ needs.refund_ci.outputs.lint }}
+      unit_test_output: ${{ needs.refund_ci.outputs.unit_test }}
+      e2e_polybft_test_output: ${{ needs.refund_ci.outputs.e2e_polybft_test }}
+      e2e_apex_test_output: ${{ needs.refund_ci.outputs.e2e_apex_test }}
+      e2e_skyline_test_output: ${{ needs.refund_ci.outputs.e2e_skyline_test }}
+    secrets:
+      APEX_SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}
