@@ -249,7 +249,6 @@ jobs:
       e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-
   e2e_refund_test:
     name: E2E Refund Tests
     uses: ./.github/workflows/e2e-refund-test.yml
