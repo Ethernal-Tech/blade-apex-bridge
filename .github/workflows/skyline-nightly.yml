@@ -30,6 +30,7 @@ jobs:
     if: success() || failure()
     with:
       environment: nightly
+      blade_apex_bridge_ref: feat/skyline
       build_blade_output: ${{ needs.skyline_ci.outputs.build_blade }}
       lint_output: ${{ needs.skyline_ci.outputs.lint }}
       unit_test_output: ${{ needs.skyline_ci.outputs.unit_test }}

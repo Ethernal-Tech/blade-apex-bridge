@@ -30,6 +30,7 @@ jobs:
     if: success() || failure()
     with:
       environment: nightly
+      blade_apex_bridge_ref: feat/refund
       build_blade_output: ${{ needs.refund_ci.outputs.build_blade }}
       lint_output: ${{ needs.refund_ci.outputs.lint }}
       unit_test_output: ${{ needs.refund_ci.outputs.unit_test }}
