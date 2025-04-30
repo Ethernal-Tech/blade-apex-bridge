@@ -16,6 +16,7 @@ jobs:
       e2e_polybft_test: true
       e2e_apex_test: true
       e2e_skyline_test: true
+      e2e_refund_test: false
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
       e2e_apex_big_test: ${{ vars.RUN_E2E_BIG_TESTS }}
@@ -29,6 +30,7 @@ jobs:
     if: success() || failure()
     with:
       environment: nightly
+      blade_apex_bridge_ref: feat/skyline
       build_blade_output: ${{ needs.skyline_ci.outputs.build_blade }}
       lint_output: ${{ needs.skyline_ci.outputs.lint }}
       unit_test_output: ${{ needs.skyline_ci.outputs.unit_test }}
