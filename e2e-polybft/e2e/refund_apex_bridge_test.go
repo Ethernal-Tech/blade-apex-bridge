@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestE2E_Apex_Bridge_Refund_ValidScenarios(t *testing.T) {
+func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 5
@@ -49,10 +49,6 @@ func TestE2E_Apex_Bridge_Refund_ValidScenarios(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("From prime to vector - not enough funds on destination multisig address", func(t *testing.T) {
-		if cardanofw.ShouldSkipE2RRedundantTests() {
-			t.Skip()
-		}
-
 		const (
 			sendAmount = uint64(100_600_000_000)
 			feeAmount  = uint64(1_100_000)
@@ -332,7 +328,7 @@ func TestE2E_Apex_Bridge_Refund_ValidScenarios(t *testing.T) {
 	})
 }
 
-func TestE2E_Apex_Bridge_Refund_BatchRecreated(t *testing.T) {
+func TestE2E_ApexRefund_BatchRecreated(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
 	)
@@ -389,11 +385,7 @@ func TestE2E_Apex_Bridge_Refund_BatchRecreated(t *testing.T) {
 	fmt.Println("newAmountDfm", newAmountDfm)
 }
 
-func TestE2E_Apex_Bridge_Refund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
-
+func TestE2E_ApexRefund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 10
@@ -454,11 +446,7 @@ func TestE2E_Apex_Bridge_Refund_ComplexScenarios_MaxSubmitTryCount(t *testing.T)
 	require.NoError(t, err)
 }
 
-func TestE2E_Apex_Bridge_Refund_ComplexScenarios_MaxBatchTryCount(t *testing.T) {
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
-
+func TestE2E_ApexRefund_ComplexScenarios_MaxBatchTryCount(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 10
@@ -512,11 +500,7 @@ func TestE2E_Apex_Bridge_Refund_ComplexScenarios_MaxBatchTryCount(t *testing.T) 
 	require.NoError(t, err)
 }
 
-func TestE2E_Apex_Bridge_Refund_ComplexScenarios_MaxRefundTryCount(t *testing.T) {
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
-
+func TestE2E_ApexRefund_ComplexScenarios_MaxRefundTryCount(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 1
