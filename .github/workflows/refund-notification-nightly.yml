@@ -61,7 +61,7 @@ jobs:
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "Refund Nightly Local Tests"
+                    "text": "Refund Main Nightly Local Tests"
                   }
                 },
                 {
