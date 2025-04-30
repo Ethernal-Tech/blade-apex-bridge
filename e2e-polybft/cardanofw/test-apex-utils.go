@@ -27,13 +27,10 @@ const (
 	ChainTypeEVM
 
 	BatchStateFailedToExecute           = "FailedToExecuteOnDestination"
-	BatchStateDiscoveredOnSource        = "DiscoveredOnSource"
-	BatchStateSubmittedToBridge         = "SubmittedToBridge"
 	BatchStateIncludedInBatch           = "IncludedInBatch"
 	BatchStateSubmittedToDestination    = "SubmittedToDestination"
 	BatchStateExecuted                  = "ExecutedOnDestination"
 	BridgingRequestStatusInvalidRequest = "InvalidRequest"
-	RefundRequestSubmittedToBridge      = "RefundRequestSubmittedToBridge"
 
 	MinUTxODefaultValue = uint64(1_000_000)
 
