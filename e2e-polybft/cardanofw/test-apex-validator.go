@@ -81,7 +81,7 @@ func (cv *TestApexValidator) CardanoWalletCreate(chain ChainID) error {
 }
 
 func (cv *TestApexValidator) GetCardanoWallet(chainID string) (*CardanoWallet, error) {
-	secretsMngr, err := cv.getSecretsManager(cv.server.DataDir())
+	secretsMngr, err := cv.getSecretsManager(cv.dataDirPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load wallet: %w", err)
 	}
