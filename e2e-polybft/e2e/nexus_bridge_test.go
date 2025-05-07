@@ -205,6 +205,9 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 		userPk, err := user.GetPrivateKey(cardanofw.ChainIDNexus)
 		require.NoError(t, err)
 
+		beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		require.NoError(t, err)
+
 		// call SendTx command
 		err = sendTxParamsNPInvalidScenarios("cardano", // "cardano" instead of "evm"
 			apex.NexusInfo.GatewayAddress.String(),
@@ -214,6 +217,26 @@ func TestE2E_ApexBridgeWithNexus_NtP_InvalidScenarios(t *testing.T) {
 			sendAmountWei, fee,
 		)
 		require.ErrorContains(t, err, "failed to execute command")
+
+		// cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
+		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(1_000_000+1_000_010))
+
+		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", "", lowerBoundaryDfm, beforeSendingAmountDfm)
+
+		err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDNexus, lowerBoundaryDfm, beforeSendingAmountDfm,
+			20, time.Second*30)
+		// require.NoError(t, err)
+		// todo: only for debug remove
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+		}
+
+		newAmountDfm, err2 := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		require.NoError(t, err2)
+
+		fmt.Println("newAmountDfm", newAmountDfm)
+
+		require.NoError(t, err)
 	})
 
 	t.Run("Wrong Nexus URL", func(t *testing.T) {
