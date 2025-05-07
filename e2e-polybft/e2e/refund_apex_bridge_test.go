@@ -217,7 +217,6 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 				require.NoError(t, err)
 
 				fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHashes[idx], lowerBoundaryDfm[i], beforeSendingAmountDfm[i])
-
 			}()
 		}
 

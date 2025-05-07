@@ -1889,7 +1889,7 @@ func PrimeToVectorInvalidMetadataInvalidSender(
 	metadata := map[string]interface{}{
 		"1": map[string]interface{}{
 			"t":  "bridge",
-			"s":  []string{""}, // should be sender address (max len 40)
+			"s":  "", // should be sender address (max len 40)
 			"d":  cardanofw.ChainIDVector,
 			"tx": transactions,
 			"fa": feeAmount,
