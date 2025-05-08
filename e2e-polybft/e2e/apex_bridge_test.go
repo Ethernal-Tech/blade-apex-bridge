@@ -9,6 +9,8 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"syscall"
@@ -124,6 +126,109 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 
 	<-signalChannel
+}
+
+func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIValidatorID(-2),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(apex.BridgeCluster.Servers[0].JSONRPC()))
+	require.NoError(t, err)
+
+	privateKeyRaw, err := apex.GetBridgeProxyAdmin().MarshallPrivateKey()
+	require.NoError(t, err)
+
+	tmpPath, err := os.MkdirTemp("", "TestE2E_ApexBridge_UpdateApexBridgeSmartContract")
+	require.NoError(t, err)
+
+	defer os.RemoveAll(tmpPath)
+
+	baseRepoFilePath := filepath.Join(tmpPath, "apex-bridge-smartcontracts")
+	bridgeSolFilePath := filepath.Join(baseRepoFilePath, "contracts", "Bridge.sol")
+
+	getVersion := func(t *testing.T) string {
+		t.Helper()
+
+		fn := contractsapi.ApexBridgeContracts.Bridge.Abi.GetMethod("version")
+
+		fncall, err := fn.Encode([]any{})
+		require.NoError(t, err)
+
+		response, err := txRelayer.Call(types.ZeroAddress, contracts.Bridge, fncall)
+		require.NoError(t, err)
+
+		byteResponse, err := hex.DecodeString(strings.TrimPrefix(response, "0x"))
+		require.NoError(t, err)
+
+		decoded, err := fn.Outputs.Decode(byteResponse)
+		require.NoError(t, err)
+
+		mp, _ := decoded.(map[string]any)
+
+		return mp["0"].(string)
+	}
+
+	oldVersion := getVersion(t)
+	desiredVersion := "190843934374.0323.2371283182"
+
+	// first upgrade just to clone repository
+	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
+		"deploy-evm", "upgrade",
+		"--url", apex.GetBridgeDefaultJSONRPCAddr(),
+		"--key", hex.EncodeToString(privateKeyRaw),
+		"--dir", tmpPath,
+		"--clone",
+		"--branch", "main",
+		"--repo", "https://github.com/Ethernal-Tech/apex-bridge-smartcontracts",
+		"--contract", "Bridge:" + contracts.Bridge.String(),
+	}, os.Stdout))
+
+	content, err := os.ReadFile(bridgeSolFilePath)
+	require.NoError(t, err)
+
+	// Regular expression to match the version function and its return string
+	// This pattern matches the function declaration and captures the string to replace
+	pattern := `(function version\(\) public pure returns \(string memory\)\s*\{\s*return ")([^"]+)(";)`
+	re := regexp.MustCompile(pattern)
+
+	// Replace the string
+	replacePattern := fmt.Sprintf("${1}%s${3}", desiredVersion)
+	newContent := re.ReplaceAll(content, []byte(replacePattern))
+
+	require.NoError(t, os.WriteFile(bridgeSolFilePath, newContent, 0660))
+
+	// must compile hardhat script(s) again
+	currentWorkingDir, err := os.Getwd()
+	require.NoError(t, err)
+
+	require.NoError(t, os.Chdir(baseRepoFilePath))
+	require.NoError(t, cardanofw.RunCommand("npx", []string{"hardhat", "compile"}, os.Stdout))
+	require.NoError(t, os.Chdir(currentWorkingDir))
+
+	// second upgrade upgrades changed contract
+	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
+		"deploy-evm", "upgrade",
+		"--url", apex.GetBridgeDefaultJSONRPCAddr(),
+		"--key", hex.EncodeToString(privateKeyRaw),
+		"--dir", tmpPath,
+		"--contract", "Bridge:" + contracts.Bridge.String(),
+	}, os.Stdout))
+
+	newVersion := getVersion(t)
+
+	require.NotEqual(t, oldVersion, newVersion)
+	require.Equal(t, desiredVersion, newVersion)
+
+	// send bridging tx should work after upgrading
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(1)))
 }
 
 func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
