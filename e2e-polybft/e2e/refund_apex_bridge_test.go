@@ -81,15 +81,15 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("Submitted invalid metadata - wrong type", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, user, cardanofw.DefaultRequestStateTimeoutSec)
+		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, user, cardanofw.DefaultRequestStateTimeoutSec, true)
 	})
 
 	t.Run("Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, user, 0)
+		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, user, 0, true)
 	})
 
 	t.Run("Submitted invalid metadata - empty tx", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, user, 0)
+		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, user, 0, true)
 	})
 
 	t.Run("Submitted invalid metadata - invalid sender", func(t *testing.T) {
@@ -141,7 +141,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("Mismatch submitted and receiver amounts", func(t *testing.T) {
-		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, user, 0)
+		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, user, 0, true)
 	})
 
 	t.Run("Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
@@ -179,8 +179,6 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 	t.Run("Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
 		instances := 5
 		txHashes := make([]string, instances)
-		lowerBoundaryDfm := make([]*big.Int, instances)
-		beforeSendingAmountDfm := make([]*big.Int, instances)
 
 		sendAmount := uint64(1_000_000)
 		feeAmount := uint64(1_100_000)
@@ -200,10 +198,10 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 				testUser := apex.Users[idx]
 
-				beforeSendingAmountDfm[idx], err = apex.GetBalance(ctx, testUser, cardanofw.ChainIDPrime)
+				beforeSendingAmountDfm, err := apex.GetBalance(ctx, testUser, cardanofw.ChainIDPrime)
 				require.NoError(t, err)
 
-				lowerBoundaryDfm[idx] = new(big.Int).Sub(beforeSendingAmountDfm[idx], new(big.Int).SetUint64(sendAmount+feeAmount))
+				lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
 
 				bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
 					testUser.GetAddress(cardanofw.ChainIDPrime), receivers,
@@ -216,17 +214,15 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 					apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
 				require.NoError(t, err)
 
-				fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHashes[idx], lowerBoundaryDfm[i], beforeSendingAmountDfm[i])
+				fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm)
+
+				err = apex.WaitForAmountInRange(ctx, apex.Users[i], cardanofw.ChainIDPrime, lowerBoundaryDfm, beforeSendingAmountDfm,
+					50, time.Second*30)
+				require.NoError(t, err)
 			}()
 		}
 
 		wg.Wait()
-
-		for i := 0; i < instances; i++ {
-			err = apex.WaitForAmountInRange(ctx, apex.Users[i], cardanofw.ChainIDPrime, lowerBoundaryDfm[i], beforeSendingAmountDfm[i],
-				50, time.Second*30)
-			require.NoError(t, err)
-		}
 	})
 }
 
