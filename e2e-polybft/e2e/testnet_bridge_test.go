@@ -294,7 +294,7 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	)
 
 	t.Run("Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
-		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, apex.Users[0], requestStateTimeoutSec)
+		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, apex.Users[0], requestStateTimeoutSec, false)
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
@@ -302,11 +302,11 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, apex.Users[2], requestStateTimeoutSec)
+		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, apex.Users[2], requestStateTimeoutSec, false)
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[3], requestStateTimeoutSec)
+		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[3], requestStateTimeoutSec, false)
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
@@ -314,7 +314,7 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - empty tx", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[5], requestStateTimeoutSec)
+		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[5], requestStateTimeoutSec, false)
 	})
 
 	t.Run("Prime to Nexus submitter not enough funds", func(t *testing.T) {
