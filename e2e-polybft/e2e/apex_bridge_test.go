@@ -129,6 +129,10 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 }
 
 func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
@@ -204,11 +208,11 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(bridgeSolFilePath, newContent, 0660))
 
-	// must compile hardhat script(s) again
 	currentWorkingDir, err := os.Getwd()
 	require.NoError(t, err)
 
 	require.NoError(t, os.Chdir(baseRepoFilePath))
+	// must compile hardhat script(s) again
 	require.NoError(t, cardanofw.RunCommand("npx", []string{"hardhat", "compile"}, os.Stdout))
 	require.NoError(t, os.Chdir(currentWorkingDir))
 
