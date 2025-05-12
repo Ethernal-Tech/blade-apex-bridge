@@ -531,7 +531,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 }
 
 func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
-	if shouldRun := os.Getenv("RUN_E2E_BIG_TESTS"); shouldRun != "true" {
+	if shouldRun := os.Getenv("RUN_E2E_NEXUS_BIG_TESTS"); shouldRun != "true" {
 		t.Skip()
 	}
 

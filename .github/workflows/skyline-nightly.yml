@@ -19,6 +19,7 @@ jobs:
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
       e2e_apex_big_test: ${{ vars.RUN_E2E_BIG_TESTS }}
+      e2e_apex_nexus_big_test: ${{ vars.RUN_E2E_NEXUS_BIG_TESTS }}
       e2e_apex_skip_redundant_tests: ${{ vars.SKIP_E2E_REDUNDANT_TESTS }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
