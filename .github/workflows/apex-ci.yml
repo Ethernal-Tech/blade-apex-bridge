@@ -213,7 +213,7 @@ jobs:
       e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-  e2e_apex_test_push:
+  e2e_apex_test_push_develop:
     name: E2E ApexBridge Tests (push on develop branch)
     uses: ./.github/workflows/e2e-apex-test.yml
     needs: build_blade
@@ -221,6 +221,30 @@ jobs:
     with:
       apex_bridge_ref: main
       blade_apex_bridge_ref: develop
+      e2e_apex_big_test: false
+      e2e_apex_skip_redundant_tests: false
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_apex_test_push_skyline:
+    name: E2E ApexBridge Tests (push on feat/skyline branch)
+    uses: ./.github/workflows/e2e-apex-test.yml
+    needs: build_blade
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/skyline')
+    with:
+      apex_bridge_ref: feat/skyline
+      blade_apex_bridge_ref: feat/skyline
+      e2e_apex_big_test: false
+      e2e_apex_skip_redundant_tests: false
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_apex_test_push_refund:
+    name: E2E ApexBridge Tests (push on feat/refund branch)
+    uses: ./.github/workflows/e2e-apex-test.yml
+    needs: build_blade
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/refund')
+    with:
+      apex_bridge_ref: feat/refund
+      blade_apex_bridge_ref: feat/refund
       e2e_apex_big_test: false
       e2e_apex_skip_redundant_tests: false
     secrets:
