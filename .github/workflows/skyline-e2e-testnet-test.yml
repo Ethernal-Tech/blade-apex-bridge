@@ -1,37 +1,41 @@
 ---
-name: E2E Skyline Tests
+name: E2E ApexBridge Internal/Partner Skyline Testnet
 on: # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      e2e_apex_skip_redundant_tests:
-        description: E2E Skyline Skip Redundant Tests
-        type: string
-        required: true
-      apex_bridge_ref:
-        description: The branch/commit from the Apex Bridge
-        type: string
-        required: true
       blade_apex_bridge_ref:
         description: The branch/commit from the Blade Apex Bridge
         type: string
+        required: true
+      blade_apex_bridge_version:
+        description: The Bridge version
+        type: string
+        required: true
     outputs:
       workflow_output:
-        description: E2E Skyline Tests output
-        value: ${{ jobs.e2e_skyline_bridge.outputs.e2e_skyline_output_failure }}
+        description: E2E ApexBridge Testnet Tests output
+        value: ${{ jobs.e2e_apex_testnet.outputs.e2e_apex_testnet_output_failure }}
     secrets:
       PERSONAL_ACCESS_TOKEN:
         required: true
+      TESTNET_SKYLINE_BRIDGING_API_KEY:
+        required: false
+      SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT:
+        required: true
 
 jobs:
-  e2e_skyline_bridge:
-    name: Run E2E Skyline Tests
+  e2e_apex_testnet:
+    name: Run E2E ApexBridge Testnet Tests
     runs-on: ubuntu-latest
     env:
       E2E_TESTS: true
       E2E_LOGS: true
       CI_VERBOSE: true
+      TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.TESTNET_SKYLINE_BRIDGING_API_KEY }}
+      E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT }}
+      TESTNET_ENV: ${{ inputs.blade_apex_bridge_version }}
     outputs:
-      e2e_skyline_output_failure: ${{ steps.run_e2e_skyline_failure.outputs.test_output }}
+      e2e_apex_testnet_output_failure: ${{ steps.run_e2e_apex_testnet_failure.outputs.test_output }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.1.1
@@ -81,8 +85,7 @@ jobs:
         uses: actions/checkout@v4.1.1
         with:
           repository: Ethernal-Tech/apex-bridge
-          ref: ${{ inputs.apex_bridge_ref }}
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ref: feat/skyline
       - name: Build apex-bridge
         run: |
           go build -tags testenv
@@ -95,13 +98,17 @@ jobs:
           ref: ${{ inputs.blade_apex_bridge_ref }}
       - name: Check certificate key permissions
         run: ls -l /etc/ssl/private/localhost.key
-      - name: Run tests
-        run: make test-e2e-skyline-bridge
-        env: 
-          SKIP_E2E_REDUNDANT_TESTS: ${{ inputs.e2e_apex_skip_redundant_tests }}
+      - name: Run Fund
+        run: make fund-testnet-e2e-skyline-bridge
+      - name: Run Test
+        if: success()
+        run: make test-testnet-e2e-skyline-bridge
+      - name: Run Defund
+        if: always()
+        run: make defund-testnet-e2e-skyline-bridge
       - name: Run tests failed
         if: failure()
-        id: run_e2e_skyline_failure
+        id: run_e2e_apex_testnet_failure
         run: echo "test_output=false" >> $GITHUB_OUTPUT
       - name: Archive test logs
         if: always()
@@ -110,7 +117,7 @@ jobs:
           name: e2e-skyline-logs
           path: e2e-logs-*/
           retention-days: 30
-      - name: Archive e2e skyline data
+      - name: Archive e2e bridge data
         if: always()
         uses: actions/upload-artifact@v4.3.0
         with:

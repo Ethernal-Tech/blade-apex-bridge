@@ -1,12 +1,8 @@
 ---
-name: Skyline Notification - Nightly
+name: Apex Bridge Notification - Internal/Partner Skyline Testnet
 on: # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      environment:
-        description: The environment to run against
-        type: string
-        required: true
       blade_apex_bridge_ref:
         description: The branch/commit from the Blade Apex Bridge
         type: string
@@ -19,20 +15,8 @@ on: # yamllint disable-line rule:truthy
         description: Lint output
         type: string
         required: true
-      unit_test_output:
-        description: Unit Tests output
-        type: string
-        required: true
-      e2e_polybft_test_output:
-        description: E2E PolyBFT Tests output
-        type: string
-        required: true
-      e2e_apex_test_output:
-        description: E2E ApexBridge Tests output
-        type: string
-        required: true
-      e2e_skyline_test_output:
-        description: E2E Skyline Tests output
+      e2e_apex_internal_testnet_test_output:
+        description: E2E Apex Bridge Internal Testnet Tests output
         type: string
         required: true
     secrets:
@@ -43,7 +27,6 @@ jobs:
   notification:
     name: Notification
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.1.1
@@ -72,7 +55,7 @@ jobs:
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "Skyline Nightly Local Tests"
+                    "text": "Skyline Testnet Tests"
                   }
                 },
                 {
@@ -84,7 +67,7 @@ jobs:
                         "type": "plain_text",
                         "text": "Workflow Run"
                       },
-                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.unit_test_output == '' && inputs.e2e_polybft_test_output == '' && inputs.e2e_apex_test_output && env.succeed_bnt || env.failed_bnt }}",
+                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.e2e_apex_internal_testnet_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
                       "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                     }
                   ]
@@ -95,10 +78,6 @@ jobs:
                     {
                       "type": "mrkdwn",
                       "text": "Commit: *<https://github.com/${{ github.repository }}/tree/${{ steps.short_sha.outputs.full_value }}|${{ steps.short_sha.outputs.value }}>*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "Environment: *${{ inputs.environment }}*"
                     }
                   ]
                 },
@@ -118,19 +97,7 @@ jobs:
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "${{ inputs.unit_test_output == '' && env.succeed_job || env.failed_job }} *Unit Tests*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_polybft_test_output == '' && env.succeed_job || env.failed_job }} *E2E PolyBFT Tests*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_apex_test_output == '' && env.succeed_job || env.failed_job }} *E2E ApexBridge Tests*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_skyline_test_output == '' && env.succeed_job || env.failed_job }} *E2E Skyline Tests*"
+                      "text": "${{ inputs.e2e_apex_internal_testnet_test_output == '' && env.succeed_job || env.failed_job }} *E2E Apex Bridge Internal Testnet Tests*"
                     }
                   ]
                 }
