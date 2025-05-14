@@ -26,6 +26,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1536,22 +1537,23 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 	})
 }
 
-func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
+func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 	if shouldRun := os.Getenv("RUN_E2E_BIG_TESTS"); shouldRun != "true" {
 		t.Skip()
 	}
 
 	const (
 		apiKey  = "test_api_key"
-		userCnt = 1010
+		userCnt = 2010 // max 1000 parallel instances, userCnot >= 2 * instances + 1
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig, vectorConfig, nexusConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true), cardanofw.NewNexusChainConfig(true)
 	primeConfig.PremineAmount = 30_000_000_000
 	vectorConfig.PremineAmount = 30_000_000_000
+	nexusConfig.PremineAmount = ethgo.Ether(30_000_000_000)
 
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,
@@ -1559,17 +1561,12 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		cardanofw.WithUserCnt(userCnt),
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
 	user := apex.Users[userCnt-1]
-
-	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
-	require.NoError(t, err)
-
-	txProviderVector, err := apex.VectorInfo.GetTxProvider()
-	require.NoError(t, err)
 
 	fmt.Println("prime user addr: ", user.PrimeAddress)
 	fmt.Println("vector user addr: ", user.VectorAddress)
@@ -1578,265 +1575,102 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 	fmt.Println("vector multisig addr: ", apex.VectorInfo.MultisigAddr)
 	fmt.Println("vector fee addr: ", apex.VectorInfo.FeeAddr)
 
-	//nolint:dupl
-	t.Run("From prime to vector 200x 5min 90%", func(t *testing.T) {
-		instances := 200
-		maxWaitTime := 300
-		sendAmount := uint64(1_000_000)
-		successChance := 90 // 90%
-		succeededCount := int64(0)
-
-		prevAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
-		require.NoError(t, err)
-
-		fmt.Printf("Sending %v transactions in %v seconds\n", instances, maxWaitTime)
-
-		var wg sync.WaitGroup
-		for i := 0; i < instances; i++ {
-			wg.Add(1)
-
-			go func(idx int) {
-				defer wg.Done()
-
-				if successChance > rand.Intn(100) {
-					succeededCount++
-					sleepTime := rand.Intn(maxWaitTime)
-					time.Sleep(time.Second * time.Duration(sleepTime))
-
-					apex.SubmitBridgingRequest(t, ctx,
-						cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-						apex.Users[idx], new(big.Int).SetUint64(sendAmount), user,
-					)
-				} else {
-					feeAmount := uint64(1_100_000)
-					receivers := map[string]uint64{
-						user.GetAddress(cardanofw.ChainIDVector): sendAmount * 10, // 10Ada
-					}
-
-					bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
-						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), receivers,
-						cardanofw.ChainIDVector, feeAmount)
-					require.NoError(t, err)
-
-					_, err = cardanofw.SendTx(
-						ctx, txProviderPrime, apex.Users[idx].PrimeWallet, sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
-						apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
-					require.NoError(t, err)
-				}
-			}(i)
-		}
-
-		wg.Wait()
-
-		fmt.Printf("All tx sent, waiting for confirmation.\n")
-
-		expectedAmount := new(big.Int).SetUint64(sendAmount)
-		expectedAmount.Mul(expectedAmount, big.NewInt(succeededCount))
-		expectedAmount.Add(expectedAmount, prevAmount)
-
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDVector, expectedAmount, 500, time.Second*10)
-		require.NoError(t, err)
-
-		newAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
-		require.NoError(t, err)
-
-		fmt.Printf("Success count: %v. prevAmount: %v. newAmount: %v. expectedAmount: %v\n", succeededCount, prevAmount, newAmount, expectedAmount)
-	})
-
-	//nolint:dupl
-	t.Run("From prime to vector 1000x 20min 90%", func(t *testing.T) {
-		instances := 1000
-		maxWaitTime := 1200
-		sendAmount := uint64(1_000_000)
-		successChance := 90 // 90%
-		succeededCount := int64(0)
-
-		prevAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
-		require.NoError(t, err)
-
-		fmt.Printf("Sending %v transactions in %v seconds\n", instances, maxWaitTime)
-
-		var wg sync.WaitGroup
-		for i := 0; i < instances; i++ {
-			wg.Add(1)
-
-			go func(idx int) {
-				defer wg.Done()
-
-				if successChance > rand.Intn(100) {
-					succeededCount++
-					sleepTime := rand.Intn(maxWaitTime)
-					time.Sleep(time.Second * time.Duration(sleepTime))
-
-					apex.SubmitBridgingRequest(t, ctx,
-						cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-						apex.Users[idx], new(big.Int).SetUint64(sendAmount), user,
-					)
-				} else {
-					feeAmount := uint64(1_100_000)
-					receivers := map[string]uint64{
-						user.GetAddress(cardanofw.ChainIDVector): sendAmount * 10, // 10Ada
-					}
-
-					bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
-						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), receivers,
-						cardanofw.ChainIDVector, feeAmount)
-					require.NoError(t, err)
-
-					_, err = cardanofw.SendTx(
-						ctx, txProviderPrime, apex.Users[idx].PrimeWallet, sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
-						apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
-					require.NoError(t, err)
-				}
-			}(i)
-		}
-
-		wg.Wait()
-
-		fmt.Printf("All tx sent, waiting for confirmation.\n")
-
-		expectedAmount := new(big.Int).SetUint64(sendAmount)
-		expectedAmount.Mul(expectedAmount, big.NewInt(succeededCount))
-		expectedAmount.Add(expectedAmount, prevAmount)
-
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDVector, expectedAmount, 500, time.Second*10)
-		require.NoError(t, err)
-
-		newAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
-		require.NoError(t, err)
-
-		fmt.Printf("Success count: %v. prevAmount: %v. newAmount: %v. expectedAmount: %v\n", succeededCount, prevAmount, newAmount, expectedAmount)
-	})
-
 	t.Run("Both directions 1000x 60min 90%", func(t *testing.T) {
-		instances := 1000
-		maxWaitTime := 3600
-		sendAmount := uint64(1_000_000)
-		successChance := 90 // 90%
-		succeededCountPrime := int64(0)
-		succeededCountVector := int64(0)
+		const (
+			instances     = 1000
+			maxWaitTime   = 3600
+			successChance = 90 // 90%
 
-		prevAmountOnVector, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
-		require.NoError(t, err)
-		prevAmountOnPrime, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
+			// wait for tx timeout
+			numRetries = 500
+			waitTime   = time.Second * 10
+		)
 
-		fmt.Printf("Sending %v transactions in %v seconds\n", instances*2, maxWaitTime)
+		sendAmount := new(big.Int).SetInt64(1_000_000)
+
+		bridgingRequests := []struct {
+			src            cardanofw.ChainID
+			dest           cardanofw.ChainID
+			firstSenderIdx int
+		}{
+			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDVector, firstSenderIdx: 0},
+			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDNexus, firstSenderIdx: instances},
+			{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDPrime, firstSenderIdx: 0},
+			{src: cardanofw.ChainIDNexus, dest: cardanofw.ChainIDPrime, firstSenderIdx: 0},
+		}
+
+		seed := rand.Int63n(1_000_000_000)
+		r := rand.New(rand.NewSource(seed)) // New seeded random number generator
+
+		fmt.Printf("Test seed: %v\n", seed)
+
+		fmt.Printf("Sending %v transactions in %v seconds\n", instances*len(bridgingRequests), maxWaitTime)
+
+		prevAmounts := make(map[cardanofw.ChainID]*big.Int)
+		expectedAmounts := make(map[cardanofw.ChainID]*big.Int)
 
 		var wg sync.WaitGroup
-		for i := 0; i < instances; i++ {
-			wg.Add(2)
 
-			//nolint:dupl
-			go func(idx int) {
-				defer wg.Done()
+		for j, br := range bridgingRequests {
+			var err error
 
-				if successChance > rand.Intn(100) {
-					succeededCountPrime++
-					sleepTime := rand.Intn(maxWaitTime)
-					time.Sleep(time.Second * time.Duration(sleepTime))
+			succeededCount := int64(0)
 
-					apex.SubmitBridgingRequest(t, ctx,
-						cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-						apex.Users[idx], new(big.Int).SetUint64(sendAmount), user,
-					)
-				} else {
-					feeAmount := uint64(1_100_000)
-					receivers := map[string]uint64{
-						user.GetAddress(cardanofw.ChainIDVector): sendAmount * 10, // 10Ada
-					}
+			if _, ok := prevAmounts[br.dest]; !ok {
+				prevAmounts[br.dest], err = apex.GetBalance(ctx, user, br.dest)
+				require.NoError(t, err)
 
-					bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
-						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), receivers,
-						cardanofw.ChainIDVector, feeAmount)
-					require.NoError(t, err)
+				expectedAmounts[br.dest] = new(big.Int).Set(prevAmounts[br.dest])
+			}
 
-					_, err = cardanofw.SendTx(
-						ctx, txProviderPrime, apex.Users[idx].PrimeWallet, sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
-						apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
-					require.NoError(t, err)
+			for i := 0; i < instances; i++ {
+				success := successChance > r.Intn(100)
+				if success {
+					succeededCount++
 				}
-			}(i)
 
-			//nolint:dupl
-			go func(idx int) {
-				defer wg.Done()
+				wg.Add(1)
 
-				if successChance > rand.Intn(100) {
-					succeededCountVector++
-					sleepTime := rand.Intn(maxWaitTime)
-					time.Sleep(time.Second * time.Duration(sleepTime))
+				go func(idx int, brIdx int, src, dest cardanofw.ChainID, valid bool) {
+					defer wg.Done()
 
-					apex.SubmitBridgingRequest(t, ctx,
-						cardanofw.ChainIDVector, cardanofw.ChainIDPrime,
-						apex.Users[idx], new(big.Int).SetUint64(sendAmount), user,
-					)
-				} else {
-					feeAmount := uint64(1_100_000)
-					receivers := map[string]uint64{
-						user.GetAddress(cardanofw.ChainIDPrime): sendAmount * 10, // 10Ada
+					if valid {
+						time.Sleep(time.Second * time.Duration(r.Intn(maxWaitTime)))
+
+						apex.SubmitBridgingRequest(t, ctx, src, dest, apex.Users[idx], sendAmount, user)
+					} else {
+						PrimeToVectorInvalidSendAmountTransaction(t, ctx, apex, src, dest, apex.Users[idx], sendAmount, user.GetAddress(dest))
 					}
+				}(br.firstSenderIdx+i, j, br.src, br.dest, success)
+			}
 
-					bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
-						apex.Users[idx].GetAddress(cardanofw.ChainIDVector), receivers,
-						cardanofw.ChainIDPrime, feeAmount)
-					require.NoError(t, err)
-
-					_, err = cardanofw.SendTx(
-						ctx, txProviderVector, apex.Users[idx].VectorWallet, sendAmount+feeAmount, apex.VectorInfo.MultisigAddr,
-						apex.Config.VectorConfig.NetworkType, bridgingRequestMetadata)
-					require.NoError(t, err)
-				}
-			}(i)
+			totalSent := new(big.Int).Mul(sendAmount, big.NewInt(succeededCount))
+			expectedAmounts[br.dest].Add(expectedAmounts[br.dest], totalSent)
 		}
 
 		wg.Wait()
 
 		fmt.Printf("All tx sent, waiting for confirmation.\n")
 
-		expectedAmountOnVector := new(big.Int).SetUint64(sendAmount)
-		expectedAmountOnVector.Mul(expectedAmountOnVector, big.NewInt(succeededCountVector))
-		expectedAmountOnVector.Add(expectedAmountOnVector, prevAmountOnVector)
+		for _, destChain := range []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus} {
+			wg.Add(1)
 
-		expectedAmountOnPrime := new(big.Int).SetUint64(sendAmount)
-		expectedAmountOnPrime.Mul(expectedAmountOnPrime, big.NewInt(succeededCountPrime))
-		expectedAmountOnPrime.Add(expectedAmountOnPrime, prevAmountOnPrime)
+			go func(dest string) {
+				defer wg.Done()
 
-		errs := make([]error, 2)
+				succeededCount := new(big.Int).Sub(expectedAmounts[dest], prevAmounts[dest]).Uint64() / sendAmount.Uint64()
 
-		wg.Add(2)
+				fmt.Printf("Waiting for %+v TXs on %s, prevAmount: %v, expectedAmount: %v\n",
+					succeededCount, dest, prevAmounts[dest], expectedAmounts[dest])
 
-		go func() {
-			defer wg.Done()
+				err := apex.WaitForExactAmount(ctx, user, dest, expectedAmounts[dest], numRetries, waitTime)
+				require.NoError(t, err)
 
-			fmt.Printf("Waiting for %v TXs on vector\n", succeededCountVector)
-
-			errs[0] = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDVector, expectedAmountOnVector, 500, time.Second*10)
-		}()
-
-		go func() {
-			defer wg.Done()
-
-			fmt.Printf("Waiting for %v TXs on prime\n", succeededCountPrime)
-
-			errs[1] = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDPrime, expectedAmountOnPrime, 500, time.Second*10)
-		}()
+				fmt.Printf("TXs on %s confirmed\n", dest)
+			}(destChain)
+		}
 
 		wg.Wait()
-
-		require.NoError(t, errs[0])
-		require.NoError(t, errs[1])
-
-		fmt.Printf("%v TXs on vector confirmed\n", succeededCountVector)
-		fmt.Printf("%v TXs on prime confirmed\n", succeededCountPrime)
-
-		newAmountOnVector, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
-		require.NoError(t, err)
-		newAmountOnPrime, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
-
-		fmt.Printf("Vector - Success count: %v. prevAmount: %v. newAmount: %v. expectedAmount: %v\n", succeededCountVector, prevAmountOnVector, newAmountOnVector, expectedAmountOnVector)
-		fmt.Printf("Prime - Success count: %v. prevAmount: %v. newAmount: %v. expectedAmount: %v\n", succeededCountPrime, prevAmountOnPrime, newAmountOnPrime, expectedAmountOnPrime)
 	})
 }
 
@@ -2108,6 +1942,26 @@ func PrimeToVectorInvalidMetadataInvalidTransactions(
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
+}
+
+func PrimeToVectorInvalidSendAmountTransaction(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, src, dest cardanofw.ChainID, senderUser *cardanofw.TestApexUser, sendAmount *big.Int,
+	receiverUserAddr string,
+) {
+	t.Helper()
+
+	feeAmount := big.NewInt(1_100_000)
+	receivers := map[string]uint64{
+		receiverUserAddr: sendAmount.Uint64() * 10,
+	}
+
+	bridgingRequestMetadata, err := cardanofw.CreateCardanoBridgingMetaData(
+		senderUser.GetAddress(src), receivers, dest, feeAmount.Uint64())
+	require.NoError(t, err)
+
+	_, err = apex.SubmitTx(
+		ctx, src, senderUser, receiverUserAddr, new(big.Int).Add(sendAmount, feeAmount), bridgingRequestMetadata)
+	require.Error(t, err)
 }
 
 func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
