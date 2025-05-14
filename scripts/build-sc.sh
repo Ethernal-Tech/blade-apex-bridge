@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BRANCH=feat/skyline
+BRANCH=temp/resolved-conficts
 
 # build Apex-bridge smartcontracts
 cd ./apex-bridge-smartcontracts
