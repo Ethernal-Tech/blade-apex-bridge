@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -546,6 +547,11 @@ func (a *ApexSystem) SubmitBridgingRequest(
 ) string {
 	t.Helper()
 
+	const (
+		numRetries = 5
+		waitTime   = time.Second * 10
+	)
+
 	require.True(t, sourceChain != destinationChain)
 
 	// check if sourceChain is supported
@@ -597,8 +603,20 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	privateKey, err := sender.GetPrivateKey(sourceChain)
 	require.NoError(t, err)
 
-	txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
-		ctx, destinationChain, privateKey, receiversMap, feeAmount)
+	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
+		txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
+			ctx, destinationChain, privateKey, receiversMap, feeAmount)
+		if err != nil {
+			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") ||
+				strings.Contains(err.Error(), infracommon.ErrRetryTimeout.Error()) {
+				return "", infracommon.ErrRetryTryAgain
+			}
+
+			return "", err
+		}
+
+		return txHash, nil
+	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
 	require.NoError(t, err)
 
 	return txHash
