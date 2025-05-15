@@ -548,8 +548,8 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	t.Helper()
 
 	const (
-		numRetries = 100
-		waitTime   = time.Second * 1
+		numRetries = 5
+		waitTime   = time.Second * 10
 	)
 
 	require.True(t, sourceChain != destinationChain)
