@@ -130,10 +130,6 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 }
 
 func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
-
 	currentWorkingDir, err := os.Getwd()
 	require.NoError(t, err)
 
