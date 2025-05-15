@@ -135,6 +135,9 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 		t.Skip()
 	}
 
+	currentWorkingDir, err := os.Getwd()
+	require.NoError(t, err)
+
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
@@ -181,8 +184,23 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 		return mp["0"].(string)
 	}
 
-	oldVersion := getVersion(t)
-	desiredVersion := "190843934374.0323.2371283182"
+	var (
+		stdOutBuffer   bytes.Buffer
+		desiredVersion = "190843934374.0323.2371283182"
+		oldVersion     = getVersion(t)
+	)
+
+	// get current branch
+	scDirPath := strings.TrimSuffix(currentWorkingDir, string(filepath.Separator)) // remove separator on the end
+	scDirPath = strings.TrimSuffix(scDirPath, "e2e")                               // remove e2e if its last dir in path
+	scDirPath = strings.TrimSuffix(scDirPath, string(filepath.Separator))          // remove separator on the end again
+	scDirPath = strings.TrimSuffix(scDirPath, "e2e-polybft")                       // remove e2e-polybft if its last dir in path
+
+	require.NoError(t, os.Chdir(filepath.Join(scDirPath, "apex-bridge-smartcontracts")))
+	require.NoError(t, cardanofw.RunCommand("git", []string{"log", "-1", "--format='%H'"}, &stdOutBuffer))
+	require.NoError(t, os.Chdir(currentWorkingDir))
+
+	branchName := strings.Trim(strings.TrimSpace(stdOutBuffer.String()), string("'"))
 
 	// first upgrade just to clone repository
 	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
@@ -191,7 +209,7 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 		"--key", hex.EncodeToString(privateKeyRaw),
 		"--dir", tmpPath,
 		"--clone",
-		"--branch", "main",
+		"--branch", branchName,
 		"--repo", "https://github.com/Ethernal-Tech/apex-bridge-smartcontracts",
 		"--contract", "Bridge:" + contracts.Bridge.String(),
 	}, os.Stdout))
@@ -209,9 +227,6 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 	newContent := re.ReplaceAll(content, []byte(replacePattern))
 
 	require.NoError(t, os.WriteFile(bridgeSolFilePath, newContent, 0660))
-
-	currentWorkingDir, err := os.Getwd()
-	require.NoError(t, err)
 
 	require.NoError(t, os.Chdir(baseRepoFilePath))
 	// must compile hardhat script(s) again
