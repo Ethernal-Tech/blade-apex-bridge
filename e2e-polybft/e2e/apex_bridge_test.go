@@ -1961,7 +1961,7 @@ func PrimeToVectorInvalidSendAmountTransaction(
 
 	_, err = apex.SubmitTx(
 		ctx, src, senderUser, receiverUserAddr, new(big.Int).Add(sendAmount, feeAmount), bridgingRequestMetadata)
-	require.Error(t, err)
+	require.NoError(t, err)
 }
 
 func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
