@@ -13,7 +13,6 @@ jobs:
     with:
       lint: true
       unit_test: true
-      e2e_polybft_test: true
       e2e_apex_test: true
       e2e_skyline_test: true
       e2e_refund_test: false
@@ -34,7 +33,6 @@ jobs:
       build_blade_output: ${{ needs.skyline_ci.outputs.build_blade }}
       lint_output: ${{ needs.skyline_ci.outputs.lint }}
       unit_test_output: ${{ needs.skyline_ci.outputs.unit_test }}
-      e2e_polybft_test_output: ${{ needs.skyline_ci.outputs.e2e_polybft_test }}
       e2e_apex_test_output: ${{ needs.skyline_ci.outputs.e2e_apex_test }}
       e2e_skyline_test_output: ${{ needs.skyline_ci.outputs.e2e_skyline_test }}
     secrets:
