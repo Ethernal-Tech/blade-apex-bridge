@@ -23,10 +23,6 @@ on: # yamllint disable-line rule:truthy
         description: Unit Tests output
         type: string
         required: true
-      e2e_polybft_test_output:
-        description: E2E PolyBFT Tests output
-        type: string
-        required: true
       e2e_apex_test_output:
         description: E2E ApexBridge Tests output
         type: string
@@ -84,7 +80,7 @@ jobs:
                         "type": "plain_text",
                         "text": "Workflow Run"
                       },
-                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.unit_test_output == '' && inputs.e2e_polybft_test_output == '' && inputs.e2e_apex_test_output == '' && inputs.e2e_refund_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
+                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.unit_test_output == '' && inputs.e2e_apex_test_output == '' && inputs.e2e_refund_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
                       "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                     }
                   ]
@@ -119,10 +115,6 @@ jobs:
                     {
                       "type": "mrkdwn",
                       "text": "${{ inputs.unit_test_output == '' && env.succeed_job || env.failed_job }} *Unit Tests*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_polybft_test_output == '' && env.succeed_job || env.failed_job }} *E2E PolyBFT Tests*"
                     },
                     {
                       "type": "mrkdwn",
