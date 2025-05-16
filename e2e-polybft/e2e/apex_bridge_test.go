@@ -190,17 +190,18 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 		oldVersion     = getVersion(t)
 	)
 
-	// get current branch
-	scDirPath := strings.TrimSuffix(currentWorkingDir, string(filepath.Separator)) // remove separator on the end
-	scDirPath = strings.TrimSuffix(scDirPath, "e2e")                               // remove e2e if its last dir in path
-	scDirPath = strings.TrimSuffix(scDirPath, string(filepath.Separator))          // remove separator on the end again
-	scDirPath = strings.TrimSuffix(scDirPath, "e2e-polybft")                       // remove e2e-polybft if its last dir in path
+	require.NoError(t, cardanofw.RunCommand("git", []string{"submodule"}, &stdOutBuffer))
+	fmt.Printf("git submodule output:\n%s\n", stdOutBuffer.String())
 
-	require.NoError(t, os.Chdir(filepath.Join(scDirPath, "apex-bridge-smartcontracts")))
-	require.NoError(t, cardanofw.RunCommand("git", []string{"log", "-1", "--format='%H'"}, &stdOutBuffer))
-	require.NoError(t, os.Chdir(currentWorkingDir))
+	re := regexp.MustCompile(`(?m)[- ]?([a-f0-9]{40})\s+(?:\./|\.\./)*` + regexp.QuoteMeta("apex-bridge-smartcontracts") + `(?:\s+\(.*\))?`)
 
-	branchName := strings.Trim(strings.TrimSpace(stdOutBuffer.String()), string("'"))
+	match := re.FindStringSubmatch(stdOutBuffer.String())
+	require.Greater(t, len(match), 1)
+
+	branchName := match[1]
+	require.Greater(t, len(branchName), 0)
+
+	fmt.Printf("apex-bridge-smartcontracts branchName: %s\n", branchName)
 
 	// first upgrade just to clone repository
 	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
@@ -220,7 +221,7 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 	// Regular expression to match the version function and its return string
 	// This pattern matches the function declaration and captures the string to replace
 	pattern := `(function version\(\) public pure returns \(string memory\)\s*\{\s*return ")([^"]+)(";)`
-	re := regexp.MustCompile(pattern)
+	re = regexp.MustCompile(pattern)
 
 	// Replace the string
 	replacePattern := fmt.Sprintf("${1}%s${3}", desiredVersion)
