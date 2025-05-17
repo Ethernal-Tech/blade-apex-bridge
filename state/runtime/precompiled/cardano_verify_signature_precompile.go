@@ -7,8 +7,8 @@ import (
 	"github.com/0xPolygon/polygon-edge/chain"
 	"github.com/0xPolygon/polygon-edge/state/runtime"
 	"github.com/0xPolygon/polygon-edge/types"
-	cardano_indexer "github.com/Ethernal-Tech/cardano-infrastructure/indexer"
-	cardano_wallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	cardanoindexer "github.com/Ethernal-Tech/cardano-infrastructure/indexer/gouroboros"
+	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/ethgo/abi"
 )
 
@@ -39,14 +39,14 @@ func (c *cardanoVerifySignaturePrecompile) run(input []byte, caller types.Addres
 	isTx := data["3"].(bool)                 //nolint: forcetypeassert
 
 	// second parameter can be witness
-	signatureFromWitness, _, err := cardano_wallet.TxWitnessRaw(signature).GetSignatureAndVKey()
+	signatureFromWitness, _, err := cardanowallet.TxWitnessRaw(signature).GetSignatureAndVKey()
 	if err == nil {
 		signature = signatureFromWitness
 	}
 
 	// if first argument is raw transaction we need to get tx hash from it
 	if isTx {
-		txInfo, err := cardano_indexer.ParseTxInfo(rawTxOrMessage)
+		txInfo, err := cardanoindexer.ParseTxInfo(rawTxOrMessage, false)
 		if err != nil {
 			return nil, err
 		}
@@ -57,9 +57,9 @@ func (c *cardanoVerifySignaturePrecompile) run(input []byte, caller types.Addres
 		}
 	}
 
-	err = cardano_wallet.VerifyMessage(rawTxOrMessage, verifyingKey[:], signature)
+	err = cardanowallet.VerifyMessage(rawTxOrMessage, verifyingKey[:], signature)
 	if err != nil {
-		if errors.Is(err, cardano_wallet.ErrInvalidSignature) {
+		if errors.Is(err, cardanowallet.ErrInvalidSignature) {
 			return abiBoolFalse, nil
 		}
 

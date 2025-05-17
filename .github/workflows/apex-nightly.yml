@@ -13,9 +13,9 @@ jobs:
     with:
       lint: true
       unit_test: true
-      e2e_polybft_test: true
       e2e_apex_test: true
       e2e_skyline_test: false
+      e2e_refund_test: false
       apex_bridge_ref: main
       blade_apex_bridge_ref: develop
       e2e_apex_big_test: ${{ vars.RUN_E2E_BIG_TESTS }}
@@ -32,7 +32,6 @@ jobs:
       build_blade_output: ${{ needs.apex-ci.outputs.build_blade }}
       lint_output: ${{ needs.apex-ci.outputs.lint }}
       unit_test_output: ${{ needs.apex-ci.outputs.unit_test }}
-      e2e_polybft_test_output: ${{ needs.apex-ci.outputs.e2e_polybft_test }}
       e2e_apex_test_output: ${{ needs.apex-ci.outputs.e2e_apex_test }}
     secrets:
       APEX_SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}

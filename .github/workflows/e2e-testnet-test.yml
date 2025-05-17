@@ -91,7 +91,7 @@ jobs:
           ref: main
       - name: Build apex-bridge
         run: |
-          go build
+          go build -tags testenv
           sudo mv apex-bridge /usr/local/bin/
       - name: Verify apex-bridge executable
         run: apex-bridge --help
