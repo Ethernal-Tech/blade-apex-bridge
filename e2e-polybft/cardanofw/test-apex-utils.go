@@ -422,7 +422,7 @@ func GetLogsFile(t *testing.T, filePath string, withStdout bool) io.Writer {
 }
 
 func IsEnvVarTrue(name string) bool {
-	return os.Getenv(name) == "true"
+	return strings.ToLower(os.Getenv(name)) == "true"
 }
 
 func ShouldSkipE2RRedundantTests() bool {

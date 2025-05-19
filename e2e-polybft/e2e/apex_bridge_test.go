@@ -1539,7 +1539,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 }
 
 func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
-	if shouldRun := os.Getenv("RUN_E2E_BIG_TESTS"); shouldRun != "true" {
+	if !cardanofw.IsEnvVarTrue("RUN_E2E_BIG_TESTS") {
 		t.Skip()
 	}
 
@@ -1639,8 +1639,8 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 						time.Sleep(time.Second * time.Duration(r.Intn(maxWaitTime)))
 
 						apex.SubmitBridgingRequest(t, ctx, src, dest, apex.Users[idx], sendAmount, user)
-					} else {
-						PrimeToVectorInvalidSendAmountTransaction(t, ctx, apex, src, dest, apex.Users[idx], sendAmount, user.GetAddress(dest))
+					} else if src != cardanofw.ChainIDNexus {
+						submitInvalidSendAmountTransaction(t, ctx, apex, src, dest, apex.Users[idx], sendAmount, user.GetAddress(dest))
 					}
 				}(br.firstSenderIdx+i, j, br.src, br.dest, success)
 			}
@@ -1945,7 +1945,7 @@ func PrimeToVectorInvalidMetadataInvalidTransactions(
 	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
 }
 
-func PrimeToVectorInvalidSendAmountTransaction(
+func submitInvalidSendAmountTransaction(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, src, dest cardanofw.ChainID, senderUser *cardanofw.TestApexUser, sendAmount *big.Int,
 	receiverUserAddr string,
 ) {
@@ -1961,7 +1961,8 @@ func PrimeToVectorInvalidSendAmountTransaction(
 	require.NoError(t, err)
 
 	_, err = apex.SubmitTx(
-		ctx, src, senderUser, receiverUserAddr, new(big.Int).Add(sendAmount, feeAmount), bridgingRequestMetadata)
+		ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddress(),
+		new(big.Int).Add(sendAmount, feeAmount), bridgingRequestMetadata)
 	require.NoError(t, err)
 }
 
