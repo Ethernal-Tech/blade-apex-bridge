@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/command"
@@ -20,6 +21,8 @@ import (
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/spf13/cobra"
 )
+
+const stakeTokenAmount = 1
 
 var params registerParams
 
@@ -49,6 +52,13 @@ func setFlags(cmd *cobra.Command) {
 		polybftsecrets.AccountConfigFlag,
 		"",
 		polybftsecrets.AccountConfigFlagDesc,
+	)
+
+	cmd.Flags().StringVar(
+		&params.stakeToken,
+		polybftsecrets.StakeTokenFlag,
+		contracts.NativeERC20TokenContract.String(),
+		polybftsecrets.StakeTokenFlagDesc,
 	)
 
 	cmd.Flags().DurationVar(
@@ -88,6 +98,21 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
+	approveTxn, err := bridgeHelper.CreateApproveERC20Txn(big.NewInt(stakeTokenAmount),
+		contracts.StakeManagerContract, params.stakeTokenAddr, true)
+	if err != nil {
+		return err
+	}
+
+	receipt, err := txRelayer.SendTransaction(approveTxn, validatorAccount.Ecdsa)
+	if err != nil {
+		return err
+	}
+
+	if receipt.Status == uint64(types.ReceiptFailed) {
+		return fmt.Errorf("approve transaction failed on block %d", receipt.BlockNumber)
+	}
+
 	koskSignature, err := signer.MakeKOSKSignature(
 		validatorAccount.Bls, validatorAccount.Address(),
 		rootChainID.Int64(), signer.DomainValidatorSet, contracts.StakeManagerContract)
@@ -95,7 +120,7 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	receipt, err := registerValidator(txRelayer, validatorAccount, koskSignature)
+	receipt, err = registerValidator(txRelayer, validatorAccount, koskSignature)
 	if err != nil {
 		return err
 	}

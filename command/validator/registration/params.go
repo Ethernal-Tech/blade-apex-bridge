@@ -9,18 +9,27 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/command/helper"
 	sidechainHelper "github.com/0xPolygon/polygon-edge/command/validator/helper"
+	"github.com/0xPolygon/polygon-edge/types"
 )
 
 type registerParams struct {
 	accountDir    string
 	accountConfig string
 	jsonRPC       string
+	stakeToken    string
 	txTimeout     time.Duration
+
+	stakeTokenAddr types.Address
 }
 
 var errStakeTokenIsZeroAddress = errors.New("stake token address must not be zero address")
 
 func (rp *registerParams) validateFlags() (err error) {
+	rp.stakeTokenAddr, err = types.IsValidAddress(params.stakeToken, false)
+	if err != nil {
+		return fmt.Errorf("stake token address is not a valid address: %w", err)
+	}
+
 	// validate jsonrpc address
 	_, err = helper.ParseJSONRPCAddress(rp.jsonRPC)
 	if err != nil {
