@@ -2230,10 +2230,10 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 					tokenName = apex.GetTokenNameForChains(br.dest, br.src)
 				}
 
-				prevAmount := big.NewInt(0)
+				prevAmount := prevAmounts[brIdx][tokenName]
 
-				if amount, ok := prevAmounts[brIdx][tokenName]; ok {
-					prevAmount = amount
+				if prevAmount == nil {
+					prevAmount = big.NewInt(0)
 				}
 
 				succeededCount := new(big.Int).Sub(expectedAmounts[brIdx], prevAmount).Uint64() / sendAmount.Uint64()
@@ -2272,17 +2272,17 @@ func sendInvalidSendAmountTransaction(
 		},
 	}
 
-	feeAmount, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingFee(
-		ctx, cardanofw.ChainIDCardano, receivers, bridgingFee, operationFee)
+	feeAmount, err := apex.GetChainMust(t, src).GetBridgingFee(
+		ctx, dest, receivers, bridgingFee, operationFee)
 	require.NoError(t, err)
 
-	metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-		senderUser.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDCardano,
+	metadata, err := apex.GetChainMust(t, src).CreateMetadata(
+		senderUser.GetAddress(src), dest,
 		receivers, feeAmount, operationFee)
 	require.NoError(t, err)
 
 	_, err = apex.SubmitTx(
-		ctx, cardanofw.ChainIDPrime, senderUser, apex.PrimeInfo.MultisigAddr,
+		ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddress(),
 		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount+operationFee)), nil, metadata)
 	require.NoError(t, err)
 }
