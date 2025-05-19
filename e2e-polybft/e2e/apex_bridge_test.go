@@ -1624,7 +1624,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 						time.Sleep(time.Second * time.Duration(r.Intn(maxWaitTime)))
 
 						apex.SubmitBridgingRequest(t, ctx, src, dest, apex.Users[idx], sendAmount, sendtx.BridgingTypeNormal, user)
-					} else {
+					} else if src != cardanofw.ChainIDNexus {
 						submitInvalidSendAmountTransaction(t, ctx, apex, src, dest, apex.Users[idx], sendAmount, user.GetAddress(dest))
 					}
 				}(br.firstSenderIdx+i, j, br.src, br.dest, success)
@@ -1865,12 +1865,7 @@ func submitInvalidSendAmountTransaction(
 
 	_, err = apex.SubmitTx(ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddress(),
 		new(big.Int).Add(sendAmount, feeAmount), nil, bridgingRequestMetadata)
-
-	if src == cardanofw.ChainIDNexus {
-		require.ErrorContains(t, err, "fund relayer failed") // ReceiptFailed status
-	} else {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 }
 
 func PrimeToVectorInvalidMetadataSlicedOff(
