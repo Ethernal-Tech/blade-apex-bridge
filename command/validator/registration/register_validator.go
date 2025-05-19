@@ -22,6 +22,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const stakeTokenAmount = 1
+
 var params registerParams
 
 func GetCommand() *cobra.Command {
@@ -50,13 +52,6 @@ func setFlags(cmd *cobra.Command) {
 		polybftsecrets.AccountConfigFlag,
 		"",
 		polybftsecrets.AccountConfigFlagDesc,
-	)
-
-	cmd.Flags().StringVar(
-		&params.amount,
-		polybftsecrets.AmountFlag,
-		"0",
-		polybftsecrets.AmountFlagDesc,
 	)
 
 	cmd.Flags().StringVar(
@@ -103,21 +98,19 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	if params.amountValue.Cmp(big.NewInt(0)) > 0 {
-		approveTxn, err := bridgeHelper.CreateApproveERC20Txn(params.amountValue,
-			contracts.StakeManagerContract, params.stakeTokenAddr, true)
-		if err != nil {
-			return err
-		}
+	approveTxn, err := bridgeHelper.CreateApproveERC20Txn(big.NewInt(stakeTokenAmount),
+		contracts.StakeManagerContract, params.stakeTokenAddr, true)
+	if err != nil {
+		return err
+	}
 
-		receipt, err := txRelayer.SendTransaction(approveTxn, validatorAccount.Ecdsa)
-		if err != nil {
-			return err
-		}
+	receipt, err := txRelayer.SendTransaction(approveTxn, validatorAccount.Ecdsa)
+	if err != nil {
+		return err
+	}
 
-		if receipt.Status == uint64(types.ReceiptFailed) {
-			return fmt.Errorf("approve transaction failed on block %d", receipt.BlockNumber)
-		}
+	if receipt.Status == uint64(types.ReceiptFailed) {
+		return fmt.Errorf("approve transaction failed on block %d", receipt.BlockNumber)
 	}
 
 	koskSignature, err := signer.MakeKOSKSignature(
@@ -127,7 +120,7 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	receipt, err := registerValidator(txRelayer, validatorAccount, koskSignature)
+	receipt, err = registerValidator(txRelayer, validatorAccount, koskSignature)
 	if err != nil {
 		return err
 	}
@@ -181,9 +174,8 @@ func registerValidator(sender txrelayer.TxRelayer, account *wallet.Account,
 	}
 
 	registerFn := &contractsapi.RegisterStakeManagerFn{
-		Signature:   sigMarshal,
-		Pubkey:      account.Bls.PublicKey().ToBigInt(),
-		StakeAmount: params.amountValue,
+		Signature: sigMarshal,
+		Pubkey:    account.Bls.PublicKey().ToBigInt(),
 	}
 
 	input, err := registerFn.EncodeAbi()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"os"
 	"os/signal"
 	"sync"
@@ -2060,4 +2061,226 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			fmt.Printf("%v TXs on %v confirmed\n", chainExpectedAmounts[chainKey], chainKey.chain)
 		}
 	})
+}
+
+func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
+	if !cardanofw.IsEnvVarTrue("RUN_E2E_SKYLINE_BIG_TESTS") {
+		t.Skip()
+	}
+
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 2010 // max 1000 parallel instances, userCnot >= 2 * instances + 1
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig.PremineAmount = 30_000_000_000
+	cardanoConfig.PremineAmount = 30_000_000_000
+	primeConfig.FundTokenAmount = 1_000_000_000
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	currencyReceiver := apex.Users[userCnt-1]
+	nativeTokenReceiver := apex.Users[userCnt-2]
+
+	fmt.Println("prime user addr: ", currencyReceiver.PrimeAddress)
+	fmt.Println("cardano user addr: ", currencyReceiver.CardanoAddress)
+	fmt.Println("prime multisig addr: ", apex.PrimeInfo.MultisigAddr)
+	fmt.Println("prime fee addr: ", apex.PrimeInfo.FeeAddr)
+	fmt.Println("cardano multisig addr: ", apex.CardanoInfo.MultisigAddr)
+	fmt.Println("cardano fee addr: ", apex.CardanoInfo.FeeAddr)
+
+	minterWalletPrime := apex.PrimeInfo.GenesisWallet
+	minterWalletCardano := apex.CardanoInfo.GenesisWallet
+
+	t.Run("Both directions 1000x 60min 90%", func(t *testing.T) {
+		const (
+			instances     = 1000
+			maxWaitTime   = 3600
+			successChance = 90 // 90%
+
+			// wait for tx timeout
+			numRetries = 500
+			waitTime   = time.Second * 10
+		)
+
+		sendAmount := new(big.Int).SetInt64(1_000_000)
+
+		type bridgingRequest struct {
+			src            cardanofw.ChainID
+			dest           cardanofw.ChainID
+			firstSenderIdx int
+			bridgingType   sendtx.BridgingType
+			receiver       *cardanofw.TestApexUser
+		}
+
+		bridgingRequests := []bridgingRequest{
+			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, firstSenderIdx: 0, bridgingType: sendtx.BridgingTypeNativeTokenOnSource, receiver: currencyReceiver},
+			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, firstSenderIdx: 0, bridgingType: sendtx.BridgingTypeNativeTokenOnSource, receiver: currencyReceiver},
+			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, firstSenderIdx: instances, bridgingType: sendtx.BridgingTypeCurrencyOnSource, receiver: nativeTokenReceiver},
+			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, firstSenderIdx: instances, bridgingType: sendtx.BridgingTypeCurrencyOnSource, receiver: nativeTokenReceiver},
+		}
+
+		seed := rand.Int63n(1_000_000_000)
+		r := rand.New(rand.NewSource(seed)) // New seeded random number generator
+
+		fmt.Printf("Test seed: %v\n", seed)
+
+		fmt.Printf("Funding users with native tokens\n")
+
+		for i := range instances {
+			_, err := cardanofw.FundUserWithToken(
+				ctx, apex, cardanofw.ChainIDPrime,
+				minterWalletPrime, apex.Users[i],
+				cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+				uint64(1_100_000_000), uint64(2_500_000))
+			require.NoError(t, err)
+
+			_, err = cardanofw.FundUserWithToken(
+				ctx, apex, cardanofw.ChainIDCardano,
+				minterWalletCardano, apex.Users[i],
+				cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+				uint64(1_100_000_000), uint64(2_500_000))
+			require.NoError(t, err)
+		}
+
+		fmt.Printf("Sending %v transactions in %v seconds\n", instances*len(bridgingRequests), maxWaitTime)
+
+		prevAmounts := make(map[int]map[string]*big.Int)
+		expectedAmounts := make(map[int]*big.Int)
+
+		var wg sync.WaitGroup
+
+		for brIdx, br := range bridgingRequests {
+			var err error
+
+			succeededCount := int64(0)
+
+			prevAmounts[brIdx], err = apex.GetBalance(ctx, br.receiver, br.dest)
+			require.NoError(t, err)
+
+			var tokenName string
+
+			if br.bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
+				tokenName = wallet.AdaTokenName
+			} else {
+				tokenName = apex.GetTokenNameForChains(br.dest, br.src)
+			}
+
+			if amount, ok := prevAmounts[brIdx][tokenName]; ok {
+				expectedAmounts[brIdx] = new(big.Int).Set(amount)
+			} else {
+				expectedAmounts[brIdx] = big.NewInt(0)
+			}
+
+			for i := 0; i < instances; i++ {
+				success := successChance > r.Intn(100)
+				if success {
+					succeededCount++
+				}
+
+				wg.Add(1)
+
+				go func(idx int, br bridgingRequest, valid bool) {
+					defer wg.Done()
+
+					if valid {
+						time.Sleep(time.Second * time.Duration(r.Intn(maxWaitTime)))
+
+						apex.SubmitBridgingRequest(t, ctx, br.src, br.dest, apex.Users[idx], sendAmount, br.bridgingType, br.receiver)
+					} else {
+						sendInvalidSendAmountTransaction(t, ctx, apex, br.src, br.dest, apex.Users[idx], sendAmount, br.receiver.GetAddress(br.dest))
+					}
+				}(br.firstSenderIdx+i, br, success)
+			}
+
+			totalSent := new(big.Int).Mul(sendAmount, big.NewInt(succeededCount))
+			expectedAmounts[brIdx].Add(expectedAmounts[brIdx], totalSent)
+		}
+
+		wg.Wait()
+
+		fmt.Printf("All tx sent, waiting for confirmation.\n")
+
+		for i, br := range bridgingRequests {
+			wg.Add(1)
+
+			go func(brIdx int, br bridgingRequest) {
+				defer wg.Done()
+
+				var tokenName string
+
+				if br.bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
+					tokenName = wallet.AdaTokenName
+				} else {
+					tokenName = apex.GetTokenNameForChains(br.dest, br.src)
+				}
+
+				prevAmount := prevAmounts[brIdx][tokenName]
+
+				if prevAmount == nil {
+					prevAmount = big.NewInt(0)
+				}
+
+				succeededCount := new(big.Int).Sub(expectedAmounts[brIdx], prevAmount).Uint64() / sendAmount.Uint64()
+
+				fmt.Printf("Waiting for %+v TXs on %s, prevAmount: %v, expectedAmount: %v\n",
+					succeededCount, br.dest, prevAmounts[brIdx], expectedAmounts[brIdx])
+
+				err := apex.WaitForExactAmount(ctx, br.receiver, br.dest, br.src, expectedAmounts[brIdx], numRetries, waitTime,
+					br.bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+				require.NoError(t, err)
+
+				fmt.Printf("TXs on %s confirmed\n", br.dest)
+			}(i, br)
+		}
+
+		wg.Wait()
+	})
+}
+
+func sendInvalidSendAmountTransaction(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, src, dest cardanofw.ChainID, senderUser *cardanofw.TestApexUser, sendAmount *big.Int,
+	receiverUserAddr string,
+) {
+	t.Helper()
+
+	const (
+		bridgingFee  = uint64(1_000_010)
+		operationFee = uint64(0)
+	)
+
+	receivers := []sendtx.BridgingTxReceiver{
+		{
+			Addr:         receiverUserAddr,
+			Amount:       sendAmount.Uint64() * 10,
+			BridgingType: sendtx.BridgingTypeCurrencyOnSource,
+		},
+	}
+
+	feeAmount, err := apex.GetChainMust(t, src).GetBridgingFee(
+		ctx, dest, receivers, bridgingFee, operationFee)
+	require.NoError(t, err)
+
+	metadata, err := apex.GetChainMust(t, src).CreateMetadata(
+		senderUser.GetAddress(src), dest,
+		receivers, feeAmount, operationFee)
+	require.NoError(t, err)
+
+	_, err = apex.SubmitTx(
+		ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddress(),
+		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount+operationFee)), nil, metadata)
+	require.NoError(t, err)
 }

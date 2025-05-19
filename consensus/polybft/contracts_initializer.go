@@ -34,7 +34,6 @@ func initStakeManager(polyBFTConfig PolyBFTConfig, transition *state.Transition)
 
 		startValidators[i] = &contractsapi.GenesisValidator{
 			Addr:   validator.Address,
-			Stake:  validator.Stake,
 			BlsKey: key.ToBigInt(),
 		}
 
