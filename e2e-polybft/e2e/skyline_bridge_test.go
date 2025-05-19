@@ -21,8 +21,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const envTrue = "true"
-
 // cd e2e-polybft/e2e
 // ONLY_RUN_SKYLINE_BRIDGE=true go test -v -timeout 0 -run ^Test_OnlyRunSkylineBridge$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e
 func Test_OnlyRunSkylineBridge(t *testing.T) {
@@ -2066,7 +2064,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 }
 
 func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
-	if shouldRun := os.Getenv("RUN_E2E_SKYLINE_BIG_TESTS"); shouldRun != envTrue {
+	if !cardanofw.IsEnvVarTrue("RUN_E2E_SKYLINE_BIG_TESTS") {
 		t.Skip()
 	}
 
