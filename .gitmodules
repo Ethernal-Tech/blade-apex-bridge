@@ -4,7 +4,7 @@
 	shallow = true
 [submodule "blade-contracts"]
 	path = blade-contracts
-	url = https://github.com/Ethernal-Tech/blade-contracts
+	url = https://github.com/Ethernal-Tech/blade-contracts-apex-bridge.git
 [submodule "tests/evm-benchmarks"]
 	path = tests/evm-benchmarks
 	url = https://github.com/ipsilon/evm-benchmarks

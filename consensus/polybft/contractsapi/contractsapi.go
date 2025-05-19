@@ -1325,11 +1325,10 @@ func (o *OwnerOfChildERC721Fn) DecodeAbi(buf []byte) error {
 
 type GenesisValidator struct {
 	Addr   types.Address `abi:"addr"`
-	Stake  *big.Int      `abi:"stake"`
 	BlsKey [4]*big.Int   `abi:"blsKey"`
 }
 
-var GenesisValidatorABIType = abi.MustNewType("tuple(address addr,uint256 stake,uint256[4] blsKey)")
+var GenesisValidatorABIType = abi.MustNewType("tuple(address addr,uint256[4] blsKey)")
 
 func (g *GenesisValidator) EncodeAbi() ([]byte, error) {
 	return GenesisValidatorABIType.Encode(g)
@@ -1441,9 +1440,8 @@ func (w *WhitelistValidatorsStakeManagerFn) DecodeAbi(buf []byte) error {
 }
 
 type RegisterStakeManagerFn struct {
-	Signature   [2]*big.Int `abi:"signature"`
-	Pubkey      [4]*big.Int `abi:"pubkey"`
-	StakeAmount *big.Int    `abi:"stakeAmount"`
+	Signature [2]*big.Int `abi:"signature"`
+	Pubkey    [4]*big.Int `abi:"pubkey"`
 }
 
 func (r *RegisterStakeManagerFn) Sig() []byte {
