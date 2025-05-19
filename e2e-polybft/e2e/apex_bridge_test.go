@@ -1625,7 +1625,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 
 						apex.SubmitBridgingRequest(t, ctx, src, dest, apex.Users[idx], sendAmount, sendtx.BridgingTypeNormal, user)
 					} else {
-						PrimeToVectorInvalidSendAmountTransaction(t, ctx, apex, src, dest, apex.Users[idx], sendAmount, user.GetAddress(dest))
+						submitInvalidSendAmountTransaction(t, ctx, apex, src, dest, apex.Users[idx], sendAmount, user.GetAddress(dest))
 					}
 				}(br.firstSenderIdx+i, j, br.src, br.dest, success)
 			}
@@ -1844,7 +1844,7 @@ func TestE2E_ApexBridge_UTxOConsolidationWithBothDirections(t *testing.T) {
 	}
 }
 
-func PrimeToVectorInvalidSendAmountTransaction(
+func submitInvalidSendAmountTransaction(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, src, dest cardanofw.ChainID, senderUser *cardanofw.TestApexUser, sendAmount *big.Int,
 	receiverUserAddr string,
 ) {
@@ -1863,9 +1863,14 @@ func PrimeToVectorInvalidSendAmountTransaction(
 		}, feeAmount.Uint64(), operationFee)
 	require.NoError(t, err)
 
-	_, err = apex.SubmitTx(
-		ctx, src, senderUser, receiverUserAddr, new(big.Int).Add(sendAmount, feeAmount), nil, bridgingRequestMetadata)
-	require.NoError(t, err)
+	_, err = apex.SubmitTx(ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddress(),
+		new(big.Int).Add(sendAmount, feeAmount), nil, bridgingRequestMetadata)
+
+	if src == cardanofw.ChainIDNexus {
+		require.ErrorContains(t, err, "fund relayer failed") // ReceiptFailed status
+	} else {
+		require.NoError(t, err)
+	}
 }
 
 func PrimeToVectorInvalidMetadataSlicedOff(
