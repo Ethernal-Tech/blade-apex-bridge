@@ -1539,7 +1539,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 }
 
 func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
-	if shouldRun := os.Getenv("RUN_E2E_BIG_TESTS"); shouldRun != "true" {
+	if !cardanofw.IsEnvVarTrue("RUN_E2E_BIG_TESTS") {
 		t.Skip()
 	}
 
