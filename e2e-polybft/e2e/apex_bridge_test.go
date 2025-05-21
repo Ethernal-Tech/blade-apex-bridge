@@ -1756,6 +1756,105 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 	})
 }
 
+func WaitOnDestination(
+	ctx context.Context, apex *cardanofw.ApexSystem,
+	chainPrevAmounts map[string]*big.Int, chainExpectedAmounts map[string]*big.Int,
+	chainReceiver *cardanofw.TestApexUser, numRetries int, waitTime time.Duration,
+) map[string]error {
+	var (
+		wg           sync.WaitGroup
+		errsPerChain = make(map[string]error, len(chainPrevAmounts))
+		mu           sync.Mutex
+	)
+
+	for chain := range chainPrevAmounts {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			fmt.Printf("Waiting for %v Amount on %v\n", chainExpectedAmounts[chain], chain)
+
+			expectedAmount := new(big.Int).Set(chainExpectedAmounts[chain])
+
+			err := apex.WaitForExactAmount(
+				ctx, chainReceiver, chain, expectedAmount, numRetries, waitTime)
+
+			fmt.Printf("Tx confirmed: amount %v, chain: %v\n", chainExpectedAmounts[chain], chain)
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			errsPerChain[chain] = err
+		}()
+	}
+
+	wg.Wait()
+
+	return errsPerChain
+}
+
+func FundWallets(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, chains []string,
+	fundAmountApex *big.Int,
+) {
+	t.Helper()
+
+	fmt.Printf("Funding hot wallets\n")
+
+	for _, chain := range chains {
+		require.NoError(
+			t, apex.FundChainHotWallet(ctx, chain, cardanofw.ApexToDfm(fundAmountApex)),
+		)
+	}
+
+	fmt.Printf("Hot wallets have been funded\n")
+}
+
+func DefundWallets(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, chains []string,
+	defundReceiver *cardanofw.TestApexUser, defundAmountApex *big.Int,
+) {
+	t.Helper()
+
+	var err error
+
+	fmt.Printf("Defunding hot wallets\n")
+
+	defundAmount := cardanofw.ApexToDfm(defundAmountApex)
+
+	defundPrevAmounts := make(map[string]*big.Int, len(chains))
+	defundExpectedAmounts := make(map[string]*big.Int, len(chains))
+
+	for _, chain := range chains {
+		defundPrevAmounts[chain], err = apex.GetBalance(ctx, defundReceiver, chain)
+		require.NoError(t, err)
+
+		defundExpectedAmounts[chain] = big.NewInt(0).Add(defundPrevAmounts[chain], defundAmount)
+	}
+
+	for _, chain := range chains {
+		require.NoError(
+			t, apex.DefundHotWallet(chain, defundReceiver.GetAddress(chain), defundAmount),
+		)
+
+		newBalance, err := apex.GetBalance(ctx, defundReceiver, chain)
+		require.NoError(t, err)
+
+		fmt.Printf("New DefundUser state: ChainID: %s, Balance: %d\n", chain, newBalance)
+	}
+
+	fmt.Printf("Hot wallets have been defunded\n")
+
+	errsPerChain := WaitOnDestination(ctx, apex,
+		defundPrevAmounts, defundExpectedAmounts, defundReceiver,
+		300, time.Second*10)
+	for chain, err := range errsPerChain {
+		require.NoError(t, err)
+		fmt.Printf("Defund on %v confirmed\n", chain)
+	}
+}
+
 func PrimeToVectorSequentialAndParallelWithMaxReceivers(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, sequentialInstances, parallelInstances int, options ...e2ehelper.ExecuteBridgingOption,
 ) {
@@ -1917,6 +2016,118 @@ func PrimeToVectorInvalidMetadataWrongType(
 		require.Error(t, err)
 		require.ErrorContains(t, err, "timeout")
 	}
+}
+
+//nolint:dupl
+func SendWithoutWaitPrimeToVectorInvalidMetadataWrongType(
+	ctx context.Context, apex *cardanofw.ApexSystem, sender, receiver *cardanofw.TestApexUser,
+	sendAmount, feeAmount uint64,
+) error {
+	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	if err != nil {
+		return err
+	}
+
+	receivers := map[string]uint64{
+		receiver.GetAddress(cardanofw.ChainIDVector): sendAmount,
+	}
+
+	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
+	for addr, amount := range receivers {
+		transactions = append(transactions, cardanofw.BridgingRequestMetadataTransaction{
+			Address: cardanofw.AddrToMetaDataAddr(addr),
+			Amount:  amount,
+		})
+	}
+
+	metadata := map[string]interface{}{
+		"1": map[string]interface{}{
+			"t":  "transaction", // should be "bridge"
+			"d":  cardanofw.ChainIDVector,
+			"s":  cardanofw.AddrToMetaDataAddr(sender.GetAddress(cardanofw.ChainIDPrime)),
+			"tx": transactions,
+			"fa": feeAmount,
+		},
+	}
+
+	bridgingRequestMetadata, err := json.Marshal(metadata)
+	if err != nil {
+		return err
+	}
+
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, sender, cardanofw.ChainIDPrime)
+	if err != nil {
+		return err
+	}
+
+	txHash, err := cardanofw.SendTx(
+		ctx, txProviderPrime, sender.PrimeWallet, sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
+		apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
+	if err != nil {
+		return err
+	}
+
+	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
+
+	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
+
+	return nil
+}
+
+//nolint:dupl
+func SendWithoutWaitVectorToPrimeInvalidMetadataWrongType(
+	ctx context.Context, apex *cardanofw.ApexSystem, sender, receiver *cardanofw.TestApexUser,
+	sendAmount, feeAmount uint64,
+) error {
+	txProviderVector, err := apex.VectorInfo.GetTxProvider()
+	if err != nil {
+		return err
+	}
+
+	receivers := map[string]uint64{
+		receiver.GetAddress(cardanofw.ChainIDPrime): sendAmount,
+	}
+
+	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
+	for addr, amount := range receivers {
+		transactions = append(transactions, cardanofw.BridgingRequestMetadataTransaction{
+			Address: cardanofw.AddrToMetaDataAddr(addr),
+			Amount:  amount,
+		})
+	}
+
+	metadata := map[string]interface{}{
+		"1": map[string]interface{}{
+			"t":  "transaction", // should be "bridge"
+			"d":  cardanofw.ChainIDPrime,
+			"s":  cardanofw.AddrToMetaDataAddr(sender.GetAddress(cardanofw.ChainIDVector)),
+			"tx": transactions,
+			"fa": feeAmount,
+		},
+	}
+
+	bridgingRequestMetadata, err := json.Marshal(metadata)
+	if err != nil {
+		return err
+	}
+
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, sender, cardanofw.ChainIDVector)
+	if err != nil {
+		return err
+	}
+
+	txHash, err := cardanofw.SendTx(
+		ctx, txProviderVector, sender.VectorWallet, sendAmount+feeAmount, apex.VectorInfo.MultisigAddr,
+		apex.Config.VectorConfig.NetworkType, bridgingRequestMetadata)
+	if err != nil {
+		return err
+	}
+
+	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
+
+	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
+
+	return nil
 }
 
 func PrimeToVectorInvalidMetadataInvalidDestination(
