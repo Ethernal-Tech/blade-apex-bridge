@@ -542,7 +542,6 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		fmt.Printf("\nSending txs with invalid metadata...\n")
 
 		for _, usr := range apex.Users[1 : parallelInstances+1] {
-
 			// wait for some time in order to prevent UTXO double spending
 			time.Sleep(20 * time.Second)
 
@@ -563,6 +562,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		defer wgTest.Done()
 
 		fmt.Printf("\nSending txs with huge unallowed amounts...\n")
+
 		for i, usr := range apex.Users[1 : parallelInstances+1] {
 			time.Sleep(10 * time.Second)
 
@@ -578,6 +578,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 
 			fmt.Printf("\nExecutied invalid TX for sender %d from prime to vector.\nTx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", i, txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 		}
+
 		fmt.Printf("\nAll txs with huge unallowed amounts sent\n")
 	}()
 
@@ -587,6 +588,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		wgTest.Wait() // wait for the 3 test routines
 
 		fmt.Printf("\nWaiting for receivers on to receive their bridged funds...\n")
+
 		for _, chain := range chains {
 			key := chainUserKey{chain: chain, user: defundUser}
 
@@ -596,6 +598,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 			err := apex.WaitForExactAmount(ctx, userReceiver, chain, expectedAmount, 50, 200)
 			require.NoError(t, err)
 		}
+
 		fmt.Printf("\nAll receivers received their bridged funds...\n")
 
 		close(doneCh) // tell fundDefund to shut down
@@ -620,9 +623,11 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 
 				if executeFund {
 					executeFund = false
+
 					FundWallets(t, ctx, apex, chains, fundDefundAmount)
 				} else {
 					executeFund = true
+
 					DefundWallets(t, ctx, apex, chains, defundUser, fundDefundAmount)
 
 					defundCount++
@@ -632,7 +637,9 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 	}(ctx)
 
 	fmt.Printf("\nWaiting for sender users to receive their refunds...\n")
+
 	key = chainUserKey{chain: cardanofw.ChainIDPrime}
+
 	for i, usr := range apex.Users[1 : parallelInstances+1] {
 		key.user = usr
 
@@ -649,14 +656,17 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		fmt.Printf("\nSender %d:\n\tActual amount: %d\n", i, actualAmount)
 
 		err = apex.WaitForAmountInRange(ctx, usr, cardanofw.ChainIDPrime, minExpectedAmount, maxExpectedAmount, 20, time.Second*30)
+
 		fmt.Printf("\nSender %d received his refunds\n", i)
 		fmt.Printf("\nSender %d received his refunds\n", i)
+
 		require.NoError(t, err)
 	}
 
 	fmt.Printf("\nAll sender users received their refunds...\n")
 
 	fmt.Printf("\nWaiting for defund users to receive their funds...\n")
+
 	key = chainUserKey{user: defundUser}
 	for _, chain := range chains {
 		key.chain = chain
