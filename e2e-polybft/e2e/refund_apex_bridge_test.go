@@ -457,9 +457,9 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		sequentialInstances = 2
 		parallelInstances   = 3
 
-		sendAmount  = uint64(1_000_000)
-		sendAmount1 = uint64(100_600_000_000)
-		feeAmount   = uint64(1_100_000)
+		sendAmount     = uint64(1_000_000)
+		hugeSendAmount = uint64(100_600_000_000)
+		feeAmount      = uint64(1_100_000)
 
 		fundDefundTimeDelay = 60 * time.Second
 	)
@@ -532,8 +532,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 			map[string][]string{
 				cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
 				cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
-			}, new(big.Int).SetUint64(sendAmount),
-			e2ehelper.WithWaitForUnexpectedBridges(true))
+			}, new(big.Int).SetUint64(sendAmount))
 	}()
 
 	// execute invalid transactions that should be refunded
@@ -543,14 +542,20 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 
 		for _, usr := range apex.Users[1 : parallelInstances+1] {
 			// wait for some time in order to prevent UTXO double spending
-			time.Sleep(20 * time.Second)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(20 * time.Second):
+			}
 
 			// prime -> vector
-			err := SendWithoutWaitPrimeToVectorInvalidMetadataWrongType(ctx, apex, usr, userReceiver, sendAmount, feeAmount)
+			err := sendWithoutWaitInvalidMetadataWrongType(ctx, apex, usr, userReceiver,
+				cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmount, feeAmount)
 			require.NoError(t, err)
 
 			// vector -> prime
-			err = SendWithoutWaitVectorToPrimeInvalidMetadataWrongType(ctx, apex, usr, userReceiver, sendAmount, feeAmount)
+			err = sendWithoutWaitInvalidMetadataWrongType(ctx, apex, usr, userReceiver,
+				cardanofw.ChainIDVector, cardanofw.ChainIDPrime, sendAmount, feeAmount)
 			require.NoError(t, err)
 		}
 
@@ -564,17 +569,21 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		fmt.Printf("\nSending txs with huge unallowed amounts...\n")
 
 		for i, usr := range apex.Users[1 : parallelInstances+1] {
-			time.Sleep(10 * time.Second)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(10 * time.Second):
+			}
 
 			beforeSendingAmountDfm, err := apex.GetBalance(ctx, usr, cardanofw.ChainIDPrime)
 			require.NoError(t, err)
 
 			txHash := apex.SubmitBridgingRequest(t, ctx,
 				cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-				usr, new(big.Int).SetUint64(sendAmount1), userReceiver,
+				usr, new(big.Int).SetUint64(hugeSendAmount), userReceiver,
 			)
 
-			lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount1+feeAmount))
+			lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(hugeSendAmount+feeAmount))
 
 			fmt.Printf("\nExecutied invalid TX for sender %d from prime to vector.\nTx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", i, txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 		}
@@ -619,16 +628,20 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 				// other routines finished - stop the fund/defund process
 				return
 			default:
-				time.Sleep(fundDefundTimeDelay)
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(fundDefundTimeDelay):
+				}
 
 				if executeFund {
 					executeFund = false
 
-					FundWallets(t, ctx, apex, chains, fundDefundAmount)
+					fundWallets(t, ctx, apex, chains, fundDefundAmount)
 				} else {
 					executeFund = true
 
-					DefundWallets(t, ctx, apex, chains, defundUser, fundDefundAmount)
+					defundWallets(t, ctx, apex, chains, defundUser, fundDefundAmount)
 
 					defundCount++
 				}
@@ -644,7 +657,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		key.user = usr
 
 		// minExpectedAmount = initial - (2*sendAmount+sendAmount1+3*feeAmount)
-		minExpectedAmount := new(big.Int).Sub(userInitialAmounts[key], new(big.Int).SetUint64(2*sendAmount+sendAmount1+3*feeAmount))
+		minExpectedAmount := new(big.Int).Sub(userInitialAmounts[key], new(big.Int).SetUint64(2*sendAmount+hugeSendAmount+3*feeAmount))
 		maxExpectedAmount := new(big.Int).Sub(userInitialAmounts[key], new(big.Int).SetUint64(sendAmount+feeAmount))
 
 		fmt.Printf("\nWaiting for sender %d to receive his refunds...\n\tMin expected amount: %d\n", i, minExpectedAmount)

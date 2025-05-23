@@ -1756,7 +1756,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 	})
 }
 
-func WaitOnDestination(
+func waitOnDestination(
 	ctx context.Context, apex *cardanofw.ApexSystem,
 	chainPrevAmounts map[string]*big.Int, chainExpectedAmounts map[string]*big.Int,
 	chainReceiver *cardanofw.TestApexUser, numRetries int, waitTime time.Duration,
@@ -1794,7 +1794,7 @@ func WaitOnDestination(
 	return errsPerChain
 }
 
-func FundWallets(
+func fundWallets(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, chains []string,
 	fundAmountApex *big.Int,
 ) {
@@ -1811,7 +1811,7 @@ func FundWallets(
 	fmt.Printf("Hot wallets have been funded\n")
 }
 
-func DefundWallets(
+func defundWallets(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, chains []string,
 	defundReceiver *cardanofw.TestApexUser, defundAmountApex *big.Int,
 ) {
@@ -1846,7 +1846,7 @@ func DefundWallets(
 
 	fmt.Printf("Hot wallets have been defunded\n")
 
-	errsPerChain := WaitOnDestination(ctx, apex,
+	errsPerChain := waitOnDestination(ctx, apex,
 		defundPrevAmounts, defundExpectedAmounts, defundReceiver,
 		300, time.Second*10)
 	for chain, err := range errsPerChain {
@@ -2018,21 +2018,40 @@ func PrimeToVectorInvalidMetadataWrongType(
 	}
 }
 
-//nolint:dupl
-func SendWithoutWaitPrimeToVectorInvalidMetadataWrongType(
+func sendWithoutWaitInvalidMetadataWrongType(
 	ctx context.Context, apex *cardanofw.ApexSystem, sender, receiver *cardanofw.TestApexUser,
-	sendAmount, feeAmount uint64,
+	originChainID, destinationChainID string, sendAmount, feeAmount uint64,
 ) error {
-	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+	var (
+		chainInfo    cardanofw.CardanoChainInfo
+		chainConfig  cardanofw.TestCardanoChainConfig
+		txProvider   infrawallet.ITxProvider
+		senderWallet *infrawallet.Wallet
+
+		err error
+	)
+
+	if originChainID == cardanofw.ChainIDPrime {
+		chainInfo, chainConfig = apex.PrimeInfo, *apex.Config.PrimeConfig
+
+		senderWallet = sender.PrimeWallet
+	} else {
+		chainInfo, chainConfig = apex.VectorInfo, *apex.Config.VectorConfig
+
+		senderWallet = sender.VectorWallet
+	}
+
+	txProvider, err = chainInfo.GetTxProvider()
 	if err != nil {
 		return err
 	}
 
 	receivers := map[string]uint64{
-		receiver.GetAddress(cardanofw.ChainIDVector): sendAmount,
+		receiver.GetAddress(destinationChainID): sendAmount,
 	}
 
 	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
+
 	for addr, amount := range receivers {
 		transactions = append(transactions, cardanofw.BridgingRequestMetadataTransaction{
 			Address: cardanofw.AddrToMetaDataAddr(addr),
@@ -2043,8 +2062,8 @@ func SendWithoutWaitPrimeToVectorInvalidMetadataWrongType(
 	metadata := map[string]interface{}{
 		"1": map[string]interface{}{
 			"t":  "transaction", // should be "bridge"
-			"d":  cardanofw.ChainIDVector,
-			"s":  cardanofw.AddrToMetaDataAddr(sender.GetAddress(cardanofw.ChainIDPrime)),
+			"d":  destinationChainID,
+			"s":  cardanofw.AddrToMetaDataAddr(sender.GetAddress(originChainID)),
 			"tx": transactions,
 			"fa": feeAmount,
 		},
@@ -2055,70 +2074,14 @@ func SendWithoutWaitPrimeToVectorInvalidMetadataWrongType(
 		return err
 	}
 
-	beforeSendingAmountDfm, err := apex.GetBalance(ctx, sender, cardanofw.ChainIDPrime)
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, sender, originChainID)
 	if err != nil {
 		return err
 	}
 
 	txHash, err := cardanofw.SendTx(
-		ctx, txProviderPrime, sender.PrimeWallet, sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
-		apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
-	if err != nil {
-		return err
-	}
-
-	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
-
-	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
-
-	return nil
-}
-
-//nolint:dupl
-func SendWithoutWaitVectorToPrimeInvalidMetadataWrongType(
-	ctx context.Context, apex *cardanofw.ApexSystem, sender, receiver *cardanofw.TestApexUser,
-	sendAmount, feeAmount uint64,
-) error {
-	txProviderVector, err := apex.VectorInfo.GetTxProvider()
-	if err != nil {
-		return err
-	}
-
-	receivers := map[string]uint64{
-		receiver.GetAddress(cardanofw.ChainIDPrime): sendAmount,
-	}
-
-	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
-	for addr, amount := range receivers {
-		transactions = append(transactions, cardanofw.BridgingRequestMetadataTransaction{
-			Address: cardanofw.AddrToMetaDataAddr(addr),
-			Amount:  amount,
-		})
-	}
-
-	metadata := map[string]interface{}{
-		"1": map[string]interface{}{
-			"t":  "transaction", // should be "bridge"
-			"d":  cardanofw.ChainIDPrime,
-			"s":  cardanofw.AddrToMetaDataAddr(sender.GetAddress(cardanofw.ChainIDVector)),
-			"tx": transactions,
-			"fa": feeAmount,
-		},
-	}
-
-	bridgingRequestMetadata, err := json.Marshal(metadata)
-	if err != nil {
-		return err
-	}
-
-	beforeSendingAmountDfm, err := apex.GetBalance(ctx, sender, cardanofw.ChainIDVector)
-	if err != nil {
-		return err
-	}
-
-	txHash, err := cardanofw.SendTx(
-		ctx, txProviderVector, sender.VectorWallet, sendAmount+feeAmount, apex.VectorInfo.MultisigAddr,
-		apex.Config.VectorConfig.NetworkType, bridgingRequestMetadata)
+		ctx, txProvider, senderWallet, sendAmount+feeAmount, chainInfo.MultisigAddr,
+		chainConfig.NetworkType, bridgingRequestMetadata)
 	if err != nil {
 		return err
 	}
