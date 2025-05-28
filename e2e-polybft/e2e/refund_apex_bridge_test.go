@@ -664,6 +664,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		fmt.Printf("\n\tMax expected amount: %d\n", maxExpectedAmount)
 
 		err = apex.WaitForAmountInRange(ctx, usr, cardanofw.ChainIDPrime, minExpectedAmount, maxExpectedAmount, 20, time.Second*30)
+		require.NoError(t, err)
 
 		actualAmount, err := apex.GetBalance(ctx, usr, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
@@ -671,8 +672,6 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		fmt.Printf("\nSender %d:\n\tActual amount: %d\n", i, actualAmount)
 
 		fmt.Printf("\nSender %d received his refunds\n", i)
-
-		require.NoError(t, err)
 	}
 
 	fmt.Printf("\nAll sender users received their refunds...\n")

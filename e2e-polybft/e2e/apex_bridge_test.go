@@ -2022,6 +2022,8 @@ func sendWithoutWaitInvalidMetadataWrongType(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, sender, receiver *cardanofw.TestApexUser,
 	originChainID, destinationChainID string, sendAmount, feeAmount uint64,
 ) error {
+	t.Helper()
+
 	transactions := []cardanofw.BridgingRequestMetadataTransaction{
 		{
 			Address: cardanofw.AddrToMetaDataAddr(receiver.GetAddress(destinationChainID)),
