@@ -81,7 +81,7 @@ func WithTelemetryConfig(tc TelemetryConfig) ApexSystemOptions {
 	}
 }
 
-func WithTargetOneCardanoClusterServer(targetOneCardanoClusterServer bool) ApexSystemOptions {
+func WithTargetOneClusterServer(targetOneCardanoClusterServer bool) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.TargetOneCardanoClusterServer = targetOneCardanoClusterServer
 	}

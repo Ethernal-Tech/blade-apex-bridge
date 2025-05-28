@@ -1390,7 +1390,7 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithVectorEnabled(false),
 		cardanofw.WithNexusEnabled(true),
-		cardanofw.WithTargetOneCardanoClusterServer(true),
+		cardanofw.WithTargetOneClusterServer(true),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
