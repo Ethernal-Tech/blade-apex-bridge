@@ -535,33 +535,6 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 			}, new(big.Int).SetUint64(sendAmount))
 	}()
 
-	// execute invalid transactions that should be refunded
-	go func() {
-		defer wgTest.Done()
-		fmt.Printf("\nSending txs with invalid metadata...\n")
-
-		for _, usr := range apex.Users[1 : parallelInstances+1] {
-			// wait for some time in order to prevent UTXO double spending
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(20 * time.Second):
-			}
-
-			// prime -> vector
-			err := sendWithoutWaitInvalidMetadataWrongType(ctx, apex, usr, userReceiver,
-				cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmount, feeAmount)
-			require.NoError(t, err)
-
-			// vector -> prime
-			err = sendWithoutWaitInvalidMetadataWrongType(ctx, apex, usr, userReceiver,
-				cardanofw.ChainIDVector, cardanofw.ChainIDPrime, sendAmount, feeAmount)
-			require.NoError(t, err)
-		}
-
-		fmt.Printf("\nAll invalid txs with invalid metadata sent\n")
-	}()
-
 	// execute invalid transactions that should increase tryCount and should be refunded
 	go func() {
 		defer wgTest.Done()
@@ -589,6 +562,33 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		}
 
 		fmt.Printf("\nAll txs with huge unallowed amounts sent\n")
+	}()
+
+	// execute invalid transactions that should be refunded
+	go func() {
+		defer wgTest.Done()
+		fmt.Printf("\nSending txs with invalid metadata...\n")
+
+		for _, usr := range apex.Users[1 : parallelInstances+1] {
+			// wait for some time in order to prevent UTXO double spending
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(20 * time.Second):
+			}
+
+			// prime -> vector
+			err := sendWithoutWaitInvalidMetadataWrongType(t, ctx, apex, usr, userReceiver,
+				cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmount, feeAmount)
+			require.NoError(t, err)
+
+			// vector -> prime
+			err = sendWithoutWaitInvalidMetadataWrongType(t, ctx, apex, usr, userReceiver,
+				cardanofw.ChainIDVector, cardanofw.ChainIDPrime, sendAmount, feeAmount)
+			require.NoError(t, err)
+		}
+
+		fmt.Printf("\nAll invalid txs with invalid metadata sent\n")
 	}()
 
 	// signal goroutine
@@ -660,17 +660,16 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		minExpectedAmount := new(big.Int).Sub(userInitialAmounts[key], new(big.Int).SetUint64(2*sendAmount+hugeSendAmount+3*feeAmount))
 		maxExpectedAmount := new(big.Int).Sub(userInitialAmounts[key], new(big.Int).SetUint64(sendAmount+feeAmount))
 
-		fmt.Printf("\nWaiting for sender %d to receive his refunds...\n\tMin expected amount: %d\n", i, minExpectedAmount)
-		fmt.Printf("\nWaiting for sender %d to receive his refunds...\n\tMax expected amount: %d\n", i, maxExpectedAmount)
+		fmt.Printf("\nWaiting for sender %d to receive his refunds...\n\tMin expected amount: %d", i, minExpectedAmount)
+		fmt.Printf("\n\tMax expected amount: %d\n", maxExpectedAmount)
+
+		err = apex.WaitForAmountInRange(ctx, usr, cardanofw.ChainIDPrime, minExpectedAmount, maxExpectedAmount, 20, time.Second*30)
 
 		actualAmount, err := apex.GetBalance(ctx, usr, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
 		fmt.Printf("\nSender %d:\n\tActual amount: %d\n", i, actualAmount)
 
-		err = apex.WaitForAmountInRange(ctx, usr, cardanofw.ChainIDPrime, minExpectedAmount, maxExpectedAmount, 20, time.Second*30)
-
-		fmt.Printf("\nSender %d received his refunds\n", i)
 		fmt.Printf("\nSender %d received his refunds\n", i)
 
 		require.NoError(t, err)
