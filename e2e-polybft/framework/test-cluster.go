@@ -889,7 +889,7 @@ func (c *TestCluster) Stop() {
 
 	for _, srv := range c.Servers {
 		if srv.isRunning() {
-			srv.Stop()
+			require.NoError(srv.t, srv.Stop())
 		}
 	}
 }
