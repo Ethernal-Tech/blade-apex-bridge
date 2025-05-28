@@ -1376,3 +1376,71 @@ func sendTxParamsNPInvalidScenarios(txType, gatewayAddr, nexusURL, privateKey, c
 		"--fee", fee.String(),
 	}, os.Stdout)
 }
+
+func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithVectorEnabled(false),
+		cardanofw.WithNexusEnabled(true),
+		cardanofw.WithTargetOneCardanoClusterServer(true),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+
+	// execute prime to nexus -> no wait
+	prevAmountNexusDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+	require.NoError(t, err)
+
+	// give time to oracle to submit hot wallet increment claims
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(60 * time.Second):
+	}
+
+	txHash := apex.SubmitBridgingRequest(t, ctx, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
+
+	fmt.Printf("Submitted bridging request from Prime to Nexus, txHash: %s\n", txHash)
+
+	// close nexus chain for some time
+	nexusChainServer := apex.GetChainMust(t, cardanofw.ChainIDNexus).GetServerMust(t, 0)
+
+	require.NoError(t, nexusChainServer.Stop())
+
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(360 * time.Second):
+	}
+
+	// start nexus chain again
+	require.NoError(t, nexusChainServer.Start())
+
+	// wait for tx on destination
+	expectedAmountDfm := new(big.Int).Add(prevAmountNexusDfm, sendAmountDfm)
+
+	err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmountDfm, 100, time.Second*10)
+	require.NoError(t, err)
+
+	// send nexus -> prime
+	e2ehelper.ExecuteBridging(
+		t, ctx, apex, 1,
+		[]*cardanofw.TestApexUser{user},
+		[]*cardanofw.TestApexUser{user},
+		[]string{cardanofw.ChainIDNexus},
+		map[string][]string{
+			cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
+		},
+		sendAmountDfm)
+}
