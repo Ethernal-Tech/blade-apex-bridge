@@ -19,6 +19,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/crypto"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -129,6 +130,14 @@ func NewTestCardanoChain(config *TestCardanoChainConfig) ITestApexChain {
 	return &TestCardanoChain{
 		config: config,
 	}
+}
+
+func (ec *TestCardanoChain) GetServerMust(t *testing.T, indx int) ITestApexChainServer {
+	t.Helper()
+
+	require.True(t, ec.cluster != nil && ec.cluster.Servers != nil && len(ec.cluster.Servers) > indx)
+
+	return ec.cluster.Servers[indx]
 }
 
 func (ec *TestCardanoChain) RunChain(t *testing.T) error {

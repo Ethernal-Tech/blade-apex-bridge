@@ -8,6 +8,11 @@ import (
 	"github.com/0xPolygon/polygon-edge/crypto"
 )
 
+type ITestApexChainServer interface {
+	Stop() error
+	Start() error
+}
+
 type ITestApexChain interface {
 	RunChain(t *testing.T) error
 	Stop() error
@@ -28,6 +33,7 @@ type ITestApexChain interface {
 	) (string, error)
 	GetHotWalletAddress() string
 	GetAdminPrivateKey() (string, error)
+	GetServerMust(t *testing.T, indx int) ITestApexChainServer
 }
 
 type TestApexChainDummy struct {
@@ -40,44 +46,44 @@ func NewTestApexChainDummy(configParams []string) *TestApexChainDummy {
 	}
 }
 
-func (t *TestApexChainDummy) BridgingRequest(
+func (td *TestApexChainDummy) BridgingRequest(
 	ctx context.Context, destChainID string, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
 ) (string, error) {
 	return "", nil
 }
 
-func (t *TestApexChainDummy) ChainID() string {
+func (td *TestApexChainDummy) ChainID() string {
 	return ""
 }
 
-func (t *TestApexChainDummy) CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridgeURL string) error {
+func (td *TestApexChainDummy) CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridgeURL string) error {
 	return nil
 }
 
-func (t *TestApexChainDummy) CreateWallets(validator *TestApexValidator) error {
+func (td *TestApexChainDummy) CreateWallets(validator *TestApexValidator) error {
 	return nil
 }
 
-func (t *TestApexChainDummy) FundWallets(ctx context.Context) error {
+func (td *TestApexChainDummy) FundWallets(ctx context.Context) error {
 	return nil
 }
 
-func (t *TestApexChainDummy) GetAddressBalance(ctx context.Context, addr string) (*big.Int, error) {
+func (td *TestApexChainDummy) GetAddressBalance(ctx context.Context, addr string) (*big.Int, error) {
 	return nil, nil
 }
 
-func (t *TestApexChainDummy) GetGenerateConfigsParams(indx int) []string {
-	return t.configParams
+func (td *TestApexChainDummy) GetGenerateConfigsParams(indx int) []string {
+	return td.configParams
 }
 
-func (t *TestApexChainDummy) InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error {
+func (td *TestApexChainDummy) InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error {
 	return nil
 }
 
-func (t *TestApexChainDummy) PopulateApexSystem(apexSystem *ApexSystem) {
+func (td *TestApexChainDummy) PopulateApexSystem(apexSystem *ApexSystem) {
 }
 
-func (t *TestApexChainDummy) RegisterChain(validator *TestApexValidator) error {
+func (td *TestApexChainDummy) RegisterChain(validator *TestApexValidator) error {
 	return nil
 }
 
@@ -87,22 +93,29 @@ func (*TestApexChainDummy) RunChain(t *testing.T) error {
 	return nil
 }
 
-func (t *TestApexChainDummy) SendTx(
+func (td *TestApexChainDummy) SendTx(
 	ctx context.Context, privateKey string, receiver string, amount *big.Int, data []byte,
 ) (string, error) {
 	return "", nil
 }
 
-func (t *TestApexChainDummy) Stop() error {
+func (td *TestApexChainDummy) Stop() error {
 	return nil
 }
 
-func (t *TestApexChainDummy) GetHotWalletAddress() string {
+func (td *TestApexChainDummy) GetHotWalletAddress() string {
 	return ""
 }
 
-func (t *TestApexChainDummy) GetAdminPrivateKey() (string, error) {
+func (td *TestApexChainDummy) GetAdminPrivateKey() (string, error) {
 	return "", nil
+}
+
+func (td *TestApexChainDummy) GetServerMust(t *testing.T, indx int) ITestApexChainServer {
+	t.Helper()
+	t.Fail()
+
+	return nil
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)

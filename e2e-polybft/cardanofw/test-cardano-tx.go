@@ -41,15 +41,19 @@ func SendTx(ctx context.Context,
 		txRaw, txHash, err := createTx(
 			ctx, txBuilder, txProvider, caddr.String(), amount, receiver, networkType, metadata)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to create transaction: %w", err)
 		}
 
 		signedTx, err := txBuilder.SignTx(txRaw, []wallet.ITxSigner{senderWallet})
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to sign transaction: %w", err)
 		}
 
-		return txHash, txProvider.SubmitTx(ctx, signedTx)
+		if err := txProvider.SubmitTx(ctx, signedTx); err != nil {
+			return "", fmt.Errorf("failed to submit transaction: %w", err)
+		}
+
+		return txHash, nil
 	})
 }
 
