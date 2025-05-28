@@ -2024,40 +2024,22 @@ func sendWithoutWaitInvalidMetadataWrongType(
 ) error {
 	var (
 		chainInfo    cardanofw.CardanoChainInfo
-		chainConfig  cardanofw.TestCardanoChainConfig
-		txProvider   infrawallet.ITxProvider
-		senderWallet *infrawallet.Wallet
 
 		err error
 	)
 
 	if originChainID == cardanofw.ChainIDPrime {
-		chainInfo, chainConfig = apex.PrimeInfo, *apex.Config.PrimeConfig
-
-		senderWallet = sender.PrimeWallet
+		chainInfo = apex.PrimeInfo
 	} else {
-		chainInfo, chainConfig = apex.VectorInfo, *apex.Config.VectorConfig
-
-		senderWallet = sender.VectorWallet
+		chainInfo = apex.VectorInfo
 	}
 
-	txProvider, err = chainInfo.GetTxProvider()
-	if err != nil {
-		return err
-	}
+	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0)
 
-	receivers := map[string]uint64{
-		receiver.GetAddress(destinationChainID): sendAmount,
-	}
-
-	var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0, len(receivers))
-
-	for addr, amount := range receivers {
-		transactions = append(transactions, cardanofw.BridgingRequestMetadataTransaction{
-			Address: cardanofw.AddrToMetaDataAddr(addr),
-			Amount:  amount,
-		})
-	}
+	transactions = append(transactions, cardanofw.BridgingRequestMetadataTransaction{
+		Address: cardanofw.AddrToMetaDataAddr(receiver.GetAddress(destinationChainID)),
+		Amount:  sendAmount,
+	})
 
 	metadata := map[string]interface{}{
 		"1": map[string]interface{}{
@@ -2079,12 +2061,17 @@ func sendWithoutWaitInvalidMetadataWrongType(
 		return err
 	}
 
-	txHash, err := cardanofw.SendTx(
-		ctx, txProvider, senderWallet, sendAmount+feeAmount, chainInfo.MultisigAddr,
-		chainConfig.NetworkType, bridgingRequestMetadata)
+	txHash, err := apex.SubmitTx(ctx, originChainID, sender, chainInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
 	if err != nil {
 		return err
 	}
+
+	// txHash, err := cardanofw.SendTx(
+	// 	ctx, txProvider, senderWallet, sendAmount+feeAmount, chainInfo.MultisigAddr,
+	// 	networkType, bridgingRequestMetadata)
+	// if err != nil {
+	// 	return err
+	// }
 
 	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
 
