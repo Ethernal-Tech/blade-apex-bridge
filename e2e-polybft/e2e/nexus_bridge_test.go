@@ -1378,6 +1378,10 @@ func sendTxParamsNPInvalidScenarios(txType, gatewayAddr, nexusURL, privateKey, c
 }
 
 func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
 	const (
 		apiKey = "test_api_key"
 	)
