@@ -282,7 +282,7 @@ func (a *ApexSystem) GenerateConfigs() error {
 
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
-		if a.Config.TargetOneCardanoClusterServer {
+		if a.Config.TargetOneClusterServer {
 			serverIndx = 0
 		}
 
