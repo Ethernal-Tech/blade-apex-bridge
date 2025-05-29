@@ -1399,7 +1399,7 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex := cardanofw.SetupAndRunApexBridge(
+	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithVectorEnabled(false),
@@ -1423,7 +1423,8 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 	case <-time.After(60 * time.Second):
 	}
 
-	txHash := apex.SubmitBridgingRequest(t, ctx, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
+	txHash := apex.SubmitBridgingRequest(t, ctx, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, user, sendAmountDfm,
+		sendtx.BridgingTypeNormal, user)
 
 	fmt.Printf("Submitted bridging request from Prime to Nexus, txHash: %s\n", txHash)
 
@@ -1442,9 +1443,9 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 	require.NoError(t, nexusChainServer.Start())
 
 	// wait for tx on destination
-	expectedAmountDfm := new(big.Int).Add(prevAmountNexusDfm, sendAmountDfm)
+	expectedAmountDfm := new(big.Int).Add(prevAmountNexusDfm[cardanowallet.AdaTokenName], sendAmountDfm)
 
-	err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmountDfm, 100, time.Second*10)
+	err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, expectedAmountDfm, 100, time.Second*10)
 	require.NoError(t, err)
 
 	// send nexus -> prime
@@ -1456,5 +1457,6 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 		map[string][]string{
 			cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 		},
+		sendtx.BridgingTypeNormal,
 		sendAmountDfm)
 }

@@ -71,7 +71,7 @@ func NewTestApexChainDummy(configParams []string) *TestApexChainDummy {
 	}
 }
 
-func (t *TestApexChainDummy) BridgingRequest(
+func (td *TestApexChainDummy) BridgingRequest(
 	ctx context.Context,
 	destChainID string,
 	privateKey string,
@@ -99,7 +99,7 @@ func (td *TestApexChainDummy) FundWallets(ctx context.Context) error {
 	return nil
 }
 
-func (t *TestApexChainDummy) GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error) {
+func (td *TestApexChainDummy) GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error) {
 	return nil, nil
 }
 
@@ -115,7 +115,7 @@ func (*TestApexChainDummy) PopulateApexSystem(t *testing.T, apexSystem *ApexSyst
 	t.Helper()
 }
 
-func (t *TestApexChainDummy) UpdateTxSendChainConfiguration(_ map[string]sendtx.ChainConfig) {
+func (td *TestApexChainDummy) UpdateTxSendChainConfiguration(_ map[string]sendtx.ChainConfig) {
 }
 
 func (td *TestApexChainDummy) RegisterChain(validator *TestApexValidator) error {
@@ -128,7 +128,7 @@ func (*TestApexChainDummy) RunChain(t *testing.T) error {
 	return nil
 }
 
-func (t *TestApexChainDummy) SendTx(
+func (td *TestApexChainDummy) SendTx(
 	ctx context.Context, privateKey string, receiver string,
 	amount *big.Int, nativeTokenAmounts []infrawallet.TokenAmount, data []byte,
 ) (string, error) {
@@ -147,7 +147,7 @@ func (td *TestApexChainDummy) GetAdminPrivateKey() (string, error) {
 	return "", nil
 }
 
-func (t *TestApexChainDummy) GetBridgingFee(
+func (td *TestApexChainDummy) GetBridgingFee(
 	ctx context.Context,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
@@ -157,7 +157,7 @@ func (t *TestApexChainDummy) GetBridgingFee(
 	return 0, nil
 }
 
-func (t *TestApexChainDummy) CreateMetadata(
+func (td *TestApexChainDummy) CreateMetadata(
 	senderAddr string,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
