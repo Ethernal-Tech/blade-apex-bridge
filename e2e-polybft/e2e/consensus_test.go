@@ -67,13 +67,13 @@ func TestE2E_Consensus_Basic(t *testing.T) {
 
 		// stop one node
 		node := cluster.Servers[0]
-		node.Stop()
+		require.NoError(t, node.Stop())
 
 		// wait for 2 epochs to elapse, so that rest of the network progresses
 		require.NoError(t, cluster.WaitForBlock(currentBlockNum+2*epochSize, 2*time.Minute))
 
 		// start the node again
-		node.Start()
+		require.NoError(t, node.Start())
 
 		// wait 2 more epochs to elapse and make sure that stopped node managed to catch up
 		require.NoError(t, cluster.WaitForBlock(currentBlockNum+4*epochSize, 2*time.Minute))
@@ -86,13 +86,13 @@ func TestE2E_Consensus_Basic(t *testing.T) {
 
 		// stop one non-validator node
 		node := cluster.Servers[6]
-		node.Stop()
+		require.NoError(t, node.Stop())
 
 		// wait for 2 epochs to elapse, so that rest of the network progresses
 		require.NoError(t, cluster.WaitForBlock(currentBlockNum+2*epochSize, 2*time.Minute))
 
 		// start the node again
-		node.Start()
+		require.NoError(t, node.Start())
 
 		// wait 2 more epochs to elapse and make sure that stopped node managed to catch up
 		require.NoError(t, cluster.WaitForBlock(currentBlockNum+4*epochSize, 2*time.Minute))
@@ -124,7 +124,7 @@ func TestE2E_Consensus_BulkDrop(t *testing.T) {
 
 		go func(node *framework.TestServer) {
 			defer wg.Done()
-			node.Stop()
+			require.NoError(t, node.Stop())
 		}(node)
 	}
 
@@ -133,7 +133,7 @@ func TestE2E_Consensus_BulkDrop(t *testing.T) {
 	// start dropped nodes again
 	for i := 0; i < bulkToDrop; i++ {
 		node := cluster.Servers[i]
-		node.Start()
+		require.NoError(t, node.Start())
 	}
 
 	// wait to proceed to the 2nd epoch

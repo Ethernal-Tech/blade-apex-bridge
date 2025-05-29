@@ -82,7 +82,7 @@ func TestProperty_DropValidators(t *testing.T) {
 		cluster.WaitForReady(t)
 
 		// stop first validator, block production should continue
-		cluster.Servers[0].Stop()
+		require.NoError(t, cluster.Servers[0].Stop())
 		activeValidator := cluster.Servers[numNodes-1]
 		currentBlock, err := activeValidator.JSONRPC().BlockNumber()
 		require.NoError(t, err)
@@ -101,7 +101,7 @@ func TestProperty_DropValidators(t *testing.T) {
 
 			go func(node *framework.TestServer) {
 				defer wg.Done()
-				node.Stop()
+				require.NoError(t, node.Stop())
 			}(node)
 		}
 
@@ -122,7 +122,7 @@ func TestProperty_DropValidators(t *testing.T) {
 		// start dropped nodes again
 		for i := 0; i < numNodesToDrop; i++ {
 			node := cluster.Servers[i]
-			node.Start()
+			require.NoError(t, node.Start())
 		}
 
 		require.NoError(t, cluster.WaitForBlock(oldBlockNumber+1, 3*blockTime))
