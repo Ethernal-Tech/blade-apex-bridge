@@ -620,7 +620,13 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		defer wgWithFund.Done()
 		defer fmt.Println("exiting fund/defund routine...")
 
-		executeFund := true
+		var (
+			executeFund = true
+
+			defundPrevAmounts     = make(map[chainStageKey]*big.Int, len(chains))
+			defundExpectedAmounts = make(map[chainStageKey]*big.Int, len(chains))
+			defundReceivers       = make(map[chainStageKey]*cardanofw.TestApexUser, len(chains))
+		)
 
 		for {
 			select {
@@ -638,10 +644,23 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 					executeFund = false
 
 					fundWallets(t, ctx, apex, chains, fundDefundAmount)
+					require.NoError(t, err)
 				} else {
 					executeFund = true
 
-					defundWallets(t, ctx, apex, chains, defundUser, fundDefundAmount)
+					chainKey := chainStageKey{receiver: 0}
+					for _, chain := range chains {
+						chainKey.chain = chain
+
+						defundPrevAmounts[chainKey], err = apex.GetBalance(ctx, defundUser, chain)
+						require.NoError(t, err)
+
+						defundExpectedAmounts[chainKey] = cardanofw.ApexToDfm(fundDefundAmount)
+
+						defundReceivers[chainKey] = defundUser
+					}
+
+					defundWallets(t, ctx, apex, chains, defundUser, fundDefundAmount, defundPrevAmounts, defundExpectedAmounts, defundReceivers)
 
 					defundCount++
 				}
