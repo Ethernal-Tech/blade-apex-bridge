@@ -2287,7 +2287,7 @@ func sendInvalidSendAmountTransaction(
 
 func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
-		fmt.Println("put skipped here") // t.Skip()
+		t.Skip()
 	}
 
 	type bridgingRequest struct {
