@@ -146,7 +146,7 @@ func NewTestServer(t *testing.T, clusterConfig *TestClusterConfig,
 		address:       key.Address(),
 		config:        config,
 	}
-	srv.Start()
+	require.NoError(t, srv.Start())
 
 	return srv
 }
@@ -155,7 +155,7 @@ func (t *TestServer) isRunning() bool {
 	return t.node != nil
 }
 
-func (t *TestServer) Start() {
+func (t *TestServer) Start() error {
 	config := t.config
 
 	// Build arguments
@@ -202,23 +202,27 @@ func (t *TestServer) Start() {
 
 	node, err := NewNode(t.clusterConfig.Binary, args, stdout)
 	if err != nil {
-		t.t.Fatal(err)
+		return err
 	}
 
 	t.node = node
 
 	// Wait some time for network to be initialized in order to avoid 'parallel' start issue in tests
 	time.Sleep(250 * time.Millisecond)
+
+	return nil
 }
 
-func (t *TestServer) Stop() {
+func (t *TestServer) Stop() error {
 	if err := t.node.Stop(); err != nil {
 		if !errors.Is(err, os.ErrProcessDone) {
-			t.t.Fatal(err)
+			return err
 		}
 	}
 
 	t.node = nil
+
+	return nil
 }
 
 // RootchainFund funds given validator account on the rootchain

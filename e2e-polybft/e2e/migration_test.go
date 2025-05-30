@@ -178,25 +178,25 @@ func TestE2E_Migration(t *testing.T) {
 	require.NoError(t, cluster.WaitForBlock(10, 1*time.Minute))
 
 	// stop last node of validator and non-validator
-	cluster.Servers[4].Stop()
-	cluster.Servers[6].Stop()
+	require.NoError(t, cluster.Servers[4].Stop())
+	require.NoError(t, cluster.Servers[6].Stop())
 
 	require.NoError(t, cluster.WaitForBlock(15, time.Minute))
 
 	// wait sync of that nodes
-	cluster.Servers[4].Start()
-	cluster.Servers[6].Start()
+	require.NoError(t, cluster.Servers[4].Start())
+	require.NoError(t, cluster.Servers[6].Start())
 	require.NoError(t, cluster.WaitForBlock(20, time.Minute))
 
 	// stop all nodes
 	for i := range cluster.Servers {
-		cluster.Servers[i].Stop()
+		require.NoError(t, cluster.Servers[i].Stop())
 	}
 
 	time.Sleep(time.Second)
 
 	for i := range cluster.Servers {
-		cluster.Servers[i].Start()
+		require.NoError(t, cluster.Servers[i].Start())
 	}
 
 	require.NoError(t, cluster.WaitForBlock(25, time.Minute))

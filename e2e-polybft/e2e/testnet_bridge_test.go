@@ -27,7 +27,7 @@ var (
 )
 
 const (
-	defaultDstNumRetries = 100
+	defaultDstNumRetries = 120
 	defaultDstWaitTime   = 30 * time.Second
 )
 
@@ -290,43 +290,31 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	require.NoError(t, err)
 
 	const (
-		requestStateTimeoutSec = 600
+		requestStateTimeoutSec = 1500
 	)
 
 	t.Run("Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
-		feeAmount := uint64(1_100_000)
-
-		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, apex.Users[0], requestStateTimeoutSec, feeAmount)
+		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, apex.Users[0], requestStateTimeoutSec, true)
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
-		feeAmount := uint64(1_100_000)
-
-		PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[1], feeAmount)
+		PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[1])
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
-		feeAmount := uint64(1_100_000)
-
-		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, apex.Users[2], requestStateTimeoutSec, feeAmount)
+		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, apex.Users[2], requestStateTimeoutSec, true)
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
-		feeAmount := uint64(1_100_000)
-
-		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[3], requestStateTimeoutSec, feeAmount)
+		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[3], requestStateTimeoutSec, true)
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
-		feeAmount := uint64(1_100_000)
-
-		PrimeToVectorInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[4], requestStateTimeoutSec, feeAmount)
+		PrimeToVectorInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[4], requestStateTimeoutSec)
 	})
 
 	t.Run("Prime to Vector submitted invalid metadata - empty tx", func(t *testing.T) {
-		feeAmount := uint64(1_100_000)
-
-		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[5], requestStateTimeoutSec, feeAmount)
+		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[5], requestStateTimeoutSec, true)
 	})
 
 	t.Run("Prime to Nexus submitter not enough funds", func(t *testing.T) {

@@ -30,8 +30,8 @@ type ApexSystemConfig struct {
 	APIPortStart   int
 	APIKey         string
 
-	TelemetryConfig               TelemetryConfig
-	TargetOneCardanoClusterServer bool
+	TelemetryConfig        TelemetryConfig
+	TargetOneClusterServer bool
 
 	BladeValidatorCount int
 
@@ -90,9 +90,9 @@ func WithTelemetryConfig(tc TelemetryConfig) ApexSystemOptions {
 	}
 }
 
-func WithTargetOneCardanoClusterServer(targetOneCardanoClusterServer bool) ApexSystemOptions {
+func WithTargetOneClusterServer(targetOneClusterServer bool) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
-		h.TargetOneCardanoClusterServer = targetOneCardanoClusterServer
+		h.TargetOneClusterServer = targetOneClusterServer
 	}
 }
 
