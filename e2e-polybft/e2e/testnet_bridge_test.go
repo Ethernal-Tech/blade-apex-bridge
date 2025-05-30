@@ -27,7 +27,7 @@ var (
 )
 
 const (
-	defaultDstNumRetries = 100
+	defaultDstNumRetries = 120
 	defaultDstWaitTime   = 30 * time.Second
 )
 
@@ -290,7 +290,7 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	require.NoError(t, err)
 
 	const (
-		requestStateTimeoutSec = 600
+		requestStateTimeoutSec = 1500
 	)
 
 	t.Run("Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {

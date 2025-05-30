@@ -185,6 +185,14 @@ func NewTestCardanoChain(config *TestCardanoChainConfig) ITestApexChain {
 	}
 }
 
+func (ec *TestCardanoChain) GetServerMust(t *testing.T, indx int) ITestApexChainServer {
+	t.Helper()
+
+	require.True(t, ec.cluster != nil && ec.cluster.Servers != nil && len(ec.cluster.Servers) > indx)
+
+	return ec.cluster.Servers[indx]
+}
+
 func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 	t.Helper()
 

@@ -292,7 +292,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	require.NoError(t, err)
 
 	const (
-		requestStateTimeoutSec = 600
+		requestStateTimeoutSec = 1500
 		bridgingFee            = uint64(1_000_010)
 		operationFee           = uint64(0)
 	)

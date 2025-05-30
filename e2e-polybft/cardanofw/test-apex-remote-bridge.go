@@ -70,17 +70,17 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 		PrimeInfo: CardanoChainInfo{
 			NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
 			OgmiosURL:      "http://ogmios.prime.testnet.apexfusion.org:1337",
-			MultisigAddr:   "addr_test1wzqpmaaz67lerqfrludgl64tc892wu9g3cph5ens90l2cvqx4fllt",
-			FeeAddr:        "addr_test1wp2s7dk9nl552rwa9twkw3m8x52r4p750h3ma97l60hve0sq2m2ek",
+			MultisigAddr:   "addr_test1wr44r7qudqwrpsgfs3m4t47x7xmw55dk4k96faak0w4aeqqxxwlvt",
+			FeeAddr:        "addr_test1wzct9v2gj9j9rmwx6atkjhcesglf3zcpz6c4y99u3nvg9ksfjj3zd",
 		},
 		VectorInfo: CardanoChainInfo{
 			NetworkAddress: "relay-0.vector.testnet.apexfusion.org:7522",
 			OgmiosURL:      "http://ogmios.vector.testnet.apexfusion.org:1337",
-			MultisigAddr:   "vector_test1w2mfypss95pq75qjzn8cxjr3xyl6vuknl0nlfwl3sldmpscauccc7",
-			FeeAddr:        "vector_test1wg6pevsxk6e63eys550u6rwju0wakxsgfw49qxlp8c96h8c0lx60g",
+			MultisigAddr:   "vector_test1wtnv7cp7revdt70yuc96z4ke9pasa70grc5clhyf7q70f4sheemvm",
+			FeeAddr:        "vector_test1wtr7nnz8xg2hmudtfgp9u77uwttkuwef6g26dl6zppmwmsqqnmjc7",
 		},
 		NexusInfo: EVMChainInfo{
-			GatewayAddress: types.StringToAddress("0x5a51812ADfF2A27297EF08475161E5f7B66250bd"),
+			GatewayAddress: types.StringToAddress("0x00A4436E859532fcc10D2477dcB6441b6C182c3D"),
 			JSONRPCAddr:    "https://rpc.nexus.testnet.apexfusion.org",
 		},
 		BridgingAPIs: []string{
