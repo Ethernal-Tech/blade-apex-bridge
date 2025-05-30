@@ -2284,3 +2284,95 @@ func sendInvalidSendAmountTransaction(
 		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount+operationFee)), nil, metadata)
 	require.NoError(t, err)
 }
+
+func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		fmt.Println("put skipped here") // t.Skip()
+	}
+
+	type bridgingRequest struct {
+		src         string
+		dest        string
+		sender      *cardanofw.TestApexUser
+		requestType sendtx.BridgingType
+		isValid     bool
+	}
+
+	const apiKey = "test_api_key"
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig.FundTokenAmount = 0 // very important otherwise HWIC wont work
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithUserCnt(3),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+			primeSettings := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", "prime")
+			primeSettings["nativeTokens"] = nil
+		}, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	var (
+		user             = apex.Users[0]
+		apexSendAmount   = cardanofw.ApexToDfm(big.NewInt(2))
+		bridgingRequests = []bridgingRequest{
+			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[1], requestType: sendtx.BridgingTypeCurrencyOnSource, isValid: true},
+			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[2], requestType: sendtx.BridgingTypeNativeTokenOnSource, isValid: false},
+			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[1], requestType: sendtx.BridgingTypeCurrencyOnSource, isValid: false},
+			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[2], requestType: sendtx.BridgingTypeNativeTokenOnSource, isValid: true},
+		}
+		txHashes = make([]string, len(bridgingRequests))
+	)
+
+	var wg sync.WaitGroup
+
+	for idx, br := range bridgingRequests {
+		wg.Add(1)
+
+		go func(i int, br bridgingRequest) {
+			defer wg.Done()
+
+			if br.requestType == sendtx.BridgingTypeNativeTokenOnSource {
+				_, err := cardanofw.FundUserWithToken(
+					ctx, apex, br.src,
+					apex.GetCardanoInfo(br.src).GenesisWallet, br.sender,
+					cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+					uint64(10_000_000), uint64(100_000_000))
+				require.NoError(t, err)
+			}
+
+			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, br.src, br.dest, br.sender, apexSendAmount, br.requestType, user)
+			fmt.Printf("Bridging request: %v to %v sent %v. hash: %s\n", br.src, br.dest, br.requestType, txHashes[i])
+		}(idx, br)
+	}
+
+	wg.Wait()
+
+	for idx, br := range bridgingRequests {
+		wg.Add(1)
+
+		go func(src, hash string) {
+			defer wg.Done()
+
+			state, timeout := "ExecutedOnDestination", uint(60*8)
+			if !br.isValid {
+				state, timeout = "InvalidRequest", 60*5
+			}
+
+			_, err := cardanofw.WaitForRequestStates(ctx, apex, src, hash, apiKey, []string{state}, timeout)
+			require.NoError(t, err)
+
+			fmt.Printf("%s is %s\n", hash, state)
+		}(br.src, txHashes[idx])
+	}
+
+	wg.Wait()
+}
