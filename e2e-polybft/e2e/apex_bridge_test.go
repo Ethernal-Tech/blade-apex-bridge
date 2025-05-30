@@ -26,7 +26,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
-	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/assert"
@@ -477,11 +476,11 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[idx][cardanowallet.AdaTokenName], apexSendAmount)
+			lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[idx][infrawallet.AdaTokenName], apexSendAmount)
 
 			fmt.Printf("Tx hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm)
 
-			err := apex.WaitForAmountInRange(ctx, apex.Users[0], br.src, br.dest, lowerBoundaryDfm, beforeSendingAmountDfm[idx][cardanowallet.AdaTokenName],
+			err := apex.WaitForAmountInRange(ctx, apex.Users[0], br.src, br.dest, lowerBoundaryDfm, beforeSendingAmountDfm[idx][infrawallet.AdaTokenName],
 				60, time.Second*30)
 			require.NoError(t, err)
 		}()
@@ -892,12 +891,12 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata)
 		require.NoError(t, err)
 
-		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[cardanowallet.AdaTokenName], new(big.Int).SetUint64(sendAmount+feeAmount))
+		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[infrawallet.AdaTokenName], new(big.Int).SetUint64(sendAmount+feeAmount))
 
 		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 
 		err = apex.WaitForAmountInRange(ctx, brSubmitterUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, lowerBoundaryDfm,
-			beforeSendingAmountDfm[cardanowallet.AdaTokenName], 60, time.Second*30)
+			beforeSendingAmountDfm[infrawallet.AdaTokenName], 60, time.Second*30)
 		require.NoError(t, err)
 
 		const (
@@ -2014,11 +2013,11 @@ func PrimeToVectorInvalidMetadataWrongType(
 	require.NoError(t, err)
 
 	if refundEnabled {
-		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[cardanowallet.AdaTokenName], new(big.Int).SetUint64(sendAmount+feeAmount))
+		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[infrawallet.AdaTokenName], new(big.Int).SetUint64(sendAmount+feeAmount))
 
 		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 
-		err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, lowerBoundaryDfm, beforeSendingAmountDfm[cardanowallet.AdaTokenName],
+		err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, lowerBoundaryDfm, beforeSendingAmountDfm[infrawallet.AdaTokenName],
 			50, time.Second*30)
 		require.NoError(t, err)
 	} else {
@@ -2059,7 +2058,7 @@ func PrimeToVectorInvalidMetadataInvalidDestination(
 		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	waitForTestResult(t, ctx, apex, user, txHash, beforeSendingAmountDfm[cardanowallet.AdaTokenName], sendAmount+feeAmount, refundEnabled)
+	waitForTestResult(t, ctx, apex, user, txHash, beforeSendingAmountDfm[infrawallet.AdaTokenName], sendAmount+feeAmount, refundEnabled)
 }
 
 func PrimeToVectorInvalidMetadataInvalidSender(
@@ -2117,7 +2116,7 @@ func PrimeToVectorInvalidMetadataInvalidTransactions(
 		new(big.Int).SetUint64(sendAmount), nil, metadata)
 	require.NoError(t, err)
 
-	waitForTestResult(t, ctx, apex, user, txHash, beforeSendingAmountDfm[cardanowallet.AdaTokenName], sendAmount+feeAmount, refundEnabled)
+	waitForTestResult(t, ctx, apex, user, txHash, beforeSendingAmountDfm[infrawallet.AdaTokenName], sendAmount+feeAmount, refundEnabled)
 }
 
 func PrimeToVectorMismatchSubmittedAndReceiverAmounts(
@@ -2152,7 +2151,7 @@ func PrimeToVectorMismatchSubmittedAndReceiverAmounts(
 		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 	require.NoError(t, err)
 
-	waitForTestResult(t, ctx, apex, user, txHash, beforeSendingAmountDfm[cardanowallet.AdaTokenName], sendAmount+feeAmount, refundEnabled)
+	waitForTestResult(t, ctx, apex, user, txHash, beforeSendingAmountDfm[infrawallet.AdaTokenName], sendAmount+feeAmount, refundEnabled)
 }
 
 func PrimeToVectorSequentialAndParallelWithMaxReceivers(
