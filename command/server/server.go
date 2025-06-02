@@ -258,6 +258,13 @@ func setFlags(cmd *cobra.Command) {
 	)
 
 	cmd.Flags().BoolVar(
+		&params.rawConfig.UseProfiler,
+		useProfilerFlag,
+		false,
+		"use profiler or not",
+	)
+
+	cmd.Flags().BoolVar(
 		&params.rawConfig.Relayer,
 		relayerFlag,
 		defaultConfig.Relayer,

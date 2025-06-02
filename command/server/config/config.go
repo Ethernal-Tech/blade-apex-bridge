@@ -37,6 +37,7 @@ type Config struct {
 	TLSCertFile              string     `json:"tls_cert_file" yaml:"tls_cert_file"`
 	TLSKeyFile               string     `json:"tls_key_file" yaml:"tls_key_file"`
 	DBEngine                 string     `json:"db_engine" yaml:"db_engine"`
+	UseProfiler              bool       `json:"use_profiler" yaml:"use_profiler"`
 
 	Relayer bool `json:"relayer" yaml:"relayer"`
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"net"
 	"net/http"
@@ -442,6 +443,12 @@ func NewServer(config *Config) (*Server, error) {
 
 	m.txpool.SetBaseFee(m.blockchain.Header())
 	m.txpool.Start()
+
+	if config.UseProfiler {
+		go func() {
+			log.Println(http.ListenAndServe("localhost:6060", nil))
+		}()
+	}
 
 	return m, nil
 }

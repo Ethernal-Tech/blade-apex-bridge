@@ -41,6 +41,7 @@ const (
 	tlsCertFileLocationFlag      = "tls-cert-file"
 	tlsKeyFileLocationFlag       = "tls-key-file"
 	dbEngineFlag                 = "db-engine"
+	useProfilerFlag              = "use-profiler"
 	gossipMessageSizeFlag        = "gossip-msg-size"
 	txGossipBatchSizeFlag        = "tx-gossip-batch-size"
 
@@ -195,6 +196,7 @@ func (p *serverParams) generateConfig() *server.Config {
 		TLSCertFile:        p.rawConfig.TLSCertFile,
 		TLSKeyFile:         p.rawConfig.TLSKeyFile,
 		DBEngine:           p.rawConfig.DBEngine,
+		UseProfiler:        p.rawConfig.UseProfiler,
 
 		Relayer:         p.relayer,
 		MetricsInterval: p.rawConfig.MetricsInterval,

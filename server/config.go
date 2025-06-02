@@ -56,6 +56,8 @@ type Config struct {
 	EventTracker *EventTracker
 
 	DBEngine string
+
+	UseProfiler bool
 }
 
 // Telemetry holds the config details for metric services
