@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"time"
 
+	_ "net/http/pprof"
+
 	"github.com/hashicorp/go-hclog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
