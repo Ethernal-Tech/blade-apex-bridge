@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"net"
 	"net/http"
@@ -448,7 +447,9 @@ func NewServer(config *Config) (*Server, error) {
 
 	if config.UseProfiler {
 		go func() {
-			log.Println(http.ListenAndServe("localhost:6060", nil))
+			if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+				m.logger.Error("Error while listening and serving pprof http server", "err", err)
+			}
 		}()
 	}
 
