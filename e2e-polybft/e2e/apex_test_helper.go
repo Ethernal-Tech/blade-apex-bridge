@@ -51,7 +51,7 @@ func newTestConfig(
 	}
 }
 
-// Util methodes
+// Util methods
 func WaitForTestResult(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
 	txHash string, beforeSendingAmountDfm map[string]*big.Int, sentAmount uint64, bridgingType sendtx.BridgingType,
@@ -78,7 +78,7 @@ func WaitForTestResult(
 	}
 }
 
-// Test methodes
+// Test methods
 func executeInvalidMismatchSendLovelaceAmount(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
 	timeoutSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
