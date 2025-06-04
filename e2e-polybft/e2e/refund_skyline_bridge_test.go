@@ -296,7 +296,7 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge_RefundEnabled(t *testing.T
 
 			lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[idx]["lovelace"], new(big.Int).Add(apexSendAmount, new(big.Int).SetUint64(feeAmount)))
 
-			fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm)
+			fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm)
 
 			err := apex.WaitForAmountInRange(ctx, user, br.dest, br.src, lowerBoundaryDfm, beforeSendingAmountDfm[idx]["lovelace"],
 				20, time.Second*30)
