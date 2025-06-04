@@ -291,30 +291,40 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 
 	const (
 		requestStateTimeoutSec = 1500
+		bridgingFee            = uint64(1_000_010)
+		operationFee           = uint64(0)
 	)
 
-	t.Run("Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
-		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, apex.Users[0], requestStateTimeoutSec, true)
+	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, bridgingFee, operationFee, "")
+	bridgingType := sendtx.BridgingTypeNormal
+
+	t.Run("1. Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
+		executeInvalidMismatchSendLovelaceAmount(
+			t, ctx, apex, primeTestConfig, apex.Users[0], 0, bridgingType, true)
 	})
 
-	t.Run("Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
+	t.Run("2. Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
 		PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[1])
 	})
 
-	t.Run("Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, apex.Users[2], requestStateTimeoutSec, true)
+	t.Run("3. Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
+		executeInvalidMetadataType(
+			t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, bridgingType, true)
 	})
 
-	t.Run("Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[3], requestStateTimeoutSec, true)
+	t.Run("4. Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
+		executeInvalidDestination(
+			t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, bridgingType, true)
 	})
 
-	t.Run("Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[4], requestStateTimeoutSec)
+	t.Run("5. Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
+		executeInvalidMetadataInvalidSender(
+			t, ctx, apex, primeTestConfig, apex.Users[4], requestStateTimeoutSec, bridgingType)
 	})
 
-	t.Run("Prime to Vector submitted invalid metadata - empty tx", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[5], requestStateTimeoutSec, true)
+	t.Run("6. Prime to Vector submitted invalid metadata - empty receivers", func(t *testing.T) {
+		executeInvalidEmptyReceivers(
+			t, ctx, apex, primeTestConfig, apex.Users[5], requestStateTimeoutSec, bridgingType, false)
 	})
 
 	t.Run("Prime to Nexus submitter not enough funds", func(t *testing.T) {

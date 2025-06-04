@@ -298,43 +298,44 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	)
 
 	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee, operationFee, "")
+	bridgingType := sendtx.BridgingTypeCurrencyOnSource
 
-	t.Run("Mismatch submitted and receiver amounts", func(t *testing.T) {
+	t.Run("1. Mismatch submitted and receiver amounts", func(t *testing.T) {
 		executeInvalidMismatchSendLovelaceAmount(
-			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, sendtx.BridgingTypeCurrencyOnSource, true)
+			t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, bridgingType, true)
 	})
 
-	t.Run("Submitted invalid metadata - wrong type", func(t *testing.T) {
-		executeInvalidMetadataType(
-			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, sendtx.BridgingTypeCurrencyOnSource, true)
-	})
-
-	t.Run("Submitted invalid metadata - invalid sender", func(t *testing.T) {
-		executeInvalidMetadataSender(
-			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, sendtx.BridgingTypeCurrencyOnSource, true)
-	})
-
-	t.Run("Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
+	t.Run("2. Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
 		executeInvalidBridgingFee(
-			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, sendtx.BridgingTypeCurrencyOnSource, true)
+			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, bridgingType, true)
 	})
 
-	t.Run("Submitted invalid metadata - empty receivers", func(t *testing.T) {
+	t.Run("3. Submitted invalid metadata - empty receivers", func(t *testing.T) {
 		executeInvalidEmptyReceivers(
-			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, sendtx.BridgingTypeCurrencyOnSource, true)
+			t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, bridgingType, true)
 	})
 
-	t.Run("Submitted invalid metadata - invalid destination", func(t *testing.T) {
+	t.Run("4. Submitted invalid metadata - wrong type", func(t *testing.T) {
+		executeInvalidMetadataType(
+			t, ctx, apex, primeTestConfig, apex.Users[1], requestStateTimeoutSec, bridgingType, true)
+	})
+
+	t.Run("5. Submitted invalid metadata - invalid destination", func(t *testing.T) {
 		executeInvalidDestination(
-			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, sendtx.BridgingTypeCurrencyOnSource, true)
+			t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, bridgingType, true)
 	})
 
-	t.Run("Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
+	t.Run("6. Submitted invalid metadata - invalid sender", func(t *testing.T) {
+		executeInvalidMetadataInvalidSender(
+			t, ctx, apex, primeTestConfig, apex.Users[1], requestStateTimeoutSec, bridgingType)
+	})
+
+	t.Run("7. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
 		executeInvalidFeeReceiverAddr(
-			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, sendtx.BridgingTypeCurrencyOnSource, true)
+			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, bridgingType, true)
 	})
 
-	t.Run("Submitted with unknown tokens to bridging addr", func(t *testing.T) {
+	t.Run("8. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
 		sendAmount := uint64(1_500_000)
 		user := apex.Users[len(apex.Users)-1]
 
@@ -348,7 +349,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 		executeInvalidSendUnknownToken(t, ctx, apex, user, primeTestConfig, sendAmount, *tokensFunded, requestStateTimeoutSec, true)
 	})
 
-	t.Run("Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
+	t.Run("9. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
 		srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDCardano
 
 		token, err := cardanowallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(srcChain, dstChain))

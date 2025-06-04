@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestE2E_SkylineBridge_InvalidScenarios_RefundEnabled(t *testing.T) {
+func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 15
@@ -72,37 +72,37 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundEnabled(t *testing.T) {
 
 	t.Run("1.1 Prime -> Cardano - Mismatch submitted and receiver amounts", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, 0, txType, true)
+			executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, user, 0, txType, true)
 		}
 	})
 
 	t.Run("1.2 Cardano -> Prime - Mismatch submitted and receiver amounts", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, cardanoTestConfig, 0, txType, true)
+			executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, cardanoTestConfig, user, 0, txType, true)
 		}
 	})
 
-	t.Run("2.1 Prime -> Cardano Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
+	t.Run("2.1 Prime -> Cardano - Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, user, primeTestConfig, txType)
+			executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, user, 0, txType, true)
 		}
 	})
 
-	t.Run("2.2 Cardano -> Prime Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
+	t.Run("2.2 Cardano -> Prime - Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, user, cardanoTestConfig, txType)
+			executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, cardanoTestConfig, user, 0, txType, true)
 		}
 	})
 
 	t.Run("3.1 Prime -> Cardano - Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMismatchSendAndReceiveAmountParallel(t, ctx, apex, primeTestConfig, 0, txType, true)
+			executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, user, 0, txType, true)
 		}
 	})
 
 	t.Run("3.2 Cardano -> Prime - Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMismatchSendAndReceiveAmountParallel(t, ctx, apex, cardanoTestConfig, 0, txType, true)
+			executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, cardanoTestConfig, user, 0, txType, true)
 		}
 	})
 
@@ -120,37 +120,37 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundEnabled(t *testing.T) {
 
 	t.Run("5.1 Prime -> Cardano - Submitted invalid metadata - wrong type", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMetadataType(t, ctx, apex, primeTestConfig, 60, txType, true)
+			executeInvalidMetadataType(t, ctx, apex, primeTestConfig, user, 60, txType, true)
 		}
 	})
 
 	t.Run("5.2 Cardano -> Prime - Submitted invalid metadata - wrong type", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMetadataType(t, ctx, apex, cardanoTestConfig, 60, txType, true)
+			executeInvalidMetadataType(t, ctx, apex, cardanoTestConfig, user, 60, txType, true)
 		}
 	})
 
 	t.Run("6.1 Prime -> Cardano - Submitted invalid metadata - invalid destination", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidDestination(t, ctx, apex, primeTestConfig, 0, txType, true)
+			executeInvalidDestination(t, ctx, apex, primeTestConfig, user, 0, txType, true)
 		}
 	})
 
 	t.Run("6.2 Cardano -> Prime - Submitted invalid metadata - invalid destination", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidDestination(t, ctx, apex, cardanoTestConfig, 0, txType, true)
+			executeInvalidDestination(t, ctx, apex, cardanoTestConfig, user, 0, txType, true)
 		}
 	})
 
 	t.Run("7.1 Prime -> Cardano - Submitted invalid metadata - invalid sender", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMetadataSender(t, ctx, apex, primeTestConfig, 0, txType, true)
+			executeInvalidMetadataInvalidSender(t, ctx, apex, primeTestConfig, user, 0, txType)
 		}
 	})
 
 	t.Run("7.2 Cardano -> Prime - Submitted invalid metadata - invalid sender", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMetadataSender(t, ctx, apex, cardanoTestConfig, 0, txType, true)
+			executeInvalidMetadataInvalidSender(t, ctx, apex, cardanoTestConfig, user, 0, txType)
 		}
 	})
 
@@ -180,13 +180,13 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundEnabled(t *testing.T) {
 
 	t.Run("10.1 Prime -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidEmptyReceivers(t, ctx, apex, primeTestConfig, 0, txType, true)
+			executeInvalidEmptyReceivers(t, ctx, apex, primeTestConfig, user, 0, txType, true)
 		}
 	})
 
 	t.Run("10.2 Cardano -> Prime - Submitted invalid metadata - empty receivers", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidEmptyReceivers(t, ctx, apex, cardanoTestConfig, 0, txType, true)
+			executeInvalidEmptyReceivers(t, ctx, apex, cardanoTestConfig, user, 0, txType, true)
 		}
 	})
 
