@@ -492,6 +492,8 @@ func main() {
 				"getHashesCount",
 				"getLastBatchID",
 				"submitSignedBatch",
+				"updateBlocks",
+				"getLastObservedBlock",
 			},
 			[]string{},
 		},

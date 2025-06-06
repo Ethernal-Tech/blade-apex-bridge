@@ -2569,3 +2569,52 @@ func (s *SubmitSignedBatchTestPerformanceFn) EncodeAbi() ([]byte, error) {
 func (s *SubmitSignedBatchTestPerformanceFn) DecodeAbi(buf []byte) error {
 	return decodeMethod(TestPerformance.Abi.Methods["submitSignedBatch"], buf, s)
 }
+
+type CardanoBlock struct {
+	BlockSlot *big.Int   `abi:"blockSlot"`
+	BlockHash types.Hash `abi:"blockHash"`
+}
+
+var CardanoBlockABIType = abi.MustNewType("tuple(uint256 blockSlot,bytes32 blockHash)")
+
+func (c *CardanoBlock) EncodeAbi() ([]byte, error) {
+	return CardanoBlockABIType.Encode(c)
+}
+
+func (c *CardanoBlock) DecodeAbi(buf []byte) error {
+	return decodeStruct(CardanoBlockABIType, buf, &c)
+}
+
+type UpdateBlocksTestPerformanceFn struct {
+	ChainID uint8           `abi:"_chainId"`
+	Blocks  []*CardanoBlock `abi:"_blocks"`
+	Caller  types.Address   `abi:"_caller"`
+}
+
+func (u *UpdateBlocksTestPerformanceFn) Sig() []byte {
+	return TestPerformance.Abi.Methods["updateBlocks"].ID()
+}
+
+func (u *UpdateBlocksTestPerformanceFn) EncodeAbi() ([]byte, error) {
+	return TestPerformance.Abi.Methods["updateBlocks"].Encode(u)
+}
+
+func (u *UpdateBlocksTestPerformanceFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(TestPerformance.Abi.Methods["updateBlocks"], buf, u)
+}
+
+type GetLastObservedBlockTestPerformanceFn struct {
+	ChainID uint8 `abi:"_chainId"`
+}
+
+func (g *GetLastObservedBlockTestPerformanceFn) Sig() []byte {
+	return TestPerformance.Abi.Methods["getLastObservedBlock"].ID()
+}
+
+func (g *GetLastObservedBlockTestPerformanceFn) EncodeAbi() ([]byte, error) {
+	return TestPerformance.Abi.Methods["getLastObservedBlock"].Encode(g)
+}
+
+func (g *GetLastObservedBlockTestPerformanceFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(TestPerformance.Abi.Methods["getLastObservedBlock"], buf, g)
+}

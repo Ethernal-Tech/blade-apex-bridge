@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
@@ -205,4 +207,117 @@ func TestE2E_ApexBridge_TestPerformance(t *testing.T) {
 	for _, x := range confirmedBatches {
 		fmt.Println(x)
 	}
+}
+
+type CardanoBlock struct {
+	BlockSlot uint64   `abi:"blockSlot"`
+	BlockHash [32]byte `abi:"blockHash"`
+}
+
+func TestE2E_ApexBridge_TestUpdateBlocks(t *testing.T) {
+	admin, err := wallet.GenerateAccount()
+	require.NoError(t, err)
+
+	cluster := framework.NewTestCluster(
+		t, 4, framework.WithBlockGasLimit(16_000_000), framework.WithBladeAdmin(admin.Address().String()))
+
+	defer cluster.Stop()
+
+	cluster.WaitForReady(t)
+
+	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(cluster.Servers[0].JSONRPC()))
+	require.NoError(t, err)
+
+	// Deploy the contract
+	receipt, err := txRelayer.SendTransaction(
+		types.NewTx(types.NewLegacyTx(
+			types.WithFrom(admin.Ecdsa.Address()),
+			types.WithInput(contractsapi.TestPerformance.Bytecode),
+			types.WithGas(8_242_880),
+		)),
+		admin.Ecdsa)
+	require.NoError(t, err)
+
+	contractAddr := types.Address(receipt.ContractAddress)
+
+	// Create accounts for each node
+	numOfAccounts := 4
+	accounts := make([]*wallet.Account, numOfAccounts)
+	for i := range numOfAccounts {
+		accounts[i], err = wallet.GenerateAccount()
+		require.NoError(t, err)
+	}
+
+	var wg sync.WaitGroup
+	for i := range numOfAccounts {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			updateBlocks(t, txRelayer, contractAddr, accounts[i], i)
+		}(i)
+	}
+	wg.Wait()
+
+	time.Sleep(10 * time.Second)
+
+	// Get last observed block
+	fn := contractsapi.TestPerformance.Abi.GetMethod("getLastObservedBlock")
+	input, err := fn.Encode([]interface{}{uint8(1)})
+	require.NoError(t, err)
+
+	response, err := txRelayer.Call(types.ZeroAddress, contractAddr, input)
+	require.NoError(t, err)
+
+	fmt.Println(response)
+	_, err = common.ParseUint64orHex(&response)
+	require.NoError(t, err)
+}
+
+func updateBlocks(t *testing.T, txRelayer txrelayer.TxRelayer, contractAddr types.Address, account *wallet.Account, id int) {
+	for i := 0; i < 10; i++ {
+		t.Helper()
+
+		getLastObservedBlock(t, txRelayer, contractAddr)
+
+		blocks := []CardanoBlock{}
+		for j := 0 + i*20; j < 20+i*20; j++ {
+			blocks = append(blocks, CardanoBlock{
+				BlockSlot: uint64(j),
+				BlockHash: [32]byte{byte(j)},
+			})
+		}
+
+		fn := contractsapi.TestPerformance.Abi.GetMethod("updateBlocks")
+		input, err := fn.Encode([]interface{}{
+			uint8(1),
+			blocks,
+			account.Address(),
+		})
+		require.NoError(t, err)
+
+		txn := types.NewTx(types.NewLegacyTx(
+			types.WithFrom(account.Address()),
+			types.WithTo(&contractAddr),
+			types.WithInput(input),
+		))
+
+		receipt, err := txRelayer.SendTransaction(txn, account.Ecdsa)
+		require.NoError(t, err)
+
+		require.Equal(t, uint64(types.ReceiptSuccess), receipt.Status)
+		fmt.Printf("%d submited blocks %d - %d\n", id, i*20, i*20+20)
+
+		time.Sleep(3 * time.Second)
+	}
+}
+
+func getLastObservedBlock(t *testing.T, txRelayer txrelayer.TxRelayer, contractAddr types.Address) {
+	fn := contractsapi.TestPerformance.Abi.GetMethod("getLastObservedBlock")
+	input, err := fn.Encode([]interface{}{uint8(1)})
+	require.NoError(t, err)
+
+	response, err := txRelayer.Call(types.ZeroAddress, contractAddr, input)
+	require.NoError(t, err)
+
+	fmt.Println("last observed block: ", response)
 }
