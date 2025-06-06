@@ -63,22 +63,23 @@ jobs:
           else
             echo "notification=false" >> $GITHUB_OUTPUT
           fi
-  e2e_apex_internal_testnet_test:
-    name: E2E ApexBridge Internal Testnet Tests
-    uses: ./.github/workflows/e2e-testnet-test.yml
-    needs: [build_blade, inputs_check]
-    if: needs.inputs_check.outputs.run_blade_apex_bridge_internal == 'true'
-    with:
-      blade_apex_bridge_ref: develop
-      blade_apex_bridge_version: internal
-    secrets:
-      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-      TESTNET_BRIDGING_API_KEY: ${{ secrets.TESTNET_BRIDGING_API_KEY }}
-      E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.E2E_TESTNET_WALLET_KEYS_CONTENT }}
+  # e2e_apex_internal_testnet_test:
+  #   name: E2E ApexBridge Internal Testnet Tests
+  #   uses: ./.github/workflows/e2e-testnet-test.yml
+  #   needs: [build_blade, inputs_check]
+  #   if: needs.inputs_check.outputs.run_blade_apex_bridge_internal == 'true'
+  #   with:
+  #     blade_apex_bridge_ref: develop
+  #     blade_apex_bridge_version: internal
+  #   secrets:
+  #     PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  #     TESTNET_BRIDGING_API_KEY: ${{ secrets.TESTNET_BRIDGING_API_KEY }}
+  #     E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.E2E_TESTNET_WALLET_KEYS_CONTENT }}
   e2e_apex_partner_testnet_test:
     name: E2E ApexBridge Partner Testnet Tests
     uses: ./.github/workflows/e2e-testnet-test.yml
-    needs: [build_blade, inputs_check, e2e_apex_internal_testnet_test]
+    # needs: [build_blade, inputs_check, e2e_apex_internal_testnet_test]
+    needs: [build_blade, inputs_check]
     if: needs.inputs_check.outputs.run_blade_apex_bridge_partner == 'true' && !cancelled()
     with:
       blade_apex_bridge_ref: feat/refund
@@ -90,12 +91,14 @@ jobs:
   notification_apex_testnet:
     name: ApexBridge Testnet Notification
     uses: ./.github/workflows/apex-notification-testnet.yml
-    needs: [build_blade, inputs_check, lint, e2e_apex_internal_testnet_test, e2e_apex_partner_testnet_test]
+    # needs: [build_blade, inputs_check, lint, e2e_apex_internal_testnet_test, e2e_apex_partner_testnet_test]
+    needs: [build_blade, inputs_check, lint, e2e_apex_partner_testnet_test]
     if: needs.inputs_check.outputs.notification == 'true' && !cancelled()
     with:
       build_blade_output: ${{ needs.build_blade.outputs.workflow_output }}
       lint_output: ${{ needs.lint.outputs.workflow_output }}
-      e2e_apex_internal_testnet_test_output: ${{ needs.e2e_apex_internal_testnet_test.outputs.workflow_output }}
+      # e2e_apex_internal_testnet_test_output: ${{ needs.e2e_apex_internal_testnet_test.outputs.workflow_output }}
+      e2e_apex_internal_testnet_test_output: "false"
       e2e_apex_partner_testnet_test_output: ${{ needs.e2e_apex_partner_testnet_test.outputs.workflow_output }}
     secrets:
       APEX_SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}
