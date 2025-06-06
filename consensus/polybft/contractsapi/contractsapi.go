@@ -2589,6 +2589,7 @@ type UpdateBlocksTestPerformanceFn struct {
 	ChainID uint8           `abi:"_chainId"`
 	Blocks  []*CardanoBlock `abi:"_blocks"`
 	Caller  types.Address   `abi:"_caller"`
+	Index   uint8           `abi:"_index"`
 }
 
 func (u *UpdateBlocksTestPerformanceFn) Sig() []byte {

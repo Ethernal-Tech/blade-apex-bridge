@@ -1,9 +1,14 @@
 package e2e
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -49,7 +54,103 @@ func (cb confirmedBatch) String() string {
 	return sb.String()
 }
 
+type memoryStats struct {
+	validatorID int
+	memoryUsage []int64 // in KB
+	timestamps  []time.Time
+}
+
+func monitorMemoryUsage(ctx context.Context, t *testing.T, validatorIDs []int) []*memoryStats {
+	t.Helper()
+
+	stats := make([]*memoryStats, len(validatorIDs))
+	for i, id := range validatorIDs {
+		stats[i] = &memoryStats{
+			validatorID: id,
+			memoryUsage: make([]int64, 0),
+			timestamps:  make([]time.Time, 0),
+		}
+	}
+
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				for i, id := range validatorIDs {
+					cmd := fmt.Sprintf("ps -o rss= -p $(pgrep -f 'test-chain-%d')", id)
+					output, err := exec.Command("bash", "-c", cmd).Output()
+					if err != nil {
+						t.Logf("Failed to get memory usage for validator %d: %v", id, err)
+						continue
+					}
+
+					// Split output into lines and sum up memory usage
+					lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+					var totalMemory int64
+					for _, line := range lines {
+						if line == "" {
+							continue
+						}
+						memoryKB, err := strconv.ParseInt(strings.TrimSpace(line), 10, 64)
+						if err != nil {
+							t.Logf("Failed to parse memory line '%s' for validator %d: %v", line, id, err)
+							continue
+						}
+						totalMemory += memoryKB
+					}
+
+					if totalMemory > 0 {
+						stats[i].memoryUsage = append(stats[i].memoryUsage, totalMemory)
+						stats[i].timestamps = append(stats[i].timestamps, time.Now())
+					}
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	// Wait for context to be done
+	<-ctx.Done()
+
+	// Print memory usage statistics
+	for _, stat := range stats {
+		if len(stat.memoryUsage) == 0 {
+			continue
+		}
+
+		var min, max, sum int64
+		min = stat.memoryUsage[0]
+		max = stat.memoryUsage[0]
+		sum = 0
+
+		for _, usage := range stat.memoryUsage {
+			if usage < min {
+				min = usage
+			}
+			if usage > max {
+				max = usage
+			}
+			sum += usage
+		}
+
+		avg := float64(sum) / float64(len(stat.memoryUsage))
+		t.Logf("Validator %d Memory Usage (KB):", stat.validatorID)
+		t.Logf("  Min: %d", min)
+		t.Logf("  Max: %d", max)
+		t.Logf("  Avg: %.2f", avg)
+	}
+
+	return stats
+}
+
 func TestE2E_ApexBridge_TestPerformance(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	const (
 		quorumCnt                          = 5
 		checkBatchID                       = true
@@ -65,6 +166,10 @@ func TestE2E_ApexBridge_TestPerformance(t *testing.T) {
 	defer cluster.Stop()
 
 	cluster.WaitForReady(t)
+
+	// Start memory monitoring
+	validatorIDs := []int{1, 2, 3, 4}
+	go monitorMemoryUsage(ctx, t, validatorIDs)
 
 	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(cluster.Servers[0].JSONRPC()))
 	require.NoError(t, err)
@@ -215,6 +320,9 @@ type CardanoBlock struct {
 }
 
 func TestE2E_ApexBridge_TestUpdateBlocks(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	admin, err := wallet.GenerateAccount()
 	require.NoError(t, err)
 
@@ -225,14 +333,24 @@ func TestE2E_ApexBridge_TestUpdateBlocks(t *testing.T) {
 
 	cluster.WaitForReady(t)
 
+	// Start memory monitoring
+	validatorIDs := []int{1, 2, 3, 4}
+	_ = monitorMemoryUsage(ctx, t, validatorIDs)
+
 	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(cluster.Servers[0].JSONRPC()))
+	require.NoError(t, err)
+
+	numOfAccounts := 4
+	input, err := contractsapi.TestPerformance.Abi.Constructor.Inputs.Encode([]interface{}{
+		big.NewInt(int64(numOfAccounts)), true, true,
+	})
 	require.NoError(t, err)
 
 	// Deploy the contract
 	receipt, err := txRelayer.SendTransaction(
 		types.NewTx(types.NewLegacyTx(
 			types.WithFrom(admin.Ecdsa.Address()),
-			types.WithInput(contractsapi.TestPerformance.Bytecode),
+			types.WithInput(append(contractsapi.TestPerformance.Bytecode, input...)),
 			types.WithGas(8_242_880),
 		)),
 		admin.Ecdsa)
@@ -240,8 +358,33 @@ func TestE2E_ApexBridge_TestUpdateBlocks(t *testing.T) {
 
 	contractAddr := types.Address(receipt.ContractAddress)
 
+	getTotalTrieSize := func(t *testing.T) (total int64) {
+		t.Helper()
+
+		triePath := filepath.Join(cluster.Config.TmpDir, "test-chain-1", "trie")
+
+		err := filepath.Walk(triePath, func(_ string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if !info.IsDir() {
+				total += info.Size()
+			}
+
+			return nil
+		})
+
+		require.NoError(t, err)
+
+		return total
+	}
+
+	fmt.Println("total trie size before: ", getTotalTrieSize(t))
+
+	getLastObservedBlock(t, txRelayer, contractAddr)
+
 	// Create accounts for each node
-	numOfAccounts := 4
 	accounts := make([]*wallet.Account, numOfAccounts)
 	for i := range numOfAccounts {
 		accounts[i], err = wallet.GenerateAccount()
@@ -262,15 +405,14 @@ func TestE2E_ApexBridge_TestUpdateBlocks(t *testing.T) {
 
 	// Get last observed block
 	fn := contractsapi.TestPerformance.Abi.GetMethod("getLastObservedBlock")
-	input, err := fn.Encode([]interface{}{uint8(1)})
+	input, err = fn.Encode([]interface{}{uint8(1)})
 	require.NoError(t, err)
 
 	response, err := txRelayer.Call(types.ZeroAddress, contractAddr, input)
 	require.NoError(t, err)
 
 	fmt.Println(response)
-	_, err = common.ParseUint64orHex(&response)
-	require.NoError(t, err)
+	fmt.Println("total trie size after: ", getTotalTrieSize(t))
 }
 
 func updateBlocks(t *testing.T, txRelayer txrelayer.TxRelayer, contractAddr types.Address, account *wallet.Account, id int) {
@@ -292,6 +434,7 @@ func updateBlocks(t *testing.T, txRelayer txrelayer.TxRelayer, contractAddr type
 			uint8(1),
 			blocks,
 			account.Address(),
+			uint8(id),
 		})
 		require.NoError(t, err)
 

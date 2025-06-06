@@ -47,6 +47,7 @@ contract TestPerformanceContract {
         quorumCnt = _quorumCnt;
         checkBatchID = _checkBatchID;
         deleteTemporaryMappingsAfterQuorum = _deleteTemporaryMappingsAfterQuorum;
+        lastObservedBlock[1] = CardanoBlock(0, 0x0000000000000000000000000000000000000000000000000000000000000000);
     }
 
     function submitSignedBatch(SignedBatch calldata _signedBatch) external {
@@ -150,31 +151,53 @@ contract TestPerformanceContract {
     mapping(bytes32 => mapping(address => bool)) private validatorVote;
     mapping(bytes32 => uint8) private votes;
 
-    function updateBlocks(uint8 _chainId, CardanoBlock[] calldata _blocks, address _caller) public {
+    function updateBlocks(uint8 _chainId, CardanoBlock[] calldata _blocks, address _caller, uint8 _index) public {
         // Check if the caller has already voted for this claim
-        //uint256 _quorumCnt = validators.getQuorumNumberOfValidators();
-        uint256 _quorumCnt = 4;
+        uint256 _quorumCnt = quorumCnt;
+        uint8 _validatorIdx = _index;
         uint256 _blocksLength = _blocks.length;
-        for (uint i; i < _blocksLength; i++) {
+        CardanoBlock memory _lastObservedBlock = lastObservedBlock[_chainId];
+        uint256 _bitmapValue;
+        uint256 _bitmapNewValue;
+        bytes32 _chash;
+        uint256 _votesNum;
+
+        for (uint i; i < _blocksLength; ++i) {
             CardanoBlock calldata _cblock = _blocks[i];
-            if (_cblock.blockSlot <= lastObservedBlock[_chainId].blockSlot) {
+            if (_cblock.blockSlot <= _lastObservedBlock.blockSlot) {
                 continue;
             }
 
-            bytes32 _chash = keccak256(abi.encodePacked(_chainId, _cblock.blockHash, _cblock.blockSlot));
-            if (validatorVote[_chash][_caller]) {
-                // no need for additional check: || slotVotesPerChain[_chash] >= _quorumCnt
+            _chash = keccak256(abi.encodePacked(_chainId, _cblock.blockHash, _cblock.blockSlot));
+            _bitmapValue = bitmap[_chash];
+            unchecked {
+                _bitmapNewValue = _bitmapValue | (1 << _validatorIdx);
+            }
+
+            // check if caller already voted for same hash and skip if he did
+            if (_bitmapValue == _bitmapNewValue) {
                 continue;
             }
-            validatorVote[_chash][_caller] = true;
-            uint256 _votesNum;
+
+            bitmap[_chash] = _bitmapNewValue;
+
+            // Brian Kernighan's algorithm
+            // @see https://github.com/estarriolvetch/solidity-bits/blob/main/contracts/Popcount.sol
             unchecked {
-                _votesNum = ++votes[_chash];
+                for (_votesNum = 0; _bitmapNewValue != 0; _votesNum++) {
+                    _bitmapNewValue &= _bitmapNewValue - 1;
+                }
             }
+
             if (_votesNum >= _quorumCnt) {
-                lastObservedBlock[_chainId] = _cblock;
+                _lastObservedBlock = _cblock;
+                // can delete because of check
+                //  if (_cblock.blockSlot <= _lastObservedBlock.blockSlot)
+                delete bitmap[_chash];
             }
         }
+
+        lastObservedBlock[_chainId] = _lastObservedBlock;
     }
 
     function getLastObservedBlock(uint8 _chainId) external view returns (CardanoBlock memory _cb) {
