@@ -34,6 +34,8 @@ type TestCardanoChainConfig struct {
 	NetworkType            infrawallet.CardanoNetworkType
 	NetworkMagic           uint
 	NodesCount             int
+	StartBlockHash         string
+	StartSlot              uint64
 	InitialHotWalletAmount *big.Int
 	FundAmount             uint64
 	FundFeeAmount          uint64
@@ -44,6 +46,7 @@ type TestCardanoChainConfig struct {
 	SlotRoundingThreshold  uint64
 	TTLInc                 uint64
 	BridgeAddrHasStake     bool
+	InitialUtxos           []CardanoChainConfigUtxo
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -54,6 +57,8 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		NetworkType:            infrawallet.TestNetNetwork,
 		NetworkMagic:           infrawallet.PrimeTestNetProtocolMagic,
 		NodesCount:             4,
+		StartBlockHash:         "0xABC",
+		StartSlot:              0,
 		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,
 		FundAmount:             defaultFundTokenAmount,
@@ -61,6 +66,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		FundUTxOCount:          1,
 		FundFeeUTxOCount:       1,
 		BridgeAddrHasStake:     true,
+		InitialUtxos:           []CardanoChainConfigUtxo{},
 	}
 }
 
@@ -72,12 +78,15 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		NetworkType:            infrawallet.TestNetNetwork,
 		NetworkMagic:           infrawallet.VectorTestNetProtocolMagic,
 		NodesCount:             4,
+		StartBlockHash:         "0x123",
+		StartSlot:              0,
 		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,
 		FundAmount:             defaultFundTokenAmount,
 		FundFeeAmount:          defaultFundTokenAmount,
 		FundUTxOCount:          1,
 		FundFeeUTxOCount:       1,
+		InitialUtxos:           []CardanoChainConfigUtxo{},
 	}
 }
 

@@ -69,6 +69,7 @@ type RestartValidatorStrategyFn func(
 
 type executeBridgingConfig struct {
 	waitForUnexpectedBridges bool
+	runIndexerInstance       bool
 	restartValidatorsConfigs []RestartValidatorsConfig
 	sendTxStrategy           SendTxStrategyFn
 	restartValidatorStrategy RestartValidatorStrategyFn
@@ -94,6 +95,12 @@ type ExecuteBridgingOption func(config *executeBridgingConfig)
 func WithWaitForUnexpectedBridges(waitForUnexpectedBridges bool) ExecuteBridgingOption {
 	return func(config *executeBridgingConfig) {
 		config.waitForUnexpectedBridges = waitForUnexpectedBridges
+	}
+}
+
+func WithRunIndexer(runIndexerInstance bool) ExecuteBridgingOption {
+	return func(config *executeBridgingConfig) {
+		config.runIndexerInstance = runIndexerInstance
 	}
 }
 

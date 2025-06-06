@@ -82,7 +82,9 @@ func ExecuteBridgingWaitAfterSubmits(
 }
 
 func ExecuteBridging(
-	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
+	t *testing.T, ctx context.Context, apex IApexSystem,
+	chainConfigs map[string]*cardanofw.TestCardanoChainConfig,
+	chainInfos map[string]*cardanofw.CardanoChainInfo, txCountPerSender int,
 	senderUsers []*cardanofw.TestApexUser, receiverUsers []*cardanofw.TestApexUser,
 	chains []string, chainsDst map[string][]string,
 	sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
@@ -93,6 +95,22 @@ func ExecuteBridging(
 	dstChains := getAllDestionationChains(chains, chainsDst)
 	chainPairs := getAllChainPairs(chains, chainsDst)
 	expectedAmountPerChainDfm := make([]map[string]*big.Int, len(receiverUsers))
+
+	if config.runIndexerInstance {
+		indexerDBs, err := initIndexerDBs(chains)
+		require.NoError(t, err)
+
+		for _, chain := range chains {
+			cardanoTxObserver, err := NewCardanoTxObserver(
+				ctx, chainConfigs[chain],
+				chainInfos[chain], indexerDBs[chain],
+			)
+			require.NoError(t, err)
+
+			err = cardanoTxObserver.Start()
+			require.NoError(t, err)
+		}
+	}
 
 	for i, receiverUser := range receiverUsers {
 		expectedAmountPerChainDfm[i] = make(map[string]*big.Int)
