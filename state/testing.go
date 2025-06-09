@@ -142,7 +142,7 @@ func testDeleteCommonStateRoot(t *testing.T, buildPreState buildPreState) {
 	objs, err := txn.Commit(false)
 	require.NoError(t, err)
 
-	snap2, _, err := snap.Commit(objs)
+	snap2, _, _, err := snap.Commit(objs)
 	require.NoError(t, err)
 
 	txn2 := newTxn(snap2)
@@ -153,7 +153,7 @@ func testDeleteCommonStateRoot(t *testing.T, buildPreState buildPreState) {
 	objs, err = txn2.Commit(false)
 	require.NoError(t, err)
 
-	snap3, _, err := snap2.Commit(objs)
+	snap3, _, _, err := snap2.Commit(objs)
 	require.NoError(t, err)
 
 	txn3 := newTxn(snap3)
@@ -180,7 +180,7 @@ func testWriteState(t *testing.T, buildPreState buildPreState) {
 	objs, err := txn.Commit(false)
 	require.NoError(t, err)
 
-	snap, _, err = snap.Commit(objs)
+	snap, _, _, err = snap.Commit(objs)
 	require.NoError(t, err)
 
 	txn = newTxn(snap)
@@ -202,7 +202,7 @@ func testWriteEmptyState(t *testing.T, buildPreState buildPreState) {
 	objs, err := txn.Commit(false)
 	require.NoError(t, err)
 
-	snap, _, err = snap.Commit(objs)
+	snap, _, _, err = snap.Commit(objs)
 	require.NoError(t, err)
 
 	txn = newTxn(snap)
@@ -219,7 +219,7 @@ func testWriteEmptyState(t *testing.T, buildPreState buildPreState) {
 	objs, err = txn.Commit(true)
 	require.NoError(t, err)
 
-	snap, _, err = snap.Commit(objs)
+	snap, _, _, err = snap.Commit(objs)
 	require.NoError(t, err)
 
 	txn = newTxn(snap)
@@ -239,7 +239,7 @@ func testUpdateStateWithEmpty(t *testing.T, buildPreState buildPreState, deleteE
 	objs, err := txn.Commit(deleteEmptyObjects)
 	require.NoError(t, err)
 
-	snap, _, err = snap.Commit(objs)
+	snap, _, _, err = snap.Commit(objs)
 	require.NoError(t, err)
 
 	txn = newTxn(snap)
@@ -252,7 +252,7 @@ func testUpdateStateWithEmpty(t *testing.T, buildPreState buildPreState, deleteE
 	objs, err = txn.Commit(deleteEmptyObjects)
 	require.NoError(t, err)
 
-	snap, _, err = snap.Commit(objs)
+	snap, _, _, err = snap.Commit(objs)
 	require.NoError(t, err)
 
 	txn = newTxn(snap)
@@ -266,7 +266,7 @@ func testUpdateStateWithEmpty(t *testing.T, buildPreState buildPreState, deleteE
 	objs, err = txn.Commit(deleteEmptyObjects)
 	require.NoError(t, err)
 
-	snap, _, err = snap.Commit(objs)
+	snap, _, _, err = snap.Commit(objs)
 	require.NoError(t, err)
 
 	txn = newTxn(snap)
@@ -286,7 +286,7 @@ func testSuicideAccountInPreState(t *testing.T, buildPreState buildPreState) {
 	objs, err := txn.Commit(true)
 	require.NoError(t, err)
 
-	snap, _, err = snap.Commit(objs)
+	snap, _, _, err = snap.Commit(objs)
 	require.NoError(t, err)
 
 	txn = newTxn(snap)
@@ -309,7 +309,7 @@ func testSuicideAccount(t *testing.T, buildPreState buildPreState) {
 	objs, err := txn.Commit(true)
 	require.NoError(t, err)
 
-	snap, _, err = snap.Commit(objs)
+	snap, _, _, err = snap.Commit(objs)
 	require.NoError(t, err)
 
 	txn = newTxn(snap)
@@ -336,7 +336,7 @@ func testSuicideAccountWithData(t *testing.T, buildPreState buildPreState) {
 	objs, err := txn.Commit(true)
 	require.NoError(t, err)
 
-	snap, _, err = snap.Commit(objs)
+	snap, _, _, err = snap.Commit(objs)
 	require.NoError(t, err)
 
 	txn = newTxn(snap)
@@ -364,7 +364,7 @@ func testSuicideCoinbase(t *testing.T, buildPreState buildPreState) {
 	objs, err := txn.Commit(true)
 	require.NoError(t, err)
 
-	snap, _, err = snap.Commit(objs)
+	snap, _, _, err = snap.Commit(objs)
 	require.NoError(t, err)
 
 	txn = newTxn(snap)
@@ -428,7 +428,7 @@ func testChangePrestateAccountBalanceToZero(t *testing.T, buildPreState buildPre
 	objs, err := txn.Commit(true)
 	require.NoError(t, err)
 
-	snap, _, err = snap.Commit(objs)
+	snap, _, _, err = snap.Commit(objs)
 	require.NoError(t, err)
 
 	txn = newTxn(snap)
@@ -448,7 +448,7 @@ func testChangeAccountBalanceToZero(t *testing.T, buildPreState buildPreState) {
 	objs, err := txn.Commit(true)
 	require.NoError(t, err)
 
-	snap, _, err = snap.Commit(objs)
+	snap, _, _, err = snap.Commit(objs)
 	require.NoError(t, err)
 
 	txn = newTxn(snap)
@@ -481,7 +481,7 @@ func testSetAndGetCode(t *testing.T, buildPreState buildPreState) {
 	affectedObjs, err := txn.Commit(true)
 	require.NoError(t, err)
 
-	snap, _, err = snap.Commit(affectedObjs)
+	snap, _, _, err = snap.Commit(affectedObjs)
 	require.NoError(t, err)
 
 	assert.Len(t, affectedObjs, 1)

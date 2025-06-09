@@ -72,7 +72,7 @@ type State interface {
 type Snapshot interface {
 	readSnapshot
 
-	Commit(objs []*Object) (Snapshot, []byte, error)
+	Commit(objs []*Object) (Snapshot, []byte, uint64, error)
 }
 
 // DumpAccount represents an account in the state.
