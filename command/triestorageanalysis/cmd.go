@@ -13,7 +13,7 @@ type trieStorageAnalysisParams struct {
 	DBEngine       string
 	BlockNumFrom   uint64
 	BlockNumTo     uint64
-	Addrs          []string
+	Accs           []string
 	AccStorageOnly bool
 	Verbose        bool
 }

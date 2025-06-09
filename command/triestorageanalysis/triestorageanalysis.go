@@ -29,13 +29,13 @@ import (
 		--block-num-to 1000\
 		--acc-storage-only\
 		--verbose\
-		--addr 0xABEF000000000000000000000000000000000000\
-		--addr 0xABEF000000000000000000000000000000000001\
-		--addr 0xABEF000000000000000000000000000000000002\
-		--addr 0xABEF000000000000000000000000000000000003\
-		--addr 0xABEF000000000000000000000000000000000004\
-		--addr 0xABEF000000000000000000000000000000000005\
-		--addr 0xABEF000000000000000000000000000000000006
+		--acc 0xABEF000000000000000000000000000000000000:Bridge\
+		--acc 0xABEF000000000000000000000000000000000001:ClaimsHelper\
+		--acc 0xABEF000000000000000000000000000000000002:Claims\
+		--acc 0xABEF000000000000000000000000000000000003:SignedBatches\
+		--acc 0xABEF000000000000000000000000000000000004:Slots\
+		--acc 0xABEF000000000000000000000000000000000005:Validators\
+		--acc 0xABEF000000000000000000000000000000000006:ApexBridgeAdmin
 */
 func TrieStorageAnalysisCMD() *cobra.Command {
 	saCmd := &cobra.Command{
@@ -68,10 +68,10 @@ func TrieStorageAnalysisCMD() *cobra.Command {
 		"block number up to which to analyze",
 	)
 	saCmd.Flags().StringSliceVar(
-		&params.Addrs,
-		"addr",
+		&params.Accs,
+		"acc",
 		nil,
-		"predefined addresses",
+		"predefined accounts",
 	)
 	saCmd.Flags().BoolVar(
 		&params.AccStorageOnly,
@@ -104,13 +104,38 @@ func TrieStorageAnalysisCMD() *cobra.Command {
 	}
 
 	saCmd.Run = func(cmd *cobra.Command, args []string) {
+		targetAccounts := make([]account, len(params.Accs))
+
+		for idx, addrWho := range params.Accs {
+			var (
+				who string
+				ss  = strings.Split(addrWho, ":")
+			)
+
+			if len(ss) == 0 || len(ss) > 2 {
+				outputter.SetError(fmt.Errorf("invalid acc %s", addrWho))
+				outputter.WriteOutput()
+
+				return
+			}
+
+			if len(ss) == 2 {
+				who = ss[1]
+			}
+
+			targetAccounts[idx] = account{
+				addr: ss[0],
+				who:  who,
+			}
+		}
+
 		storagePerAcc, nonAccStorage, err := calculateStorage(
 			params.DataPath, params.DBEngine,
 			walkSettings{
-				onlyAccounts:  params.AccStorageOnly,
-				accounts:      params.Addrs,
-				startBlockNum: params.BlockNumFrom,
-				endBlockNum:   params.BlockNumTo,
+				onlyAccounts:   params.AccStorageOnly,
+				targetAccounts: targetAccounts,
+				startBlockNum:  params.BlockNumFrom,
+				endBlockNum:    params.BlockNumTo,
 			},
 			verboseOutputer{outputter: outputter, verbose: params.Verbose})
 		if err != nil {
@@ -120,9 +145,9 @@ func TrieStorageAnalysisCMD() *cobra.Command {
 			return
 		}
 
-		hashToAddr := make(map[types.Hash]string, len(params.Addrs))
-		for _, addr := range params.Addrs {
-			hashToAddr[types.BytesToHash(crypto.Keccak256(types.StringToAddress(addr).Bytes()))] = addr
+		hashToAcc := make(map[types.Hash]account, len(targetAccounts))
+		for _, targetAcc := range targetAccounts {
+			hashToAcc[types.BytesToHash(crypto.Keccak256(types.StringToAddress(targetAcc.addr).Bytes()))] = targetAcc
 		}
 
 		var sb strings.Builder
@@ -130,16 +155,21 @@ func TrieStorageAnalysisCMD() *cobra.Command {
 			sb.WriteString(fmt.Sprintf("%-16v - Non account storage", nonAccStorage))
 		}
 
-		for _, addr := range params.Addrs {
-			storage, found := storagePerAcc[types.BytesToHash(crypto.Keccak256(types.StringToAddress(addr).Bytes()))]
+		for _, targetAcc := range targetAccounts {
+			storage, found := storagePerAcc[types.BytesToHash(crypto.Keccak256(types.StringToAddress(targetAcc.addr).Bytes()))]
 			if found {
-				sb.WriteString(fmt.Sprintf("\n%-16v - %-70s", storage, "Addr: "+addr))
+				sb.WriteString(
+					fmt.Sprintf(
+						"\n%-16v - %s",
+						storage, fmt.Sprintf("Addr: %s, Who: %s", targetAcc.addr, targetAcc.who),
+					),
+				)
 			}
 		}
 
 		for accHash, storage := range storagePerAcc {
-			if _, found := hashToAddr[accHash]; !found {
-				sb.WriteString(fmt.Sprintf("\n%-16v - %-70s", storage, "Hash: "+hex.EncodeToString(accHash.Bytes())))
+			if _, found := hashToAcc[accHash]; !found {
+				sb.WriteString(fmt.Sprintf("\n%-16v - %s", storage, "Hash: "+hex.EncodeToString(accHash.Bytes())))
 			}
 		}
 
@@ -227,7 +257,7 @@ func calculateStorage(
 		if settings.onlyAccounts {
 			o.write("===================================================================\n")
 			o.write(fmt.Sprintf("starting account storage tries walk for block: %d\n", block.Number()))
-			err = walkOnlyAccountStorageTries(trieStorage, block, settings.accounts, walk, o)
+			err = walkOnlyAccountStorageTries(trieStorage, block, settings.targetAccounts, walk, o)
 			o.write("===================================================================\n")
 		} else {
 			o.write("===================================================================\n")
@@ -248,24 +278,30 @@ func calculateStorage(
 }
 
 func walkOnlyAccountStorageTries(
-	trieStorage itrie.Storage, block *types.Block, addrs []string, walk *walkProgress, o verboseOutputer) error {
-	for _, addr := range addrs {
-		acc, err := itrie.GetAccount(trieStorage, block.Header.StateRoot.Bytes(), types.StringToAddress(addr))
+	trieStorage itrie.Storage, block *types.Block, targetAccounts []account, walk *walkProgress, o verboseOutputer) error {
+	for _, targetAcc := range targetAccounts {
+		acc, ok, err := itrie.GetAccount(trieStorage, block.Header.StateRoot.Bytes(), types.StringToAddress(targetAcc.addr))
 		if err != nil {
-			return fmt.Errorf("failed to get account for %s. err: %w", addr, err)
+			return fmt.Errorf("failed to get account for %s - %s. err: %w", targetAcc.addr, targetAcc.who, err)
 		}
 
 		o.write("\n-------------------------------------------------------------------\n")
-		o.write(fmt.Sprintf("account: %s", addr))
+		o.write(fmt.Sprintf("account: %s - %s", targetAcc.addr, targetAcc.who))
+
+		if !ok {
+			o.write(" - no data\n")
+
+			continue
+		}
 
 		err = walkTrie(
 			trieStorage, block, acc.Root, true,
-			&itrie.AccountWithHash{Account: *acc, Hash: crypto.Keccak256(types.StringToAddress(addr).Bytes())},
+			&itrie.AccountWithHash{Account: *acc, Hash: crypto.Keccak256(types.StringToAddress(targetAcc.addr).Bytes())},
 			walk, o)
 		if err != nil {
 			return fmt.Errorf(
-				"error while walking account storage trie for block: %d, addr: %s. err: %w",
-				block.Number(), addr, err)
+				"error while walking account storage trie for block: %d, addr: %s, who: %s. err: %w",
+				block.Number(), targetAcc.addr, targetAcc.who, err)
 		}
 	}
 
@@ -369,6 +405,11 @@ func openStorage(path, dbEngine string, isReadOnly bool) (itrie.Storage, error) 
 	}
 }
 
+type account struct {
+	addr string
+	who  string
+}
+
 type verboseOutputer struct {
 	outputter command.OutputFormatter
 	verbose   bool
@@ -381,10 +422,10 @@ func (o verboseOutputer) write(output string) {
 }
 
 type walkSettings struct {
-	startBlockNum uint64
-	endBlockNum   uint64
-	onlyAccounts  bool
-	accounts      []string
+	startBlockNum  uint64
+	endBlockNum    uint64
+	onlyAccounts   bool
+	targetAccounts []account
 }
 
 type walkProgress struct {

@@ -24,20 +24,24 @@ type (
 
 var EmptyCodeHash = crypto.Keccak256(nil)
 
-func GetAccount(storage Storage, rootHash []byte, addr types.Address) (*state.Account, error) {
+func GetAccount(storage Storage, rootHash []byte, addr types.Address) (*state.Account, bool, error) {
 	key := crypto.Keccak256(addr.Bytes())
 
 	data, err := Lookup(storage, rootHash, key)
 	if err != nil {
-		return nil, err
+		return nil, false, err
+	}
+
+	if len(data) == 0 {
+		return nil, false, err
 	}
 
 	var account state.Account
 	if err := account.UnmarshalRlp(data); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	return &account, nil
+	return &account, true, nil
 }
 
 func Lookup(storage Storage, rootHash []byte, key []byte) ([]byte, error) {
