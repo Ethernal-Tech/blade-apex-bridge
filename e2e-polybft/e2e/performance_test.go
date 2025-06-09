@@ -90,17 +90,12 @@ func monitorMemoryUsage(ctx context.Context, t *testing.T, validatorIDs []int) [
 					// Split output into lines and sum up memory usage
 					lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 					var totalMemory int64
-					for _, line := range lines {
-						if line == "" {
-							continue
-						}
-						memoryKB, err := strconv.ParseInt(strings.TrimSpace(line), 10, 64)
-						if err != nil {
-							t.Logf("Failed to parse memory line '%s' for validator %d: %v", line, id, err)
-							continue
-						}
-						totalMemory += memoryKB
+					memoryKB, err := strconv.ParseInt(strings.TrimSpace(lines[0]), 10, 64)
+					if err != nil {
+						t.Logf("Failed to parse memory line '%s' for validator %d: %v", lines[0], id, err)
+						continue
 					}
+					totalMemory += memoryKB
 
 					if totalMemory > 0 {
 						stats[i].memoryUsage = append(stats[i].memoryUsage, totalMemory)
@@ -148,9 +143,6 @@ func monitorMemoryUsage(ctx context.Context, t *testing.T, validatorIDs []int) [
 }
 
 func TestE2E_ApexBridge_TestPerformance(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	const (
 		quorumCnt                          = 5
 		checkBatchID                       = true
@@ -166,10 +158,6 @@ func TestE2E_ApexBridge_TestPerformance(t *testing.T) {
 	defer cluster.Stop()
 
 	cluster.WaitForReady(t)
-
-	// Start memory monitoring
-	validatorIDs := []int{1, 2, 3, 4}
-	go monitorMemoryUsage(ctx, t, validatorIDs)
 
 	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(cluster.Servers[0].JSONRPC()))
 	require.NoError(t, err)
@@ -319,7 +307,16 @@ type CardanoBlock struct {
 	BlockHash [32]byte `abi:"blockHash"`
 }
 
-func TestE2E_ApexBridge_TestUpdateBlocks(t *testing.T) {
+func TestE2E_ApexBridge_TestUpdateBlocksPreOptimization(t *testing.T) {
+	ApexBridge_TestUpdateBlocks(t, "updateBlocksPreOptimization")
+}
+
+func TestE2E_ApexBridge_TestUpdateBlocksPostOptimization(t *testing.T) {
+	ApexBridge_TestUpdateBlocks(t, "updateBlocksPostOptimization")
+}
+
+func ApexBridge_TestUpdateBlocks(t *testing.T, methodName string) {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -335,7 +332,7 @@ func TestE2E_ApexBridge_TestUpdateBlocks(t *testing.T) {
 
 	// Start memory monitoring
 	validatorIDs := []int{1, 2, 3, 4}
-	_ = monitorMemoryUsage(ctx, t, validatorIDs)
+	go monitorMemoryUsage(ctx, t, validatorIDs)
 
 	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(cluster.Servers[0].JSONRPC()))
 	require.NoError(t, err)
@@ -396,7 +393,7 @@ func TestE2E_ApexBridge_TestUpdateBlocks(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			updateBlocks(t, txRelayer, contractAddr, accounts[i], i)
+			updateBlocks(t, txRelayer, contractAddr, accounts[i], i, methodName)
 		}(i)
 	}
 	wg.Wait()
@@ -415,7 +412,7 @@ func TestE2E_ApexBridge_TestUpdateBlocks(t *testing.T) {
 	fmt.Println("total trie size after: ", getTotalTrieSize(t))
 }
 
-func updateBlocks(t *testing.T, txRelayer txrelayer.TxRelayer, contractAddr types.Address, account *wallet.Account, id int) {
+func updateBlocks(t *testing.T, txRelayer txrelayer.TxRelayer, contractAddr types.Address, account *wallet.Account, id int, methodName string) {
 	for i := 0; i < 10; i++ {
 		t.Helper()
 
@@ -429,13 +426,18 @@ func updateBlocks(t *testing.T, txRelayer txrelayer.TxRelayer, contractAddr type
 			})
 		}
 
-		fn := contractsapi.TestPerformance.Abi.GetMethod("updateBlocks")
-		input, err := fn.Encode([]interface{}{
+		fn := contractsapi.TestPerformance.Abi.GetMethod(methodName)
+		inputInterface := []interface{}{
 			uint8(1),
 			blocks,
-			account.Address(),
-			uint8(id),
-		})
+		}
+		if methodName == "updateBlocksPreOptimization" {
+			inputInterface = append(inputInterface, account.Address())
+		} else {
+			inputInterface = append(inputInterface, uint8(id))
+		}
+
+		input, err := fn.Encode(inputInterface)
 		require.NoError(t, err)
 
 		txn := types.NewTx(types.NewLegacyTx(

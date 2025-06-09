@@ -39,6 +39,18 @@ contract TestPerformanceContract {
 
     bool private deleteTemporaryMappingsAfterQuorum;
 
+    struct CardanoBlock {
+        uint256 blockSlot;
+        bytes32 blockHash;
+    }
+
+    mapping(uint8 => CardanoBlock) private lastObservedBlock;
+    mapping(bytes32 => mapping(address => bool)) private validatorVote;
+    mapping(bytes32 => uint8) private votes;
+
+    mapping(bytes32 => uint8) private _unusedVotes;
+    mapping(bytes32 => mapping(address => bool)) private _unusedValidatorVote;
+
     constructor(
         uint256 _quorumCnt,
         bool _checkBatchID,
@@ -142,16 +154,33 @@ contract TestPerformanceContract {
         return lastBatchID;
     }
 
-    struct CardanoBlock {
-        uint256 blockSlot;
-        bytes32 blockHash;
+    function updateBlocksPreOptimization(uint8 _chainId, CardanoBlock[] calldata _blocks, address _caller) public {
+        // Check if the caller has already voted for this claim
+        uint256 _quorumCnt = quorumCnt;
+        uint256 _blocksLength = _blocks.length;
+        for (uint i; i < _blocksLength; i++) {
+            CardanoBlock calldata _cblock = _blocks[i];
+            if (_cblock.blockSlot <= lastObservedBlock[_chainId].blockSlot) {
+                continue;
+            }
+
+            bytes32 _chash = keccak256(abi.encodePacked(_chainId, _cblock.blockHash, _cblock.blockSlot));
+            if (validatorVote[_chash][_caller]) {
+                // no need for additional check: || slotVotesPerChain[_chash] >= _quorumCnt
+                continue;
+            }
+            validatorVote[_chash][_caller] = true;
+            uint256 _votesNum;
+            unchecked {
+                _votesNum = ++votes[_chash];
+            }
+            if (_votesNum >= _quorumCnt) {
+                lastObservedBlock[_chainId] = _cblock;
+            }
+        }
     }
 
-    mapping(uint8 => CardanoBlock) private lastObservedBlock;
-    mapping(bytes32 => mapping(address => bool)) private validatorVote;
-    mapping(bytes32 => uint8) private votes;
-
-    function updateBlocks(uint8 _chainId, CardanoBlock[] calldata _blocks, address _caller, uint8 _index) public {
+    function updateBlocksPostOptimization(uint8 _chainId, CardanoBlock[] calldata _blocks, uint8 _index) public {
         // Check if the caller has already voted for this claim
         uint256 _quorumCnt = quorumCnt;
         uint8 _validatorIdx = _index;

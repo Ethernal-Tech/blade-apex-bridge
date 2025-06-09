@@ -2585,23 +2585,40 @@ func (c *CardanoBlock) DecodeAbi(buf []byte) error {
 	return decodeStruct(CardanoBlockABIType, buf, &c)
 }
 
-type UpdateBlocksTestPerformanceFn struct {
+type UpdateBlocksPreOptimizationTestPerformanceFn struct {
 	ChainID uint8           `abi:"_chainId"`
 	Blocks  []*CardanoBlock `abi:"_blocks"`
 	Caller  types.Address   `abi:"_caller"`
+}
+
+func (u *UpdateBlocksPreOptimizationTestPerformanceFn) Sig() []byte {
+	return TestPerformance.Abi.Methods["updateBlocksPreOptimization"].ID()
+}
+
+func (u *UpdateBlocksPreOptimizationTestPerformanceFn) EncodeAbi() ([]byte, error) {
+	return TestPerformance.Abi.Methods["updateBlocksPreOptimization"].Encode(u)
+}
+
+func (u *UpdateBlocksPreOptimizationTestPerformanceFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(TestPerformance.Abi.Methods["updateBlocksPreOptimization"], buf, u)
+}
+
+type UpdateBlocksPostOptimizationTestPerformanceFn struct {
+	ChainID uint8           `abi:"_chainId"`
+	Blocks  []*CardanoBlock `abi:"_blocks"`
 	Index   uint8           `abi:"_index"`
 }
 
-func (u *UpdateBlocksTestPerformanceFn) Sig() []byte {
-	return TestPerformance.Abi.Methods["updateBlocks"].ID()
+func (u *UpdateBlocksPostOptimizationTestPerformanceFn) Sig() []byte {
+	return TestPerformance.Abi.Methods["updateBlocksPostOptimization"].ID()
 }
 
-func (u *UpdateBlocksTestPerformanceFn) EncodeAbi() ([]byte, error) {
-	return TestPerformance.Abi.Methods["updateBlocks"].Encode(u)
+func (u *UpdateBlocksPostOptimizationTestPerformanceFn) EncodeAbi() ([]byte, error) {
+	return TestPerformance.Abi.Methods["updateBlocksPostOptimization"].Encode(u)
 }
 
-func (u *UpdateBlocksTestPerformanceFn) DecodeAbi(buf []byte) error {
-	return decodeMethod(TestPerformance.Abi.Methods["updateBlocks"], buf, u)
+func (u *UpdateBlocksPostOptimizationTestPerformanceFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(TestPerformance.Abi.Methods["updateBlocksPostOptimization"], buf, u)
 }
 
 type GetLastObservedBlockTestPerformanceFn struct {
