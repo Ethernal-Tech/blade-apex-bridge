@@ -137,7 +137,7 @@ func TrieStorageAnalysisCMD() *cobra.Command {
 				startBlockNum:  params.BlockNumFrom,
 				endBlockNum:    params.BlockNumTo,
 			},
-			verboseOutputer{outputter: outputter, verbose: params.Verbose})
+			verboseOutputter{outputter: outputter, verbose: params.Verbose})
 		if err != nil {
 			outputter.SetError(err)
 			outputter.WriteOutput()
@@ -193,7 +193,7 @@ func (r *TrieStorageAnalysisResult) GetOutput() string {
 }
 
 func calculateStorage(
-	path, dbEngine string, settings walkSettings, o verboseOutputer,
+	path, dbEngine string, settings walkSettings, o verboseOutputter,
 ) (map[types.Hash]*big.Int, *big.Int, error) {
 	trieStorage, err := openStorage(path, dbEngine, true)
 	if err != nil {
@@ -278,7 +278,8 @@ func calculateStorage(
 }
 
 func walkOnlyAccountStorageTries(
-	trieStorage itrie.Storage, block *types.Block, targetAccounts []account, walk *walkProgress, o verboseOutputer) error {
+	trieStorage itrie.Storage, block *types.Block, targetAccounts []account, walk *walkProgress, o verboseOutputter,
+) error {
 	for _, targetAcc := range targetAccounts {
 		acc, ok, err := itrie.GetAccount(trieStorage, block.Header.StateRoot.Bytes(), types.StringToAddress(targetAcc.addr))
 		if err != nil {
@@ -310,7 +311,7 @@ func walkOnlyAccountStorageTries(
 
 func walkTrie(
 	trieStorage itrie.Storage, block *types.Block, root types.Hash, isStorage bool, account *itrie.AccountWithHash,
-	walk *walkProgress, o verboseOutputer,
+	walk *walkProgress, o verboseOutputter,
 ) error {
 	var nodesWalked, accsWalked uint64
 
@@ -410,12 +411,12 @@ type account struct {
 	who  string
 }
 
-type verboseOutputer struct {
+type verboseOutputter struct {
 	outputter command.OutputFormatter
 	verbose   bool
 }
 
-func (o verboseOutputer) write(output string) {
+func (o verboseOutputter) write(output string) {
 	if o.verbose {
 		_, _ = o.outputter.Write([]byte(output))
 	}
@@ -460,7 +461,6 @@ func (p *processingCacheStrat) Next() {
 
 // SetProcessed implements processingCache.
 func (p *processingCacheStrat) SetProcessed(hash types.Hash) {
-	p.cache[hash] = struct{}{}
 }
 
 // AlreadyProcessed implements processingCache.
