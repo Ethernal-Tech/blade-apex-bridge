@@ -20,6 +20,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/command/secrets"
 	"github.com/0xPolygon/polygon-edge/command/server"
 	"github.com/0xPolygon/polygon-edge/command/status"
+	"github.com/0xPolygon/polygon-edge/command/triestorageanalysis"
 	"github.com/0xPolygon/polygon-edge/command/txpool"
 	"github.com/0xPolygon/polygon-edge/command/validator"
 	"github.com/0xPolygon/polygon-edge/command/version"
@@ -56,6 +57,7 @@ func (rc *RootCommand) registerSubCommands() {
 		server.GetCommand(),
 		bridge.GetCommand(),
 		regenesis.GetCommand(),
+		triestorageanalysis.GetCommand(),
 		mint.GetCommand(),
 		validator.GetCommand(),
 		loadtest.GetCommand(),
