@@ -41,6 +41,7 @@ type TestCardanoChainConfig struct {
 	PremineAmount          uint64
 	SlotRoundingThreshold  uint64
 	TTLInc                 uint64
+	BridgeAddrHasStake     bool
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -55,6 +56,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		FundFeeAmount:          defaultFundTokenAmount,
 		FundUTxOCount:          1,
 		FundFeeUTxOCount:       1,
+		BridgeAddrHasStake:     true,
 	}
 }
 
@@ -193,7 +195,12 @@ func (ec *TestCardanoChain) Stop() error {
 }
 
 func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) error {
-	return validator.CardanoWalletCreate(GetNetworkName(ec.config.NetworkType))
+	walletType := ""
+	if ec.config.BridgeAddrHasStake {
+		walletType = "stake"
+	}
+
+	return validator.CardanoWalletCreate(ec.ChainID(), walletType)
 }
 
 func (ec *TestCardanoChain) CreateAddresses(
@@ -207,6 +214,7 @@ func (ec *TestCardanoChain) CreateAddresses(
 	args := []string{
 		"create-address",
 		"--network-id", fmt.Sprint(ec.config.NetworkType),
+		"--testnet-magic", fmt.Sprint(GetNetworkMagic(ec.config.NetworkType)),
 		"--bridge-url", bridgeURL,
 		"--bridge-addr", contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),

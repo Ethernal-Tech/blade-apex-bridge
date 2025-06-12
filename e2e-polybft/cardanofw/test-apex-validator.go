@@ -3,7 +3,6 @@ package cardanofw
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -72,34 +71,19 @@ func (cv *TestApexValidator) GetNexusTestDir() string {
 	return filepath.Join(cv.dataDirPath, NexusDir)
 }
 
-func (cv *TestApexValidator) CardanoWalletCreate(chain ChainID) error {
-	return RunCommand(ResolveApexBridgeBinary(), []string{
+func (cv *TestApexValidator) CardanoWalletCreate(chain ChainID, walletType string) error {
+	args := []string{
 		"wallet-create",
 		"--chain", chain,
 		"--validator-data-dir", cv.server.DataDir(),
-	}, os.Stdout)
-}
-
-func (cv *TestApexValidator) GetCardanoWallet(chainID string) (*CardanoWallet, error) {
-	secretsMngr, err := cv.getSecretsManager(cv.dataDirPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load wallet: %w", err)
+		"--show-pk",
 	}
 
-	keyName := fmt.Sprintf("%s%s_key", secretsCardano.CardanoKeyLocalPrefix, chainID)
-
-	bytes, err := secretsMngr.GetSecret(keyName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load wallet: %w", err)
+	if walletType != "" {
+		args = append(args, "--type", walletType)
 	}
 
-	var cardanoWallet *CardanoWallet
-
-	if err := json.Unmarshal(bytes, &cardanoWallet); err != nil {
-		return nil, fmt.Errorf("failed to load wallet: %w", err)
-	}
-
-	return cardanoWallet, nil
+	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
 }
 
 func (cv *TestApexValidator) RegisterChain(
