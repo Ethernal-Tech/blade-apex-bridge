@@ -662,23 +662,23 @@ func GetAllTokensForChainWithAmounts(
 
 func GetTokenAndPolicyForVerificationKey(
 	chainID ChainID, networkType wallet.CardanoNetworkType, verificationKey []byte, tokenName string,
-) (wallet.Token, wallet.PolicyScript, error) {
+) (wallet.Token, *wallet.PolicyScript, error) {
 	keyHash, err := wallet.GetKeyHash(verificationKey)
 	if err != nil {
-		return wallet.Token{}, wallet.PolicyScript{}, err
+		return wallet.Token{}, nil, err
 	}
 
-	policy := wallet.PolicyScript{
+	policyScript := &wallet.PolicyScript{
 		Type:    wallet.PolicyScriptSigType,
 		KeyHash: keyHash,
 	}
 
-	pid, err := wallet.NewCliUtils(wallet.ResolveCardanoCliBinary(networkType)).GetPolicyID(policy)
+	pid, err := wallet.NewCliUtils(wallet.ResolveCardanoCliBinary(networkType)).GetPolicyID(policyScript)
 	if err != nil {
-		return wallet.Token{}, wallet.PolicyScript{}, err
+		return wallet.Token{}, nil, err
 	}
 
-	return wallet.NewToken(pid, tokenName), policy, nil
+	return wallet.NewToken(pid, tokenName), policyScript, nil
 }
 
 func FundUserWithToken(
