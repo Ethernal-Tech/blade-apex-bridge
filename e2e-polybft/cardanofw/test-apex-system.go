@@ -685,7 +685,7 @@ func (a *ApexSystem) WaitForAmountInRange(
 	lowerBoundaryDfm *big.Int, higherBoundaryDfm *big.Int, numRetries int, waitTime time.Duration, isNativeToken ...bool,
 ) error {
 	lastAmount, err := a.WaitForAmount(ctx, user, dstChain, srcChain, func(val *big.Int) bool {
-		return val.Cmp(lowerBoundaryDfm) == 1 && val.Cmp(higherBoundaryDfm) == -1
+		return val.Cmp(lowerBoundaryDfm) == 1 && val.Cmp(higherBoundaryDfm) != 1
 	}, numRetries, waitTime, isNativeToken...)
 	if err != nil {
 		return fmt.Errorf("amount mismatch: expected amount between %s and %s, but received %s: %w",

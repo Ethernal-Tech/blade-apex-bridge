@@ -295,7 +295,8 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 		operationFee           = uint64(0)
 	)
 
-	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, bridgingFee, operationFee, "")
+	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, bridgingFee,
+		operationFee, "")
 	bridgingType := sendtx.BridgingTypeNormal
 
 	t.Run("1. Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {

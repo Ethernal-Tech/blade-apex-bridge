@@ -63,7 +63,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 	t.Run("3. Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
 		executeInvalidMismatchSendAmountMultipleInstancesParalel(
-			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, bridgingType, true)
+			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, bridgingType, true)
 	})
 
 	t.Run("4. From prime to vector - not enough funds on destination multisig address", func(t *testing.T) {

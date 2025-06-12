@@ -672,7 +672,8 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	fmt.Println("cardano fee addr: ", apex.CardanoInfo.FeeAddr)
 	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
 
-	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee, operationFee, "")
+	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee,
+		operationFee, "")
 	bridgingType := sendtx.BridgingTypeCurrencyOnSource
 
 	primeTokenAmount, err := cardanofw.FundUserWithToken(
@@ -701,7 +702,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	})
 
 	t.Run("3. Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, user, 0, bridgingType, false)
+		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, 0, bridgingType, false)
 	})
 
 	t.Run("5. Submitted invalid metadata - wrong type", func(t *testing.T) {
@@ -729,7 +730,6 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	})
 
 	t.Run("11. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
-		sendAmount := uint64(1_500_000)
 		user := apex.Users[userCnt-1]
 		minterWallet, _ := user.GetCardanoWallet(cardanofw.ChainIDPrime)
 
@@ -740,7 +740,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendUnknownToken(t, ctx, apex, user, primeTestConfig, sendAmount, *tokensFunded, 0, false)
+		executeInvalidSendUnknownToken(t, ctx, apex, user, primeTestConfig, *tokensFunded, 0, false)
 	})
 
 	t.Run("12. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
@@ -753,6 +753,8 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 			uint64(10_000_000), uint64(1_123_000))
 		require.NoError(t, err)
+
+		primeTestConfig.srcTokenName = tokensFunded.TokenName()
 
 		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, primeTestConfig, *tokensFunded, 0, false)
 	})

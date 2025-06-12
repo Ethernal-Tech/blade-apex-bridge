@@ -686,7 +686,7 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	})
 
 	t.Run("3. Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, user, 0, bridgingType, false)
+		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, 0, bridgingType, false)
 	})
 
 	t.Run("4. Submitted invalid metadata - wrong type", func(t *testing.T) {

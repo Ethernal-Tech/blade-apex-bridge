@@ -336,7 +336,6 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("8. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
-		sendAmount := uint64(1_500_000)
 		user := apex.Users[len(apex.Users)-1]
 
 		tokensFunded, err := cardanofw.FundUserWithToken(
@@ -346,7 +345,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendUnknownToken(t, ctx, apex, user, primeTestConfig, sendAmount, *tokensFunded, requestStateTimeoutSec, true)
+		executeInvalidSendUnknownToken(t, ctx, apex, user, primeTestConfig, *tokensFunded, requestStateTimeoutSec, true)
 	})
 
 	t.Run("9. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
