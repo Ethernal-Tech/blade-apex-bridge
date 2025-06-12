@@ -240,10 +240,10 @@ func createTx(t *testing.T) ([]byte, string) {
 	feePolicyID, err := cliUtils.GetPolicyID(policyScriptFeeMultiSig)
 	require.NoError(t, err)
 
-	multiSigAddr, err := cardanowallet.NewPolicyScriptAddress(cardanowallet.TestNetNetwork, policyID)
+	multiSigAddr, err := cardanowallet.NewPolicyScriptEnterpriseAddress(cardanowallet.TestNetNetwork, policyID)
 	require.NoError(t, err)
 
-	multiSigFeeAddr, err := cardanowallet.NewPolicyScriptAddress(cardanowallet.TestNetNetwork, feePolicyID)
+	multiSigFeeAddr, err := cardanowallet.NewPolicyScriptEnterpriseAddress(cardanowallet.TestNetNetwork, feePolicyID)
 	require.NoError(t, err)
 
 	outputs := []cardanowallet.TxOutput{

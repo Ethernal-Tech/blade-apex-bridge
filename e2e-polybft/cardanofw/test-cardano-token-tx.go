@@ -25,14 +25,14 @@ func FundUserWithToken(ctx context.Context, chain ChainID,
 		return nil, err
 	}
 
-	policy := cardanowallet.PolicyScript{
+	policyScript := &cardanowallet.PolicyScript{
 		Type:    cardanowallet.PolicyScriptSigType,
 		KeyHash: keyHash,
 	}
 
 	cardanoCliBinary := cardanowallet.ResolveCardanoCliBinary(networkType)
 
-	pid, err := cardanowallet.NewCliUtils(cardanoCliBinary).GetPolicyID(policy)
+	pid, err := cardanowallet.NewCliUtils(cardanoCliBinary).GetPolicyID(policyScript)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func FundUserWithToken(ctx context.Context, chain ChainID,
 
 	txHash, err := MintTokens(
 		ctx, networkType, txProvider, minterWallet, lovelaceFundAmount,
-		[]cardanowallet.TokenAmount{mintToken}, []cardanowallet.IPolicyScript{policy},
+		[]cardanowallet.TokenAmount{mintToken}, []cardanowallet.IPolicyScript{policyScript},
 	)
 	if err != nil {
 		return nil, err
