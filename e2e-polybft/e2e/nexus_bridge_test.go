@@ -1446,7 +1446,8 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 	case <-time.After(60 * time.Second):
 	}
 
-	txHash := apex.SubmitBridgingRequest(t, ctx, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, user, sendAmountDfm, sendtx.BridgingTypeNormal, user)
+	txHash := apex.SubmitBridgingRequest(t, ctx, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, user, sendAmountDfm,
+		sendtx.BridgingTypeNormal, user)
 
 	fmt.Printf("Submitted bridging request from Prime to Nexus, txHash: %s\n", txHash)
 
