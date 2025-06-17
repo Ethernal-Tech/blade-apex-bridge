@@ -1936,6 +1936,22 @@ func (s *SetNewBlockTimeNetworkParamsFn) DecodeAbi(buf []byte) error {
 	return decodeMethod(NetworkParams.Abi.Methods["setNewBlockTime"], buf, s)
 }
 
+type WhiteListNewValidatorNetworkParamsFn struct {
+	Validator types.Address `abi:"validator"`
+}
+
+func (w *WhiteListNewValidatorNetworkParamsFn) Sig() []byte {
+	return NetworkParams.Abi.Methods["whiteListNewValidator"].ID()
+}
+
+func (w *WhiteListNewValidatorNetworkParamsFn) EncodeAbi() ([]byte, error) {
+	return NetworkParams.Abi.Methods["whiteListNewValidator"].Encode(w)
+}
+
+func (w *WhiteListNewValidatorNetworkParamsFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(NetworkParams.Abi.Methods["whiteListNewValidator"], buf, w)
+}
+
 type NewCheckpointBlockIntervalEvent struct {
 	CheckpointInterval *big.Int `abi:"checkpointInterval"`
 }
