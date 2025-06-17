@@ -1,5 +1,5 @@
 ---
-name: E2E ApexBridge Internal/Partner Skyline Testnet
+name: E2E Internal/Partner Skyline Testnet
 on: # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
@@ -13,8 +13,8 @@ on: # yamllint disable-line rule:truthy
         required: true
     outputs:
       workflow_output:
-        description: E2E ApexBridge Testnet Tests output
-        value: ${{ jobs.e2e_skyline_testnet.outputs.e2e_apex_testnet_output_failure }}
+        description: Skyline Testnet Tests output
+        value: ${{ jobs.e2e_skyline_testnet.outputs.e2e_skyline_testnet_output_failure }}
     secrets:
       PERSONAL_ACCESS_TOKEN:
         required: true

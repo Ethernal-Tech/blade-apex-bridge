@@ -104,7 +104,7 @@ jobs:
   notification_skyline_testnet:
     name: Skyline Testnet Notification
     uses: ./.github/workflows/skyline-notification-testnet.yml
-    needs: [build_blade, inputs_check, lint, e2e_skyline_internal_testnet_test, e2e_apex_partner_testnet_test]
+    needs: [build_blade, inputs_check, lint, e2e_skyline_internal_testnet_test, e2e_skyline_partner_testnet_test]
     if: needs.inputs_check.outputs.notification == 'true' && !cancelled()
     with:
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
