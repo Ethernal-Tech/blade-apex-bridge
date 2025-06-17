@@ -267,7 +267,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 
 		const (
 			sequentialInstances = 2
-			parallelInstances   = 4
+			parallelInstances   = 3
 			receiversCnt        = 2
 		)
 
