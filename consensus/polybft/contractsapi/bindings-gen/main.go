@@ -429,6 +429,7 @@ func main() {
 				"setNewSprintSize",
 				"setNewBaseFeeChangeDenom",
 				"setNewBlockTime",
+				"whiteListNewValidator",
 			},
 			[]string{
 				"NewCheckpointBlockInterval",
@@ -444,6 +445,7 @@ func main() {
 				"NewProposalThreshold",
 				"NewSprintSize",
 				"NewBaseFeeChangeDenom",
+				"NewValidatorWhitelist",
 			},
 		},
 		{

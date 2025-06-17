@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -295,4 +296,53 @@ func isExitEventProcessed(t *testing.T, exitHelperAddr types.Address,
 	require.NoError(t, err)
 
 	return isProcessedAsNumber == 1
+}
+
+func waitForEpochEnding(t *testing.T, client *jsonrpc.EthClient, fromBlock *uint64, epochSize uint64) (*types.Header, error) {
+	t.Helper()
+
+	rpcBlock := jsonrpc.LatestBlockNumber
+	if fromBlock != nil {
+		rpcBlock = jsonrpc.BlockNumber(*fromBlock)
+	}
+
+	currentBlock, err := client.GetBlockByNumber(rpcBlock, false)
+	if err != nil {
+		return nil, err
+	}
+
+	timer := time.NewTimer(2 * time.Minute)
+	ticker := time.NewTicker(2 * time.Second)
+
+	defer func() {
+		timer.Stop()
+		ticker.Stop()
+		fmt.Println("Waiting for end of epoch finished")
+	}()
+
+	for {
+		select {
+		case <-timer.C:
+			return nil, fmt.Errorf("timed out waiting for end of epoch")
+		case <-ticker.C:
+			if currentBlock != nil {
+				if currentBlock.Number()%epochSize == 0 {
+					return currentBlock.Header, nil
+				}
+
+				rpcBlock = jsonrpc.BlockNumber(currentBlock.Number() + 1)
+			}
+
+			block, err := client.GetBlockByNumber(rpcBlock, false)
+			if err != nil {
+				return nil, err
+			}
+
+			if block == nil {
+				continue
+			}
+
+			currentBlock = block
+		}
+	}
 }

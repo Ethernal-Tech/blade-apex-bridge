@@ -1936,6 +1936,22 @@ func (s *SetNewBlockTimeNetworkParamsFn) DecodeAbi(buf []byte) error {
 	return decodeMethod(NetworkParams.Abi.Methods["setNewBlockTime"], buf, s)
 }
 
+type WhiteListNewValidatorNetworkParamsFn struct {
+	Validator types.Address `abi:"validator"`
+}
+
+func (w *WhiteListNewValidatorNetworkParamsFn) Sig() []byte {
+	return NetworkParams.Abi.Methods["whiteListNewValidator"].ID()
+}
+
+func (w *WhiteListNewValidatorNetworkParamsFn) EncodeAbi() ([]byte, error) {
+	return NetworkParams.Abi.Methods["whiteListNewValidator"].Encode(w)
+}
+
+func (w *WhiteListNewValidatorNetworkParamsFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(NetworkParams.Abi.Methods["whiteListNewValidator"], buf, w)
+}
+
 type NewCheckpointBlockIntervalEvent struct {
 	CheckpointInterval *big.Int `abi:"checkpointInterval"`
 }
@@ -2246,6 +2262,30 @@ func (n *NewBaseFeeChangeDenomEvent) ParseLog(log *ethgo.Log) (bool, error) {
 
 func (n *NewBaseFeeChangeDenomEvent) Decode(input []byte) error {
 	return NetworkParams.Abi.Events["NewBaseFeeChangeDenom"].Inputs.DecodeStruct(input, &n)
+}
+
+type NewValidatorWhitelistEvent struct {
+	Validator types.Address `abi:"validator"`
+}
+
+func (*NewValidatorWhitelistEvent) Sig() ethgo.Hash {
+	return NetworkParams.Abi.Events["NewValidatorWhitelist"].ID()
+}
+
+func (n *NewValidatorWhitelistEvent) Encode() ([]byte, error) {
+	return NetworkParams.Abi.Events["NewValidatorWhitelist"].Inputs.Encode(n)
+}
+
+func (n *NewValidatorWhitelistEvent) ParseLog(log *ethgo.Log) (bool, error) {
+	if !NetworkParams.Abi.Events["NewValidatorWhitelist"].Match(log) {
+		return false, nil
+	}
+
+	return true, decodeEvent(NetworkParams.Abi.Events["NewValidatorWhitelist"], log, n)
+}
+
+func (n *NewValidatorWhitelistEvent) Decode(input []byte) error {
+	return NetworkParams.Abi.Events["NewValidatorWhitelist"].Inputs.DecodeStruct(input, &n)
 }
 
 type InitializeForkParamsFn struct {
