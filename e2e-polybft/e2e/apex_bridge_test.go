@@ -2234,6 +2234,7 @@ func getInitialUtxosAndTip(
 	return initialUtxos, tipData
 }
 
+//nolint:dupl
 func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
@@ -2275,11 +2276,9 @@ func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
 	fmt.Printf("Submitted bridging request from Nexus to Prime, txHash: %s\n", txHash)
 
 	// close prime chain for some time
-	primeChainServer1 := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetServerMust(t, 0)
-	primeChainServer2 := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetServerMust(t, 1)
+	primeChainServer := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetServerMust(t, 0)
 
-	require.NoError(t, primeChainServer1.Stop())
-	require.NoError(t, primeChainServer2.Stop())
+	require.NoError(t, primeChainServer.StopAndRemoveNodeDB())
 
 	select {
 	case <-ctx.Done():
@@ -2288,8 +2287,7 @@ func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
 	}
 
 	// start prime chain again
-	require.NoError(t, primeChainServer1.Start())
-	require.NoError(t, primeChainServer2.Start())
+	require.NoError(t, primeChainServer.Start())
 
 	// wait for tx on destination
 	expectedAmountDfm := new(big.Int).Add(prevAmountPrimeDfm, sendAmountDfm)

@@ -10,6 +10,7 @@ import (
 
 type ITestApexChainServer interface {
 	Stop() error
+	StopAndRemoveNodeDB() error
 	Start() error
 }
 

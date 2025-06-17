@@ -225,6 +225,10 @@ func (t *TestServer) Stop() error {
 	return nil
 }
 
+func (t *TestServer) StopAndRemoveNodeDB() error {
+	return nil
+}
+
 // RootchainFund funds given validator account on the rootchain
 func (t *TestServer) RootchainFund(amount *big.Int) error {
 	return t.RootchainFundFor([]types.Address{t.address}, []*big.Int{amount})
