@@ -138,8 +138,8 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 		PrimeInfo: CardanoChainInfo{
 			NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
 			OgmiosURL:      "http://ogmios.prime.testnet.apexfusion.org:1337",
-			MultisigAddr:   "addr_test1wr943cc3l8hxhjcnh8mjrh67yshksw2ugydx0r9a4k7xrfqsp4p7y",
-			FeeAddr:        "addr_test1wpp9wrzm5249ksfucal6f9rdth9y0rlwecu0r608gysjmcsf764mj",
+			MultisigAddr:   "addr_test1wqzg4gr8m38x8zfpvujxew3hta7w4hkq3jn09ee3t2rq6nscr64c7",
+			FeeAddr:        "addr_test1wp0vl80k03wlntpzxchausmcc0ly7hdcnesxqm928jd8yhspgywcm",
 			NativeTokens: []sendtx.TokenExchangeConfig{
 				{
 					DstChainID: ChainIDCardano,
@@ -151,8 +151,8 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 		CardanoInfo: CardanoChainInfo{
 			NetworkAddress: "http://preview-services-skyline.testnet.ethernal.work:5521",
 			OgmiosURL:      "http://preview-services-skyline.testnet.ethernal.work:1733",
-			MultisigAddr:   "addr_test1wrntyxdelrw98ps0vrpuf4rr2mmknem83y9ywxfn0a3jeasxtsjz5",
-			FeeAddr:        "addr_test1wz3q8gnjsuyf7etplmcuw8rfusckmn5dmjwnhwdsap6savqcx8xg3",
+			MultisigAddr:   "addr_test1wryaecn0sx38ared5t79l09p3npuqzz9jkx7whuq46jc5rcra3j8w",
+			FeeAddr:        "addr_test1wzevehw875e05av8zmql46lzc25vyg4g45k63eucd6x6dxsww7hd7",
 			NativeTokens: []sendtx.TokenExchangeConfig{
 				{
 					DstChainID: ChainIDPrime,
@@ -162,7 +162,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 			},
 		},
 		BridgingAPIs: []string{
-			"http://validators-oracle-api-skyline.testnet.ethernal.work",
+			"http://validator-1-skyline-partner.testnet.ethernal.work:10003",
 		},
 		BridgingAPIKey: os.Getenv("PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY"),
 	}
