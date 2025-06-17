@@ -2234,12 +2234,7 @@ func getInitialUtxosAndTip(
 	return initialUtxos, tipData
 }
 
-//nolint:dupl
 func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
-
 	const (
 		apiKey = "test_api_key"
 	)
@@ -2252,7 +2247,6 @@ func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithVectorEnabled(false),
 		cardanofw.WithNexusEnabled(true),
-		cardanofw.WithTargetOneClusterServer(true),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -2276,14 +2270,14 @@ func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
 	fmt.Printf("Submitted bridging request from Nexus to Prime, txHash: %s\n", txHash)
 
 	// close prime chain for some time
-	primeChainServer := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetServerMust(t, 0)
+	primeChainServer := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetServerMust(t, 1)
 
-	require.NoError(t, primeChainServer.StopAndRemoveNodeDB())
+	require.NoError(t, primeChainServer.Stop(true))
 
 	select {
 	case <-ctx.Done():
 		return
-	case <-time.After(360 * time.Second):
+	case <-time.After(720 * time.Second):
 	}
 
 	// start prime chain again
@@ -2294,6 +2288,8 @@ func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
 
 	err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDPrime, expectedAmountDfm, 100, time.Second*10)
 	require.NoError(t, err)
+
+	fmt.Printf("Expected amount on Prime received\n")
 
 	// send prime -> nexus
 	e2ehelper.ExecuteBridging(
