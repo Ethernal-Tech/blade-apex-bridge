@@ -2233,3 +2233,78 @@ func getInitialUtxosAndTip(
 
 	return initialUtxos, tipData
 }
+
+func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithVectorEnabled(false),
+		cardanofw.WithNexusEnabled(true),
+		cardanofw.WithTargetOneClusterServer(true),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+
+	// execute nexus to prime -> no wait
+	prevAmountPrimeDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+
+	// give time to oracle to submit hot wallet increment claims
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(60 * time.Second):
+	}
+
+	txHash := apex.SubmitBridgingRequest(t, ctx, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, user, sendAmountDfm, user)
+
+	fmt.Printf("Submitted bridging request from Nexus to Prime, txHash: %s\n", txHash)
+
+	// close prime chain for some time
+	primeChainServer1 := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetServerMust(t, 0)
+	primeChainServer2 := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetServerMust(t, 1)
+
+	require.NoError(t, primeChainServer1.Stop())
+	require.NoError(t, primeChainServer2.Stop())
+
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(360 * time.Second):
+	}
+
+	// start prime chain again
+	require.NoError(t, primeChainServer1.Start())
+	require.NoError(t, primeChainServer2.Start())
+
+	// wait for tx on destination
+	expectedAmountDfm := new(big.Int).Add(prevAmountPrimeDfm, sendAmountDfm)
+
+	err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDPrime, expectedAmountDfm, 100, time.Second*10)
+	require.NoError(t, err)
+
+	// send prime -> nexus
+	e2ehelper.ExecuteBridging(
+		t, ctx, apex, 1,
+		[]*cardanofw.TestApexUser{user},
+		[]*cardanofw.TestApexUser{user},
+		[]string{cardanofw.ChainIDPrime},
+		map[string][]string{
+			cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
+		},
+		sendAmountDfm)
+}
