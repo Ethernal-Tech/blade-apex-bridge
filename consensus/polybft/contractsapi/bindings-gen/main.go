@@ -444,6 +444,7 @@ func main() {
 				"NewProposalThreshold",
 				"NewSprintSize",
 				"NewBaseFeeChangeDenom",
+				"NewValidatorWhitelist",
 			},
 		},
 		{

@@ -2248,6 +2248,30 @@ func (n *NewBaseFeeChangeDenomEvent) Decode(input []byte) error {
 	return NetworkParams.Abi.Events["NewBaseFeeChangeDenom"].Inputs.DecodeStruct(input, &n)
 }
 
+type NewValidatorWhitelistEvent struct {
+	Validator types.Address `abi:"validator"`
+}
+
+func (*NewValidatorWhitelistEvent) Sig() ethgo.Hash {
+	return NetworkParams.Abi.Events["NewValidatorWhitelist"].ID()
+}
+
+func (n *NewValidatorWhitelistEvent) Encode() ([]byte, error) {
+	return NetworkParams.Abi.Events["NewValidatorWhitelist"].Inputs.Encode(n)
+}
+
+func (n *NewValidatorWhitelistEvent) ParseLog(log *ethgo.Log) (bool, error) {
+	if !NetworkParams.Abi.Events["NewValidatorWhitelist"].Match(log) {
+		return false, nil
+	}
+
+	return true, decodeEvent(NetworkParams.Abi.Events["NewValidatorWhitelist"], log, n)
+}
+
+func (n *NewValidatorWhitelistEvent) Decode(input []byte) error {
+	return NetworkParams.Abi.Events["NewValidatorWhitelist"].Inputs.DecodeStruct(input, &n)
+}
+
 type InitializeForkParamsFn struct {
 	NewOwner types.Address `abi:"newOwner"`
 }

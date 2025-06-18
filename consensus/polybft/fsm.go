@@ -49,6 +49,7 @@ var (
 	errValidatorSetDeltaMismatch           = errors.New("validator set delta mismatch")
 	errValidatorsUpdateInNonEpochEnding    = errors.New("trying to update validator set in a non epoch ending block")
 	errValidatorDeltaNilInEpochEndingBlock = errors.New("validator set delta is nil in epoch ending block")
+	errWhitelistingTxDoesNotExist          = errors.New("whitelisting transaction is not found in the first epoch block")
 )
 
 type fsm struct {
@@ -111,6 +112,8 @@ type fsm struct {
 
 	// newValidatorsDelta carries the updates of validator set on epoch ending block
 	newValidatorsDelta *validator.ValidatorSetDelta
+
+	state *State
 }
 
 // BuildProposal builds a proposal for the current round (used if proposer)
@@ -132,6 +135,38 @@ func (f *fsm) BuildProposal(currentRound uint64) ([]byte, error) {
 
 	if err := f.blockBuilder.Reset(); err != nil {
 		return nil, fmt.Errorf("failed to initialize block builder: %w", err)
+	}
+
+	if f.isFirstBlockOfEpoch && f.epochNumber > 1 {
+		events, err := f.state.GovernanceStore.getGovernanceEventsByType(
+			f.epochNumber-1,
+			(&contractsapi.NewValidatorWhitelistEvent{}).Sig(),
+			nil)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(events) > 0 {
+			addrs := []types.Address(nil)
+
+			for _, event := range events {
+				event, err := unmarshalGovernanceEvent[*contractsapi.NewValidatorWhitelistEvent](event)
+				if err != nil {
+					return nil, err
+				}
+
+				addrs = append(addrs, event.Validator)
+			}
+
+			tx, err := f.createWhitelistingTx(addrs)
+			if err != nil {
+				return nil, err
+			}
+
+			if err := f.blockBuilder.WriteTx(tx); err != nil {
+				return nil, fmt.Errorf("failed to apply whitelisting: %w", err)
+			}
+		}
 	}
 
 	if f.isEndOfEpoch {
@@ -273,6 +308,17 @@ func (f *fsm) getValidatorsTransition(delta *validator.ValidatorSetDelta) (valid
 	f.logger.Debug("getValidatorsTransition", "Next validators", nextValidators)
 
 	return nextValidators, nil
+}
+
+// createWhitelistingTx create a StateTransaction, which invokes StakeManager smart contract
+// and sends all the necessary metadata to it.
+func (f *fsm) createWhitelistingTx(addresses []types.Address) (*types.Transaction, error) {
+	input, err := (&contractsapi.WhitelistValidatorsStakeManagerFn{Validators_: addresses}).EncodeAbi()
+	if err != nil {
+		return nil, err
+	}
+
+	return createStateTransactionWithData(contracts.StakeManagerContract, input), nil
 }
 
 // createCommitEpochTx create a StateTransaction, which invokes ValidatorSet smart contract
@@ -455,7 +501,32 @@ func (f *fsm) VerifyStateTransactions(transactions []*types.Transaction) error {
 		commitmentTxExists        bool
 		commitEpochTxExists       bool
 		distributeRewardsTxExists bool
+		whitelistingTxExist       bool
+		whitelistingAddresses     map[types.Address]struct{}
 	)
+
+	if f.isFirstBlockOfEpoch && f.epochNumber > 1 {
+		events, err := f.state.GovernanceStore.getGovernanceEventsByType(
+			f.epochNumber-1,
+			(&contractsapi.NewValidatorWhitelistEvent{}).Sig(),
+			nil)
+		if err != nil {
+			return err
+		}
+
+		if len(events) > 0 {
+			whitelistingAddresses = map[types.Address]struct{}{}
+
+			for _, event := range events {
+				event, err := unmarshalGovernanceEvent[*contractsapi.NewValidatorWhitelistEvent](event)
+				if err != nil {
+					return err
+				}
+
+				whitelistingAddresses[event.Validator] = struct{}{}
+			}
+		}
+	}
 
 	for _, tx := range transactions {
 		if tx.Type() != types.StateTxType {
@@ -508,9 +579,33 @@ func (f *fsm) VerifyStateTransactions(transactions []*types.Transaction) error {
 			if err := f.verifyDistributeRewardsTx(tx); err != nil {
 				return fmt.Errorf("error while verifying distribute rewards transaction. error: %w", err)
 			}
+		case *contractsapi.WhitelistValidatorsStakeManagerFn:
+			if !f.isFirstBlockOfEpoch {
+				return fmt.Errorf("only first block of epoch can contain whitelisting tx (tx hash=%s)", tx.Hash())
+			}
+
+			if whitelistingAddresses == nil {
+				return fmt.Errorf("found whitelisting tx even though there weren't any whitelisting requests "+
+					"in the previous epoch. (tx hash=%s)", tx.Hash())
+			}
+
+			if whitelistingTxExist {
+				return fmt.Errorf("only one whitelisting tx is allowed per block/epoch (tx hash=%s)", tx.Hash())
+			}
+
+			whitelistingTxExist = true
+
+			if err := f.verifyWhitelistingTx(whitelistingAddresses, stateTxData.Validators_); err != nil {
+				return fmt.Errorf("error while verifying whitelisting tx. error: %w", err)
+			}
+
 		default:
 			return fmt.Errorf("invalid state transaction data type: %v", stateTxData)
 		}
+	}
+
+	if f.isFirstBlockOfEpoch && f.epochNumber > 1 && whitelistingAddresses != nil && !whitelistingTxExist {
+		return errWhitelistingTxDoesNotExist
 	}
 
 	if f.isEndOfEpoch {
@@ -687,6 +782,28 @@ func verifyBridgeCommitmentTx(blockNumber uint64, txHash types.Hash,
 	verified := signature.VerifyAggregated(signers.GetBlsKeys(), commitmentHash.Bytes(), signer.DomainStateReceiver)
 	if !verified {
 		return fmt.Errorf("invalid signature for state tx (%s)", txHash)
+	}
+
+	return nil
+}
+
+// verifyWhitelistingTx validates whitelisting transaction
+func (f *fsm) verifyWhitelistingTx(
+	whitelistingAddresses map[types.Address]struct{},
+	addresses []types.Address) error {
+	// First, check if all addresses included in the whitelisting tx are actually
+	// expected to be whitelisted.
+	for _, address := range addresses {
+		if _, ok := whitelistingAddresses[address]; !ok {
+			return fmt.Errorf("unexpected address included in the whitelisting tx")
+		}
+		delete(whitelistingAddresses, address)
+	}
+
+	// If the number of elements (keys) in the map is zero, it means that all expected addresses
+	// were included in whitelisting tx.
+	if len(whitelistingAddresses) != 0 {
+		return fmt.Errorf("not all expected addresses were included in the whitelisting tx")
 	}
 
 	return nil

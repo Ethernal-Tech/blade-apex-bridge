@@ -96,6 +96,46 @@ func TestGovernanceStore_InsertAndGetEvents(t *testing.T) {
 	forksInDB, err = state.GovernanceStore.getAllForkEvents(nil)
 	require.NoError(t, err)
 	require.Len(t, forksInDB, len(forkParamsEvents)+1)
+
+	// In the following, the [(*GovernanceStore).getGovernanceEventsByType] method is tested,
+	// which retrieves only events of a specific type.
+	events := []contractsapi.EventAbi{
+		&contractsapi.NewValidatorWhitelistEvent{Validator: types.StringToAddress("0xDA01")},
+		&contractsapi.NewSprintSizeEvent{Size: big.NewInt(10)},
+		&contractsapi.NewValidatorWhitelistEvent{Validator: types.StringToAddress("0xDA02")},
+		&contractsapi.NewValidatorWhitelistEvent{Validator: types.StringToAddress("0xDA03")},
+	}
+
+	for _, e := range events {
+		require.NoError(t, state.GovernanceStore.insertGovernanceEvent(200, e, nil))
+	}
+
+	eventsRaw = nil
+	err = nil
+
+	eventsRaw, err = state.GovernanceStore.
+		getGovernanceEventsByType(201, (&contractsapi.NewValidatorWhitelistEvent{}).Sig(), nil)
+
+	require.Nil(t, eventsRaw, nil)
+	require.NoError(t, err)
+
+	eventsRaw, err = state.GovernanceStore.
+		getGovernanceEventsByType(200, (&contractsapi.NewValidatorWhitelistEvent{}).Sig(), nil)
+
+	require.NoError(t, err)
+	require.Len(t, eventsRaw, 3)
+
+	eventsRaw, err = state.GovernanceStore.
+		getGovernanceEventsByType(200, (&contractsapi.NewSprintSizeEvent{}).Sig(), nil)
+
+	require.NoError(t, err)
+	require.Len(t, eventsRaw, 1)
+
+	eventsRaw, err = state.GovernanceStore.
+		getGovernanceEventsByType(200, (&contractsapi.NewBlockTimeEvent{}).Sig(), nil)
+
+	require.NoError(t, err)
+	require.Len(t, eventsRaw, 0) // == require.Nil(t, eventsRaw, nil), since len(T(nil)) == 0 where T is slice type
 }
 
 func TestGovernanceStore_InsertAndGetClientConfig(t *testing.T) {
