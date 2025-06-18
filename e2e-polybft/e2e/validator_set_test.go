@@ -107,7 +107,18 @@ func TestE2E_ValidatorSetChange(t *testing.T) {
 	currentBlock, err := validatorEndpoint.BlockNumber()
 	require.NoError(t, err)
 
-	require.NoError(t, cluster.WaitForBlock(currentBlock+2*epochSize, 3*time.Minute))
+	// wait for couple of more blocks because of execution delay
+	require.NoError(t, cluster.WaitForBlock(currentBlock+2, 10*time.Second))
+
+	sendExecuteProposalTransaction(t, txRelayer, proposerAcc.Ecdsa,
+		polybftCfg.GovernanceConfig.ChildGovernorAddr,
+		polybftCfg.GovernanceConfig.NetworkParamsAddr,
+		proposalInput, "whitelist new validator")
+
+	currentBlock, err = validatorEndpoint.BlockNumber()
+	require.NoError(t, err)
+
+	require.NoError(t, cluster.WaitForBlock(currentBlock+epochSize, 3*time.Minute))
 
 	// register validator
 	chainID, err := validatorEndpoint.ChainID()
