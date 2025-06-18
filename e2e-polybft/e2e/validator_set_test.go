@@ -14,15 +14,14 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
-	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
 
-func TestE2E_Bridge_ValidatorSetChange(t *testing.T) {
+func TestE2E_ValidatorSetChange(t *testing.T) {
 	const (
-		epochSize       = 10
-		sprintSize      = uint64(5)
-		numberOfBridges = 1
+		epochSize    = 5
+		sprintSize   = uint64(5)
+		votingPeriod = 3 * epochSize
 	)
 
 	validatorAcc, err := wallet.GenerateAccount()
@@ -30,15 +29,9 @@ func TestE2E_Bridge_ValidatorSetChange(t *testing.T) {
 
 	cluster := framework.NewTestCluster(t, 4,
 		framework.WithEpochSize(epochSize),
-		framework.WithSecretsCallback(func(addrs []types.Address, tcc *framework.TestClusterConfig) {
-			for i := 0; i < len(addrs); i++ {
-				// premine receivers, so that they are able to do withdrawals
-				tcc.StakeAmounts = append(tcc.StakeAmounts, ethgo.Ether(10))
-			}
-
-			tcc.StakeAmounts = append(tcc.StakeAmounts, ethgo.Ether(10))
-			tcc.Premine = append(tcc.Premine, validatorAcc.Address().String())
-		}))
+		framework.WithGovernanceVotingPeriod(votingPeriod),
+		framework.WithGovernanceVotingDelay(1),
+		framework.WithPremine(validatorAcc.Address()))
 
 	defer cluster.Stop()
 
@@ -70,7 +63,7 @@ func TestE2E_Bridge_ValidatorSetChange(t *testing.T) {
 	proposalID := sendProposalTransaction(t, txRelayer, proposerAcc.Ecdsa,
 		polybftCfg.GovernanceConfig.ChildGovernorAddr,
 		polybftCfg.GovernanceConfig.NetworkParamsAddr,
-		proposalInput, "whitelist")
+		proposalInput, "whitelist new validator")
 
 	// check that proposal delay finishes, and porposal becomes active (ready to for voting)
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
@@ -101,7 +94,7 @@ func TestE2E_Bridge_ValidatorSetChange(t *testing.T) {
 	sendQueueProposalTransaction(t, txRelayer, proposerAcc.Ecdsa,
 		polybftCfg.GovernanceConfig.ChildGovernorAddr,
 		polybftCfg.GovernanceConfig.NetworkParamsAddr,
-		proposalInput, "whitelist")
+		proposalInput, "whitelist new validator")
 
 	// check if proposal has quorum (if it was accepted)
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
@@ -110,6 +103,11 @@ func TestE2E_Bridge_ValidatorSetChange(t *testing.T) {
 
 		return proposalState == Queued
 	}))
+
+	currentBlock, err := validatorEndpoint.BlockNumber()
+	require.NoError(t, err)
+
+	require.NoError(t, cluster.WaitForBlock(currentBlock+2*epochSize, 3*time.Minute))
 
 	// register validator
 	chainID, err := validatorEndpoint.ChainID()

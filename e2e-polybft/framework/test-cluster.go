@@ -143,8 +143,9 @@ type TestClusterConfig struct {
 
 	ProxyContractsAdmin string
 
-	VotingPeriod uint64
-	VotingDelay  uint64
+	VotingPeriod      uint64
+	VotingDelay       uint64
+	ProposalThreshold uint64
 
 	logsDirOnce sync.Once
 
@@ -475,6 +476,12 @@ func WithGovernanceVotingDelay(votingDelay uint64) ClusterOption {
 	}
 }
 
+func WithVoteProposalThreshold(threshold uint64) ClusterOption {
+	return func(h *TestClusterConfig) {
+		h.ProposalThreshold = threshold
+	}
+}
+
 func WithRewardWallet(rewardWallet string) ClusterOption {
 	return func(h *TestClusterConfig) {
 		h.RewardWallet = rewardWallet
@@ -518,18 +525,19 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 	var err error
 
 	config := &TestClusterConfig{
-		t:             t,
-		WithLogs:      isTrueEnv(envLogsEnabled),
-		WithStdout:    isTrueEnv(envStdoutEnabled),
-		Binary:        resolveBinary(),
-		EpochSize:     10,
-		EpochReward:   1,
-		BlockGasLimit: command.DefaultGenesisGasLimit,
-		StakeAmounts:  []*big.Int{},
-		HasBridge:     false,
-		VotingDelay:   10,
-		ApexConfig:    genesis.ApexConfigDefault,
-		InitialPort:   30300,
+		t:                 t,
+		WithLogs:          isTrueEnv(envLogsEnabled),
+		WithStdout:        isTrueEnv(envStdoutEnabled),
+		Binary:            resolveBinary(),
+		EpochSize:         10,
+		EpochReward:       1,
+		BlockGasLimit:     command.DefaultGenesisGasLimit,
+		StakeAmounts:      []*big.Int{},
+		HasBridge:         false,
+		VotingDelay:       10,
+		ProposalThreshold: 1,
+		ApexConfig:        genesis.ApexConfigDefault,
+		InitialPort:       30300,
 	}
 
 	if config.ValidatorPrefix == "" {
@@ -598,6 +606,7 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 			"--premine", "0x0000000000000000000000000000000000000000",
 			"--trieroot", cluster.Config.InitialStateRoot.String(),
 			"--vote-delay", fmt.Sprint(cluster.Config.VotingDelay),
+			"--vote-proposal-threshold", fmt.Sprint(cluster.Config.ProposalThreshold),
 		}
 
 		bladeAdmin := cluster.Config.BladeAdmin
