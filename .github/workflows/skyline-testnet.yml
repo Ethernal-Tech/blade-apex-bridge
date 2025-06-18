@@ -110,7 +110,7 @@ jobs:
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       build_blade_output: ${{ needs.build_blade.outputs.workflow_output }}
       lint_output: ${{ needs.lint.outputs.workflow_output }}
-      e2e_skyline_internal_testnet_test: ${{ needs.e2e_skyline_internal_testnet_test.outputs.workflow_output }}
-      e2e_skyline_partner_testnet_test: ${{ needs.e2e_skyline_partner_testnet_test.outputs.workflow_output }}
+      e2e_skyline_internal_testnet_test_output: ${{ needs.e2e_skyline_internal_testnet_test.outputs.workflow_output }}
+      e2e_skyline_partner_testnet_test_output: ${{ needs.e2e_skyline_partner_testnet_test.outputs.workflow_output }}
     secrets:
       APEX_SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}
