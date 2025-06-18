@@ -49,12 +49,10 @@ func (t *TestCardanoServer) Stop(removeDB ...bool) error {
 	if len(removeDB) > 0 && removeDB[0] {
 		err := os.RemoveAll(fmt.Sprintf("%s/db", t.config.NodeDir))
 		if err != nil {
-			fmt.Printf("Error removing directory: %v\n", err)
-
-			return err
+			return fmt.Errorf("error removing db directory: %w", err)
 		}
 
-		fmt.Println("Directory removed successfully")
+		fmt.Println("Db directory removed successfully")
 	}
 
 	if t.txProvider != nil {

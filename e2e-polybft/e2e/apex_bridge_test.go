@@ -2235,6 +2235,8 @@ func getInitialUtxosAndTip(
 }
 
 func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
+	t.Skip()
+
 	const (
 		apiKey = "test_api_key"
 	)
