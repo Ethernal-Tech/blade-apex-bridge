@@ -1680,7 +1680,7 @@ func defundWallets(
 
 	for _, chain := range chains {
 		require.NoError(t,
-			apex.DefundHotWallet(chain, defundReceiver.GetAddress(chain), defundAmount, nil))
+			apex.DefundHotWallet(chain, defundReceiver.GetAddress(chain), defundAmount, big.NewInt(0)))
 	}
 
 	errsPerChain := waitOnDestination(ctx, apex,

@@ -388,9 +388,8 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxRefundTryCount(t *testing.T) {
 
 func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *testing.T) {
 	type chainUserKey struct {
-		chain string
-		dest  string
-		user  *cardanofw.TestApexUser
+		src, dst cardanofw.ChainID
+		user     *cardanofw.TestApexUser
 	}
 
 	const (
@@ -411,16 +410,15 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		fundDefundAmount = big.NewInt(100) // 100_000_000 in dfm
 
 		chains = []struct {
-			src  string
-			dest string
+			src, dst cardanofw.ChainID
 		}{
 			{
-				src:  cardanofw.ChainIDPrime,
-				dest: cardanofw.ChainIDVector,
+				src: cardanofw.ChainIDPrime,
+				dst: cardanofw.ChainIDVector,
 			},
 			{
-				src:  cardanofw.ChainIDVector,
-				dest: cardanofw.ChainIDPrime,
+				src: cardanofw.ChainIDVector,
+				dst: cardanofw.ChainIDPrime,
 			},
 		}
 
@@ -460,13 +458,10 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 	userReceiver := apex.Users[0]
 	defundUser := apex.Users[parallelInstances+2]
 
-	key := chainUserKey{}
 	for _, chain := range chains {
-		key.chain = chain.src
-		key.dest = chain.dest
-
 		for _, usr := range apex.Users[:parallelInstances+3] {
-			key.user = usr
+			key := chainUserKey{src: chain.src, dst: chain.dst, user: usr}
+
 			balance, err := apex.GetBalance(ctx, usr, chain.src)
 			require.NoError(t, err)
 
@@ -560,12 +555,12 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		fmt.Printf("\nWaiting for receivers on to receive their bridged funds...\n")
 
 		for _, chain := range chains {
-			key := chainUserKey{chain: chain.src, dest: chain.dest, user: defundUser}
+			key := chainUserKey{src: chain.src, dst: chain.dst, user: defundUser}
 
 			// expectedAmount = initial + (parallelInstances * sequentialInstances * sendAmount)
 			expectedAmount := new(big.Int).Add(userInitialAmounts[key], new(big.Int).SetUint64(parallelInstances*sequentialInstances*sendAmount))
 
-			err := apex.WaitForExactAmount(ctx, userReceiver, chain.src, chain.dest, expectedAmount, 50, 200)
+			err := apex.WaitForExactAmount(ctx, userReceiver, chain.src, chain.dst, expectedAmount, 50, 200)
 			require.NoError(t, err)
 		}
 
@@ -609,10 +604,8 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 				} else {
 					executeFund = true
 
-					chainKey := chainStageKey{receiver: 0}
 					for _, chain := range chains {
-						chainKey.chain = chain.src
-						chainKey.destChain = chain.dest
+						chainKey := chainStageKey{chain: chain.src, destChain: chain.dst, receiver: 0}
 
 						balance, err := apex.GetBalance(ctx, defundUser, chain.src)
 						require.NoError(t, err)
@@ -635,10 +628,8 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 
 	fmt.Printf("\nWaiting for sender users to receive their refunds...\n")
 
-	key = chainUserKey{chain: cardanofw.ChainIDPrime}
-
 	for i, usr := range apex.Users[1 : parallelInstances+1] {
-		key.user = usr
+		key := chainUserKey{src: cardanofw.ChainIDPrime, dst: cardanofw.ChainIDVector, user: usr}
 
 		// minExpectedAmount = initial - (2*sendAmount+sendAmount1+3*feeAmount)
 		minExpectedAmount := new(big.Int).Sub(userInitialAmounts[key], new(big.Int).SetUint64(2*sendAmount+hugeSendAmount+3*feeAmount))
@@ -663,15 +654,13 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 
 	fmt.Printf("\nWaiting for defund users to receive their funds...\n")
 
-	key = chainUserKey{user: defundUser}
 	for _, chain := range chains {
-		key.chain = chain.src
-		key.dest = chain.dest
+		key := chainUserKey{src: chain.src, dst: chain.dst, user: defundUser}
 
 		// expectedAmount = initial + (defundCount * fundDefundAmount * 1_000_000)
 		expectedAmount := new(big.Int).Add(userInitialAmounts[key], new(big.Int).Mul(new(big.Int).SetUint64(defundCount), cardanofw.ApexToDfm(fundDefundAmount)))
 
-		err = apex.WaitForExactAmount(ctx, defundUser, chain.src, chain.dest, expectedAmount, 50, 200)
+		err = apex.WaitForExactAmount(ctx, defundUser, chain.src, chain.dst, expectedAmount, 50, 200)
 		require.NoError(t, err)
 	}
 
