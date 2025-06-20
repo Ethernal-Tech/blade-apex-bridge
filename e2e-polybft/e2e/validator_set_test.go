@@ -1,7 +1,10 @@
 package e2e
 
 import (
+	"context"
+	"math/big"
 	"path"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,26 +15,39 @@ import (
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
+	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
+	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestE2E_ValidatorSetChange(t *testing.T) {
 	const (
-		epochSize    = 5
+		epochSize    = 10
 		sprintSize   = uint64(5)
 		votingPeriod = 3 * epochSize
+		newAccsCount = 2
 	)
 
-	validatorAcc, err := wallet.GenerateAccount()
-	require.NoError(t, err)
+	var err error
+
+	newAccs := make([]*wallet.Account, newAccsCount)
+	newAddrs := make([]types.Address, newAccsCount)
+
+	for i := range newAccsCount {
+		newAccs[i], err = wallet.GenerateAccount()
+		require.NoError(t, err)
+
+		newAddrs[i] = newAccs[i].Address()
+	}
 
 	cluster := framework.NewTestCluster(t, 4,
 		framework.WithEpochSize(epochSize),
 		framework.WithGovernanceVotingPeriod(votingPeriod),
 		framework.WithGovernanceVotingDelay(1),
-		framework.WithPremine(validatorAcc.Address()))
+		framework.WithPremine(newAddrs...))
 
 	defer cluster.Stop()
 
@@ -52,73 +68,127 @@ func TestE2E_ValidatorSetChange(t *testing.T) {
 	proposerAcc, err := helper.GetAccountFromDir(proposer.DataDir())
 	require.NoError(t, err)
 
-	// whitelist validator
-	proposal := contractsapi.WhiteListNewValidatorNetworkParamsFn{
-		Validator: validatorAcc.Address(),
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	t.Run("Whitelist, register & unstake one", func(t *testing.T) {
+		t.Logf("Whitelist, register & unstake one started")
+
+		defer wg.Done()
+
+		whitelistFunc(t, []*wallet.Account{newAccs[0]}, txRelayer, proposerAcc, polybftCfg, cluster,
+			validatorEndpoint, epochSize, []string{"TEST 1"})
+		approveAndRegisterFunc(t, txRelayer, newAccs[0], validatorEndpoint, epochSize)
+		unstakeValidator(t, newAccs[0], txRelayer, validatorEndpoint, epochSize)
+
+		t.Logf("Whitelist, register & unstake one done")
+	})
+
+	wg.Wait()
+
+	t.Run("Whitelist, register & unstake two", func(t *testing.T) {
+		t.Logf("Whitelist, register & unstake two started")
+
+		wg.Add(1)
+		defer wg.Done()
+
+		whitelistFunc(t, newAccs, txRelayer, proposerAcc, polybftCfg, cluster,
+			validatorEndpoint, epochSize, []string{"TEST 2", "TEST 3"})
+
+		g, _ := errgroup.WithContext(context.Background())
+
+		for _, a := range newAccs {
+			g.Go(func() error {
+				approveAndRegisterFunc(t, txRelayer, a, validatorEndpoint, epochSize)
+				unstakeValidator(t, a, txRelayer, validatorEndpoint, epochSize)
+
+				return nil
+			})
+		}
+
+		require.NoError(t, g.Wait())
+
+		t.Logf("Whitelist, register & unstake two done")
+	})
+
+	wg.Wait()
+
+	t.Run("Register & unstake together", func(t *testing.T) {
+		t.Logf("Register & unstake together started")
+
+		whitelistFunc(t, newAccs, txRelayer, proposerAcc, polybftCfg, cluster,
+			validatorEndpoint, epochSize, []string{"TEST 4", "TEST 5"})
+		approveAndRegisterFunc(t, txRelayer, newAccs[0], validatorEndpoint, epochSize)
+
+		g, _ := errgroup.WithContext(context.Background())
+		g.Go(func() error {
+			approveAndRegisterFunc(t, txRelayer, newAccs[1], validatorEndpoint, epochSize)
+
+			return nil
+		})
+
+		g.Go(func() error {
+			unstakeValidator(t, newAccs[0], txRelayer, validatorEndpoint, epochSize)
+
+			return nil
+		})
+
+		require.NoError(t, g.Wait())
+
+		t.Logf("Register & unstake together done")
+	})
+}
+
+func unstakeValidator(t *testing.T, acc *wallet.Account, txRelayer txrelayer.TxRelayer, validatorEndpoint *jsonrpc.EthClient, epochSize uint64) {
+	t.Helper()
+
+	unstake := contractsapi.UnstakeStakeManagerFn{
+		Amount: ethgo.Ether(1),
 	}
 
-	proposalInput, err := proposal.EncodeAbi()
+	enc, err := unstake.EncodeAbi()
 	require.NoError(t, err)
 
-	proposalID := sendProposalTransaction(t, txRelayer, proposerAcc.Ecdsa,
-		polybftCfg.GovernanceConfig.ChildGovernorAddr,
-		polybftCfg.GovernanceConfig.NetworkParamsAddr,
-		proposalInput, "whitelist new validator")
+	txn := types.NewTx(types.NewLegacyTx(
+		types.WithFrom(acc.Address()),
+		types.WithTo(&contracts.StakeManagerContract),
+		types.WithInput(enc),
+	))
 
-	// check that proposal delay finishes, and porposal becomes active (ready to for voting)
-	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		proposalState := getProposalState(t, proposalID,
-			polybftCfg.GovernanceConfig.ChildGovernorAddr, txRelayer)
+	rec, err := txRelayer.SendTransaction(txn, acc.Ecdsa)
+	require.NoError(t, err)
+	require.Equal(t, rec.Status, uint64(types.ReceiptSuccess))
 
-		return proposalState == Active
-	}))
+	epochEndingBlock, err := waitForEpochEnding(t, validatorEndpoint, &rec.BlockNumber, epochSize)
+	require.NoError(t, err)
 
-	// vote for the proposal
-	for _, s := range cluster.Servers {
-		voterAcc, err := helper.GetAccountFromDir(s.DataDir())
-		require.NoError(t, err)
+	extra, err := polybft.GetIbftExtra(epochEndingBlock.ExtraData)
+	require.NoError(t, err)
 
-		sendVoteTransaction(t, proposalID, For, polybftCfg.GovernanceConfig.ChildGovernorAddr,
-			txRelayer, voterAcc.Ecdsa)
+	require.NotNil(t, extra.Validators)
+	require.False(t, extra.Validators.IsEmpty())
+	require.NotEqual(t, extra.Validators.Removed.Len(), 0)
+}
+
+func approveAndRegisterFunc(t *testing.T, txRelayer txrelayer.TxRelayer, validatorAcc *wallet.Account, validatorEndpoint *jsonrpc.EthClient, epochSize uint64) {
+	t.Helper()
+
+	approve := contractsapi.ApproveNativeERC20MintableFn{
+		Spender: contracts.StakeManagerContract,
+		Amount:  ethgo.Ether(1),
 	}
 
-	// check if proposal has quorum (if it was accepted)
-	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		proposalState := getProposalState(t, proposalID,
-			polybftCfg.GovernanceConfig.ChildGovernorAddr, txRelayer)
-
-		return proposalState == Succeeded
-	}))
-
-	// queue proposal for execution
-	sendQueueProposalTransaction(t, txRelayer, proposerAcc.Ecdsa,
-		polybftCfg.GovernanceConfig.ChildGovernorAddr,
-		polybftCfg.GovernanceConfig.NetworkParamsAddr,
-		proposalInput, "whitelist new validator")
-
-	// check if proposal has quorum (if it was accepted)
-	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		proposalState := getProposalState(t, proposalID,
-			polybftCfg.GovernanceConfig.ChildGovernorAddr, txRelayer)
-
-		return proposalState == Queued
-	}))
-
-	currentBlock, err := validatorEndpoint.BlockNumber()
+	enc, err := approve.EncodeAbi()
 	require.NoError(t, err)
 
-	// wait for couple of more blocks because of execution delay
-	require.NoError(t, cluster.WaitForBlock(currentBlock+2, 10*time.Second))
+	tx := types.NewTx(types.NewDynamicFeeTx(
+		types.WithFrom(types.ZeroAddress),
+		types.WithTo(&contracts.NativeERC20TokenContract),
+		types.WithInput(enc)))
 
-	sendExecuteProposalTransaction(t, txRelayer, proposerAcc.Ecdsa,
-		polybftCfg.GovernanceConfig.ChildGovernorAddr,
-		polybftCfg.GovernanceConfig.NetworkParamsAddr,
-		proposalInput, "whitelist new validator")
-
-	currentBlock, err = validatorEndpoint.BlockNumber()
+	rec, err := txRelayer.SendTransaction(tx, validatorAcc.Ecdsa)
 	require.NoError(t, err)
-
-	require.NoError(t, cluster.WaitForBlock(currentBlock+epochSize, 3*time.Minute))
+	require.Equal(t, rec.Status, uint64(types.ReceiptSuccess))
 
 	// register validator
 	chainID, err := validatorEndpoint.ChainID()
@@ -137,7 +207,7 @@ func TestE2E_ValidatorSetChange(t *testing.T) {
 		Pubkey:    validatorAcc.Bls.PublicKey().ToBigInt(),
 	}
 
-	enc, err := registerData.EncodeAbi()
+	enc, err = registerData.EncodeAbi()
 	require.NoError(t, err)
 
 	txn := types.NewTx(
@@ -148,7 +218,7 @@ func TestE2E_ValidatorSetChange(t *testing.T) {
 		),
 	)
 
-	rec, err := txRelayer.SendTransaction(txn, validatorAcc.Ecdsa)
+	rec, err = txRelayer.SendTransaction(txn, validatorAcc.Ecdsa)
 	require.NoError(t, err)
 	require.Equal(t, rec.Status, uint64(types.ReceiptSuccess))
 
@@ -161,4 +231,110 @@ func TestE2E_ValidatorSetChange(t *testing.T) {
 	require.NotNil(t, extra.Validators)
 	require.False(t, extra.Validators.IsEmpty())
 	require.True(t, extra.Validators.Added.ContainsAddress(validatorAcc.Address()))
+}
+
+func whitelistFunc(t *testing.T,
+	newAccs []*wallet.Account,
+	txRelayer txrelayer.TxRelayer,
+	proposerAcc *wallet.Account,
+	polybftCfg polybft.PolyBFTConfig,
+	cluster *framework.TestCluster,
+	validatorEndpoint *jsonrpc.EthClient,
+	epochSize uint64,
+	proposalDescs []string) {
+	t.Helper()
+
+	require.Equal(t, len(newAccs), len(proposalDescs))
+
+	proposalIDs := make([]*big.Int, len(newAccs))
+	proposalInputs := make([][]byte, len(newAccs))
+
+	for i, a := range newAccs {
+		proposal := contractsapi.WhitelistNewValidatorNetworkParamsFn{
+			Validator: a.Address(),
+		}
+
+		proposalInput, err := proposal.EncodeAbi()
+		require.NoError(t, err)
+
+		proposalID := sendProposalTransaction(t, txRelayer, proposerAcc.Ecdsa,
+			polybftCfg.GovernanceConfig.ChildGovernorAddr,
+			polybftCfg.GovernanceConfig.NetworkParamsAddr,
+			proposalInput, proposalDescs[i])
+
+		// check that proposal delay finishes, and porposal becomes active (ready to for voting)
+		require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+			proposalState := getProposalState(t, proposalID,
+				polybftCfg.GovernanceConfig.ChildGovernorAddr, txRelayer)
+
+			return proposalState == Active
+		}))
+
+		proposalIDs[i] = proposalID
+		proposalInputs[i] = proposalInput
+	}
+	// vote for the proposal
+	for _, s := range cluster.Servers {
+		voterAcc, err := helper.GetAccountFromDir(s.DataDir())
+		require.NoError(t, err)
+
+		for _, proposalID := range proposalIDs {
+			sendVoteTransaction(t, proposalID, For, polybftCfg.GovernanceConfig.ChildGovernorAddr,
+				txRelayer, voterAcc.Ecdsa)
+		}
+	}
+
+	// check if proposal has quorum (if it was accepted)
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		for _, proposalID := range proposalIDs {
+			proposalState := getProposalState(t, proposalID,
+				polybftCfg.GovernanceConfig.ChildGovernorAddr, txRelayer)
+
+			if proposalState != Succeeded {
+				return false
+			}
+		}
+
+		return true
+	}))
+
+	for i := range proposalInputs {
+		// queue proposal for execution
+		sendQueueProposalTransaction(t, txRelayer, proposerAcc.Ecdsa,
+			polybftCfg.GovernanceConfig.ChildGovernorAddr,
+			polybftCfg.GovernanceConfig.NetworkParamsAddr,
+			proposalInputs[i], proposalDescs[i])
+	}
+
+	// check if proposal has quorum (if it was accepted)
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		for _, proposalID := range proposalIDs {
+			proposalState := getProposalState(t, proposalID,
+				polybftCfg.GovernanceConfig.ChildGovernorAddr, txRelayer)
+
+			if proposalState != Queued {
+				return false
+			}
+		}
+
+		return true
+	}))
+
+	currentBlock, err := validatorEndpoint.BlockNumber()
+	require.NoError(t, err)
+
+	// wait for couple of more blocks because of execution delay
+	require.NoError(t, cluster.WaitForBlock(currentBlock+2, 10*time.Second))
+
+	for i := range proposalInputs {
+		sendExecuteProposalTransaction(t, txRelayer, proposerAcc.Ecdsa,
+			polybftCfg.GovernanceConfig.ChildGovernorAddr,
+			polybftCfg.GovernanceConfig.NetworkParamsAddr,
+			proposalInputs[i], proposalDescs[i])
+	}
+
+	currentBlock, err = validatorEndpoint.BlockNumber()
+	require.NoError(t, err)
+
+	require.NoError(t, cluster.WaitForBlock(currentBlock+epochSize, 3*time.Minute))
 }

@@ -1936,20 +1936,20 @@ func (s *SetNewBlockTimeNetworkParamsFn) DecodeAbi(buf []byte) error {
 	return decodeMethod(NetworkParams.Abi.Methods["setNewBlockTime"], buf, s)
 }
 
-type WhiteListNewValidatorNetworkParamsFn struct {
+type WhitelistNewValidatorNetworkParamsFn struct {
 	Validator types.Address `abi:"validator"`
 }
 
-func (w *WhiteListNewValidatorNetworkParamsFn) Sig() []byte {
-	return NetworkParams.Abi.Methods["whiteListNewValidator"].ID()
+func (w *WhitelistNewValidatorNetworkParamsFn) Sig() []byte {
+	return NetworkParams.Abi.Methods["whitelistNewValidator"].ID()
 }
 
-func (w *WhiteListNewValidatorNetworkParamsFn) EncodeAbi() ([]byte, error) {
-	return NetworkParams.Abi.Methods["whiteListNewValidator"].Encode(w)
+func (w *WhitelistNewValidatorNetworkParamsFn) EncodeAbi() ([]byte, error) {
+	return NetworkParams.Abi.Methods["whitelistNewValidator"].Encode(w)
 }
 
-func (w *WhiteListNewValidatorNetworkParamsFn) DecodeAbi(buf []byte) error {
-	return decodeMethod(NetworkParams.Abi.Methods["whiteListNewValidator"], buf, w)
+func (w *WhitelistNewValidatorNetworkParamsFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(NetworkParams.Abi.Methods["whitelistNewValidator"], buf, w)
 }
 
 type NewCheckpointBlockIntervalEvent struct {
@@ -2286,6 +2286,31 @@ func (n *NewValidatorWhitelistEvent) ParseLog(log *ethgo.Log) (bool, error) {
 
 func (n *NewValidatorWhitelistEvent) Decode(input []byte) error {
 	return NetworkParams.Abi.Events["NewValidatorWhitelist"].Inputs.DecodeStruct(input, &n)
+}
+
+type NewValidatorSetCommitEvent struct {
+	Validator  types.Address `abi:"validator"`
+	IsRegister bool          `abi:"isRegister"`
+}
+
+func (*NewValidatorSetCommitEvent) Sig() ethgo.Hash {
+	return NetworkParams.Abi.Events["NewValidatorSetCommit"].ID()
+}
+
+func (n *NewValidatorSetCommitEvent) Encode() ([]byte, error) {
+	return NetworkParams.Abi.Events["NewValidatorSetCommit"].Inputs.Encode(n)
+}
+
+func (n *NewValidatorSetCommitEvent) ParseLog(log *ethgo.Log) (bool, error) {
+	if !NetworkParams.Abi.Events["NewValidatorSetCommit"].Match(log) {
+		return false, nil
+	}
+
+	return true, decodeEvent(NetworkParams.Abi.Events["NewValidatorSetCommit"], log, n)
+}
+
+func (n *NewValidatorSetCommitEvent) Decode(input []byte) error {
+	return NetworkParams.Abi.Events["NewValidatorSetCommit"].Inputs.DecodeStruct(input, &n)
 }
 
 type InitializeForkParamsFn struct {
