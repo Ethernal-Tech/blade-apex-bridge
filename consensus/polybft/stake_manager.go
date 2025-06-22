@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/validator"
+	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/helper/hex"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/ethgo"
@@ -320,6 +321,9 @@ func (s *stakeManager) GetLogFilters() map[types.Address][]types.Hash {
 			types.Hash(new(contractsapi.StakeAddedEvent).Sig()),
 			types.Hash(new(contractsapi.StakeRemovedEvent).Sig()),
 		},
+		contracts.NetworkParamsContract: {
+			types.Hash(new(contractsapi.NewValidatorSetCommitEvent).Sig()),
+		},
 	}
 }
 
@@ -329,7 +333,7 @@ func (s *stakeManager) ProcessLog(header *types.Header, log *ethgo.Log, dbTx *bo
 	var (
 		stakeAddedEvent   contractsapi.StakeAddedEvent
 		stakeRemovedEvent contractsapi.StakeRemovedEvent
-		stakeEvents       = make([]contractsapi.EventAbi, 1)
+		commitEvent       contractsapi.NewValidatorSetCommitEvent
 	)
 
 	switch log.Topics[0] {
@@ -343,7 +347,7 @@ func (s *stakeManager) ProcessLog(header *types.Header, log *ethgo.Log, dbTx *bo
 			return nil
 		}
 
-		stakeEvents[0] = &stakeAddedEvent
+		return s.state.StakeStore.insertStakingEvent(&stakeAddedEvent, dbTx)
 	case stakeRemovedEvent.Sig():
 		doesMatch, err := stakeRemovedEvent.ParseLog(log)
 		if err != nil {
@@ -354,21 +358,46 @@ func (s *stakeManager) ProcessLog(header *types.Header, log *ethgo.Log, dbTx *bo
 			return nil
 		}
 
-		stakeEvents[0] = &stakeRemovedEvent
+		return s.state.StakeStore.insertStakingEvent(&stakeRemovedEvent, dbTx)
+	case commitEvent.Sig():
+		doesMatch, err := commitEvent.ParseLog(log)
+		if err != nil {
+			return err
+		}
+
+		if !doesMatch {
+			return nil
+		}
+
+		var event contractsapi.EventAbi
+
+		if commitEvent.IsRegister {
+			event, err = s.state.StakeStore.getStakeAddedEvent(commitEvent.Validator, dbTx)
+		} else {
+			event, err = s.state.StakeStore.getStakeRemovedEvent(commitEvent.Validator, dbTx)
+		}
+
+		if err != nil {
+			return err
+		}
+
+		if event == nil {
+			return fmt.Errorf("staking event not found for governance commit")
+		}
+
+		fullValidatorSet, err := s.getOrInitValidatorSet(dbTx)
+		if err != nil {
+			return err
+		}
+
+		if err := s.updateWithReceipts(&fullValidatorSet, []contractsapi.EventAbi{event}, header.Number); err != nil {
+			return err
+		}
+
+		return s.state.StakeStore.insertFullValidatorSet(fullValidatorSet, dbTx)
 	default:
 		return errUnknownStakeManagerEvent
 	}
-
-	fullValidatorSet, err := s.getOrInitValidatorSet(dbTx)
-	if err != nil {
-		return err
-	}
-
-	if err := s.updateWithReceipts(&fullValidatorSet, stakeEvents, header.Number); err != nil {
-		return err
-	}
-
-	return s.state.StakeStore.insertFullValidatorSet(fullValidatorSet, dbTx)
 }
 
 type validatorSetState struct {
