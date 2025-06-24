@@ -430,6 +430,7 @@ func main() {
 				"setNewBaseFeeChangeDenom",
 				"setNewBlockTime",
 				"whitelistNewValidator",
+				"newValidatorSetCommit",
 			},
 			[]string{
 				"NewCheckpointBlockInterval",

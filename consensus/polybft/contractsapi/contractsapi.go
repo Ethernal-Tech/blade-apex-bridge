@@ -1952,6 +1952,23 @@ func (w *WhitelistNewValidatorNetworkParamsFn) DecodeAbi(buf []byte) error {
 	return decodeMethod(NetworkParams.Abi.Methods["whitelistNewValidator"], buf, w)
 }
 
+type NewValidatorSetCommitNetworkParamsFn struct {
+	Validator  types.Address `abi:"validator"`
+	IsRegister bool          `abi:"isRegister"`
+}
+
+func (n *NewValidatorSetCommitNetworkParamsFn) Sig() []byte {
+	return NetworkParams.Abi.Methods["newValidatorSetCommit"].ID()
+}
+
+func (n *NewValidatorSetCommitNetworkParamsFn) EncodeAbi() ([]byte, error) {
+	return NetworkParams.Abi.Methods["newValidatorSetCommit"].Encode(n)
+}
+
+func (n *NewValidatorSetCommitNetworkParamsFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(NetworkParams.Abi.Methods["newValidatorSetCommit"], buf, n)
+}
+
 type NewCheckpointBlockIntervalEvent struct {
 	CheckpointInterval *big.Int `abi:"checkpointInterval"`
 }
