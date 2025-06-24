@@ -821,6 +821,93 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 	wg.Wait()
 }
 
+func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig.FundTokenAmount = 1_000_000_000
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithUserCnt(1),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
+			setting["maxTokenAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
+		}, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	var (
+		user             = apex.Users[0]
+		apexSendAmount   = cardanofw.ApexToDfm(big.NewInt(10))
+		bridgingRequests = []struct {
+			src    string
+			dest   string
+			sender *cardanofw.TestApexUser
+		}{
+			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[0]},
+			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[0]},
+		}
+		txHashes = make([]string, len(bridgingRequests))
+	)
+
+	_, err := cardanofw.FundUserWithToken(
+		ctx, apex, cardanofw.ChainIDPrime,
+		apex.PrimeInfo.GenesisWallet, apex.Users[0],
+		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+		uint64(5_000_000), uint64(1_000_000_000))
+	require.NoError(t, err)
+
+	_, err = cardanofw.FundUserWithToken(
+		ctx, apex, cardanofw.ChainIDCardano,
+		apex.CardanoInfo.GenesisWallet, apex.Users[0],
+		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+		uint64(5_000_000), uint64(1_000_000_000))
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+
+	for idx, br := range bridgingRequests {
+		wg.Add(1)
+
+		go func(i int, src string, dest string, sender *cardanofw.TestApexUser) {
+			defer wg.Done()
+
+			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNativeTokenOnSource,
+				user)
+			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
+		}(idx, br.src, br.dest, br.sender)
+	}
+
+	wg.Wait()
+
+	for idx, br := range bridgingRequests {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			cardanofw.WaitForInvalidState(t, ctx, apex, br.src, txHashes[idx], apiKey, 0)
+		}()
+	}
+
+	wg.Wait()
+}
+
 func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
