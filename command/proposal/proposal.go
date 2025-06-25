@@ -47,7 +47,6 @@ func setFlags(cmd *cobra.Command) {
 		"",
 		"the JSON-RPC address of the node to connect to",
 	)
-
 }
 
 func runCommand(cmd *cobra.Command, _ []string) {
@@ -59,12 +58,14 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	))
 	if err != nil {
 		outputter.SetError(err)
+
 		return
 	}
 
 	id, err := common.ParseUint256orHex(&params.proposalID)
 	if err != nil {
 		outputter.SetError(fmt.Errorf("could not parse proposal ID: %w", err))
+
 		return
 	}
 
@@ -73,36 +74,42 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	encoded, err := proposal.Encode([]interface{}{id})
 	if err != nil {
 		outputter.SetError(fmt.Errorf("could not encode proposal ID: %w", err))
+
 		return
 	}
 
 	response, err := relayer.Call(types.ZeroAddress, contracts.ChildGovernorContract, encoded)
 	if err != nil {
 		outputter.SetError(fmt.Errorf("could not get proposal from contract: %w", err))
+
 		return
 	}
 
 	byteResponse, err := hex.DecodeHex(response)
 	if err != nil {
 		outputter.SetError(fmt.Errorf("could not decode response: %w", err))
+
 		return
 	}
 
 	decoded, err := proposal.Outputs.Decode(byteResponse)
 	if err != nil {
 		outputter.SetError(fmt.Errorf("could not decode proposal outputs: %w", err))
+
 		return
 	}
 
 	decodedOutputsMap, ok := decoded.(map[string]interface{})
 	if !ok {
 		outputter.SetError(fmt.Errorf("could not convert decoded outputs to map"))
+
 		return
 	}
 
 	calldatas, ok := decodedOutputsMap["calldatas"].([][]byte)
 	if !ok {
 		outputter.SetError(fmt.Errorf("could not get calldatas"))
+
 		return
 	}
 
@@ -114,7 +121,12 @@ func runCommand(cmd *cobra.Command, _ []string) {
 
 	switch string(first[:4]) {
 	case string(newValidatorSet.Sig()):
-		newValidatorSet.DecodeAbi(first)
+		if err := newValidatorSet.DecodeAbi(first); err != nil {
+			outputter.SetError(fmt.Errorf("could not decode new validator set proposal: %w", err))
+
+			return
+		}
+
 		proposalResult := proposalResult{
 			AddedValidators:   newValidatorSet.AddedValidators,
 			RemovedValidators: newValidatorSet.RemovedValidators,
@@ -123,6 +135,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		outputter.SetCommandResult(proposalResult)
 	default:
 		outputter.SetError(fmt.Errorf("unknown proposal action: %s", first[:4]))
+
 		return
 	}
 }
