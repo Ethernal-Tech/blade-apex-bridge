@@ -36,6 +36,11 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 		cardanofw.WithUserCnt(userCnt),
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+			tryCountLimitsSettings := cardanofw.GetMapFromInterfaceKey(mp, "tryCountLimits")
+			tryCountLimitsSettings["maxBatchTryCount"] = 1
+			tryCountLimitsSettings["maxSubmitTryCount"] = 2
+		}, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
