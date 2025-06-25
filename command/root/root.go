@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/command/mint"
 	"github.com/0xPolygon/polygon-edge/command/monitor"
 	"github.com/0xPolygon/polygon-edge/command/peers"
+	"github.com/0xPolygon/polygon-edge/command/proposal"
 	"github.com/0xPolygon/polygon-edge/command/regenesis"
 	"github.com/0xPolygon/polygon-edge/command/sanitycheck"
 	"github.com/0xPolygon/polygon-edge/command/secrets"
@@ -63,6 +64,7 @@ func (rc *RootCommand) registerSubCommands() {
 		loadtest.GetCommand(),
 		sanitycheck.GetCommand(),
 		accounts.GetCommand(),
+		proposal.GetCommand(),
 	)
 }
 
