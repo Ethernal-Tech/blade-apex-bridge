@@ -2248,6 +2248,63 @@ func (n *NewBaseFeeChangeDenomEvent) Decode(input []byte) error {
 	return NetworkParams.Abi.Events["NewBaseFeeChangeDenom"].Inputs.DecodeStruct(input, &n)
 }
 
+type ValidatorAddressChainDataApex struct {
+	Addr         types.Address `abi:"addr"`
+	Key          [4]*big.Int   `abi:"key"`
+	Signature    []byte        `abi:"signature"`
+	FeeSignature []byte        `abi:"feeSignature"`
+}
+
+var ValidatorAddressChainDataApexABIType = abi.MustNewType("tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)")
+
+func (v *ValidatorAddressChainDataApex) EncodeAbi() ([]byte, error) {
+	return ValidatorAddressChainDataApexABIType.Encode(v)
+}
+
+func (v *ValidatorAddressChainDataApex) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorAddressChainDataApexABIType, buf, &v)
+}
+
+type ValidatorSetApex struct {
+	ChainID       uint8                            `abi:"chainID"`
+	ValidatorData []*ValidatorAddressChainDataApex `abi:"validatorData"`
+}
+
+var ValidatorSetApexABIType = abi.MustNewType("tuple(uint8 chainID,tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)[] validatorData)")
+
+func (v *ValidatorSetApex) EncodeAbi() ([]byte, error) {
+	return ValidatorSetApexABIType.Encode(v)
+}
+
+func (v *ValidatorSetApex) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorSetApexABIType, buf, &v)
+}
+
+type NewValidatorSetEvent struct {
+	ValidatorSet      []*ValidatorSetApex `abi:"validatorSet"`
+	RemovedValidators []types.Address     `abi:"removedValidators"`
+}
+
+func (*NewValidatorSetEvent) Sig() ethgo.Hash {
+	return NetworkParams.Abi.Events["NewValidatorSet"].ID()
+}
+
+func (n *NewValidatorSetEvent) Encode() ([]byte, error) {
+	return NetworkParams.Abi.Events["NewValidatorSet"].Inputs.Encode(n)
+}
+
+func (n *NewValidatorSetEvent) ParseLog(log *ethgo.Log) (bool, error) {
+	if !NetworkParams.Abi.Events["NewValidatorSet"].Match(log) {
+		return false, nil
+	}
+
+	return true, decodeEvent(NetworkParams.Abi.Events["NewValidatorSet"], log, n)
+}
+
+func (n *NewValidatorSetEvent) Decode(input []byte) error {
+	return NetworkParams.Abi.Events["NewValidatorSet"].Inputs.DecodeStruct(input, &n)
+}
+
 type InitializeForkParamsFn struct {
 	NewOwner types.Address `abi:"newOwner"`
 }

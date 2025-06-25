@@ -2,7 +2,9 @@
 package contractsapi
 
 import (
+	"math/big"
 	"github.com/0xPolygon/polygon-edge/types"
+	"github.com/Ethernal-Tech/ethgo/abi"
 )
 
 type InitializeApexBridgeContractsBridgeFn struct {
@@ -24,6 +26,7 @@ func (i *InitializeApexBridgeContractsBridgeFn) DecodeAbi(buf []byte) error {
 
 type SetDependenciesApexBridgeContractsBridgeFn struct {
 	ClaimsAddress        types.Address `abi:"_claimsAddress"`
+	SpecialClaimsAddress types.Address `abi:"_specialClaimsAddress"`
 	SignedBatchesAddress types.Address `abi:"_signedBatchesAddress"`
 	SlotsAddress         types.Address `abi:"_slotsAddress"`
 	ValidatorsAddress    types.Address `abi:"_validatorsAddress"`
@@ -39,6 +42,84 @@ func (s *SetDependenciesApexBridgeContractsBridgeFn) EncodeAbi() ([]byte, error)
 
 func (s *SetDependenciesApexBridgeContractsBridgeFn) DecodeAbi(buf []byte) error {
 	return decodeMethod(ApexBridgeContracts.Bridge.Abi.Methods["setDependencies"], buf, s)
+}
+
+type ValidatorChainData struct {
+	Key [4]*big.Int `abi:"key"`
+}
+
+var ValidatorChainDataABIType = abi.MustNewType("tuple(uint256[4] key)")
+
+func (v *ValidatorChainData) EncodeAbi() ([]byte, error) {
+	return ValidatorChainDataABIType.Encode(v)
+}
+
+func (v *ValidatorChainData) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorChainDataABIType, buf, &v)
+}
+
+type ValidatorAddressChainData struct {
+	Addr            types.Address       `abi:"addr"`
+	Data            *ValidatorChainData `abi:"data"`
+	KeySignature    []byte              `abi:"keySignature"`
+	KeyFeeSignature []byte              `abi:"keyFeeSignature"`
+}
+
+var ValidatorAddressChainDataABIType = abi.MustNewType("tuple(address addr,tuple(uint256[4] key) data,bytes keySignature,bytes keyFeeSignature)")
+
+func (v *ValidatorAddressChainData) EncodeAbi() ([]byte, error) {
+	return ValidatorAddressChainDataABIType.Encode(v)
+}
+
+func (v *ValidatorAddressChainData) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorAddressChainDataABIType, buf, &v)
+}
+
+type ValidatorSet struct {
+	ChainID    uint8                        `abi:"chainId"`
+	Validators []*ValidatorAddressChainData `abi:"validators"`
+}
+
+var ValidatorSetABIType = abi.MustNewType("tuple(uint8 chainId,tuple(address addr,tuple(uint256[4] key) data,bytes keySignature,bytes keyFeeSignature)[] validators)")
+
+func (v *ValidatorSet) EncodeAbi() ([]byte, error) {
+	return ValidatorSetABIType.Encode(v)
+}
+
+func (v *ValidatorSet) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorSetABIType, buf, &v)
+}
+
+type SubmitNewValidatorSetApexBridgeContractsBridgeFn struct {
+	ValidatorSet      []*ValidatorSet `abi:"_validatorSet"`
+	RemovedValidators []types.Address `abi:"_removedValidators"`
+}
+
+func (s *SubmitNewValidatorSetApexBridgeContractsBridgeFn) Sig() []byte {
+	return ApexBridgeContracts.Bridge.Abi.Methods["submitNewValidatorSet"].ID()
+}
+
+func (s *SubmitNewValidatorSetApexBridgeContractsBridgeFn) EncodeAbi() ([]byte, error) {
+	return ApexBridgeContracts.Bridge.Abi.Methods["submitNewValidatorSet"].Encode(s)
+}
+
+func (s *SubmitNewValidatorSetApexBridgeContractsBridgeFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(ApexBridgeContracts.Bridge.Abi.Methods["submitNewValidatorSet"], buf, s)
+}
+
+type ValidatorSetUpdatedApexBridgeContractsBridgeFn struct {
+}
+
+func (v *ValidatorSetUpdatedApexBridgeContractsBridgeFn) Sig() []byte {
+	return ApexBridgeContracts.Bridge.Abi.Methods["validatorSetUpdated"].ID()
+}
+
+func (v *ValidatorSetUpdatedApexBridgeContractsBridgeFn) EncodeAbi() ([]byte, error) {
+	return ApexBridgeContracts.Bridge.Abi.Methods["validatorSetUpdated"].Encode(v)
+}
+
+func (v *ValidatorSetUpdatedApexBridgeContractsBridgeFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(ApexBridgeContracts.Bridge.Abi.Methods["validatorSetUpdated"], buf, v)
 }
 
 type InitializeApexBridgeContractsClaimsHelperFn struct {
@@ -131,9 +212,10 @@ func (i *InitializeApexBridgeContractsSignedBatchesFn) DecodeAbi(buf []byte) err
 }
 
 type SetDependenciesApexBridgeContractsSignedBatchesFn struct {
-	BridgeAddress       types.Address `abi:"_bridgeAddress"`
-	ClaimsHelperAddress types.Address `abi:"_claimsHelperAddress"`
-	ValidatorsAddress   types.Address `abi:"_validatorsAddress"`
+	BridgeAddress        types.Address `abi:"_bridgeAddress"`
+	SpecialClaimsAddress types.Address `abi:"_specialClaimsAddress"`
+	ClaimsHelperAddress  types.Address `abi:"_claimsHelperAddress"`
+	ValidatorsAddress    types.Address `abi:"_validatorsAddress"`
 }
 
 func (s *SetDependenciesApexBridgeContractsSignedBatchesFn) Sig() []byte {

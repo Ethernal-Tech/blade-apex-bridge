@@ -455,6 +455,7 @@ func parseGovernanceEvent(log *ethgo.Log) (contractsapi.EventAbi, bool, error) {
 		newFeatureEvent          contractsapi.NewFeatureEvent
 		updatedFeatureEvent      contractsapi.UpdatedFeatureEvent
 		baseFeeChangeDenomEvent  contractsapi.NewBaseFeeChangeDenomEvent
+		newValidatorSetEvent     contractsapi.NewValidatorSetEvent
 	)
 
 	parseEvent := func(event contractsapi.EventAbi) (contractsapi.EventAbi, bool, error) {
@@ -490,6 +491,8 @@ func parseGovernanceEvent(log *ethgo.Log) (contractsapi.EventAbi, bool, error) {
 		return parseEvent(&sprintSizeEvent)
 	case baseFeeChangeDenomEvent.Sig():
 		return parseEvent(&baseFeeChangeDenomEvent)
+	case newValidatorSetEvent.Sig():
+		return parseEvent(&newValidatorSetEvent)
 	case newFeatureEvent.Sig():
 		return parseEvent(&newFeatureEvent)
 	case updatedFeatureEvent.Sig():
@@ -516,6 +519,7 @@ func (g *governanceManager) GetLogFilters() map[types.Address][]types.Hash {
 			types.Hash(new(contractsapi.NewProposalThresholdEvent).Sig()),
 			types.Hash(new(contractsapi.NewSprintSizeEvent).Sig()),
 			types.Hash(new(contractsapi.NewBaseFeeChangeDenomEvent).Sig()),
+			types.Hash(new(contractsapi.NewValidatorSetEvent).Sig()),
 		},
 		contracts.ForkParamsContract: {
 			types.Hash(new(contractsapi.NewFeatureEvent).Sig()),

@@ -439,6 +439,7 @@ func (c *consensusRuntime) FSM() error {
 		isFirstBlockOfEpoch: isFirstBlockOfEpoch,
 		proposerSnapshot:    proposerSnapshot,
 		logger:              c.logger.Named("fsm"),
+		state:               c.state,
 	}
 
 	if isEndOfSprint {

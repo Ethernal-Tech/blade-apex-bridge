@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/0xPolygon/polygon-edge/types"
+	"github.com/Ethernal-Tech/ethgo"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -127,6 +128,55 @@ func (g *GovernanceStore) getNetworkParamsEvents(epoch uint64, dbTx *bolt.Tx) (e
 	}
 
 	return rawEvents, err
+}
+
+// getGovernanceEventsByType returns a list of NetworkParams contract events of the given type that
+// happened in given epoch
+func (g *GovernanceStore) getGovernanceEventsByType(
+	epoch uint64,
+	eventType ethgo.Hash,
+	dbTx *bolt.Tx) (eventsRaw, error) {
+
+	var (
+		requestedEvents eventsRaw
+		err             error
+	)
+
+	getFn := func(tx *bolt.Tx) error {
+		val := tx.Bucket(networkParamsEventsBucket).Get(common.EncodeUint64ToBytes(epoch))
+		if val == nil {
+			// Since the key within a bucket (which represents an epoch) is not created instantly
+			// (automatically) at the start of an epoch, but only upon the arrival of the first
+			// event within that epoch, it is possible that an epoch which already occurred does
+			// not exist in the bucket at all. Therefore, the absence of an epoch should not be
+			// treated as an error, but rather as one of the valid scenarios.
+			return nil
+		}
+
+		var allEvents eventsRaw
+
+		err := json.Unmarshal(val, &allEvents)
+		if err != nil {
+			return err
+		}
+
+		for _, event := range allEvents {
+			if ethgo.Hash(event[:types.HashLength]) != eventType {
+				continue
+			}
+			requestedEvents = append(requestedEvents, event)
+		}
+
+		return nil
+	}
+
+	if dbTx == nil {
+		err = g.db.View(getFn)
+	} else {
+		err = getFn(dbTx)
+	}
+
+	return requestedEvents, err
 }
 
 // getAllForkEvents returns a list of all forks and their activation block

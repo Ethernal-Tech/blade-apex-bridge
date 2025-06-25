@@ -444,6 +444,7 @@ func main() {
 				"NewProposalThreshold",
 				"NewSprintSize",
 				"NewBaseFeeChangeDenom",
+				"NewValidatorSet",
 			},
 		},
 		{
@@ -586,6 +587,8 @@ import (
 			[]string{
 				"initialize",
 				"setDependencies",
+				"submitNewValidatorSet",
+				"validatorSetUpdated",
 			},
 			[]string{},
 		},
