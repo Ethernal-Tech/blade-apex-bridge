@@ -1969,7 +1969,7 @@ func (v *ValidatorSetApex) DecodeAbi(buf []byte) error {
 }
 
 type NewValidatorSetNetworkParamsFn struct {
-	AddedValidators   []*ValidatorSetApex `abi:"addedValidators"`
+	ValidatorSet      []*ValidatorSetApex `abi:"validatorSet"`
 	RemovedValidators []types.Address     `abi:"removedValidators"`
 }
 
