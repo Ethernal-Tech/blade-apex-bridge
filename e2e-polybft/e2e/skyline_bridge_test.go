@@ -785,6 +785,8 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["maxAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
+
+			mp["refundEnabled"] = false
 		}, nil),
 	)
 
@@ -2327,6 +2329,8 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			primeSettings := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", "prime")
 			primeSettings["nativeTokens"] = nil
+
+			mp["refundEnabled"] = false
 		}, nil),
 	)
 
