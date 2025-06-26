@@ -2248,41 +2248,41 @@ func (n *NewBaseFeeChangeDenomEvent) Decode(input []byte) error {
 	return NetworkParams.Abi.Events["NewBaseFeeChangeDenom"].Inputs.DecodeStruct(input, &n)
 }
 
-type ValidatorAddressChainDataApex struct {
+type ValidatorData struct {
 	Addr         types.Address `abi:"addr"`
 	Key          [4]*big.Int   `abi:"key"`
 	Signature    []byte        `abi:"signature"`
 	FeeSignature []byte        `abi:"feeSignature"`
 }
 
-var ValidatorAddressChainDataApexABIType = abi.MustNewType("tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)")
+var ValidatorDataABIType = abi.MustNewType("tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)")
 
-func (v *ValidatorAddressChainDataApex) EncodeAbi() ([]byte, error) {
-	return ValidatorAddressChainDataApexABIType.Encode(v)
+func (v *ValidatorData) EncodeAbi() ([]byte, error) {
+	return ValidatorDataABIType.Encode(v)
 }
 
-func (v *ValidatorAddressChainDataApex) DecodeAbi(buf []byte) error {
-	return decodeStruct(ValidatorAddressChainDataApexABIType, buf, &v)
+func (v *ValidatorData) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorDataABIType, buf, &v)
 }
 
-type ValidatorSetApex struct {
-	ChainID       uint8                            `abi:"chainID"`
-	ValidatorData []*ValidatorAddressChainDataApex `abi:"validatorData"`
+type BridgeValidatorsData struct {
+	ChainID       uint8            `abi:"chainID"`
+	ValidatorData []*ValidatorData `abi:"validatorData"`
 }
 
-var ValidatorSetApexABIType = abi.MustNewType("tuple(uint8 chainID,tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)[] validatorData)")
+var BridgeValidatorsDataABIType = abi.MustNewType("tuple(uint8 chainID,tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)[] validatorData)")
 
-func (v *ValidatorSetApex) EncodeAbi() ([]byte, error) {
-	return ValidatorSetApexABIType.Encode(v)
+func (b *BridgeValidatorsData) EncodeAbi() ([]byte, error) {
+	return BridgeValidatorsDataABIType.Encode(b)
 }
 
-func (v *ValidatorSetApex) DecodeAbi(buf []byte) error {
-	return decodeStruct(ValidatorSetApexABIType, buf, &v)
+func (b *BridgeValidatorsData) DecodeAbi(buf []byte) error {
+	return decodeStruct(BridgeValidatorsDataABIType, buf, &b)
 }
 
 type NewValidatorSetEvent struct {
-	ValidatorSet      []*ValidatorSetApex `abi:"validatorSet"`
-	RemovedValidators []types.Address     `abi:"removedValidators"`
+	ValidatorSet      []*BridgeValidatorsData `abi:"validatorSet"`
+	RemovedValidators []types.Address         `abi:"removedValidators"`
 }
 
 func (*NewValidatorSetEvent) Sig() ethgo.Hash {
