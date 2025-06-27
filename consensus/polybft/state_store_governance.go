@@ -136,7 +136,6 @@ func (g *GovernanceStore) getGovernanceEventsByType(
 	epoch uint64,
 	eventType ethgo.Hash,
 	dbTx *bolt.Tx) (eventsRaw, error) {
-
 	var (
 		requestedEvents eventsRaw
 		err             error
@@ -164,6 +163,7 @@ func (g *GovernanceStore) getGovernanceEventsByType(
 			if ethgo.Hash(event[:types.HashLength]) != eventType {
 				continue
 			}
+
 			requestedEvents = append(requestedEvents, event)
 		}
 

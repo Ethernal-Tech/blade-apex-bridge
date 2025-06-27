@@ -110,9 +110,6 @@ func TestGovernanceStore_InsertAndGetEvents(t *testing.T) {
 		require.NoError(t, state.GovernanceStore.insertGovernanceEvent(200, e, nil))
 	}
 
-	eventsRaw = nil
-	err = nil
-
 	eventsRaw, err = state.GovernanceStore.
 		getGovernanceEventsByType(201, (&contractsapi.NewBlockTimeEvent{}).Sig(), nil)
 

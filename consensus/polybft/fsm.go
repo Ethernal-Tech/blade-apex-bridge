@@ -309,6 +309,7 @@ func (f *fsm) getValidatorsTransition(delta *validator.ValidatorSetDelta) (valid
 // and sends all the necessary metadata to it.
 func (f *fsm) createNewValidatorSetTx(validatorSet *contractsapi.NewValidatorSetEvent) (*types.Transaction, error) {
 	vs := make([]*contractsapi.ValidatorSet, 0, len(validatorSet.ValidatorSet))
+
 	for _, v := range validatorSet.ValidatorSet {
 		vd := make([]*contractsapi.ValidatorAddressChainData, 0, len(v.ValidatorData))
 
@@ -334,6 +335,7 @@ func (f *fsm) createNewValidatorSetTx(validatorSet *contractsapi.NewValidatorSet
 	if err != nil {
 		return nil, err
 	}
+
 	return createStateTransactionWithData(contracts.Bridge, input), nil
 }
 
