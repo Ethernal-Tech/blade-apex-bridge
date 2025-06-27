@@ -128,7 +128,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		}
 
 		proposalResult := proposalResult{
-			ValidatorSet:      newValidatorSet.ValidatorSet,
+			ValidatorsData:    newValidatorSet.ValidatorsData,
 			RemovedValidators: newValidatorSet.RemovedValidators,
 		}
 
@@ -141,8 +141,8 @@ func runCommand(cmd *cobra.Command, _ []string) {
 }
 
 type proposalResult struct {
-	ValidatorSet      []*contractsapi.ValidatorSetApex `json:"ValidatorSet"`
-	RemovedValidators []types.Address                  `json:"RemovedValidators"`
+	ValidatorsData    []*contractsapi.BridgeValidatorsData `json:"ValidatorsData"`
+	RemovedValidators []types.Address                      `json:"RemovedValidators"`
 }
 
 func (pr proposalResult) GetOutput() string {
