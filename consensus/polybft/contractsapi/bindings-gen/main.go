@@ -429,6 +429,7 @@ func main() {
 				"setNewSprintSize",
 				"setNewBaseFeeChangeDenom",
 				"setNewBlockTime",
+				"newValidatorSet",
 			},
 			[]string{
 				"NewCheckpointBlockInterval",
@@ -470,6 +471,7 @@ func main() {
 				"castVote",
 				"state",
 				"queue",
+				"getActions",
 			},
 			[]string{
 				"ProposalCreated",

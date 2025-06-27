@@ -1936,6 +1936,55 @@ func (s *SetNewBlockTimeNetworkParamsFn) DecodeAbi(buf []byte) error {
 	return decodeMethod(NetworkParams.Abi.Methods["setNewBlockTime"], buf, s)
 }
 
+type ValidatorAddressChainDataApex struct {
+	Addr         types.Address `abi:"addr"`
+	Key          [4]*big.Int   `abi:"key"`
+	Signature    []byte        `abi:"signature"`
+	FeeSignature []byte        `abi:"feeSignature"`
+}
+
+var ValidatorAddressChainDataApexABIType = abi.MustNewType("tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)")
+
+func (v *ValidatorAddressChainDataApex) EncodeAbi() ([]byte, error) {
+	return ValidatorAddressChainDataApexABIType.Encode(v)
+}
+
+func (v *ValidatorAddressChainDataApex) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorAddressChainDataApexABIType, buf, &v)
+}
+
+type ValidatorSetApex struct {
+	ChainID       uint8                            `abi:"chainID"`
+	ValidatorData []*ValidatorAddressChainDataApex `abi:"validatorData"`
+}
+
+var ValidatorSetApexABIType = abi.MustNewType("tuple(uint8 chainID,tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)[] validatorData)")
+
+func (v *ValidatorSetApex) EncodeAbi() ([]byte, error) {
+	return ValidatorSetApexABIType.Encode(v)
+}
+
+func (v *ValidatorSetApex) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorSetApexABIType, buf, &v)
+}
+
+type NewValidatorSetNetworkParamsFn struct {
+	ValidatorSet      []*ValidatorSetApex `abi:"validatorSet"`
+	RemovedValidators []types.Address     `abi:"removedValidators"`
+}
+
+func (n *NewValidatorSetNetworkParamsFn) Sig() []byte {
+	return NetworkParams.Abi.Methods["newValidatorSet"].ID()
+}
+
+func (n *NewValidatorSetNetworkParamsFn) EncodeAbi() ([]byte, error) {
+	return NetworkParams.Abi.Methods["newValidatorSet"].Encode(n)
+}
+
+func (n *NewValidatorSetNetworkParamsFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(NetworkParams.Abi.Methods["newValidatorSet"], buf, n)
+}
+
 type NewCheckpointBlockIntervalEvent struct {
 	CheckpointInterval *big.Int `abi:"checkpointInterval"`
 }
@@ -2478,6 +2527,22 @@ func (q *QueueChildGovernorFn) EncodeAbi() ([]byte, error) {
 
 func (q *QueueChildGovernorFn) DecodeAbi(buf []byte) error {
 	return decodeMethod(ChildGovernor.Abi.Methods["queue"], buf, q)
+}
+
+type GetActionsChildGovernorFn struct {
+	ProposalID *big.Int `abi:"proposalId"`
+}
+
+func (g *GetActionsChildGovernorFn) Sig() []byte {
+	return ChildGovernor.Abi.Methods["getActions"].ID()
+}
+
+func (g *GetActionsChildGovernorFn) EncodeAbi() ([]byte, error) {
+	return ChildGovernor.Abi.Methods["getActions"].Encode(g)
+}
+
+func (g *GetActionsChildGovernorFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(ChildGovernor.Abi.Methods["getActions"], buf, g)
 }
 
 type ProposalCreatedEvent struct {
