@@ -463,6 +463,211 @@ func TestFSM_BuildProposal_EpochEndingBlock_FailToGetNextValidatorsHash(t *testi
 	blockBuilderMock.AssertExpectations(t)
 }
 
+func TestFSM_NewValidatorSetRequest(t *testing.T) {
+	t.Parallel()
+	// Function to generate `num` NewValidatorSet events, and for each:
+	//   1. insert it into the GovernanceStore for the given epoch,
+	//   2. create a corresponding state tx.
+	// Returns a slice of state txs, or an error if anything fails.
+	createFn := func(
+		fsm *fsm,
+		state *State,
+		epoch uint64,
+		num uint64) ([]*types.Transaction, error) {
+		txs := make([]*types.Transaction, 0, num)
+
+		var v int64
+		for range num {
+			event := contractsapi.NewValidatorSetEvent{
+				ValidatorSet: []*contractsapi.BridgeValidatorsData{
+					{
+						ChainID: 1,
+						ValidatorData: []*contractsapi.ValidatorData{
+							{
+								Addr: types.StringToAddress("0x03"),
+								Key: [4]*big.Int{big.NewInt(1),
+									big.NewInt(2),
+									big.NewInt(3),
+									big.NewInt(v)},
+								Signature:    []byte{},
+								FeeSignature: []byte{},
+							},
+							{
+								Addr: types.StringToAddress("0x04"),
+								Key: [4]*big.Int{big.NewInt(1),
+									big.NewInt(2),
+									big.NewInt(3),
+									big.NewInt(v)},
+								Signature:    []byte{},
+								FeeSignature: []byte{},
+							},
+						},
+					},
+				},
+				RemovedValidators: []types.Address{
+					types.StringToAddress("0x01"),
+					types.StringToAddress("0x02"),
+				}}
+
+			v++
+
+			err := state.GovernanceStore.insertGovernanceEvent(epoch, &event, nil)
+			if err != nil {
+				return nil, err
+			}
+			tx, err := fsm.createNewValidatorSetTx(&event)
+			if err != nil {
+				return nil, err
+			}
+			txs = append(txs, tx)
+		}
+
+		return txs, nil
+	}
+
+	// This test illustrates the simplest case: the store contains only one `NewValidatorSet`
+	// event (meaning only one validator set change request occurred in previous epoch) and
+	// the first block of an epoch (epoch > 1) contains one corresponding `new validator set`
+	// state tx.
+	//
+	// Expected: the validation should succeed.
+	t.Run("1", func(t *testing.T) {
+		state := newTestState(t)
+
+		fsm := &fsm{
+			state:               state,
+			isFirstBlockOfEpoch: true,
+			epochNumber:         10,
+			parent:              &types.Header{Number: 0}, // in order to avoid distribute reward tx
+		}
+
+		txs, err := createFn(fsm, state, 9, 1)
+		require.NoError(t, err)
+
+		err = fsm.VerifyStateTransactions(txs)
+		require.NoError(t, err)
+	})
+
+	// This test illustrates a similar scenario to the first test, except that it is not the
+	// first block of an epoch.
+	//
+	// Expected: the validation should fail, since a `new validator set` state transaction is
+	// only allowed in the first block of an epoch.
+	t.Run("2", func(t *testing.T) {
+		state := newTestState(t)
+
+		fsm := &fsm{
+			state:               state,
+			isFirstBlockOfEpoch: false,
+			epochNumber:         10,
+			parent:              &types.Header{Number: 0},
+		}
+
+		txs, err := createFn(fsm, state, 9, 1)
+		require.NoError(t, err)
+
+		err = fsm.VerifyStateTransactions(txs)
+		require.Error(t, err)
+	})
+
+	// This test illustrates a scenario where more than one (four) validator set change request
+	// occurred in the previous epoch (i.e., four `NewValidatorSet` events exist in the store),
+	// and the first block of an epoch (epoch > 1) contains all corresponding `new validator set`
+	// state txs (four of them).
+	//
+	// Expected: the validation should succeed.
+	t.Run("3", func(t *testing.T) {
+		state := newTestState(t)
+
+		fsm := &fsm{
+			state:               state,
+			isFirstBlockOfEpoch: true,
+			epochNumber:         10,
+			parent:              &types.Header{Number: 0},
+		}
+
+		txs, err := createFn(fsm, state, 9, 4)
+		require.NoError(t, err)
+
+		err = fsm.VerifyStateTransactions(txs)
+		require.NoError(t, err)
+	})
+
+	// This test illustrates a scenario where the first block of an epoch (epoch > 1) contains
+	// fewer `new validator set` state txs than the number of validator set change requests that
+	// occurred in the previous epoch. All existing state transactions are valid and correspond
+	// to different existing events.
+	//
+	// Expected: the validation should fail, since each validator set change request must have
+	// a corresponding state transaction.
+	t.Run("4", func(t *testing.T) {
+		state := newTestState(t)
+
+		fsm := &fsm{
+			state:               state,
+			isFirstBlockOfEpoch: true,
+			epochNumber:         10,
+			parent:              &types.Header{Number: 0},
+		}
+
+		txs, err := createFn(fsm, state, 9, 2)
+		require.NoError(t, err)
+
+		err = fsm.VerifyStateTransactions([]*types.Transaction{txs[0]})
+		require.Error(t, err)
+	})
+
+	// This test illustrates a scenario where the first block of an epoch (epoch > 1) contains
+	// more `new validator set` state txs than the number of validator set change requests that
+	// occurred in the previous epoch. Note: this is effectively the same scenario (and part of
+	// the same check) as when a `new validator set` state tx does not correspond to any known
+	// validator set change request from the previous epoch. Therefore, this test also covers
+	// that scenario.
+	//
+	// Expected: the validation should fail, since each state tx must correspond to a valid and
+	// known validator set change request from the previous epoch.
+	t.Run("5", func(t *testing.T) {
+		state := newTestState(t)
+
+		fsm := &fsm{
+			state:               state,
+			isFirstBlockOfEpoch: true,
+			epochNumber:         10,
+			parent:              &types.Header{Number: 0},
+		}
+
+		txs, err := createFn(fsm, state, 9, 1)
+		require.NoError(t, err)
+
+		event := contractsapi.NewValidatorSetEvent{
+			ValidatorSet: []*contractsapi.BridgeValidatorsData{
+				{
+					ChainID: 1,
+					ValidatorData: []*contractsapi.ValidatorData{
+						{
+							Addr: types.StringToAddress("0x03"),
+							Key: [4]*big.Int{big.NewInt(1),
+								big.NewInt(2),
+								big.NewInt(3),
+								big.NewInt(7)},
+							Signature:    []byte{},
+							FeeSignature: []byte{},
+						},
+					},
+				},
+			},
+			RemovedValidators: []types.Address{
+				types.StringToAddress("0x01"),
+			}}
+
+		tx, err := fsm.createNewValidatorSetTx(&event)
+		require.NoError(t, err)
+
+		err = fsm.VerifyStateTransactions(append(txs, tx))
+		require.Error(t, err)
+	})
+}
+
 func TestFSM_VerifyStateTransactions_CommitEpoch(t *testing.T) {
 	t.Parallel()
 
