@@ -805,10 +805,9 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 
 		feeAmount = new(big.Int).SetUint64(cardanoConfig.MinBridgingFee)
 
-		initialBalances    = map[string]map[string]*big.Int{}
-		minExpectedAmounts = map[string]*big.Int{}
-		maxExpectedAmounts = map[string]*big.Int{}
-		err                error
+		initialBalances = map[string]map[string]*big.Int{}
+
+		err error
 	)
 
 	var wg sync.WaitGroup
@@ -836,15 +835,18 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			userSpending := new(big.Int).Add(apexSendAmount, new(big.Int).Mul(big.NewInt(2), feeAmount))
+			userSpending := new(big.Int).Add(apexSendAmount, feeAmount)
 
-			// minExpected = initial - (sendAmount + 2 * feeAmount)
-			minExpectedAmounts[br.src] = new(big.Int).Sub(initialBalances[br.src][wallet.AdaTokenName], userSpending)
-			// maxExpected = initial - feeAmount
-			maxExpectedAmounts[br.src] = new(big.Int).Sub(initialBalances[br.src][wallet.AdaTokenName], feeAmount)
+			// minExpected = initial - (sendAmount + feeAmount)
+			minExpectedAmount := new(big.Int).Sub(initialBalances[br.src][wallet.AdaTokenName], userSpending)
 
-			err = apex.WaitForAmountInRange(ctx, br.sender, br.dest, br.src, minExpectedAmounts[br.src], maxExpectedAmounts[br.src], 30, 30*time.Second, false)
+			err := apex.WaitForAmountInRange(ctx, br.sender, br.src, br.dest, minExpectedAmount, initialBalances[br.src][wallet.AdaTokenName], 30, 30*time.Second, false)
 			require.NoError(t, err)
+
+			newBalance, err := apex.GetBalance(ctx, br.sender, br.src)
+			require.NoError(t, err)
+			require.True(t, newBalance[wallet.AdaTokenName].Cmp(minExpectedAmount) >= 0)
+			require.True(t, newBalance[wallet.AdaTokenName].Cmp(initialBalances[br.src][wallet.AdaTokenName]) < 0)
 		}()
 	}
 
@@ -1204,7 +1206,41 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 			apex.Users[:parallelInstances],
 			[]*cardanofw.TestApexUser{apex.Users[parallelInstances]},
 			[]string{cardanofw.ChainIDCardano},
-			map[string][]string{//
+			map[string][]string{
+				cardanofw.ChainIDCardano: {cardanofw.ChainIDPrime},
+			}, sendtx.BridgingTypeNativeTokenOnSource,
+			new(big.Int).SetUint64(sendAmountTokens),
+			e2ehelper.WithWaitForUnexpectedBridges(true),
+		)
+
+		utxosCardano, err := txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr)
+		require.NoError(t, err)
+
+		utxosCardanoSum := wallet.GetUtxosSum(utxosCardano)
+		tokenName := apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime)
+
+		// sum of tokens on cardano multisig address in the end
+		utxosCardanoTokenSum2 = utxosCardanoSum[tokenName]
+		require.Equal(t, utxosCardanoTokenSum1, utxosCardanoTokenSum2)
+
+		for _, cnt := range getCntConsolidationMap() {
+			assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
+		}
+	})
+}
+
+func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		apiKey       = "test_api_key"
+		userCnt      = 10
+		feeAmountDfm = 1_100_000
+	)
+
+	var (
 		err error
 	)
 
@@ -2380,20 +2416,18 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 				timeout = 60 * 5
 				// invalid tx with currency on source should be refunded in this test case
 				if br.requestType == sendtx.BridgingTypeCurrencyOnSource {
-					userSpending := new(big.Int).Add(apexSendAmount, new(big.Int).Mul(big.NewInt(2), feeAmount))
+					userSpending := new(big.Int).Add(apexSendAmount, feeAmount)
 
-					// minExpected = initial - (sendAmount + 2 * feeAmount)
+					// minExpected = initial - (sendAmount + feeAmount)
 					minExpectedAmount := new(big.Int).Sub(refundedSenderInitialBalance[wallet.AdaTokenName], userSpending)
-					// maxExpected = initial - feeAmount
-					maxExpectedAmount := new(big.Int).Sub(refundedSenderInitialBalance[wallet.AdaTokenName], feeAmount)
 
-					err := apex.WaitForAmountInRange(ctx, br.sender, br.dest, br.src, minExpectedAmount, maxExpectedAmount, 30, 30*time.Second, false)
+					err := apex.WaitForAmountInRange(ctx, br.sender, br.src, br.dest, minExpectedAmount, refundedSenderInitialBalance[wallet.AdaTokenName], 2, 30*time.Second, false)
 					require.NoError(t, err)
 
 					newRefunderSenderBalance, err := apex.GetBalance(ctx, br.sender, br.src)
 					require.NoError(t, err)
 					require.True(t, newRefunderSenderBalance[wallet.AdaTokenName].Cmp(minExpectedAmount) >= 0)
-					require.True(t, newRefunderSenderBalance[wallet.AdaTokenName].Cmp(maxExpectedAmount) < 0)
+					require.True(t, newRefunderSenderBalance[wallet.AdaTokenName].Cmp(refundedSenderInitialBalance[wallet.AdaTokenName]) < 0)
 				} else {
 					state = "InvalidRequest"
 				}
