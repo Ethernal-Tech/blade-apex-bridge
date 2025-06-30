@@ -7,14 +7,22 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
 	"time"
 
+	bridgeHelper "github.com/0xPolygon/polygon-edge/command/bridge/helper"
+	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
+	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/helper/hex"
+	"github.com/0xPolygon/polygon-edge/txrelayer"
+	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/assert"
@@ -2462,4 +2470,91 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func init() {
+	wd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+
+	parent := filepath.Dir(wd)
+	parent = strings.Trim(parent, "e2e-polybft")
+	wd = filepath.Join(parent, "/artifacts/blade")
+	os.Setenv("EDGE_BINARY", wd)
+	os.Setenv("E2E_TESTS", "true")
+	os.Setenv("E2E_LOGS", "true")
+	os.Setenv("E2E_LOG_LEVEL", "debug")
+}
+
+func TestE2E_Mint_ERC20(t *testing.T) {
+	cluster := framework.NewTestCluster(t, 4)
+	defer cluster.Stop()
+
+	cluster.WaitForReady(t)
+
+	deployerKey, err := bridgeHelper.DecodePrivateKey("")
+	require.NoError(t, err)
+
+	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(cluster.Servers[0].JSONRPC()))
+
+	// Deploy ERC20 contract
+	code := contractsapi.RootERC20.Bytecode
+	deployTx := types.NewTx(types.NewLegacyTx(
+		types.WithTo(nil),
+		types.WithInput(code),
+	))
+
+	receipt, err := txRelayer.SendTransaction(deployTx, deployerKey)
+	require.NoError(t, err)
+	require.NotNil(t, receipt)
+	require.Equal(t, uint64(1), receipt.Status)
+
+	erc20address := types.Address(receipt.ContractAddress)
+	fmt.Printf("ERC20 contract deployed at: %s\n", erc20address.String())
+
+	key, err := crypto.GenerateECDSAKey()
+	require.NoError(t, err)
+
+	receiver := key.Address()
+	fmt.Printf("Receiver address: %s\n", receiver.String())
+
+	// Mint ERC20 tokens
+	mintAmount := big.NewInt(1_000_000_000)
+
+	mint := contractsapi.MintRootERC20Fn{
+		To:     receiver,
+		Amount: mintAmount,
+	}
+
+	input, err := mint.EncodeAbi()
+	require.NoError(t, err)
+
+	mintTx := types.NewTx(types.NewLegacyTx(
+		types.WithTo(&erc20address),
+		types.WithInput(input),
+		types.WithGas(1_000_000),
+	))
+
+	receipt, err = txRelayer.SendTransaction(mintTx, deployerKey)
+	require.NoError(t, err)
+	require.NotNil(t, receipt)
+	require.Equal(t, uint64(1), receipt.Status)
+
+	fmt.Printf("Minted %s tokens to %s\n", mintAmount.String(), receiver.String())
+
+	balanceOf := contractsapi.BalanceOfRootERC20Fn{
+		Account: receiver,
+	}
+
+	input, err = balanceOf.EncodeAbi()
+	require.NoError(t, err)
+
+	res, err := txRelayer.Call(types.ZeroAddress, erc20address, input)
+	require.NoError(t, err)
+
+	num, err := hex.DecodeHexToBig(res)
+	require.NoError(t, err)
+
+	fmt.Println("Balance of receiver:", num.Uint64())
 }
