@@ -1734,3 +1734,67 @@ func generateValidatorDelta(validatorCount int, allAccounts, previousValidatorSe
 
 	return
 }
+
+func TestFSM_VerifyStateTransaction_ValidatorSetUpdated(t *testing.T) {
+	t.Parallel()
+
+	fsm := &fsm{
+		parent: &types.Header{
+			Number: 0,
+		},
+		isFirstBlockOfEpoch: true,
+		epochNumber:         2,
+		state:               newTestState(t),
+		newValidatorsDelta:  &validator.ValidatorSetDelta{},
+	}
+
+	createBridgeUpdateValidatorsTx := func() *types.Transaction {
+		// create bridge update validators transaction
+		input, err := (&contractsapi.ValidatorSetUpdatedApexBridgeContractsBridgeFn{}).EncodeAbi()
+		require.NoError(t, err)
+
+		return createStateTransactionWithData(contracts.Bridge, input)
+	}
+	t.Run("empty delta", func(t *testing.T) {
+		transactions := make([]*types.Transaction, 1)
+		transactions[0] = createBridgeUpdateValidatorsTx()
+
+		err := fsm.VerifyStateTransactions(transactions)
+		require.ErrorIs(t, err, errValidatorSetUpdatedButNoDelta)
+	})
+
+	t.Run("double transactions", func(t *testing.T) {
+		fsm.newValidatorsDelta = &validator.ValidatorSetDelta{
+			Added: validator.AccountSet{
+				&validator.ValidatorMetadata{
+					Address: types.ZeroAddress,
+				},
+			},
+		}
+		const num = 2
+
+		transactions := make([]*types.Transaction, num)
+
+		for i := range num {
+			transactions[i] = createBridgeUpdateValidatorsTx()
+		}
+
+		err := fsm.VerifyStateTransactions(transactions)
+		require.ErrorIs(t, err, errTwoValidatorSetUpdatedTxInSameBlock)
+	})
+
+	t.Run("no error", func(t *testing.T) {
+		fsm.newValidatorsDelta = &validator.ValidatorSetDelta{
+			Added: validator.AccountSet{
+				&validator.ValidatorMetadata{
+					Address: types.ZeroAddress,
+				},
+			},
+		}
+
+		transactions := make([]*types.Transaction, 1)
+		transactions[0] = createBridgeUpdateValidatorsTx()
+
+		require.NoError(t, fsm.VerifyStateTransactions(transactions))
+	})
+}

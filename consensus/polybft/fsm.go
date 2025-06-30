@@ -50,6 +50,8 @@ var (
 	errValidatorsUpdateInNonEpochEnding    = errors.New("trying to update validator set in a non epoch ending block")
 	errValidatorDeltaNilInEpochEndingBlock = errors.New("validator set delta is nil in epoch ending block")
 	errNewValidatorSetTxDoesNotExist       = errors.New("missing new validator set tx")
+	errTwoValidatorSetUpdatedTxInSameBlock = errors.New("found 2 validator set updated transactions in same block")
+	errValidatorSetUpdatedButNoDelta       = errors.New("found validator set updated tx even though there weren't any requests for it in the previous epoch.")
 )
 
 type fsm struct {
@@ -160,6 +162,18 @@ func (f *fsm) BuildProposal(currentRound uint64) ([]byte, error) {
 
 			if err := f.blockBuilder.WriteTx(tx); err != nil {
 				return nil, fmt.Errorf("failed to apply new validator set transaction: %w", err)
+			}
+		}
+
+		// sending new validator set to Bridge contract
+		if !f.newValidatorsDelta.IsEmpty() {
+			tx, err := f.createBridgeUpdateValidatorsTx()
+			if err != nil {
+				return nil, fmt.Errorf("failed to create bridge update validators transaction: %w", err)
+			}
+
+			if err := f.blockBuilder.WriteTx(tx); err != nil {
+				return nil, fmt.Errorf("failed to apply bridge update validators transaction: %w", err)
 			}
 		}
 	}
@@ -350,6 +364,16 @@ func (f *fsm) createCommitEpochTx() (*types.Transaction, error) {
 	return createStateTransactionWithData(contracts.EpochManagerContract, input), nil
 }
 
+func (f *fsm) createBridgeUpdateValidatorsTx() (*types.Transaction, error) {
+	// create bridge update validators transaction
+	input, err := (&contractsapi.ValidatorSetUpdatedApexBridgeContractsBridgeFn{}).EncodeAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode input data for bridge update validators: %w", err)
+	}
+
+	return createStateTransactionWithData(contracts.Bridge, input), nil
+}
+
 // createDistributeRewardsTx create a StateTransaction, which invokes RewardPool smart contract
 // and sends all the necessary metadata to it.
 func (f *fsm) createDistributeRewardsTx() (*types.Transaction, error) {
@@ -518,6 +542,7 @@ func (f *fsm) VerifyStateTransactions(transactions []*types.Transaction) error {
 	var (
 		commitmentTxExists        bool
 		commitEpochTxExists       bool
+		updatedValidatorSetExists bool
 		distributeRewardsTxExists bool
 		newValidatorSetTxs        map[types.Hash]struct{}
 	)
@@ -621,9 +646,33 @@ func (f *fsm) VerifyStateTransactions(transactions []*types.Transaction) error {
 			}
 
 			delete(newValidatorSetTxs, tx.Hash())
+		case *contractsapi.ValidatorSetUpdatedApexBridgeContractsBridgeFn:
+			if updatedValidatorSetExists {
+				return errTwoValidatorSetUpdatedTxInSameBlock
+			}
+
+			updatedValidatorSetExists = true
+
+			if f.epochNumber == 1 {
+				return fmt.Errorf("found validator set updated tx in first epoch")
+			}
+
+			if !f.isFirstBlockOfEpoch {
+				return fmt.Errorf(
+					"only first block of epoch can contain validator set updated tx")
+			}
+
+			if f.newValidatorsDelta.IsEmpty() {
+				return errValidatorSetUpdatedButNoDelta
+			}
 		default:
 			return fmt.Errorf("invalid state transaction data type: %v", stateTxData)
 		}
+	}
+
+	if f.isFirstBlockOfEpoch && f.epochNumber > 1 &&
+		!f.newValidatorsDelta.IsEmpty() && !updatedValidatorSetExists {
+		return fmt.Errorf("there is new validator set, but Bridge contract transaction isn't sent")
 	}
 
 	if f.isFirstBlockOfEpoch && f.epochNumber > 1 &&
