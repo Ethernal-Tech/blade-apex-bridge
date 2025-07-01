@@ -261,6 +261,10 @@ func (s *stakeManager) UpdateValidatorSet(epoch uint64, maxValidatorSetSize uint
 		Removed: removedBitmap,
 	}
 
+	if err := s.state.StakeStore.insertLastDelta(delta, nil); err != nil {
+		s.logger.Error("Last delta state couldn't be inserted %w", err)
+	}
+
 	if s.logger.IsDebug() {
 		newValidatorSet, err := oldValidatorSet.Copy().ApplyDelta(delta)
 		if err != nil {

@@ -165,8 +165,13 @@ func (f *fsm) BuildProposal(currentRound uint64) ([]byte, error) {
 			}
 		}
 
+		lastDelta, err := f.state.StakeStore.getLastDelta(nil)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't get last delta: %w", err)
+		}
+
 		// sending new validator set to Bridge contract
-		if !f.newValidatorsDelta.IsEmpty() {
+		if !lastDelta.IsEmpty() {
 			tx, err := f.createBridgeUpdateValidatorsTx()
 			if err != nil {
 				return nil, fmt.Errorf("failed to create bridge update validators transaction: %w", err)
@@ -662,7 +667,12 @@ func (f *fsm) VerifyStateTransactions(transactions []*types.Transaction) error {
 					"only first block of epoch can contain validator set updated tx")
 			}
 
-			if f.newValidatorsDelta.IsEmpty() {
+			lastDelta, err := f.state.StakeStore.getLastDelta(nil)
+			if err != nil {
+				return fmt.Errorf("couldn't get last delta: %w", err)
+			}
+
+			if lastDelta.IsEmpty() {
 				return errValidatorSetUpdatedButNoDelta
 			}
 		default:

@@ -1943,13 +1943,15 @@ func generateValidatorDelta(validatorCount int, allAccounts, previousValidatorSe
 func TestFSM_VerifyStateTransaction_ValidatorSetUpdated(t *testing.T) {
 	t.Parallel()
 
+	state := newTestState(t)
+
 	fsm := &fsm{
 		parent: &types.Header{
 			Number: 0,
 		},
 		isFirstBlockOfEpoch: true,
 		epochNumber:         2,
-		state:               newTestState(t),
+		state:               state,
 		newValidatorsDelta:  &validator.ValidatorSetDelta{},
 	}
 
@@ -1969,13 +1971,19 @@ func TestFSM_VerifyStateTransaction_ValidatorSetUpdated(t *testing.T) {
 	})
 
 	t.Run("double transactions", func(t *testing.T) {
-		fsm.newValidatorsDelta = &validator.ValidatorSetDelta{
+		blsKey, err := bls.GenerateBlsKey()
+		require.NoError(t, err)
+
+		state.StakeStore.insertLastDelta(&validator.ValidatorSetDelta{
 			Added: validator.AccountSet{
 				&validator.ValidatorMetadata{
-					Address: types.ZeroAddress,
+					Address:     types.ZeroAddress,
+					BlsKey:      blsKey.PublicKey(),
+					VotingPower: big.NewInt(1),
+					IsActive:    true,
 				},
 			},
-		}
+		}, nil)
 		const num = 2
 
 		transactions := make([]*types.Transaction, num)
@@ -1984,19 +1992,11 @@ func TestFSM_VerifyStateTransaction_ValidatorSetUpdated(t *testing.T) {
 			transactions[i] = createBridgeUpdateValidatorsTx()
 		}
 
-		err := fsm.VerifyStateTransactions(transactions)
+		err = fsm.VerifyStateTransactions(transactions)
 		require.ErrorIs(t, err, errTwoValidatorSetUpdatedTxInSameBlock)
 	})
 
 	t.Run("no error", func(t *testing.T) {
-		fsm.newValidatorsDelta = &validator.ValidatorSetDelta{
-			Added: validator.AccountSet{
-				&validator.ValidatorMetadata{
-					Address: types.ZeroAddress,
-				},
-			},
-		}
-
 		transactions := make([]*types.Transaction, 1)
 		transactions[0] = createBridgeUpdateValidatorsTx()
 
