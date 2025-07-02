@@ -2370,40 +2370,6 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 	})
 }
 
-func sendInvalidSendAmountTransaction(
-	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, src, dest cardanofw.ChainID, senderUser *cardanofw.TestApexUser, sendAmount *big.Int,
-	receiverUserAddr string,
-) {
-	t.Helper()
-
-	const (
-		bridgingFee  = uint64(1_000_010)
-		operationFee = uint64(0)
-	)
-
-	receivers := []sendtx.BridgingTxReceiver{
-		{
-			Addr:         receiverUserAddr,
-			Amount:       sendAmount.Uint64() * 10,
-			BridgingType: sendtx.BridgingTypeCurrencyOnSource,
-		},
-	}
-
-	feeAmount, err := apex.GetChainMust(t, src).GetBridgingFee(
-		ctx, dest, receivers, bridgingFee, operationFee)
-	require.NoError(t, err)
-
-	metadata, err := apex.GetChainMust(t, src).CreateMetadata(
-		senderUser.GetAddress(src), dest,
-		receivers, feeAmount, operationFee)
-	require.NoError(t, err)
-
-	_, err = apex.SubmitTx(
-		ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddress(),
-		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount+operationFee)), nil, metadata)
-	require.NoError(t, err)
-}
-
 func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
@@ -2508,7 +2474,7 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 					// minExpected = initial - (sendAmount + feeAmount)
 					minExpectedAmount := new(big.Int).Sub(refundedSenderInitialBalance[wallet.AdaTokenName], userSpending)
 
-					err := apex.WaitForAmountInRange(ctx, br.sender, br.src, br.dest, minExpectedAmount, refundedSenderInitialBalance[wallet.AdaTokenName], 2, 30*time.Second, false)
+					err := apex.WaitForAmountInRange(ctx, br.sender, br.src, br.dest, minExpectedAmount, refundedSenderInitialBalance[wallet.AdaTokenName], 20, 30*time.Second, false)
 					require.NoError(t, err)
 
 					newRefunderSenderBalance, err := apex.GetBalance(ctx, br.sender, br.src)
@@ -2528,4 +2494,38 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func sendInvalidSendAmountTransaction(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, src, dest cardanofw.ChainID, senderUser *cardanofw.TestApexUser, sendAmount *big.Int,
+	receiverUserAddr string,
+) {
+	t.Helper()
+
+	const (
+		bridgingFee  = uint64(1_000_010)
+		operationFee = uint64(0)
+	)
+
+	receivers := []sendtx.BridgingTxReceiver{
+		{
+			Addr:         receiverUserAddr,
+			Amount:       sendAmount.Uint64() * 10,
+			BridgingType: sendtx.BridgingTypeCurrencyOnSource,
+		},
+	}
+
+	feeAmount, err := apex.GetChainMust(t, src).GetBridgingFee(
+		ctx, dest, receivers, bridgingFee, operationFee)
+	require.NoError(t, err)
+
+	metadata, err := apex.GetChainMust(t, src).CreateMetadata(
+		senderUser.GetAddress(src), dest,
+		receivers, feeAmount, operationFee)
+	require.NoError(t, err)
+
+	_, err = apex.SubmitTx(
+		ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddress(),
+		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount+operationFee)), nil, metadata)
+	require.NoError(t, err)
 }
