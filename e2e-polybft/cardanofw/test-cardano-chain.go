@@ -343,6 +343,27 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	return nil
 }
 
+func (ec *TestCardanoChain) FundAddress(ctx context.Context, address string, amount uint64) error {
+	privateKey, err := ec.GetAdminPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	paymentKey, _, err := FromCardanoPrivateKeyString(privateKey)
+	if err != nil {
+		return err
+	}
+
+	txHash, err := ec.SendSimpleTx(ctx, paymentKey, nil, []string{address}, []uint64{amount}, nil, 0, false)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s addr funded with %d: tx: %s\n", address, amount, txHash)
+
+	return nil
+}
+
 func (ec *TestCardanoChain) InitContracts(_ context.Context, _ *crypto.ECDSAKey, _ string) error {
 	return nil
 }
@@ -508,7 +529,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		return "", err
 	}
 
-	return ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, ec.multisigAddr, wallet)
+	return ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, ec.multisigAddr, []infrawallet.ITxSigner{wallet})
 }
 
 func (ec *TestCardanoChain) SendTx(
@@ -544,12 +565,225 @@ func (ec *TestCardanoChain) SendTx(
 		return "", err
 	}
 
-	_, err = ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, receiverAddr, wallet)
+	_, err = ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, receiverAddr, []infrawallet.ITxSigner{wallet})
 	if err != nil {
 		return "", fmt.Errorf("failed to send tx %s to receiver %s: %w", txInfo.TxHash, receiverAddr, err)
 	}
 
 	return txInfo.TxHash, nil
+}
+
+func (ec *TestCardanoChain) SendSimpleTx(
+	ctx context.Context,
+	privateKey []byte,
+	stakePrivateKey []byte,
+	receiversAddr []string,
+	amounts []uint64,
+	certificates []*sendtx.CertificatesWithScript,
+	setFee uint64,
+	fullTransfer bool,
+) (string, error) {
+	wallet := infrawallet.NewWallet(privateKey, stakePrivateKey)
+
+	walletAddr, err := GetAddress(ec.config.NetworkType, wallet)
+	if err != nil {
+		return "", err
+	}
+
+	txInfo, err := ec.txSender.CreateTxSimple(
+		ctx,
+		ec.ChainID(),
+		walletAddr.String(),
+		receiversAddr,
+		amounts,
+		certificates,
+		setFee,
+		fullTransfer,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	// Since these kind of transactions: stake key registration and stake delegation
+	// usually don't have the receiver we set the receiverAddr to senderAddr
+	// that way we check if the tx pass - sender get's change utxo
+	receiverAddr := ""
+	if len(receiversAddr) == 0 {
+		receiverAddr = walletAddr.String()
+	} else {
+		receiverAddr = receiversAddr[0]
+	}
+
+	signers := []infrawallet.ITxSigner{wallet}
+	if stakePrivateKey != nil {
+		signers = append(signers, infrawallet.NewWallet(stakePrivateKey, []byte{}))
+	}
+
+	_, err = ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, receiverAddr, signers)
+	if err != nil {
+		return "", fmt.Errorf("failed to send tx %s to receiver %s: %w", txInfo.TxHash, receiverAddr, err)
+	}
+
+	return txInfo.TxHash, nil
+}
+
+func (ec *TestCardanoChain) SendTxWithFeePayer(
+	ctx context.Context,
+	privateKeys [][]byte,
+	stakePrivateKeys [][]byte,
+	amountPerSender []uint64,
+	receiversAddr []string,
+	amountPerReceiver []uint64,
+	certificates []*sendtx.CertificatesWithScript,
+	feePayerAddr string,
+) (string, error) {
+	if len(receiversAddr) != len(amountPerReceiver) {
+		return "", fmt.Errorf("receiversAddr and amountPerReceiver must have the same length")
+	}
+
+	if len(privateKeys) != len(stakePrivateKeys) || len(privateKeys) != len(amountPerSender) {
+		return "", fmt.Errorf("privateKeys, stakePrivateKeys and amountPerSender must have the same length")
+	}
+
+	wallets := make([]*infrawallet.Wallet, len(privateKeys))
+	for i, key := range privateKeys {
+		wallets[i] = infrawallet.NewWallet(key, stakePrivateKeys[i])
+	}
+
+	senderAddresses := make([]string, len(wallets))
+	for i, wallet := range wallets {
+		addr, err := GetAddress(ec.config.NetworkType, wallet)
+		if err != nil {
+			return "", err
+		}
+		senderAddresses[i] = addr.String()
+	}
+
+	txInfo, err := ec.txSender.CreateComplexTx(
+		ctx,
+		ec.ChainID(),
+		senderAddresses,
+		amountPerSender,
+		receiversAddr,
+		amountPerReceiver,
+		certificates,
+		feePayerAddr,
+	)
+	if err != nil {
+		return "", err
+	}
+	fmt.Println(txInfo)
+	// Since these kind of transactions: stake key registration and stake delegation
+	// usually don't have the receiver we set the receiverAddr to senderAddr
+	// that way we check if the tx pass - sender get's change utxo
+	receiverAddr := ""
+	if len(receiversAddr) == 0 {
+		receiverAddr = senderAddresses[0]
+	} else {
+		receiverAddr = receiversAddr[0]
+	}
+
+	signers := make([]infrawallet.ITxSigner, len(wallets))
+	for i, wallet := range wallets {
+		signers[i] = wallet
+	}
+
+	_, err = ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, receiverAddr, signers)
+	if err != nil {
+		return "", fmt.Errorf("failed to send tx %s to receiver %s: %w", txInfo.TxHash, receiverAddr, err)
+	}
+
+	return txInfo.TxHash, nil
+}
+
+func (ec *TestCardanoChain) CreateRegAndDelegTx(
+	ctx context.Context,
+	wallets []*infrawallet.Wallet,
+	certificates []*sendtx.CertificatesWithScript,
+	feePayerWallet *infrawallet.Wallet,
+) (string, error) {
+	feePayerAddress, err := GetAddress(ConfigNetworkType, feePayerWallet)
+	if err != nil {
+		return "", err
+	}
+
+	registrationFee := uint64(0)
+	regDepositAmnt := uint64(2_000_000)
+	for _, certs := range certificates {
+		for _, cert := range certs.Certificates {
+			if cert.GetDescription() == "Stake Address Registration Certificate" {
+				registrationFee += regDepositAmnt
+			}
+		}
+	}
+
+	txInfo, err := ec.txSender.CreateComplexTx(
+		ctx,
+		ec.ChainID(),
+		[]string{feePayerAddress.String()},
+		[]uint64{100_000_000},
+		[]string{feePayerAddress.String()},
+		[]uint64{100_000_000 - registrationFee},
+		certificates,
+		feePayerAddress.String(),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	signers := make([]infrawallet.ITxSigner, len(wallets)+1)
+	for i, wallet := range wallets {
+		//signers[i] = wallet
+		signers[i] = infrawallet.NewWallet(wallet.StakeSigningKey, nil)
+	}
+
+	signers[len(wallets)] = feePayerWallet
+
+	_, err = ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, feePayerAddress.String(), signers)
+	if err != nil {
+		return "", fmt.Errorf("failed to send tx %s to receiver %s: %w", txInfo.TxHash, feePayerAddress.String(), err)
+	}
+
+	return txInfo.TxHash, nil
+}
+
+func (ec *TestCardanoChain) SendWithdrawRewardsTx(
+	ctx context.Context,
+	privateKey []byte,
+	stakePrivateKey []byte,
+	stakeAddr string,
+	rewardAmount uint64,
+	setFee uint64,
+	receiverAddr ...string,
+) (string, error) {
+	fmt.Printf("Sending withdraw rewards tx for stake addr: %s, reward amount: %d, set fee: %d\n", stakeAddr, rewardAmount, setFee)
+	wallet := infrawallet.NewWallet(privateKey, stakePrivateKey)
+	stakeWallet := infrawallet.NewWallet(stakePrivateKey, []byte{})
+
+	walletAddr, err := GetAddress(ec.config.NetworkType, wallet)
+	if err != nil {
+		return "", err
+	}
+
+	receiver := ""
+	if len(receiverAddr) > 0 {
+		receiver = receiverAddr[0]
+	}
+
+	txInfo, err := ec.txSender.CreateWithdrawRewardsTx(
+		ctx,
+		ec.ChainID(),
+		walletAddr.String(),
+		stakeAddr,
+		rewardAmount,
+		receiver,
+		setFee,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, walletAddr.String(), []infrawallet.ITxSigner{wallet, stakeWallet})
 }
 
 func (ec *TestCardanoChain) GetHotWalletAddress() string {
@@ -570,7 +804,7 @@ func (ec *TestCardanoChain) submitTx(
 	rawTx []byte,
 	txHash string,
 	receiverAddr string,
-	signer infrawallet.ITxSigner,
+	signers []infrawallet.ITxSigner,
 ) (string, error) {
 	const (
 		retryCount    = 40
@@ -579,7 +813,7 @@ func (ec *TestCardanoChain) submitTx(
 
 	txProvider := infrawallet.NewTxProviderOgmios(ec.ogmiosURL)
 
-	if err := ec.txSender.SubmitTx(ctx, ec.ChainID(), rawTx, signer); err != nil {
+	if err := ec.txSender.SubmitTx(ctx, ec.ChainID(), rawTx, signers); err != nil {
 		return "", err
 	}
 

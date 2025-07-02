@@ -2,6 +2,8 @@ module github.com/0xPolygon/polygon-edge
 
 go 1.23.6
 
+replace github.com/Ethernal-Tech/cardano-infrastructure => /home/milmaks/Apex/skyline-infra
+
 require (
 	cloud.google.com/go/secretmanager v1.14.5
 	github.com/0xPolygon/go-ibft v0.4.1-0.20240621090555-e81a63ff50d7
@@ -47,6 +49,7 @@ require (
 	github.com/ryanuber/columnize v2.1.2+incompatible
 	github.com/schollz/progressbar/v3 v3.18.0
 	github.com/sethvargo/go-retry v0.3.0
+	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d

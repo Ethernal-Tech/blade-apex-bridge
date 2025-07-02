@@ -515,7 +515,7 @@ func (c *TestCardanoCluster) CopyConfigFilesAndInitDirectoriesStep2(networkType 
 		c.Config.Dir("genesis.json"),
 		c.Config.Dir("genesis/shelley/genesis.json"),
 		func(mp map[string]interface{}) {
-			getShelleyGenesis(networkType)(mp)
+			getShelleyGenesis(networkType, c.Config.InitialSupply)(mp)
 
 			funds := getMapFromInterfaceKey(mp, "initialFunds")
 
