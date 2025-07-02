@@ -463,6 +463,7 @@ func TestFSM_BuildProposal_EpochEndingBlock_FailToGetNextValidatorsHash(t *testi
 	blockBuilderMock.AssertExpectations(t)
 }
 
+//nolint:tparallel
 func TestFSM_NewValidatorSetRequest(t *testing.T) {
 	t.Parallel()
 	// Function to generate `num` NewValidatorSet events, and for each:
@@ -1942,7 +1943,9 @@ func generateValidatorDelta(validatorCount int, allAccounts, previousValidatorSe
 	return
 }
 
+//nolint:tparallel
 func TestFSM_VerifyStateTransaction_ValidatorSetUpdated(t *testing.T) {
+	t.Parallel()
 	state := newTestState(t)
 
 	fsm := &fsm{

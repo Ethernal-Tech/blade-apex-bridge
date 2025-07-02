@@ -550,6 +550,7 @@ func (f *fsm) VerifyStateTransactions(transactions []*types.Transaction) error {
 		updatedValidatorSetExists bool
 		distributeRewardsTxExists bool
 		newValidatorSetTxs        map[types.Hash]struct{}
+		newValidatorSetDelta      *validator.ValidatorSetDelta
 	)
 
 	if f.isFirstBlockOfEpoch && f.epochNumber > 1 {
@@ -667,12 +668,12 @@ func (f *fsm) VerifyStateTransactions(transactions []*types.Transaction) error {
 					"only first block of epoch can contain validator set updated tx")
 			}
 
-			lastDelta, err := f.state.StakeStore.getLastDelta(nil)
+			newValidatorSetDelta, err = f.state.StakeStore.getLastDelta(nil)
 			if err != nil {
 				return fmt.Errorf("couldn't get last delta: %w", err)
 			}
 
-			if lastDelta.IsEmpty() {
+			if newValidatorSetDelta.IsEmpty() {
 				return errValidatorSetUpdatedButNoDelta
 			}
 		default:
@@ -680,8 +681,8 @@ func (f *fsm) VerifyStateTransactions(transactions []*types.Transaction) error {
 		}
 	}
 
-	if f.isFirstBlockOfEpoch && f.epochNumber > 1 &&
-		!f.newValidatorsDelta.IsEmpty() && !updatedValidatorSetExists {
+	if f.isFirstBlockOfEpoch && f.epochNumber > 1 && newValidatorSetDelta != nil &&
+		!newValidatorSetDelta.IsEmpty() && !updatedValidatorSetExists {
 		return fmt.Errorf("there is new validator set, but Bridge contract transaction isn't sent")
 	}
 
