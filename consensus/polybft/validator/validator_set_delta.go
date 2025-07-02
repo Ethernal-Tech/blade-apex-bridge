@@ -144,32 +144,14 @@ func (d *ValidatorSetDelta) String() string {
 	return fmt.Sprintf("Added: \n%v Removed: %v\n Updated: \n%v", d.Added, d.Removed, d.Updated)
 }
 
-type validatorDelta struct {
-	Added   []*ValidatorMetadata `json:"added"`
-	Updated []*ValidatorMetadata `json:"updated"`
-	Removed []byte               `json:"removed"`
-}
-
 func (d *ValidatorSetDelta) Marshal() ([]byte, error) {
-	validator := validatorDelta{
-		Added:   d.Added,
-		Updated: d.Updated,
-		Removed: d.Removed,
-	}
-
-	return json.Marshal(validator)
+	return json.Marshal(d)
 }
 
 func (d *ValidatorSetDelta) Unmarshal(data []byte) error {
-	var validator validatorDelta
-
-	if err := json.Unmarshal(data, &validator); err != nil {
+	if err := json.Unmarshal(data, d); err != nil {
 		return err
 	}
-
-	d.Added = validator.Added
-	d.Removed = validator.Removed
-	d.Updated = validator.Updated
 
 	return nil
 }
