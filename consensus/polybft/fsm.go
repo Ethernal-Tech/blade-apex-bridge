@@ -51,7 +51,7 @@ var (
 	errValidatorDeltaNilInEpochEndingBlock = errors.New("validator set delta is nil in epoch ending block")
 	errNewValidatorSetTxDoesNotExist       = errors.New("missing new validator set tx")
 	errTwoValidatorSetUpdatedTxInSameBlock = errors.New("found 2 validator set updated transactions in same block")
-	errValidatorSetUpdatedButNoDelta       = errors.New("found validator set updated tx even though there weren't any requests for it in the previous epoch.")
+	errValidatorSetUpdatedButNoDelta       = errors.New("found validator set updated tx but no delta")
 )
 
 type fsm struct {

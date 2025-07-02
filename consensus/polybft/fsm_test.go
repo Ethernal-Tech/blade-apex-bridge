@@ -515,10 +515,12 @@ func TestFSM_NewValidatorSetRequest(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
+
 			tx, err := fsm.createNewValidatorSetTx(&event)
 			if err != nil {
 				return nil, err
 			}
+
 			txs = append(txs, tx)
 		}
 
@@ -1941,8 +1943,6 @@ func generateValidatorDelta(validatorCount int, allAccounts, previousValidatorSe
 }
 
 func TestFSM_VerifyStateTransaction_ValidatorSetUpdated(t *testing.T) {
-	t.Parallel()
-
 	state := newTestState(t)
 
 	fsm := &fsm{
@@ -1962,6 +1962,7 @@ func TestFSM_VerifyStateTransaction_ValidatorSetUpdated(t *testing.T) {
 
 		return createStateTransactionWithData(contracts.Bridge, input)
 	}
+
 	t.Run("empty delta", func(t *testing.T) {
 		transactions := make([]*types.Transaction, 1)
 		transactions[0] = createBridgeUpdateValidatorsTx()
@@ -1974,7 +1975,7 @@ func TestFSM_VerifyStateTransaction_ValidatorSetUpdated(t *testing.T) {
 		blsKey, err := bls.GenerateBlsKey()
 		require.NoError(t, err)
 
-		state.StakeStore.insertLastDelta(&validator.ValidatorSetDelta{
+		require.NoError(t, state.StakeStore.insertLastDelta(&validator.ValidatorSetDelta{
 			Added: validator.AccountSet{
 				&validator.ValidatorMetadata{
 					Address:     types.ZeroAddress,
@@ -1983,7 +1984,8 @@ func TestFSM_VerifyStateTransaction_ValidatorSetUpdated(t *testing.T) {
 					IsActive:    true,
 				},
 			},
-		}, nil)
+		}, nil))
+
 		const num = 2
 
 		transactions := make([]*types.Transaction, num)

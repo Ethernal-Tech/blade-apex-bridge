@@ -99,6 +99,7 @@ func (s *StakeStore) getLastDelta(dbTx *bolt.Tx) (*validator.ValidatorSetDelta, 
 		raw := tx.Bucket(lastDeltaBucket).Get(lastDeltaKey)
 		if raw == nil {
 			delta = &validator.ValidatorSetDelta{}
+
 			return nil
 		}
 
