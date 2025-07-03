@@ -216,8 +216,9 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 	a.BridgeCluster = framework.NewTestCluster(t, a.Config.BladeValidatorCount,
 		framework.WithBladeAdmin(bladeAdmin.Address().String()),
 		framework.WithEpochReward(0),
-		framework.WithNativeTokenConfig("Blade:BLADE:18:true"),
+		framework.WithNativeTokenConfig("AP3X:AP3X:18:true"),
 		framework.WithProxyContractsAdmin(bladeProxyAdmin.Address().String()),
+		framework.WithPremine(bladeAdmin.Address(), bladeProxyAdmin.Address()),
 	)
 
 	// create validators
