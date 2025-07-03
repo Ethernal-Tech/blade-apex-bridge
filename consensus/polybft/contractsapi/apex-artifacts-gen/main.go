@@ -61,6 +61,14 @@ package contractsapi
 			"Admin.sol",
 			"ApexBridgeAdmin",
 		},
+		{
+			"SpecialClaims.sol",
+			"SpecialClaims",
+		},
+		{
+			"SpecialSignedBatches.sol",
+			"SpecialSignedBatches",
+		},
 	}
 
 	for _, v := range apexContracts {

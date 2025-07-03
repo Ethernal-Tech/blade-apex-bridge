@@ -654,6 +654,26 @@ import (
 			},
 			[]string{},
 		},
+		{
+			"ApexBridgeContracts.SpecialClaims",
+			gensc.ApexBridgeContracts.SpecialClaims,
+			false,
+			[]string{
+				"initialize",
+				"setDependencies",
+			},
+			[]string{},
+		},
+		{
+			"ApexBridgeContracts.SpecialSignedBatches",
+			gensc.ApexBridgeContracts.SpecialSignedBatches,
+			false,
+			[]string{
+				"initialize",
+				"setDependencies",
+			},
+			[]string{},
+		},
 	}
 
 	generatedData = generateData(contractsMetadata)

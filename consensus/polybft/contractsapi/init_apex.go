@@ -7,13 +7,15 @@ import (
 )
 
 type ApexBridgeContractsInfo struct {
-	Bridge        *contracts.Artifact
-	ClaimsHelper  *contracts.Artifact
-	Claims        *contracts.Artifact
-	SignedBatches *contracts.Artifact
-	Slots         *contracts.Artifact
-	Validators    *contracts.Artifact
-	Admin         *contracts.Artifact
+	Bridge               *contracts.Artifact
+	ClaimsHelper         *contracts.Artifact
+	Claims               *contracts.Artifact
+	SignedBatches        *contracts.Artifact
+	Slots                *contracts.Artifact
+	Validators           *contracts.Artifact
+	Admin                *contracts.Artifact
+	SpecialClaims        *contracts.Artifact
+	SpecialSignedBatches *contracts.Artifact
 }
 
 var ApexBridgeContracts *ApexBridgeContractsInfo
@@ -54,14 +56,26 @@ func initApexContracts() error {
 		return fmt.Errorf("failed to decode apex admin sc: %w", err)
 	}
 
+	specialClaims, err := contracts.DecodeArtifact([]byte(SpecialClaimsArtifact))
+	if err != nil {
+		return fmt.Errorf("failed to decode apex special claims: %w", err)
+	}
+
+	specialSignedBatchesArtifact, err := contracts.DecodeArtifact([]byte(SpecialSignedBatchesArtifact))
+	if err != nil {
+		return fmt.Errorf("failed to decode apex special signed batches %w", err)
+	}
+
 	ApexBridgeContracts = &ApexBridgeContractsInfo{
-		Bridge:        bridge,
-		ClaimsHelper:  claimsHelper,
-		Claims:        claims,
-		SignedBatches: signedBatches,
-		Slots:         slots,
-		Validators:    validators,
-		Admin:         admin,
+		Bridge:               bridge,
+		ClaimsHelper:         claimsHelper,
+		Claims:               claims,
+		SignedBatches:        signedBatches,
+		Slots:                slots,
+		Validators:           validators,
+		Admin:                admin,
+		SpecialClaims:        specialClaims,
+		SpecialSignedBatches: specialSignedBatchesArtifact,
 	}
 
 	return nil
