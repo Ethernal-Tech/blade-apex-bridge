@@ -11,6 +11,7 @@ import (
 type InitializeApexBridgeContractsBridgeFn struct {
 	Owner        types.Address `abi:"_owner"`
 	UpgradeAdmin types.Address `abi:"_upgradeAdmin"`
+	TestMode     bool          `abi:"_testMode"`
 }
 
 func (i *InitializeApexBridgeContractsBridgeFn) Sig() []byte {
@@ -26,11 +27,13 @@ func (i *InitializeApexBridgeContractsBridgeFn) DecodeAbi(buf []byte) error {
 }
 
 type SetDependenciesApexBridgeContractsBridgeFn struct {
-	ClaimsAddress        types.Address `abi:"_claimsAddress"`
-	SpecialClaimsAddress types.Address `abi:"_specialClaimsAddress"`
-	SignedBatchesAddress types.Address `abi:"_signedBatchesAddress"`
-	SlotsAddress         types.Address `abi:"_slotsAddress"`
-	ValidatorsAddress    types.Address `abi:"_validatorsAddress"`
+	ClaimsAddress               types.Address `abi:"_claimsAddress"`
+	SpecialClaimsAddress        types.Address `abi:"_specialClaimsAddress"`
+	SpecialSignedBatchesAddress types.Address `abi:"_specialSignedBatchesAddress"`
+	SignedBatchesAddress        types.Address `abi:"_signedBatchesAddress"`
+	SlotsAddress                types.Address `abi:"_slotsAddress"`
+	ValidatorsAddress           types.Address `abi:"_validatorsAddress"`
+	BladeStakeManagerAddress    types.Address `abi:"_bladeStakeManagerAddress"`
 }
 
 func (s *SetDependenciesApexBridgeContractsBridgeFn) Sig() []byte {
@@ -91,9 +94,23 @@ func (v *ValidatorSet) DecodeAbi(buf []byte) error {
 	return decodeStruct(ValidatorSetABIType, buf, &v)
 }
 
+type NewValidatorSetDelta struct {
+	AddedValidators   []*ValidatorSet `abi:"addedValidators"`
+	RemovedValidators []types.Address `abi:"removedValidators"`
+}
+
+var NewValidatorSetDeltaABIType = abi.MustNewType("tuple(tuple(uint8 chainId,tuple(address addr,tuple(uint256[4] key) data,bytes keySignature,bytes keyFeeSignature)[] validators)[] addedValidators,address[] removedValidators)")
+
+func (n *NewValidatorSetDelta) EncodeAbi() ([]byte, error) {
+	return NewValidatorSetDeltaABIType.Encode(n)
+}
+
+func (n *NewValidatorSetDelta) DecodeAbi(buf []byte) error {
+	return decodeStruct(NewValidatorSetDeltaABIType, buf, &n)
+}
+
 type SubmitNewValidatorSetApexBridgeContractsBridgeFn struct {
-	ValidatorSet      []*ValidatorSet `abi:"_validatorSet"`
-	RemovedValidators []types.Address `abi:"_removedValidators"`
+	NewValidatorSetDelta *NewValidatorSetDelta `abi:"_newValidatorSetDelta"`
 }
 
 func (s *SubmitNewValidatorSetApexBridgeContractsBridgeFn) Sig() []byte {
@@ -141,8 +158,10 @@ func (i *InitializeApexBridgeContractsClaimsHelperFn) DecodeAbi(buf []byte) erro
 }
 
 type SetDependenciesApexBridgeContractsClaimsHelperFn struct {
-	ClaimsAddress        types.Address `abi:"_claimsAddress"`
-	SignedBatchesAddress types.Address `abi:"_signedBatchesAddress"`
+	ClaimsAddress               types.Address `abi:"_claimsAddress"`
+	SpecialClaimsAddres         types.Address `abi:"_specialClaimsAddres"`
+	SignedBatchesAddress        types.Address `abi:"_signedBatchesAddress"`
+	SpecialSignedBatchesAddress types.Address `abi:"_specialSignedBatchesAddress"`
 }
 
 func (s *SetDependenciesApexBridgeContractsClaimsHelperFn) Sig() []byte {
@@ -213,10 +232,11 @@ func (i *InitializeApexBridgeContractsSignedBatchesFn) DecodeAbi(buf []byte) err
 }
 
 type SetDependenciesApexBridgeContractsSignedBatchesFn struct {
-	BridgeAddress        types.Address `abi:"_bridgeAddress"`
-	SpecialClaimsAddress types.Address `abi:"_specialClaimsAddress"`
-	ClaimsHelperAddress  types.Address `abi:"_claimsHelperAddress"`
-	ValidatorsAddress    types.Address `abi:"_validatorsAddress"`
+	BridgeAddress               types.Address `abi:"_bridgeAddress"`
+	SpecialClaimsAddress        types.Address `abi:"_specialClaimsAddress"`
+	SpecialSignedBatchesAddress types.Address `abi:"_specialSignedBatchesAddress"`
+	ClaimsHelperAddress         types.Address `abi:"_claimsHelperAddress"`
+	ValidatorsAddress           types.Address `abi:"_validatorsAddress"`
 }
 
 func (s *SetDependenciesApexBridgeContractsSignedBatchesFn) Sig() []byte {

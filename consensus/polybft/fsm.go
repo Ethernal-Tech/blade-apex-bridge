@@ -50,6 +50,7 @@ var (
 	errValidatorsUpdateInNonEpochEnding    = errors.New("trying to update validator set in a non epoch ending block")
 	errValidatorDeltaNilInEpochEndingBlock = errors.New("validator set delta is nil in epoch ending block")
 	errNewValidatorSetTxDoesNotExist       = errors.New("missing new validator set tx")
+	errValidatorSetUpdatedTxDoesNotExist   = errors.New("missing validator set updated tx")
 	errTwoValidatorSetUpdatedTxInSameBlock = errors.New("found 2 validator set updated transactions in same block")
 	errValidatorSetUpdatedButNoDelta       = errors.New("found validator set updated tx but no delta")
 )
@@ -348,8 +349,10 @@ func (f *fsm) createNewValidatorSetTx(validatorSet *contractsapi.NewValidatorSet
 	}
 
 	input, err := (&contractsapi.SubmitNewValidatorSetApexBridgeContractsBridgeFn{
-		ValidatorSet:      vs,
-		RemovedValidators: validatorSet.RemovedValidators,
+		NewValidatorSetDelta: &contractsapi.NewValidatorSetDelta{
+			AddedValidators:   vs,
+			RemovedValidators: validatorSet.RemovedValidators,
+		},
 	}).EncodeAbi()
 	if err != nil {
 		return nil, err
@@ -579,6 +582,11 @@ func (f *fsm) VerifyStateTransactions(transactions []*types.Transaction) error {
 				newValidatorSetTxs[tx.Hash()] = struct{}{}
 			}
 		}
+
+		newValidatorSetDelta, err = f.state.StakeStore.getLastDelta(nil)
+		if err != nil {
+			return fmt.Errorf("couldn't get last delta: %w", err)
+		}
 	}
 
 	for _, tx := range transactions {
@@ -668,11 +676,6 @@ func (f *fsm) VerifyStateTransactions(transactions []*types.Transaction) error {
 					"only first block of epoch can contain validator set updated tx")
 			}
 
-			newValidatorSetDelta, err = f.state.StakeStore.getLastDelta(nil)
-			if err != nil {
-				return fmt.Errorf("couldn't get last delta: %w", err)
-			}
-
 			if newValidatorSetDelta.IsEmpty() {
 				return errValidatorSetUpdatedButNoDelta
 			}
@@ -681,9 +684,9 @@ func (f *fsm) VerifyStateTransactions(transactions []*types.Transaction) error {
 		}
 	}
 
-	if f.isFirstBlockOfEpoch && f.epochNumber > 1 && newValidatorSetDelta != nil &&
+	if f.isFirstBlockOfEpoch && f.epochNumber > 1 &&
 		!newValidatorSetDelta.IsEmpty() && !updatedValidatorSetExists {
-		return fmt.Errorf("there is new validator set, but Bridge contract transaction isn't sent")
+		return errValidatorSetUpdatedTxDoesNotExist
 	}
 
 	if f.isFirstBlockOfEpoch && f.epochNumber > 1 &&
