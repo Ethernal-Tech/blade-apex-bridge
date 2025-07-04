@@ -328,9 +328,9 @@ func (f *fsm) getValidatorsTransition(delta *validator.ValidatorSetDelta) (valid
 // createNewValidatorSetTx create a StateTransaction, which invokes Bridge (Apex) smart contract
 // and sends all the necessary metadata to it.
 func (f *fsm) createNewValidatorSetTx(validatorSet *contractsapi.NewValidatorSetEvent) (*types.Transaction, error) {
-	vs := make([]*contractsapi.ValidatorSet, 0, len(validatorSet.ValidatorSet))
+	vs := make([]*contractsapi.ValidatorSet, 0, len(validatorSet.ValidatorSetDelta.AddedValidators))
 
-	for _, v := range validatorSet.ValidatorSet {
+	for _, v := range validatorSet.ValidatorSetDelta.AddedValidators {
 		vd := make([]*contractsapi.ValidatorAddressChainData, 0, len(v.ValidatorData))
 
 		for _, v := range v.ValidatorData {
@@ -351,7 +351,7 @@ func (f *fsm) createNewValidatorSetTx(validatorSet *contractsapi.NewValidatorSet
 	input, err := (&contractsapi.SubmitNewValidatorSetApexBridgeContractsBridgeFn{
 		NewValidatorSetDelta: &contractsapi.NewValidatorSetDelta{
 			AddedValidators:   vs,
-			RemovedValidators: validatorSet.RemovedValidators,
+			RemovedValidators: validatorSet.ValidatorSetDelta.RemovedValidators,
 		},
 	}).EncodeAbi()
 	if err != nil {

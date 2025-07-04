@@ -480,34 +480,36 @@ func TestFSM_NewValidatorSetRequest(t *testing.T) {
 		var v int64
 		for range num {
 			event := contractsapi.NewValidatorSetEvent{
-				ValidatorSet: []*contractsapi.BridgeValidatorsData{
-					{
-						ChainID: 1,
-						ValidatorData: []*contractsapi.ValidatorData{
-							{
-								Addr: types.StringToAddress("0x03"),
-								Key: [4]*big.Int{big.NewInt(1),
-									big.NewInt(2),
-									big.NewInt(3),
-									big.NewInt(v)},
-								Signature:    []byte{},
-								FeeSignature: []byte{},
-							},
-							{
-								Addr: types.StringToAddress("0x04"),
-								Key: [4]*big.Int{big.NewInt(1),
-									big.NewInt(2),
-									big.NewInt(3),
-									big.NewInt(v)},
-								Signature:    []byte{},
-								FeeSignature: []byte{},
+				ValidatorSetDelta: &contractsapi.ValidatorDelta{
+					AddedValidators: []*contractsapi.BridgeValidatorsData{
+						{
+							ChainID: 1,
+							ValidatorData: []*contractsapi.ValidatorData{
+								{
+									Addr: types.StringToAddress("0x03"),
+									Key: [4]*big.Int{big.NewInt(1),
+										big.NewInt(2),
+										big.NewInt(3),
+										big.NewInt(v)},
+									Signature:    []byte{},
+									FeeSignature: []byte{},
+								},
+								{
+									Addr: types.StringToAddress("0x04"),
+									Key: [4]*big.Int{big.NewInt(1),
+										big.NewInt(2),
+										big.NewInt(3),
+										big.NewInt(v)},
+									Signature:    []byte{},
+									FeeSignature: []byte{},
+								},
 							},
 						},
 					},
-				},
-				RemovedValidators: []types.Address{
-					types.StringToAddress("0x01"),
-					types.StringToAddress("0x02"),
+					RemovedValidators: []types.Address{
+						types.StringToAddress("0x01"),
+						types.StringToAddress("0x02"),
+					},
 				}}
 
 			v++
@@ -643,24 +645,26 @@ func TestFSM_NewValidatorSetRequest(t *testing.T) {
 		require.NoError(t, err)
 
 		event := contractsapi.NewValidatorSetEvent{
-			ValidatorSet: []*contractsapi.BridgeValidatorsData{
-				{
-					ChainID: 1,
-					ValidatorData: []*contractsapi.ValidatorData{
-						{
-							Addr: types.StringToAddress("0x03"),
-							Key: [4]*big.Int{big.NewInt(1),
-								big.NewInt(2),
-								big.NewInt(3),
-								big.NewInt(7)},
-							Signature:    []byte{},
-							FeeSignature: []byte{},
+			ValidatorSetDelta: &contractsapi.ValidatorDelta{
+				AddedValidators: []*contractsapi.BridgeValidatorsData{
+					{
+						ChainID: 1,
+						ValidatorData: []*contractsapi.ValidatorData{
+							{
+								Addr: types.StringToAddress("0x03"),
+								Key: [4]*big.Int{big.NewInt(1),
+									big.NewInt(2),
+									big.NewInt(3),
+									big.NewInt(7)},
+								Signature:    []byte{},
+								FeeSignature: []byte{},
+							},
 						},
 					},
 				},
-			},
-			RemovedValidators: []types.Address{
-				types.StringToAddress("0x01"),
+				RemovedValidators: []types.Address{
+					types.StringToAddress("0x01"),
+				},
 			}}
 
 		tx, err := fsm.createNewValidatorSetTx(&event)

@@ -128,8 +128,8 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		}
 
 		proposalResult := proposalResult{
-			ValidatorsData:    newValidatorSet.ValidatorsData,
-			RemovedValidators: newValidatorSet.RemovedValidators,
+			AddedValidators:   newValidatorSet.ValidatorSetDelta.AddedValidators,
+			RemovedValidators: newValidatorSet.ValidatorSetDelta.RemovedValidators,
 		}
 
 		outputter.SetCommandResult(proposalResult)
@@ -141,7 +141,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 }
 
 type proposalResult struct {
-	ValidatorsData    []*contractsapi.BridgeValidatorsData `json:"ValidatorsData"`
+	AddedValidators   []*contractsapi.BridgeValidatorsData `json:"ValidatorsData"`
 	RemovedValidators []types.Address                      `json:"RemovedValidators"`
 }
 

@@ -1968,23 +1968,23 @@ func (b *BridgeValidatorsData) DecodeAbi(buf []byte) error {
 	return decodeStruct(BridgeValidatorsDataABIType, buf, &b)
 }
 
-type ValidatorSetDelta struct {
+type ValidatorDelta struct {
 	AddedValidators   []*BridgeValidatorsData `abi:"addedValidators"`
 	RemovedValidators []types.Address         `abi:"removedValidators"`
 }
 
-var ValidatorSetDeltaABIType = abi.MustNewType("tuple(tuple(uint8 chainID,tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)[] validatorData)[] addedValidators,address[] removedValidators)")
+var ValidatorDeltaABIType = abi.MustNewType("tuple(tuple(uint8 chainID,tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)[] validatorData)[] addedValidators,address[] removedValidators)")
 
-func (v *ValidatorSetDelta) EncodeAbi() ([]byte, error) {
-	return ValidatorSetDeltaABIType.Encode(v)
+func (v *ValidatorDelta) EncodeAbi() ([]byte, error) {
+	return ValidatorDeltaABIType.Encode(v)
 }
 
-func (v *ValidatorSetDelta) DecodeAbi(buf []byte) error {
-	return decodeStruct(ValidatorSetDeltaABIType, buf, &v)
+func (v *ValidatorDelta) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorDeltaABIType, buf, &v)
 }
 
 type NewValidatorSetNetworkParamsFn struct {
-	ValidatorSetDelta *ValidatorSetDelta `abi:"validatorSetDelta"`
+	ValidatorSetDelta *ValidatorDelta `abi:"validatorSetDelta"`
 }
 
 func (n *NewValidatorSetNetworkParamsFn) Sig() []byte {
@@ -2311,23 +2311,9 @@ func (n *NewBaseFeeChangeDenomEvent) Decode(input []byte) error {
 	return NetworkParams.Abi.Events["NewBaseFeeChangeDenom"].Inputs.DecodeStruct(input, &n)
 }
 
-type ValidatorSetDelta struct {
-	AddedValidators   []*BridgeValidatorsData `abi:"addedValidators"`
-	RemovedValidators []types.Address         `abi:"removedValidators"`
-}
-
-var ValidatorSetDeltaABIType = abi.MustNewType("tuple(tuple(uint8 chainID,tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)[] validatorData)[] addedValidators,address[] removedValidators)")
-
-func (v *ValidatorSetDelta) EncodeAbi() ([]byte, error) {
-	return ValidatorSetDeltaABIType.Encode(v)
-}
-
-func (v *ValidatorSetDelta) DecodeAbi(buf []byte) error {
-	return decodeStruct(ValidatorSetDeltaABIType, buf, &v)
-}
 
 type NewValidatorSetEvent struct {
-	ValidatorSetDelta *ValidatorSetDelta `abi:"validatorSetDelta"`
+	ValidatorSetDelta *ValidatorDelta `abi:"validatorSetDelta"`
 }
 
 func (*NewValidatorSetEvent) Sig() ethgo.Hash {
