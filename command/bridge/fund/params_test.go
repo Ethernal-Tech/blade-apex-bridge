@@ -41,7 +41,7 @@ func Test_validateFlags(t *testing.T) {
 					amounts:      []string{"10", "20"},
 				}
 			},
-			err: "address \x10 has invalid length",
+			err: "address 10 has invalid length",
 		},
 		{
 			// valid scenario
