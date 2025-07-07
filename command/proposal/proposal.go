@@ -6,6 +6,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/command"
 	"github.com/0xPolygon/polygon-edge/command/helper"
+	createvscproposal "github.com/0xPolygon/polygon-edge/command/proposal/create-vsc-proposal"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/helper/common"
@@ -20,17 +21,18 @@ var (
 )
 
 func GetCommand() *cobra.Command {
-	proposalCmd := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "proposal",
-		Short: "Commands for getting proposals",
-		Run:   runCommand,
+		Short: "Top level command to work with governance proposals.",
 	}
 
-	helper.RegisterJSONOutputFlag(proposalCmd)
+	cmd.AddCommand(createvscproposal.GetCommand())
 
-	setFlags(proposalCmd)
+	helper.RegisterJSONOutputFlag(cmd)
 
-	return proposalCmd
+	setFlags(cmd)
+
+	return cmd
 }
 
 func setFlags(cmd *cobra.Command) {
