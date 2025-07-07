@@ -26,6 +26,7 @@ func LoadProposal[T any](path string) (*T, error) {
 
 	if len(data) == 0 {
 		var empty T
+
 		return &empty, nil
 	}
 
@@ -40,7 +41,7 @@ func LoadProposal[T any](path string) (*T, error) {
 func StoreProposal(proposal interface{ Name() string }, path string) error {
 	metadata := metadata{
 		Type:      proposal.Name(),
-		Timestamp: time.Now().Format(time.RFC3339),
+		Timestamp: time.Now().UTC().String(),
 	}
 
 	data, err := json.MarshalIndent(envelope[any]{
@@ -51,7 +52,7 @@ func StoreProposal(proposal interface{ Name() string }, path string) error {
 		return fmt.Errorf("failed to marshal proposal: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 

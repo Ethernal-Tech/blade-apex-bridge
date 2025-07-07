@@ -54,9 +54,11 @@ func runCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	alreadyRemoved := false
+
 	for _, removed := range proposal.Removed {
 		if removed == address.String() {
 			alreadyRemoved = true
+
 			break
 		}
 	}

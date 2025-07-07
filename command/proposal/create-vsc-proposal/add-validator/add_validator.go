@@ -168,15 +168,18 @@ func runCommand(cmd *cobra.Command, args []string) error {
 	for i, removed := range proposal.Removed {
 		if removed == validator.Address {
 			proposal.Removed = append(proposal.Removed[:i], proposal.Removed[i+1:]...)
+
 			break
 		}
 	}
 
 	replacement := false
+
 	for i, existing := range proposal.Added {
 		if existing.Address == validator.Address {
 			proposal.Added[i] = validator
 			replacement = true
+
 			break
 		}
 	}
