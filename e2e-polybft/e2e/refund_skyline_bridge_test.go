@@ -104,13 +104,13 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 
 	t.Run("2.1 Prime -> Cardano - Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, user, 0, txType, true)
+			executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, 0, txType, true)
 		}
 	})
 
 	t.Run("2.2 Cardano -> Prime - Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, cardanoTestConfig, user, 0, txType, true)
+			executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, cardanoTestConfig, 0, txType, true)
 		}
 	})
 
@@ -128,13 +128,13 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 
 	t.Run("4.1 Prime -> Cardano - Submitted invalid metadata - sliced off", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMetadataSlicedOff(t, ctx, apex, primeTestConfig, 0, txType, true)
+			executeInvalidMetadataSlicedOff(t, ctx, apex, primeTestConfig, txType)
 		}
 	})
 
 	t.Run("4.2 Cardano -> Prime - Submitted invalid metadata - sliced off", func(t *testing.T) {
 		for _, txType := range transactionTypes {
-			executeInvalidMetadataSlicedOff(t, ctx, apex, cardanoTestConfig, 0, txType, true)
+			executeInvalidMetadataSlicedOff(t, ctx, apex, cardanoTestConfig, txType)
 		}
 	})
 
@@ -187,11 +187,11 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("9.1 Prime -> Cardano - Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
-		executeInvalidFeeReceiverAddr(t, ctx, apex, primeTestConfig, 0, sendtx.BridgingTypeNativeTokenOnSource, true)
+		executeInvalidFeeReceiverAddr(t, ctx, apex, primeTestConfig, 0, sendtx.BridgingTypeNativeTokenOnSource)
 	})
 
 	t.Run("9.2 Cardano -> Prime - Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
-		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoTestConfig, 0, sendtx.BridgingTypeNativeTokenOnSource, true)
+		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoTestConfig, 0, sendtx.BridgingTypeNativeTokenOnSource)
 	})
 
 	t.Run("10.1 Prime -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {
@@ -224,14 +224,14 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 		user, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
-		tokensFunded, err := cardanofw.FundUserWithToken(
+		_, err = cardanofw.FundUserWithToken(
 			ctx, apex, cardanofw.ChainIDPrime,
 			apex.PrimeInfo.GenesisWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 			uint64(10_000_000), uint64(1_123_000))
 		require.NoError(t, err)
 
-		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, primeTestConfig, *tokensFunded, 0, true)
+		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, primeTestConfig, 0, true)
 	})
 }
 

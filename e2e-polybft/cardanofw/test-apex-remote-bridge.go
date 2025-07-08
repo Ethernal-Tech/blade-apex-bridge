@@ -91,7 +91,7 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 }
 
 func GetTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
-	if os.Getenv("TESTNET_ENV") == TestnetEnvsPartner {
+	if os.Getenv("TESTNET_ENV") == TestnetEnvsPartner || true {
 		return GetPartnerTestnetSkylineBridgeConfig()
 	}
 

@@ -58,7 +58,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("2. Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, user, 0, bridgingType, true)
+		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, 0, bridgingType, true)
 	})
 
 	t.Run("3. Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {

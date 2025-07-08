@@ -39,12 +39,12 @@ func executeInvalidBridgingFee(
 	require.NoError(t, err)
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
-		bridgingType, refundEnabled)
+		bridgingType, refundEnabled, timeoutSec)
 }
 
 func executeInvalidFeeReceiverAddr(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	config *testConfig, timeoutSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	config *testConfig, timeoutSec uint, bridgingType sendtx.BridgingType,
 ) {
 	t.Helper()
 
@@ -69,11 +69,11 @@ func executeInvalidFeeReceiverAddr(
 
 	require.NoError(t, err)
 
-	cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, 0)
+	cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, timeoutSec)
 }
 
 func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	config *testConfig, timeoutSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	config *testConfig, bridgingType sendtx.BridgingType,
 ) {
 	t.Helper()
 
@@ -118,8 +118,7 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 
 func executeInvalidMismatchSendNativeTokenAmount(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
-	config *testConfig, nativeTokenAmount wallet.TokenAmount,
-	timeoutSec uint, refundEnabled bool,
+	config *testConfig, timeoutSec uint, refundEnabled bool,
 ) {
 	t.Helper()
 
@@ -151,7 +150,7 @@ func executeInvalidMismatchSendNativeTokenAmount(
 	require.NoError(t, err)
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
-		bridgingType, refundEnabled)
+		bridgingType, refundEnabled, timeoutSec)
 }
 
 func executeInvalidSendUnknownToken(
@@ -198,7 +197,7 @@ func executeInvalidSendUnknownToken(
 	require.NoError(t, err)
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, lovelaceAmount,
-		bridgingType, refundEnabled)
+		bridgingType, refundEnabled, timeoutSec)
 }
 
 func createMetadata(

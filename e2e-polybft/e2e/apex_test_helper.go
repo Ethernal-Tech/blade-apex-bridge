@@ -60,7 +60,7 @@ func newTestConfig(
 func WaitForTestResult(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
 	txHash string, beforeSendingAmountDfm map[string]*big.Int, sentAmount uint64, bridgingType sendtx.BridgingType,
-	refundEnabled bool,
+	refundEnabled bool, timeoutSec uint,
 ) {
 	t.Helper()
 
@@ -79,7 +79,7 @@ func WaitForTestResult(
 			beforeSendingAmountDfm[tokeName], 20, time.Second*6, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
 		require.NoError(t, err)
 	} else {
-		cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, 0)
+		cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, timeoutSec)
 	}
 }
 
@@ -106,11 +106,11 @@ func executeInvalidMismatchSendLovelaceAmount(
 	require.NoError(t, err)
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount, bridgingType,
-		refundEnabled)
+		refundEnabled, timeoutSec)
 }
 
 func executeInvalidMismatchSendAmountMultipleInstances(
-	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig,
 	timeoutSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
 ) {
 	t.Helper()
@@ -134,7 +134,7 @@ func executeInvalidMismatchSendAmountMultipleInstances(
 		require.NoError(t, err)
 
 		WaitForTestResult(t, ctx, apex, config, apex.Users[i], txHash, beforeSendingAmountDfm, waitForAmount,
-			bridgingType, refundEnabled)
+			bridgingType, refundEnabled, timeoutSec)
 	}
 }
 
@@ -170,7 +170,7 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 			require.NoError(t, err)
 
 			WaitForTestResult(t, ctx, apex, config, apex.Users[idx], txHashe, beforeSendingAmountDfm, waitForAmount,
-				bridgingType, refundEnabled)
+				bridgingType, refundEnabled, timeoutSec)
 		}(i)
 	}
 
@@ -201,7 +201,7 @@ func executeInvalidMetadataType(
 
 	if refundEnabled {
 		WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
-			bridgingType, refundEnabled)
+			bridgingType, refundEnabled, timeoutSec)
 	} else {
 		_, err = cardanofw.WaitForRequestStates(ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, nil, timeoutSec)
 		require.Error(t, err)
@@ -245,7 +245,7 @@ func executeInvalidDestination(
 	require.NoError(t, err)
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
-		bridgingType, refundEnabled)
+		bridgingType, refundEnabled, timeoutSec)
 }
 
 func executeInvalidMetadataInvalidSender(
@@ -312,7 +312,7 @@ func executeInvalidEmptyReceivers(
 	require.NoError(t, err)
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
-		bridgingType, refundEnabled)
+		bridgingType, refundEnabled, timeoutSec)
 }
 
 func getDefaultSendAmounts(t *testing.T, config *testConfig, minUtxoAmount uint64, bridgingType sendtx.BridgingType,
