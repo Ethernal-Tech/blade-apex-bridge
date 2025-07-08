@@ -704,6 +704,36 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	t.Run("3. Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
 		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, 0, bridgingType, false)
 	})
+
+	t.Run("4. Submitted invalid metadata - sliced off", func(t *testing.T) {
+		sendAmount := uint64(1_000_000)
+
+		receivers := []sendtx.BridgingTxReceiver{
+			{
+				Addr:         user.GetAddress(cardanofw.ChainIDCardano),
+				Amount:       sendAmount,
+				BridgingType: sendtx.BridgingTypeCurrencyOnSource,
+			},
+		}
+
+		feeAmount, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingFee(
+			ctx, cardanofw.ChainIDCardano, receivers, bridgingFee, operationFee)
+		require.NoError(t, err)
+
+		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
+			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDCardano,
+			receivers, feeAmount, operationFee)
+		require.NoError(t, err)
+
+		// Send only half bytes of metadata making it invalid
+		metadata = metadata[0 : len(metadata)/2]
+
+		_, err = apex.SubmitTx(
+			ctx, cardanofw.ChainIDPrime, user,
+			apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
+		require.Error(t, err)
+	})
+	
 	t.Run("5.Submitted invalid metadata - currency under min - token on source", func(t *testing.T) {
 		sendAmount := uint64(1_000_000)
 
