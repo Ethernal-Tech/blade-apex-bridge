@@ -1,0 +1,252 @@
+package submit
+
+import (
+	"encoding/json"
+	"fmt"
+	"math/big"
+	"strconv"
+
+	"github.com/0xPolygon/polygon-edge/command"
+	"github.com/0xPolygon/polygon-edge/command/helper"
+	"github.com/0xPolygon/polygon-edge/command/proposal/common"
+	"github.com/0xPolygon/polygon-edge/command/proposal/schema"
+	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
+	"github.com/0xPolygon/polygon-edge/contracts"
+	"github.com/0xPolygon/polygon-edge/txrelayer"
+	"github.com/0xPolygon/polygon-edge/types"
+	"github.com/spf13/cobra"
+
+	bridgeHelper "github.com/0xPolygon/polygon-edge/command/bridge/helper"
+)
+
+var (
+	params submitParams
+)
+
+func GetCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "submit",
+		Short: "Submit proposal",
+	}
+
+	helper.RegisterJSONOutputFlag(cmd)
+
+	setFlags(cmd)
+
+	return cmd
+}
+
+func setFlags(cmd *cobra.Command) {
+	cmd.MarkFlagRequired(filePathFlag)
+	cmd.Flags().StringVar(
+		&params.filePath,
+		filePathFlag,
+		"",
+		"File path for data",
+	)
+
+	cmd.MarkFlagRequired(privateKeyFlag)
+	cmd.Flags().StringVar(
+		&params.privateKey,
+		privateKeyFlag,
+		"",
+		"Private key",
+	)
+
+	cmd.MarkFlagRequired(jsonRPCAddressFlag)
+	cmd.Flags().StringVar(
+		&params.jsonRPCAddress,
+		jsonRPCAddressFlag,
+		"",
+		"JSON-RPC Address",
+	)
+
+	cmd.MarkFlagRequired(descriptionFlag)
+	cmd.Flags().StringVar(
+		&params.description,
+		descriptionFlag,
+		"",
+		"Proposal description",
+	)
+}
+
+func runCommand(cmd *cobra.Command, _ []string) {
+	outputter := command.InitializeOutputter(cmd)
+	defer outputter.WriteOutput()
+
+	relayer, err := txrelayer.NewTxRelayer(txrelayer.WithIPAddress(
+		params.jsonRPCAddress,
+	))
+	if err != nil {
+		outputter.SetError(err)
+
+		return
+	}
+
+	propType, err := common.GetProposalType(params.filePath)
+	if err != nil {
+		outputter.SetError(err)
+
+		return
+	}
+
+	proposer, err := bridgeHelper.DecodePrivateKey(params.privateKey)
+	if err != nil {
+		outputter.SetError(err)
+
+		return
+	}
+
+	var (
+		validatorSetChange = &schema.ValidatorSetChangeProposal{}
+	)
+	switch propType {
+	case validatorSetChange.Name():
+		validatorSetChange, err = common.LoadProposal[schema.ValidatorSetChangeProposal](params.filePath)
+		if err != nil {
+			outputter.SetError(err)
+
+			return
+		}
+	default:
+		outputter.SetError(fmt.Errorf("Type of data unknown"))
+
+		return
+	}
+
+	var methodProposing = &contractsapi.NewValidatorSetDelta{}
+
+	// convert added validators
+	for _, v := range validatorSetChange.Added {
+		address := types.StringToAddress(v.Address)
+
+		for mapKey, key := range v.Chains {
+			converted, err := strconv.Atoi(mapKey)
+			if err != nil {
+				outputter.SetError(err)
+
+				return
+			}
+
+			var (
+				blsKey [4]*big.Int
+				ok     bool
+			)
+
+			for i := range key.Key {
+				blsKey[i], ok = new(big.Int).SetString(key.Key[i], 10)
+				if !ok {
+					outputter.SetError(fmt.Errorf("Cannot convert string to big int in public key"))
+				}
+			}
+
+			validator := contractsapi.ValidatorSet{
+				ChainID: uint8(converted),
+				Validators: []*contractsapi.ValidatorAddressChainData{
+					{
+						Addr: address,
+						Data: &contractsapi.ValidatorChainData{
+							Key: blsKey,
+						},
+						KeySignature:    []byte(""),
+						KeyFeeSignature: []byte(""),
+					},
+				},
+			}
+
+			methodProposing.AddedValidators = append(methodProposing.AddedValidators, &validator)
+		}
+	}
+
+	// convert removed
+	for _, v := range validatorSetChange.Removed {
+		address := types.StringToAddress(v)
+
+		methodProposing.RemovedValidators = append(methodProposing.RemovedValidators, address)
+	}
+
+	// propose
+	input, err := methodProposing.EncodeAbi()
+	if err != nil {
+		outputter.SetError(err)
+
+		return
+	}
+
+	proposeFn := &contractsapi.ProposeChildGovernorFn{
+		Targets:     []types.Address{contracts.NetworkParamsContract},
+		Calldatas:   [][]byte{input},
+		Description: params.description,
+		Values:      []*big.Int{big.NewInt(0)},
+	}
+
+	proposalInput, err := proposeFn.EncodeAbi()
+	if err != nil {
+		outputter.SetError(err)
+
+		return
+	}
+
+	txn := types.NewTx(types.NewLegacyTx(
+		types.WithTo(&contracts.ChildGovernorContract),
+		types.WithInput(proposalInput),
+	))
+
+	receipt, err := relayer.SendTransaction(txn, proposer)
+	if err != nil {
+		outputter.SetError(err)
+
+		return
+	}
+
+	if receipt.Status != uint64(types.ReceiptSuccess) {
+		outputter.SetError(fmt.Errorf("receipt status not success %+v", receipt))
+
+		return
+	}
+
+	var proposalCreatedEvent contractsapi.ProposalCreatedEvent
+	for _, log := range receipt.Logs {
+		doesMatch, err := proposalCreatedEvent.ParseLog(log)
+		if err != nil {
+			outputter.SetError(err)
+
+			return
+		}
+
+		if doesMatch {
+			break
+		}
+	}
+
+	p := common.ProposalData{
+		ProposalID:  proposalCreatedEvent.ProposalID.String(),
+		Input:       input,
+		Description: params.description,
+	}
+
+	if err := p.Save(); err != nil {
+		outputter.SetError(err)
+
+		return
+	}
+
+	result := &SubmitResult{
+		ProposalID: proposalCreatedEvent.ProposalID.String(),
+	}
+
+	outputter.SetCommandResult(result)
+}
+
+type SubmitResult struct {
+	ProposalID string `json:"proposal_id"`
+}
+
+func (pr SubmitResult) GetOutput() string {
+	enc, err := json.Marshal(&pr)
+	if err != nil {
+		return fmt.Sprintf("could not marshal proposal result: %v", err)
+	}
+
+	return string(enc)
+}
