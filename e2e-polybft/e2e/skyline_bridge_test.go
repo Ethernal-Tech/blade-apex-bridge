@@ -704,32 +704,75 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	t.Run("3. Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
 		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, 0, bridgingType, false)
 	})
+	t.Run("5.Submitted invalid metadata - currency under min - token on source", func(t *testing.T) {
+		sendAmount := uint64(1_000_000)
 
-	t.Run("5. Submitted invalid metadata - wrong type", func(t *testing.T) {
+		user, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
+		require.NoError(t, err)
+
+		tokensFunded, err := cardanofw.FundUserWithToken(
+			ctx, apex, cardanofw.ChainIDPrime,
+			apex.PrimeInfo.GenesisWallet, user,
+			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+			uint64(10_000_000), uint64(10_000_000))
+		require.NoError(t, err)
+
+		receivers := []sendtx.BridgingTxReceiver{
+			{
+				Addr:         user.GetAddress(cardanofw.ChainIDCardano),
+				Amount:       sendAmount,
+				BridgingType: sendtx.BridgingTypeNativeTokenOnSource,
+			},
+		}
+
+		feeAmount, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingFee(
+			ctx, cardanofw.ChainIDCardano, receivers, bridgingFee, operationFee)
+		require.NoError(t, err)
+
+		feeAmount -= 1_000_000
+
+		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
+			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDCardano,
+			receivers, feeAmount, operationFee)
+		require.NoError(t, err)
+
+		txHash, err := apex.SubmitTx(
+			ctx, cardanofw.ChainIDPrime, user,
+			apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+operationFee),
+			[]wallet.TokenAmount{
+				{Token: tokensFunded.Token, Amount: sendAmount},
+			},
+			metadata)
+		require.NoError(t, err)
+
+		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, 0)
+	})
+
+	t.Run("6. Submitted invalid metadata - wrong type", func(t *testing.T) {
 		executeInvalidMetadataType(t, ctx, apex, primeTestConfig, user, 60, bridgingType, false)
 	})
 
-	t.Run("6. Submitted invalid metadata - invalid destination", func(t *testing.T) {
+	t.Run("7. Submitted invalid metadata - invalid destination", func(t *testing.T) {
 		executeInvalidDestination(t, ctx, apex, primeTestConfig, user, 0, bridgingType, false)
 	})
 
-	t.Run("7. Submitted invalid metadata - invalid sender", func(t *testing.T) {
+	t.Run("8. Submitted invalid metadata - invalid sender", func(t *testing.T) {
 		executeInvalidMetadataInvalidSender(t, ctx, apex, primeTestConfig, user, 0, bridgingType)
 	})
 
-	t.Run("8. Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
+	t.Run("9. Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
 		executeInvalidBridgingFee(t, ctx, apex, primeTestConfig, 0, sendtx.BridgingTypeCurrencyOnSource, false)
 	})
 
-	t.Run("9. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
+	t.Run("10. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
 		executeInvalidFeeReceiverAddr(t, ctx, apex, primeTestConfig, 0, sendtx.BridgingTypeCurrencyOnSource, false)
 	})
 
-	t.Run("10. Submitted invalid metadata - empty receivers", func(t *testing.T) {
+	t.Run("11. Submitted invalid metadata - empty receivers", func(t *testing.T) {
 		executeInvalidEmptyReceivers(t, ctx, apex, primeTestConfig, user, 0, sendtx.BridgingTypeCurrencyOnSource, false)
 	})
 
-	t.Run("11. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
+	t.Run("12. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
 		user := apex.Users[userCnt-1]
 		minterWallet, _ := user.GetCardanoWallet(cardanofw.ChainIDPrime)
 
@@ -743,7 +786,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		executeInvalidSendUnknownToken(t, ctx, apex, user, primeTestConfig, *tokensFunded, 0, false)
 	})
 
-	t.Run("12. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
+	t.Run("13. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
 		user, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
