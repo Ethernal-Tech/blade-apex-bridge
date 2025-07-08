@@ -487,3 +487,36 @@ func (t *TestServer) ExecuteProposal(proposalID, privateKey string) error {
 
 	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("execute"))
 }
+
+func (t *TestServer) AddValidatorToVSCProposal(
+	path string,
+	address types.Address,
+	keysForCardanoLikeChains []string,
+	keysForEvmLikeChains []string) error {
+	args := []string{
+		"proposal", "create-vsc-proposal", "add-validator",
+		"--address", address.String(),
+		"--file", path,
+	}
+	for _, v := range keysForCardanoLikeChains {
+		args = append(args, "--cardano-like-chain", v)
+	}
+
+	for _, v := range keysForEvmLikeChains {
+		args = append(args, "--evm-like-chain", v)
+	}
+
+	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("execute"))
+}
+
+func (t *TestServer) RemoveValidatorToVSCProposal(
+	path string,
+	address types.Address) error {
+	args := []string{
+		"proposal", "create-vsc-proposal", "remove-validator",
+		"--address", address.String(),
+		"--file", path,
+	}
+
+	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("execute"))
+}
