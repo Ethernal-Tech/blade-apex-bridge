@@ -36,7 +36,7 @@ func GetCommand() *cobra.Command {
 	return cmd
 }
 
-func runCommand(cmd *cobra.Command, args []string) error {
+func runCommand(cmd *cobra.Command, _ []string) error {
 	address, err := types.IsValidAddress(addressParam, false)
 	if err != nil {
 		return fmt.Errorf("not a valid address, %w", err)

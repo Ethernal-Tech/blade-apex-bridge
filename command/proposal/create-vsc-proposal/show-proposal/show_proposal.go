@@ -24,7 +24,7 @@ func GetCommand() *cobra.Command {
 	return cmd
 }
 
-func runCommand(cmd *cobra.Command, args []string) error {
+func runCommand(cmd *cobra.Command, _ []string) error {
 	proposal, err := common.LoadProposal[schema.ValidatorSetChangeProposal](fileParam)
 	if err != nil {
 		return err
