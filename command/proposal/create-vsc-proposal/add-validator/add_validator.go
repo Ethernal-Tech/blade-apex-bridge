@@ -139,6 +139,21 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 		Chains:  make(map[string]schema.Key),
 	}
 
+	validChains := map[string]struct{}{}
+
+	if len(proposal.Added) == 0 {
+		validChains = map[string]struct{}{
+			"prime":   {},
+			"vector":  {},
+			"cardano": {},
+			"nexus":   {},
+		}
+	} else {
+		for chain := range proposal.Added[0].Chains {
+			validChains[chain] = struct{}{}
+		}
+	}
+
 	for _, chain := range cardanoLikeChainsParam {
 		name, keys, err := parseCardanoLikeChainEntry(chain)
 		if err != nil {
@@ -147,6 +162,10 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 
 		if _, ok := validator.Chains[name]; ok {
 			return fmt.Errorf("duplicate chain entry: %s", name)
+		}
+
+		if _, ok := validChains[name]; !ok {
+			return fmt.Errorf("chain entry %s not found for other validators", name)
 		}
 
 		validator.Chains[name] = schema.Key{Key: keys}
@@ -160,6 +179,10 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 
 		if _, ok := validator.Chains[name]; ok {
 			return fmt.Errorf("duplicate chain entry: %s", name)
+		}
+
+		if _, ok := validChains[name]; !ok {
+			return fmt.Errorf("chain entry %s not found for other validators", name)
 		}
 
 		validator.Chains[name] = schema.Key{Key: keys}
