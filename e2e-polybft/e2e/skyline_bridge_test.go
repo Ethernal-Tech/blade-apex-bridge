@@ -878,10 +878,8 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			userSpending := new(big.Int).Add(apexSendAmount, feeAmount)
-
 			// minExpected = initial - (sendAmount + feeAmount)
-			minExpectedAmount := new(big.Int).Sub(initialBalances[br.src][wallet.AdaTokenName], userSpending)
+			minExpectedAmount := new(big.Int).Sub(initialBalances[br.src][wallet.AdaTokenName], new(big.Int).Add(apexSendAmount, feeAmount))
 
 			err := apex.WaitForAmountInRange(ctx, br.sender, br.src, br.dest, minExpectedAmount, initialBalances[br.src][wallet.AdaTokenName], 30, 30*time.Second, false)
 			require.NoError(t, err)
@@ -938,6 +936,8 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[0]},
 		}
 		txHashes = make([]string, len(bridgingRequests))
+
+		initialBalances = map[string]map[string]*big.Int{}
 	)
 
 	_, err := cardanofw.FundUserWithToken(
@@ -962,6 +962,9 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		go func(i int, src string, dest string, sender *cardanofw.TestApexUser) {
 			defer wg.Done()
 
+			initialBalances[src], err = apex.GetBalance(ctx, sender, src)
+			require.NoError(t, err)
+
 			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNativeTokenOnSource,
 				user)
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
@@ -970,13 +973,29 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 
 	wg.Wait()
 
-	for idx, br := range bridgingRequests {
+	getTokenName := func(srcChain string) string {
+		for tokenName := range initialBalances[srcChain] {
+			if tokenName != wallet.AdaTokenName {
+				return tokenName
+			}
+		}
+
+		return ""
+	}
+
+	for _, br := range bridgingRequests {
 		wg.Add(1)
 
 		go func() {
 			defer wg.Done()
 
-			cardanofw.WaitForInvalidState(t, ctx, apex, br.src, txHashes[idx], apiKey, 0)
+			tokenName := getTokenName(br.src)
+			err := apex.WaitForExactAmount(ctx, br.sender, br.src, br.dest, initialBalances[br.src][tokenName], 30, 30*time.Second, true)
+			require.NoError(t, err)
+
+			newBalance, err := apex.GetBalance(ctx, br.sender, br.src)
+			require.NoError(t, err)
+			require.True(t, newBalance[tokenName].Cmp(initialBalances[br.src][tokenName]) == 0)
 		}()
 	}
 
