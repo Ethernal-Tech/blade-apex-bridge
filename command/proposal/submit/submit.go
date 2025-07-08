@@ -37,7 +37,6 @@ func GetCommand() *cobra.Command {
 }
 
 func setFlags(cmd *cobra.Command) {
-	cmd.MarkFlagRequired(filePathFlag)
 	cmd.Flags().StringVar(
 		&params.filePath,
 		filePathFlag,
@@ -45,7 +44,8 @@ func setFlags(cmd *cobra.Command) {
 		"File path for data",
 	)
 
-	cmd.MarkFlagRequired(privateKeyFlag)
+	_ = cmd.MarkFlagRequired(filePathFlag)
+
 	cmd.Flags().StringVar(
 		&params.privateKey,
 		privateKeyFlag,
@@ -53,7 +53,8 @@ func setFlags(cmd *cobra.Command) {
 		"Private key",
 	)
 
-	cmd.MarkFlagRequired(jsonRPCAddressFlag)
+	_ = cmd.MarkFlagRequired(privateKeyFlag)
+
 	cmd.Flags().StringVar(
 		&params.jsonRPCAddress,
 		jsonRPCAddressFlag,
@@ -61,13 +62,16 @@ func setFlags(cmd *cobra.Command) {
 		"JSON-RPC Address",
 	)
 
-	cmd.MarkFlagRequired(descriptionFlag)
+	_ = cmd.MarkFlagRequired(jsonRPCAddressFlag)
+
 	cmd.Flags().StringVar(
 		&params.description,
 		descriptionFlag,
 		"",
 		"Proposal description",
 	)
+
+	_ = cmd.MarkFlagRequired(descriptionFlag)
 }
 
 func runCommand(cmd *cobra.Command, _ []string) {
@@ -100,6 +104,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	var (
 		validatorSetChange = &schema.ValidatorSetChangeProposal{}
 	)
+
 	switch propType {
 	case validatorSetChange.Name():
 		validatorSetChange, err = common.LoadProposal[schema.ValidatorSetChangeProposal](params.filePath)
@@ -109,7 +114,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 			return
 		}
 	default:
-		outputter.SetError(fmt.Errorf("Type of data unknown"))
+		outputter.SetError(fmt.Errorf("type of data unknown"))
 
 		return
 	}
@@ -136,7 +141,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 			for i := range key.Key {
 				blsKey[i], ok = new(big.Int).SetString(key.Key[i], 10)
 				if !ok {
-					outputter.SetError(fmt.Errorf("Cannot convert string to big int in public key"))
+					outputter.SetError(fmt.Errorf("cannot convert string to big int in public key"))
 				}
 			}
 

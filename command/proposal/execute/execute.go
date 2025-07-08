@@ -33,7 +33,6 @@ func GetCommand() *cobra.Command {
 }
 
 func setFlags(cmd *cobra.Command) {
-	cmd.MarkFlagRequired(privateKeyFlag)
 	cmd.Flags().StringVar(
 		&params.privateKey,
 		privateKeyFlag,
@@ -41,7 +40,8 @@ func setFlags(cmd *cobra.Command) {
 		"Private key",
 	)
 
-	cmd.MarkFlagRequired(jsonRPCAddressFlag)
+	_ = cmd.MarkFlagRequired(privateKeyFlag)
+
 	cmd.Flags().StringVar(
 		&params.jsonRPCAddress,
 		jsonRPCAddressFlag,
@@ -49,13 +49,16 @@ func setFlags(cmd *cobra.Command) {
 		"JSON-RPC Address",
 	)
 
-	cmd.MarkFlagRequired(proposalIDFlag)
+	_ = cmd.MarkFlagRequired(jsonRPCAddressFlag)
+
 	cmd.Flags().StringVar(
 		&params.proposalID,
 		proposalIDFlag,
 		"",
 		"Proposal ID to vote for",
 	)
+
+	_ = cmd.MarkFlagRequired(proposalIDFlag)
 }
 
 func runCommand(cmd *cobra.Command, _ []string) {
