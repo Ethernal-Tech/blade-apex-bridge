@@ -22,8 +22,8 @@ var (
 func GetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-validator",
-		Short: "Adds validator to the validator set.",
-		Long:  "TODO",
+		Short: "Adds a validator to the proposal as part of the group for inclusion in the validator set.",
+		Long:  doc,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			fileParam, _ = cmd.Flags().GetString("file")
 		},
