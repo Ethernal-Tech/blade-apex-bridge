@@ -17,7 +17,8 @@ var (
 func GetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove-validator",
-		Short: "Removes validator from the validator set.",
+		Short: "Adds a validator to the proposal as part of the group for removal from the validator set.",
+		Long:  doc,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			fileParam, _ = cmd.Flags().GetString("file")
 		},

@@ -20,6 +20,7 @@ func GetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "drop-validator",
 		Short: "Drop validator from the proposal.",
+		Long:  doc,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			fileParam, _ = cmd.Flags().GetString("file")
 		},
