@@ -65,7 +65,12 @@ func WaitForTestResult(
 	t.Helper()
 
 	if refundEnabled {
+		if timeoutSec == 0 {
+			timeoutSec = 6
+		}
+
 		tokeName := wallet.AdaTokenName
+
 		if bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
 			tokeName = config.srcTokenName
 		}
@@ -76,7 +81,8 @@ func WaitForTestResult(
 			beforeSendingAmountDfm)
 
 		err := apex.WaitForAmountInRange(ctx, user, config.srcChainID, config.dstChainID, lowerBoundaryDfm,
-			beforeSendingAmountDfm[tokeName], 20, time.Second*6, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+			beforeSendingAmountDfm[tokeName], 20, time.Second*time.Duration(timeoutSec),
+			bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
 		require.NoError(t, err)
 	} else {
 		cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, timeoutSec)

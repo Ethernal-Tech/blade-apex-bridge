@@ -187,11 +187,11 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("9.1 Prime -> Cardano - Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
-		executeInvalidFeeReceiverAddr(t, ctx, apex, primeTestConfig, 0, sendtx.BridgingTypeNativeTokenOnSource)
+		executeInvalidFeeReceiverAddr(t, ctx, apex, primeTestConfig, 0, sendtx.BridgingTypeNativeTokenOnSource, true)
 	})
 
 	t.Run("9.2 Cardano -> Prime - Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
-		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoTestConfig, 0, sendtx.BridgingTypeNativeTokenOnSource)
+		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoTestConfig, 0, sendtx.BridgingTypeNativeTokenOnSource, true)
 	})
 
 	t.Run("10.1 Prime -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {

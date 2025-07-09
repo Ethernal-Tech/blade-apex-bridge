@@ -44,7 +44,7 @@ func executeInvalidBridgingFee(
 
 func executeInvalidFeeReceiverAddr(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	config *testConfig, timeoutSec uint, bridgingType sendtx.BridgingType,
+	config *testConfig, timeoutSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
 ) {
 	t.Helper()
 
@@ -61,15 +61,28 @@ func executeInvalidFeeReceiverAddr(
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee,
 		config.operationFee, user, receivers)
 
-	_, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
+	sentAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
 
-	txHash, err := apex.SubmitTx(
-		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
-		new(big.Int).SetUint64(feeAmount+config.operationFee), sentTokenAmount, metadata)
-
+	initialBalances, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
 
-	cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, timeoutSec)
+	if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
+		txHash, err := apex.SubmitTx(
+			ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
+			sentAmount, []wallet.TokenAmount{}, metadata)
+		require.NoError(t, err)
+
+		WaitForTestResult(t, ctx, apex, config, user, txHash, initialBalances, sentAmount.Uint64(),
+			bridgingType, refundEnabled, timeoutSec)
+	} else {
+		txHash, err := apex.SubmitTx(
+			ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
+			new(big.Int).SetUint64(feeAmount+config.operationFee), sentTokenAmount, metadata)
+		require.NoError(t, err)
+
+		WaitForTestResult(t, ctx, apex, config, user, txHash, initialBalances, sentTokenAmount[0].Amount,
+			bridgingType, refundEnabled, timeoutSec)
+	}
 }
 
 func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,

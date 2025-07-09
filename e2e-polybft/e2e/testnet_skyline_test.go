@@ -342,7 +342,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 
 	t.Run("7. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
 		executeInvalidFeeReceiverAddr(
-			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, bridgingType)
+			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, bridgingType, true)
 	})
 
 	t.Run("8. Submitted with unknown tokens to bridging addr", func(t *testing.T) {

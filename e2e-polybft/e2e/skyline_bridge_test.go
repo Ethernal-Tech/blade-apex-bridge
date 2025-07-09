@@ -765,8 +765,8 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		executeInvalidBridgingFee(t, ctx, apex, primeTestConfig, 0, sendtx.BridgingTypeCurrencyOnSource, false)
 	})
 
-	t.Run("9. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
-		executeInvalidFeeReceiverAddr(t, ctx, apex, primeTestConfig, 0, sendtx.BridgingTypeCurrencyOnSource)
+	t.Run("10. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
+		executeInvalidFeeReceiverAddr(t, ctx, apex, primeTestConfig, 2*60, sendtx.BridgingTypeCurrencyOnSource, false)
 	})
 
 	t.Run("11. Submitted invalid metadata - empty receivers", func(t *testing.T) {
@@ -941,19 +941,24 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		initialBalances = map[string]map[string]*big.Int{}
 	)
 
-	_, err := cardanofw.FundUserWithToken(
+	primeToken, err := cardanofw.FundUserWithToken(
 		ctx, apex, cardanofw.ChainIDPrime,
 		apex.PrimeInfo.GenesisWallet, apex.Users[0],
 		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 		uint64(5_000_000), uint64(1_000_000_000))
 	require.NoError(t, err)
 
-	_, err = cardanofw.FundUserWithToken(
+	cardanoToken, err := cardanofw.FundUserWithToken(
 		ctx, apex, cardanofw.ChainIDCardano,
 		apex.CardanoInfo.GenesisWallet, apex.Users[0],
 		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 		uint64(5_000_000), uint64(1_000_000_000))
 	require.NoError(t, err)
+
+	tokenNames := map[string]string{
+		cardanofw.ChainIDCardano: cardanoToken.TokenName(),
+		cardanofw.ChainIDPrime:   primeToken.TokenName(),
+	}
 
 	var wg sync.WaitGroup
 
@@ -974,23 +979,13 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 
 	wg.Wait()
 
-	getTokenName := func(srcChain string) string {
-		for tokenName := range initialBalances[srcChain] {
-			if tokenName != wallet.AdaTokenName {
-				return tokenName
-			}
-		}
-
-		return ""
-	}
-
 	for _, br := range bridgingRequests {
 		wg.Add(1)
 
 		go func() {
 			defer wg.Done()
 
-			tokenName := getTokenName(br.src)
+			tokenName := tokenNames[br.src]
 			err := apex.WaitForExactAmount(ctx, br.sender, br.src, br.dest, initialBalances[br.src][tokenName], 30, 30*time.Second, true)
 			require.NoError(t, err)
 
@@ -2470,7 +2465,7 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 
 	var (
 		user             = apex.Users[0]
-		apexSendAmount   = cardanofw.ApexToDfm(big.NewInt(2))
+		sendAmount       = cardanofw.ApexToDfm(big.NewInt(2))
 		bridgingRequests = []bridgingRequest{
 			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[1], requestType: sendtx.BridgingTypeCurrencyOnSource, isValid: true},
 			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[2], requestType: sendtx.BridgingTypeNativeTokenOnSource, isValid: false},
@@ -2481,8 +2476,13 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 
 		feeAmount = new(big.Int).SetUint64(cardanoConfig.MinBridgingFee)
 
-		// sender that is sending currency on source, from prime to cardano whose tx will be refunded
-		refundedSenderInitialBalance = map[string]*big.Int{}
+		// map that contains initial balances of users that will receive refunds, per chains
+		refundedSenderInitialBalance = map[string]map[string]*big.Int{}
+		userSpending                 = big.NewInt(0)
+
+		tokenNames = map[string]string{}
+
+		err error
 	)
 
 	var wg sync.WaitGroup
@@ -2494,28 +2494,24 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 			defer wg.Done()
 
 			if br.requestType == sendtx.BridgingTypeNativeTokenOnSource {
-				_, err := cardanofw.FundUserWithToken(
+				token, err := cardanofw.FundUserWithToken(
 					ctx, apex, br.src,
 					apex.GetCardanoInfo(br.src).GenesisWallet, br.sender,
 					cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 					uint64(10_000_000), uint64(100_000_000))
 				require.NoError(t, err)
-			} else if br.src == cardanofw.ChainIDCardano {
-				var err error
 
-				refundedSenderInitialBalance, err = apex.GetBalance(ctx, br.sender, br.src)
+				tokenNames[br.src] = token.TokenName()
+				fmt.Printf("Added new token for chain: %s. Token: %s\n", br.src, token.TokenName())
+			}
+
+			if !br.isValid {
+				refundedSenderInitialBalance[br.sender.GetAddress(br.src)], err = apex.GetBalance(ctx, br.sender, br.src)
 				require.NoError(t, err)
 			}
 
-			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, br.src, br.dest, br.sender, apexSendAmount, br.requestType, user)
+			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, br.src, br.dest, br.sender, sendAmount, br.requestType, user)
 			fmt.Printf("Bridging request: %v to %v sent %v. hash: %s\n", br.src, br.dest, br.requestType, txHashes[i])
-
-			if br.requestType == sendtx.BridgingTypeCurrencyOnSource && br.src == cardanofw.ChainIDCardano {
-				refundUserBalanceAfterSending, err := apex.GetBalance(ctx, br.sender, br.src)
-				require.NoError(t, err)
-
-				fmt.Printf("refundUserBalanceAfterSending: %v \n", refundUserBalanceAfterSending)
-			}
 		}(idx, br)
 	}
 
@@ -2528,31 +2524,37 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 			defer wg.Done()
 
 			state, timeout := "ExecutedOnDestination", uint(60*8)
+
 			if !br.isValid {
-				timeout = 60 * 5
-				// invalid tx with currency on source should be refunded in this test case
+				tokenName := wallet.AdaTokenName
+				isNativeToken := false
+
 				if br.requestType == sendtx.BridgingTypeCurrencyOnSource {
-					userSpending := new(big.Int).Add(apexSendAmount, feeAmount)
-
-					// minExpected = initial - (sendAmount + feeAmount)
-					minExpectedAmount := new(big.Int).Sub(refundedSenderInitialBalance[wallet.AdaTokenName], userSpending)
-
-					err := apex.WaitForAmountInRange(ctx, br.sender, br.src, br.dest, minExpectedAmount, refundedSenderInitialBalance[wallet.AdaTokenName], 20, 30*time.Second, false)
-					require.NoError(t, err)
-
-					newRefunderSenderBalance, err := apex.GetBalance(ctx, br.sender, br.src)
-					require.NoError(t, err)
-					require.True(t, newRefunderSenderBalance[wallet.AdaTokenName].Cmp(minExpectedAmount) >= 0)
-					require.True(t, newRefunderSenderBalance[wallet.AdaTokenName].Cmp(refundedSenderInitialBalance[wallet.AdaTokenName]) < 0)
+					userSpending = new(big.Int).Add(sendAmount, feeAmount)
 				} else {
-					state = "InvalidRequest"
+					userSpending = sendAmount
+					tokenName = tokenNames[src]
+					isNativeToken = true
 				}
+
+				initialAmount := refundedSenderInitialBalance[br.sender.GetAddress(src)][tokenName]
+
+				// minExpected = initial - (sendAmount + feeAmount)
+				minExpectedAmount := new(big.Int).Sub(initialAmount, userSpending)
+
+				err := apex.WaitForAmountInRange(ctx, br.sender, br.src, br.dest, minExpectedAmount, initialAmount, 20, 30*time.Second, isNativeToken)
+				require.NoError(t, err)
+
+				newRefunderSenderBalance, err := apex.GetBalance(ctx, br.sender, br.src)
+				require.NoError(t, err)
+				require.True(t, newRefunderSenderBalance[tokenName].Cmp(minExpectedAmount) >= 0)
+				require.True(t, newRefunderSenderBalance[tokenName].Cmp(initialAmount) <= 0)
+			} else {
+				_, err := cardanofw.WaitForRequestStates(ctx, apex, src, hash, apiKey, []string{state}, timeout)
+				require.NoError(t, err)
+
+				fmt.Printf("%s is %s\n", hash, state)
 			}
-
-			_, err := cardanofw.WaitForRequestStates(ctx, apex, src, hash, apiKey, []string{state}, timeout)
-			require.NoError(t, err)
-
-			fmt.Printf("%s is %s\n", hash, state)
 		}(br.src, txHashes[idx])
 	}
 
