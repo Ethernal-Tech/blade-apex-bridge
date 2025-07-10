@@ -7,6 +7,7 @@ config*.json
 blade
 
 bin/
+tmp/
 
 test-chain*
 test-rootchain*

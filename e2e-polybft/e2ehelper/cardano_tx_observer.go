@@ -53,10 +53,15 @@ func NewCardanoTxObserver(
 
 		// do not rely only on blockTx, instead retrieve all unprocessed transactions from the database
 		// to account for any previous errors
-		// txs, err := indexerDB.GetUnprocessedConfirmedTxs(0)
-		// if err != nil {
-		// 	return err
-		// }
+		txs, err := indexerDB.GetUnprocessedConfirmedTxs(0)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("UnprocessedConfirmedTxs:\n")
+		for i, tx := range txs {
+			fmt.Printf("\t%d: %s\n", i, tx.String())
+		}
 
 		// Process confirmed Txs
 		// err = txsReceiver.NewUnprocessedTxs(config.ChainID, txs)
@@ -226,7 +231,7 @@ func convertUtxos(input []cardanofw.CardanoChainConfigUtxo) (output []*indexer.T
 }
 
 func initIndexerDBs(chains []string) (map[string]indexer.Database, error) {
-	baseDBPath := "./tmp/test-dbs"
+	baseDBPath := "../../tmp/test-dbs"
 
 	if err := common.CreateDirSafe(baseDBPath, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create base directory: %w", err)

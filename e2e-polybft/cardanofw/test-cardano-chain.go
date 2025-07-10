@@ -57,7 +57,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		NetworkType:            infrawallet.TestNetNetwork,
 		NetworkMagic:           infrawallet.PrimeTestNetProtocolMagic,
 		NodesCount:             4,
-		StartBlockHash:         "0xABC",
+		StartBlockHash:         "0x0000000000000000000000000000000000000000000000000000000000000000",
 		StartSlot:              0,
 		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,
