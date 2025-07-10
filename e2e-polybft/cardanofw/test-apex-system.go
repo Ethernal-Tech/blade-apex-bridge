@@ -216,8 +216,9 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 	a.BridgeCluster = framework.NewTestCluster(t, a.Config.BladeValidatorCount,
 		framework.WithBladeAdmin(bladeAdmin.Address().String()),
 		framework.WithEpochReward(0),
-		framework.WithNativeTokenConfig("Blade:BLADE:18:true"),
+		framework.WithNativeTokenConfig("AP3X:AP3X:18:true"),
 		framework.WithProxyContractsAdmin(bladeProxyAdmin.Address().String()),
+		framework.WithPremine(bladeAdmin.Address(), bladeProxyAdmin.Address()),
 	)
 
 	// create validators
@@ -425,7 +426,7 @@ func (a *ApexSystem) generateReactorConfigs() error {
 
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
-		if a.Config.TargetOneCardanoClusterServer {
+		if a.Config.TargetOneClusterServer {
 			serverIndx = 0
 		}
 
@@ -473,7 +474,7 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
-		if a.Config.TargetOneCardanoClusterServer {
+		if a.Config.TargetOneClusterServer {
 			serverIndx = 0
 		}
 
@@ -685,7 +686,7 @@ func (a *ApexSystem) WaitForAmountInRange(
 	lowerBoundaryDfm *big.Int, higherBoundaryDfm *big.Int, numRetries int, waitTime time.Duration, isNativeToken ...bool,
 ) error {
 	lastAmount, err := a.WaitForAmount(ctx, user, dstChain, srcChain, func(val *big.Int) bool {
-		return val.Cmp(lowerBoundaryDfm) == 1 && val.Cmp(higherBoundaryDfm) == -1
+		return val.Cmp(lowerBoundaryDfm) == 1 && val.Cmp(higherBoundaryDfm) != 1
 	}, numRetries, waitTime, isNativeToken...)
 	if err != nil {
 		return fmt.Errorf("amount mismatch: expected amount between %s and %s, but received %s: %w",

@@ -27,6 +27,7 @@ import (
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 
 	"github.com/Ethernal-Tech/ethgo"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -112,6 +113,14 @@ func NewTestEVMChain(config *TestEVMChainConfig) (ITestApexChain, error) {
 		config: config,
 		admin:  admin,
 	}, nil
+}
+
+func (ec *TestEVMChain) GetServerMust(t *testing.T, indx int) ITestApexChainServer {
+	t.Helper()
+
+	require.True(t, ec.cluster != nil && ec.cluster.Servers != nil && len(ec.cluster.Servers) > indx)
+
+	return ec.cluster.Servers[indx]
 }
 
 func (ec *TestEVMChain) RunChain(t *testing.T) error {

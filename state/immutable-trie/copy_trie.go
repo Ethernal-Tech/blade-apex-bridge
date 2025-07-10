@@ -6,121 +6,51 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/cockroachdb/pebble"
 
-	"github.com/0xPolygon/polygon-edge/state"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/umbracle/fastrlp"
 )
 
-var emptyCodeHash = crypto.Keccak256(nil)
+func onNode(batchWriter Batch) NodeWalkedCallback {
+	return func(nodeHash []byte, _ Node, data []byte, _ *AccountWithHash) error {
+		// copy whole bytes of nodes
+		batchWriter.Put(nodeHash, data)
 
-func getCustomNode(hash []byte, storage Storage) (Node, []byte, error) {
-	data, ok, err := storage.Get(hash)
-	if err != nil || !ok {
-		return nil, nil, err
+		return nil
 	}
+}
 
-	// NOTE: We dont need to make copies of the bytes because the nodes
-	// take the reference from data itself which is a safe copy.
-	p := parserPool.Get()
-	defer parserPool.Put(p)
+func onAccount(batchWriter Batch, storage Storage) AccountWalkedCallback {
+	return func(_ *ValueNode, account *AccountWithHash) error {
+		if account.CodeHash != nil && bytes.Equal(account.CodeHash, EmptyCodeHash) == false {
+			hash := types.BytesToHash(account.CodeHash)
 
-	v, err := p.Parse(data)
-	if err != nil {
-		return nil, nil, err
+			code, ok := storage.GetCode(hash)
+			if ok {
+				batchWriter.Put(GetCodeKey(hash), code)
+			} else {
+				return fmt.Errorf("can't find code %s", hex.EncodeToString(account.CodeHash))
+			}
+		}
+
+		return nil
 	}
-
-	if v.Type() != fastrlp.TypeArray {
-		return nil, nil, fmt.Errorf("storage item should be an array")
-	}
-
-	n, err := decodeNode(v, storage)
-
-	return n, data, err
 }
 
 func CopyTrie(nodeHash []byte, storage Storage, newStorage Storage, agg []byte, isStorage bool) error {
 	batchWriter := newStorage.Batch()
 
-	if err := copyTrieHash(nodeHash, storage, batchWriter, agg, isStorage); err != nil {
-		return err
+	err := walkTrieHash(
+		nodeHash, storage, agg, isStorage, nil,
+		onNode(batchWriter), onAccount(batchWriter, storage))
+
+	if err != nil {
+		return nil
 	}
 
 	return batchWriter.Write()
-}
-
-func copyTrieHash(nodeHash []byte, storage Storage, batchWriter Batch, agg []byte, isStorage bool) error {
-	node, data, err := getCustomNode(nodeHash, storage)
-	if err != nil {
-		return err
-	}
-
-	// copy whole bytes of nodes
-	batchWriter.Put(nodeHash, data)
-
-	return copyTrieNode(node, storage, batchWriter, agg, isStorage)
-}
-
-func copyTrieNode(node Node, storage Storage, batchWriter Batch, agg []byte, isStorage bool) error {
-	switch n := node.(type) {
-	case nil:
-		return nil
-	case *FullNode:
-		if len(n.hash) > 0 {
-			return copyTrieHash(n.hash, storage, batchWriter, agg, isStorage)
-		}
-
-		for i := range n.children {
-			if n.children[i] == nil {
-				continue
-			}
-
-			err := copyTrieNode(n.children[i], storage, batchWriter, append(agg, uint8(i)), isStorage)
-			if err != nil {
-				return err
-			}
-		}
-
-	case *ValueNode:
-		// if node represens stored value, then we need to copy it
-		if n.hash {
-			return copyTrieHash(n.buf, storage, batchWriter, agg, isStorage)
-		}
-
-		if !isStorage {
-			var account state.Account
-			if err := account.UnmarshalRlp(n.buf); err != nil {
-				return fmt.Errorf("can't parse account %s: %w", hex.EncodeToString(encodeCompact(agg)), err)
-			} else {
-				if account.CodeHash != nil && bytes.Equal(account.CodeHash, emptyCodeHash) == false {
-					hash := types.BytesToHash(account.CodeHash)
-
-					code, ok := storage.GetCode(hash)
-					if ok {
-						batchWriter.Put(GetCodeKey(hash), code)
-					} else {
-						return fmt.Errorf("can't find code %s", hex.EncodeToString(account.CodeHash))
-					}
-				}
-
-				if account.Root != types.EmptyRootHash {
-					return copyTrieHash(account.Root[:], storage, batchWriter, nil, true)
-				}
-			}
-		}
-
-	case *ShortNode:
-		if len(n.hash) > 0 {
-			return copyTrieHash(n.hash, storage, batchWriter, agg, isStorage)
-		}
-
-		return copyTrieNode(n.child, storage, batchWriter, append(agg, n.key...), isStorage)
-	}
-
-	return nil
 }
 
 func HashChecker(stateRoot []byte, storage Storage) (types.Hash, error) {

@@ -48,8 +48,8 @@ type debugBlockchainStore interface {
 	// GetHeaderByNumber gets a header using the provided number
 	GetHeaderByNumber(uint64) (*types.Header, bool)
 
-	// GetReceiptsByHash returns the receipts by block hash
-	GetReceiptsByHash(types.Hash) ([]*types.Receipt, error)
+	// GetReceiptsByHash returns the receipts by block number and hash
+	GetReceiptsByHash(uint64, types.Hash) ([]*types.Receipt, error)
 
 	// ReadTxLookup returns a block hash in which a given txn was mined
 	ReadTxLookup(txnHash types.Hash) (uint64, bool)
@@ -326,6 +326,26 @@ func (d *Debug) GoTrace(file string, nsec int64) (interface{}, error) {
 			time.Sleep(time.Duration(nsec) * time.Second)
 
 			if err := d.handler.StopGoTrace(); err != nil {
+				return nil, err
+			}
+
+			absPath, err := filepath.Abs(file)
+			if err != nil {
+				return nil, err
+			}
+
+			return absPath, nil
+		},
+	)
+}
+
+// MemTrace prints current heap allocation within blade into the file.
+// The file can be later analysed with go tool pprof.
+func (d *Debug) MemTrace(file string) (interface{}, error) {
+	return d.throttling.AttemptRequest(
+		context.Background(),
+		func() (interface{}, error) {
+			if err := d.handler.MemTrace(file); err != nil {
 				return nil, err
 			}
 
@@ -681,7 +701,7 @@ func (d *Debug) GetRawReceipts(filter BlockNumberOrHash) (interface{}, error) {
 				return nil, err
 			}
 
-			receipts, err := d.store.GetReceiptsByHash(header.Hash)
+			receipts, err := d.store.GetReceiptsByHash(header.Number, header.Hash)
 			if err != nil {
 				return nil, err
 			}
