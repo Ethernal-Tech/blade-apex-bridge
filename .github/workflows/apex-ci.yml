@@ -131,7 +131,7 @@ jobs:
                 echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
               elif [[ "${{ github.base_ref }}" == "feat/refund" ]]; then
                 echo "apex_bridge_ref=feat/refund" >> $GITHUB_OUTPUT
-              elif [[ "${{ github.base_ref }}" == "feat/skyline_refund"]]; then
+              elif [[ "${{ github.base_ref }}" == "feat/skyline_refund" ]]; then
                 echo "apex_bridge_ref=feat/skyline_refund" >> $GITHUB_OUTPUT
               else
                 echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
