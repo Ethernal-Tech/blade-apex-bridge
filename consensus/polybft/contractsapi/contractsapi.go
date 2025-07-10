@@ -1984,7 +1984,7 @@ func (v *ValidatorDelta) DecodeAbi(buf []byte) error {
 }
 
 type NewValidatorSetNetworkParamsFn struct {
-	ValidatorSetDelta *ValidatorDelta `abi:"validatorSetDelta"`
+	ValidatorDelta *ValidatorDelta `abi:"validatorDelta"`
 }
 
 func (n *NewValidatorSetNetworkParamsFn) Sig() []byte {
@@ -2311,9 +2311,8 @@ func (n *NewBaseFeeChangeDenomEvent) Decode(input []byte) error {
 	return NetworkParams.Abi.Events["NewBaseFeeChangeDenom"].Inputs.DecodeStruct(input, &n)
 }
 
-
 type NewValidatorSetEvent struct {
-	ValidatorSetDelta *ValidatorDelta `abi:"validatorSetDelta"`
+	ValidatorDelta *ValidatorDelta `abi:"validatorDelta"`
 }
 
 func (*NewValidatorSetEvent) Sig() ethgo.Hash {

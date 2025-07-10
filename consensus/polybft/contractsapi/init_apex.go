@@ -16,6 +16,7 @@ type ApexBridgeContractsInfo struct {
 	Admin                *contracts.Artifact
 	SpecialClaims        *contracts.Artifact
 	SpecialSignedBatches *contracts.Artifact
+	TestBridge           *contracts.Artifact
 }
 
 var ApexBridgeContracts *ApexBridgeContractsInfo
@@ -66,6 +67,11 @@ func initApexContracts() error {
 		return fmt.Errorf("failed to decode apex special signed batches %w", err)
 	}
 
+	testBridgeArtifact, err := contracts.DecodeArtifact([]byte(TestBridgeArtifact))
+	if err != nil {
+		return fmt.Errorf("failed to decoed apex test bridge %w", err)
+	}
+
 	ApexBridgeContracts = &ApexBridgeContractsInfo{
 		Bridge:               bridge,
 		ClaimsHelper:         claimsHelper,
@@ -76,6 +82,7 @@ func initApexContracts() error {
 		Admin:                admin,
 		SpecialClaims:        specialClaims,
 		SpecialSignedBatches: specialSignedBatchesArtifact,
+		TestBridge:           testBridgeArtifact,
 	}
 
 	return nil

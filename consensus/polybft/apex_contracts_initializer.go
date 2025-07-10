@@ -203,7 +203,7 @@ func initClaimsHelper(transition *state.Transition, from types.Address) error {
 	setDependenciesFn := &contractsapi.SetDependenciesApexBridgeContractsClaimsHelperFn{
 		ClaimsAddress:               contracts.Claims,
 		SignedBatchesAddress:        contracts.SignedBatches,
-		SpecialClaimsAddres:         contracts.SpecialClaims,
+		SpecialClaimsAddress:        contracts.SpecialClaims,
 		SpecialSignedBatchesAddress: contracts.SpecialSignedBatches,
 	}
 

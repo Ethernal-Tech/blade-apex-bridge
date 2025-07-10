@@ -39,6 +39,7 @@ const (
 	proposalQuorumFlag           = "proposal-quorum"
 	stakeTokenFlag               = "stake-token"
 	bootnodeStartingPortFlag     = "bootnode-port"
+	testBridgeFlag               = "test-bridge"
 )
 
 var (
@@ -140,6 +141,8 @@ type genesisParams struct {
 	bootnodeStartingPort int64
 
 	apexConfig uint8
+
+	testBridge bool
 }
 
 func (p *genesisParams) validateFlags() error {

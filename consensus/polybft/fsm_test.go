@@ -480,7 +480,7 @@ func TestFSM_NewValidatorSetRequest(t *testing.T) {
 		var v int64
 		for range num {
 			event := contractsapi.NewValidatorSetEvent{
-				ValidatorSetDelta: &contractsapi.ValidatorDelta{
+				ValidatorDelta: &contractsapi.ValidatorDelta{
 					AddedValidators: []*contractsapi.BridgeValidatorsData{
 						{
 							ChainID: 1,
@@ -645,7 +645,7 @@ func TestFSM_NewValidatorSetRequest(t *testing.T) {
 		require.NoError(t, err)
 
 		event := contractsapi.NewValidatorSetEvent{
-			ValidatorSetDelta: &contractsapi.ValidatorDelta{
+			ValidatorDelta: &contractsapi.ValidatorDelta{
 				AddedValidators: []*contractsapi.BridgeValidatorsData{
 					{
 						ChainID: 1,

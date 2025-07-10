@@ -436,7 +436,7 @@ func (p *genesisParams) deployContracts(rewardTokenByteCode []byte,
 		},
 	}
 
-	genesisContracts = append(genesisContracts, getApexContracts()...)
+	genesisContracts = append(genesisContracts, getApexContracts(p.testBridge)...)
 
 	if !params.nativeTokenConfig.IsMintable {
 		genesisContracts = append(genesisContracts,

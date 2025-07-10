@@ -159,7 +159,7 @@ func (i *InitializeApexBridgeContractsClaimsHelperFn) DecodeAbi(buf []byte) erro
 
 type SetDependenciesApexBridgeContractsClaimsHelperFn struct {
 	ClaimsAddress               types.Address `abi:"_claimsAddress"`
-	SpecialClaimsAddres         types.Address `abi:"_specialClaimsAddres"`
+	SpecialClaimsAddress        types.Address `abi:"_specialClaimsAddress"`
 	SignedBatchesAddress        types.Address `abi:"_signedBatchesAddress"`
 	SpecialSignedBatchesAddress types.Address `abi:"_specialSignedBatchesAddress"`
 }

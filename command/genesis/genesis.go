@@ -393,6 +393,13 @@ func setFlags(cmd *cobra.Command) {
 			"list of addresses to enable by default in the bridge block list",
 		)
 	}
+
+	cmd.Flags().BoolVar(
+		&params.testBridge,
+		testBridgeFlag,
+		false,
+		"test bridge contract, default false",
+	)
 }
 
 func preRunCommand(_ *cobra.Command, _ []string) error {

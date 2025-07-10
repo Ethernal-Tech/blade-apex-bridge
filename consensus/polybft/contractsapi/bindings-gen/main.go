@@ -824,7 +824,7 @@ func generateNestedType(generatedData *generatedData, name string, obj *abi.Type
 		if s == internalType {
 			// do not generate the same type again if it's already generated
 			// this happens when two functions use the same struct type as one of its parameters
-			return "*" + name, nil
+			return "*" + internalType, nil
 		}
 	}
 

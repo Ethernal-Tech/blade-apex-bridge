@@ -69,6 +69,10 @@ package contractsapi
 			"SpecialSignedBatches.sol",
 			"SpecialSignedBatches",
 		},
+		{
+			"TestBridge.sol",
+			"TestBridge",
+		},
 	}
 
 	for _, v := range apexContracts {

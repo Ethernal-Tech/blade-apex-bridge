@@ -129,8 +129,8 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		}
 
 		proposalResult := proposalResult{
-			AddedValidators:   newValidatorSet.ValidatorSetDelta.AddedValidators,
-			RemovedValidators: newValidatorSet.ValidatorSetDelta.RemovedValidators,
+			AddedValidators:   newValidatorSet.ValidatorDelta.AddedValidators,
+			RemovedValidators: newValidatorSet.ValidatorDelta.RemovedValidators,
 		}
 
 		outputter.SetCommandResult(proposalResult)
