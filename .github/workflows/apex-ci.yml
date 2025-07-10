@@ -131,6 +131,8 @@ jobs:
                 echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
               elif [[ "${{ github.base_ref }}" == "feat/refund" ]]; then
                 echo "apex_bridge_ref=feat/refund" >> $GITHUB_OUTPUT
+              elif [[ "${{ github.base_ref }}" == "feat/skyline_refund"]]; then
+                echo "apex_bridge_ref=feat/skyline_refund" >> $GITHUB_OUTPUT
               else
                 echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
               fi
@@ -139,6 +141,8 @@ jobs:
                 echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
               elif [[ "${{ github.ref }}" == "refs/heads/feat/refund" ]]; then
                 echo "apex_bridge_ref=feat/refund" >> $GITHUB_OUTPUT
+              elif [[ "${{ github.ref }}" == "refs/heads/feat/skyline_refund" ]]; then
+                echo "apex_bridge_ref=feat/skyline_refund" >> $GITHUB_OUTPUT
               else
                 echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
               fi
@@ -188,7 +192,7 @@ jobs:
       inputs.e2e_apex_test || 
       github.event_name == 'pull_request'
     with:
-      apex_bridge_ref:  ${{ needs.inputs_check.outputs.apex_bridge_ref }}
+      apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       e2e_apex_big_test: ${{ inputs.e2e_apex_big_test || 'false' }}
       e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
