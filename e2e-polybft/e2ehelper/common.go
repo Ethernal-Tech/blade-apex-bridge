@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
+	"github.com/Ethernal-Tech/cardano-infrastructure/indexer"
 )
 
 type IApexSystem interface {
@@ -67,4 +68,19 @@ func getAllChainPairs(chains []string, chainsDst map[string][]string) (res []src
 	}
 
 	return res
+}
+
+func getDestinationChain(chainPairs []srcDstChainPair, srcChain string) string {
+	for _, chainPair := range chainPairs {
+		if chainPair.srcChain == srcChain {
+			return chainPair.dstChain
+		}
+	}
+
+	return ""
+}
+
+type channelMsg struct {
+	chainID int
+	txHash  indexer.Hash
 }

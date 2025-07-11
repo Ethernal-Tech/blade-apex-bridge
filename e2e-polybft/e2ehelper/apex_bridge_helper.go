@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -96,6 +97,15 @@ func ExecuteBridging(
 	chainPairs := getAllChainPairs(chains, chainsDst)
 	expectedAmountPerChainDfm := make([]map[string]*big.Int, len(receiverUsers))
 
+	var (
+		observedTxs = make(map[int][]string)
+		mu          sync.Mutex
+		observers   []*CardanoTxObserverImpl
+	)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	if config.runIndexerInstance {
 		indexerDBs, err := initIndexerDBs(chains)
 		require.NoError(t, err)
@@ -109,6 +119,25 @@ func ExecuteBridging(
 
 			err = cardanoTxObserver.Start()
 			require.NoError(t, err)
+
+			observers = append(observers, cardanoTxObserver)
+
+			// Launch listener goroutine
+			go func(txChan <-chan channelMsg) {
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case msg, ok := <-txChan:
+						if !ok {
+							return
+						}
+						mu.Lock()
+						observedTxs[chainConfigs[chain].ID] = append(observedTxs[chainConfigs[chain].ID], msg.txHash.String())
+						mu.Unlock()
+					}
+				}
+			}(cardanoTxObserver.TxChan())
 		}
 	}
 
@@ -123,13 +152,43 @@ func ExecuteBridging(
 		}
 	}
 
-	config.sendTxStrategy(t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender)
+	sentTxHashes := config.sendTxStrategy(t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender)
+
+	// Give some time to indexer to observe the transactions and update the expected amounts
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(10 * time.Second):
+	}
 
 	// update expectedAmountPerChainDfm
 	for recieverUserIdx := range receiverUsers {
 		for _, chainPair := range chainPairs {
 			tmp := expectedAmountPerChainDfm[recieverUserIdx][chainPair.dstChain]
 			tmp.Add(tmp, new(big.Int).Mul(sendAmountDfm, big.NewInt(int64(txCountPerSender)*int64(len(senderUsers)))))
+		}
+	}
+
+	if config.runIndexerInstance {
+		// check whether expectedAmountPerChainDfm should be updated
+		for recieverUserIdx, receiver := range receiverUsers {
+			for _, chain := range chains {
+				for _, sentTxHash := range sentTxHashes[chain][receiver] {
+					if !slices.Contains(observedTxs[chainConfigs[chain].ID], sentTxHash) {
+						// tx is rolled back, we need to update the users expected amount on this chain
+						destChain := getDestinationChain(chainPairs, chain)
+
+						oldExpectedValue := expectedAmountPerChainDfm[recieverUserIdx][destChain]
+						newValue := new(big.Int).Sub(oldExpectedValue, sendAmountDfm)
+
+						expectedAmountPerChainDfm[recieverUserIdx][destChain] = newValue
+
+						fmt.Printf("Updated expected amount for user idx %d on chain %s: %v\n", recieverUserIdx, destChain, observedTxs[chainConfigs[chain].ID])
+					} else {
+						fmt.Printf("Sent transaction %s is found in observed ones: %v\n", sentTxHash, observedTxs[chainConfigs[chain].ID])
+					}
+				}
+			}
 		}
 	}
 

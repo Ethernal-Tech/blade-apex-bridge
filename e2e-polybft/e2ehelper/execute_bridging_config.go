@@ -60,9 +60,10 @@ type RestartValidatorsConfig struct {
 	ExecutableOption ExecutableType
 }
 
+// returns map that contains hashes of transactions that were sent and source chain ID and receiver user as a key
 type SendTxStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
-	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int)
+	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int) map[string]map[*cardanofw.TestApexUser][]string
 
 type RestartValidatorStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig)
@@ -125,10 +126,15 @@ func WithTimeoutConfig(tc TimeoutConfig) ExecuteBridgingOption {
 var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
-		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int) {
+		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int) map[string]map[*cardanofw.TestApexUser][]string {
 		t.Helper()
 
-		var wg sync.WaitGroup
+		var (
+			wg sync.WaitGroup
+			mu sync.Mutex
+
+			txHashes = make(map[string]map[*cardanofw.TestApexUser][]string, len(chains))
+		)
 
 		for i, sender := range senders {
 			for _, chainPair := range chains {
@@ -143,12 +149,24 @@ var (
 
 						fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
 							idx+1, j+1, chainPair.srcChain, chainPair.dstChain, txHash)
+
+						for _, receiver := range receivers {
+							mu.Lock()
+							if _, ok := txHashes[chainPair.srcChain]; !ok {
+								txHashes[chainPair.srcChain] = make(map[*cardanofw.TestApexUser][]string)
+							}
+							txHashes[chainPair.srcChain][receiver] = append(txHashes[chainPair.srcChain][receiver], txHash)
+							mu.Unlock()
+						}
+
+						fmt.Printf("Added txHash: %s\n Tx Hashes for chain %s: %v\n", txHash, chainPair.srcChain, txHashes[chainPair.srcChain])
 					}
 				}(i, sender, chainPair)
 			}
 		}
 
 		wg.Wait()
+		return txHashes
 	}
 	defaultRestartValidatorStrategy RestartValidatorStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig) {

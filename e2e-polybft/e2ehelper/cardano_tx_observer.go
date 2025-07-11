@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -31,6 +32,7 @@ type CardanoTxObserverImpl struct {
 	syncer      indexer.BlockSyncer
 	chainConfig *cardanofw.TestCardanoChainConfig
 	isClosed    uint32
+	txChan      chan channelMsg
 }
 
 func NewCardanoTxObserver(
@@ -47,37 +49,50 @@ func NewCardanoTxObserver(
 		return nil, err
 	}
 
-	confirmedBlockHandler := func(block *indexer.CardanoBlock, blockTxs []*indexer.Tx) error {
-		fmt.Println("Confirmed Block Handler invoked",
-			"block", block.Hash, "slot", block.Slot, "block txs", len(blockTxs))
+	txChan := make(chan channelMsg, 1000)
 
-		// do not rely only on blockTx, instead retrieve all unprocessed transactions from the database
-		// to account for any previous errors
-		txs, err := indexerDB.GetUnprocessedConfirmedTxs(0)
-		if err != nil {
-			return err
+	confirmedBlockHandler := func(txChan chan channelMsg, chainID int) func(block *indexer.CardanoBlock, blockTxs []*indexer.Tx) error {
+		return func(block *indexer.CardanoBlock, blockTxs []*indexer.Tx) error {
+			fmt.Println("Confirmed Block Handler invoked",
+				"block", block.Hash, "slot", block.Slot, "block txs", len(blockTxs))
+
+			// do not rely only on blockTx, instead retrieve all unprocessed transactions from the database
+			// to account for any previous errors
+			txs, err := indexerDB.GetUnprocessedConfirmedTxs(0)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("UnprocessedConfirmedTxs:\n")
+			for _, tx := range txs {
+				fmt.Printf("\t%d: \n\t%d \n\t%s \n\t%s\n", tx.Indx, tx.BlockSlot, tx.BlockHash, tx.Hash)
+
+				msg := channelMsg{
+					chainID: chainID,
+					txHash:  tx.Hash,
+				}
+
+				select {
+				case <-ctx.Done():
+					return nil
+				case txChan <- msg:
+					fmt.Printf("Msg %v is successfully sent over the channel", msg)
+				default:
+					fmt.Printf("ERROR: Msg %v failed to be sent over the channel", msg)
+				}
+			}
+
+			// Process confirmed Txs
+			// Send transaction hashes through the channel, signal to the test that transactions are not rolled back
+
+			err = indexerDB.MarkConfirmedTxsProcessed(txs)
+			if err != nil {
+				return err
+			}
+
+			return nil
 		}
-
-		fmt.Printf("UnprocessedConfirmedTxs:\n")
-		for i, tx := range txs {
-			fmt.Printf("\t%d: %s\n", i, tx.String())
-		}
-
-		// Process confirmed Txs
-		// err = txsReceiver.NewUnprocessedTxs(config.ChainID, txs)
-		// if err != nil {
-		// 	return err
-		// }
-
-		// logger.Info("Txs have been processed", "txs", txs)
-
-		// err = indexerDB.MarkConfirmedTxsProcessed(txs)
-		// if err != nil {
-		// 	return err
-		// }
-
-		return nil
-	}
+	}(txChan, chainConfig.ID)
 
 	blockIndexer := indexer.NewBlockIndexer(indexerConfig, confirmedBlockHandler, indexerDB, hclog.NewNullLogger())
 	syncer := gouroboros.NewBlockSyncer(syncerConfig, blockIndexer, hclog.NewNullLogger())
@@ -87,6 +102,7 @@ func NewCardanoTxObserver(
 		indexerDB:   indexerDB,
 		syncer:      syncer,
 		chainConfig: chainConfig,
+		txChan:      txChan,
 	}, nil
 }
 
@@ -126,6 +142,10 @@ func (ctxo CardanoTxObserverImpl) Start() error {
 	}()
 
 	return nil
+}
+
+func (ctxo *CardanoTxObserverImpl) TxChan() <-chan channelMsg {
+	return ctxo.txChan
 }
 
 func (ctxo CardanoTxObserverImpl) Dispose() error {
@@ -232,6 +252,8 @@ func convertUtxos(input []cardanofw.CardanoChainConfigUtxo) (output []*indexer.T
 
 func initIndexerDBs(chains []string) (map[string]indexer.Database, error) {
 	baseDBPath := "../../tmp/test-dbs"
+
+	os.RemoveAll(baseDBPath)
 
 	if err := common.CreateDirSafe(baseDBPath, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create base directory: %w", err)
