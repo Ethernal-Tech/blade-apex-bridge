@@ -9,7 +9,7 @@ import (
 )
 
 type ITestApexChainServer interface {
-	Stop() error
+	Stop(removeDB ...bool) error
 	Start() error
 }
 
