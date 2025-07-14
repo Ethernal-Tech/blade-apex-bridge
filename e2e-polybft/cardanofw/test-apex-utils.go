@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -95,23 +96,26 @@ func ResolveBladeBinary() string {
 func RunCommandContext(
 	ctx context.Context, binary string, args []string, stdout io.Writer, envVariables ...string,
 ) error {
-	cmd := exec.CommandContext(ctx, binary, args...)
-
-	return runCommand(cmd, stdout, envVariables...)
+	return runCommand(exec.CommandContext(ctx, binary, args...), stdout, "", envVariables...)
 }
 
 // runCommand executes command with given arguments
 func RunCommand(binary string, args []string, stdout io.Writer, envVariables ...string) error {
-	cmd := exec.Command(binary, args...)
-
-	return runCommand(cmd, stdout, envVariables...)
+	return runCommand(exec.Command(binary, args...), stdout, "", envVariables...)
 }
 
-func runCommand(cmd *exec.Cmd, stdout io.Writer, envVariables ...string) error {
+func RunCommandContextAndDirectory(
+	ctx context.Context, binary string, args []string, stdout io.Writer, workingDir string, envVariables ...string,
+) error {
+	return runCommand(exec.CommandContext(ctx, binary, args...), stdout, workingDir, envVariables...)
+}
+
+func runCommand(cmd *exec.Cmd, stdout io.Writer, workingDir string, envVariables ...string) error {
 	var stdErr bytes.Buffer
 
 	cmd.Stderr = &stdErr
 	cmd.Stdout = stdout
+	cmd.Dir = workingDir
 
 	cmd.Env = append(os.Environ(), envVariables...)
 
@@ -576,4 +580,41 @@ func AddrToMetaDataAddr(addr string) []string {
 	addr = strings.TrimPrefix(strings.TrimPrefix(addr, "0x"), "0X")
 
 	return SplitString(addr, splitStringLength)
+}
+
+// CloneRepository clones repository
+func CloneRepository(ctx context.Context, repositoryURL, dir string) (string, error) {
+	lastSlashIndex := strings.LastIndex(strings.TrimSuffix(repositoryURL, "/"), "/")
+	if lastSlashIndex == -1 {
+		return "", fmt.Errorf("invalid repository url: %s", repositoryURL)
+	}
+
+	repositoryName := strings.TrimSuffix(repositoryURL[lastSlashIndex+1:], ".git")
+
+	err := RunCommandContextAndDirectory(
+		ctx, "git", []string{"clone", "--progress", repositoryURL}, os.Stdout, dir)
+	if err != nil {
+		// git clone writes to stderror, check if messages are ok...
+		// or if there is already existing git directory
+		str := strings.TrimSpace(err.Error())
+		if !strings.HasSuffix(str, "done.") &&
+			!strings.Contains(str, fmt.Sprintf("'%s' already exists", repositoryName)) {
+			return "", err
+		}
+	}
+
+	return filepath.Join(dir, repositoryName), nil
+}
+
+// BuildContracts builds smart contracts
+// Note: git and npm must be in the path, repository must use hardhat
+func BuildContracts(
+	ctx context.Context, dir, branchName string,
+) error {
+	// do not listen for errors on following commands
+	_ = RunCommandContextAndDirectory(ctx, "git", []string{"checkout", branchName}, os.Stdout, dir)
+	_ = RunCommandContextAndDirectory(ctx, "git", []string{"pull", "origin"}, os.Stdout, dir)
+	_ = RunCommandContextAndDirectory(ctx, "npm", []string{"install"}, os.Stdout, dir)
+
+	return RunCommandContextAndDirectory(ctx, "npx", []string{"hardhat", "compile"}, os.Stdout, dir)
 }

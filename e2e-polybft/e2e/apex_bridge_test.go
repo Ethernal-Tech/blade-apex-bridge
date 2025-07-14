@@ -20,6 +20,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/contracts"
+	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/0xPolygon/polygon-edge/helper/common"
@@ -135,9 +136,6 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 		t.Skip()
 	}
 
-	currentWorkingDir, err := os.Getwd()
-	require.NoError(t, err)
-
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
@@ -154,13 +152,152 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 	privateKeyRaw, err := apex.GetBridgeProxyAdmin().MarshallPrivateKey()
 	require.NoError(t, err)
 
+	privateKey := apex.GetBridgeProxyAdmin()
+
 	tmpPath, err := os.MkdirTemp("", "TestE2E_ApexBridge_UpdateApexBridgeSmartContract")
 	require.NoError(t, err)
 
+	tmpPath2, err := os.MkdirTemp("", "TestE2E_ApexBridge_UpdateApexBridgeSmartContract_Custom")
+	require.NoError(t, err)
+
 	defer os.RemoveAll(tmpPath)
+	defer os.RemoveAll(tmpPath2)
 
 	baseRepoFilePath := filepath.Join(tmpPath, "apex-bridge-smartcontracts")
 	bridgeSolFilePath := filepath.Join(baseRepoFilePath, "contracts", "Bridge.sol")
+
+	cloneCustomRepoAndSendTx := func(t *testing.T, workingDir string, privateKey crypto.Key) (string, types.Address) {
+		t.Helper()
+
+		path, err := cardanofw.CloneRepository(ctx, "https://github.com/igorcrevar/TestSmartContracts.git", workingDir)
+		require.NoError(t, err)
+
+		require.NoError(t, cardanofw.BuildContracts(ctx, path, "main"))
+
+		artifactCustomContract, err := contracts.LoadArtifactFromFile(
+			filepath.Join(path, "artifacts", "contracts", "Custom.sol", "Custom.json"))
+		require.NoError(t, err)
+
+		artifactERC1967, err := contracts.LoadArtifactFromFile(
+			filepath.Join(path, "artifacts", "@openzeppelin", "contracts", "proxy", "ERC1967", "ERC1967Proxy.sol", "ERC1967Proxy.json"))
+		require.NoError(t, err)
+
+		initializationData, err := artifactCustomContract.Abi.Methods["initialize"].Encode([]any{})
+		require.NoError(t, err)
+
+		receiptContract, err := txRelayer.SendTransaction(
+			types.NewTx(&types.LegacyTx{
+				BaseTx: &types.BaseTx{
+					Input: artifactCustomContract.Bytecode,
+				},
+			}), privateKey)
+		require.NoError(t, err)
+		require.True(t, receiptContract != nil && receiptContract.Status == uint64(types.ReceiptSuccess))
+
+		encodedConstructorBytes, err := artifactERC1967.Abi.Constructor.Inputs.Encode(map[string]any{
+			"implementation": receiptContract.ContractAddress,
+			"_data":          initializationData,
+		})
+		require.NoError(t, err)
+
+		receipt, err := txRelayer.SendTransaction(
+			types.NewTx(&types.LegacyTx{
+				BaseTx: &types.BaseTx{
+					Input: append(artifactERC1967.Bytecode, encodedConstructorBytes...),
+				},
+			}), privateKey)
+		require.NoError(t, err)
+		require.True(t, receipt != nil && receipt.Status == uint64(types.ReceiptSuccess))
+
+		addr := types.Address(receipt.ContractAddress)
+
+		//   name: "First",
+		//   value: 42,
+		//   isActive: true,
+		//   phone: "061"
+		inputCustom, _ := hex.DecodeString("cfdf36cf00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000002a000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000005466972737400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000033036310000000000000000000000000000000000000000000000000000000000")
+
+		tx := types.NewTx(
+			types.NewLegacyTx(types.WithFrom(privateKey.Address()), types.WithTo(&addr), types.WithInput(inputCustom)))
+
+		receipt, err = txRelayer.SendTransaction(tx, privateKey)
+		require.NoError(t, err)
+		require.True(t, receipt != nil && receipt.Status == uint64(types.ReceiptSuccess))
+
+		return path, addr
+	}
+
+	upgradeCustomContract := func(t *testing.T, workingDir string, addr types.Address, privateKey crypto.Key) {
+		t.Helper()
+
+		customSolFilePath := filepath.Join(workingDir, "contracts", "Custom.sol")
+
+		content, err := os.ReadFile(customSolFilePath)
+		require.NoError(t, err)
+
+		// Regular expression to match the version function and its return string
+		// This pattern matches the function declaration and captures the string to replace
+		pattern := `        bool   isActive; //uint8 status;
+        string phone;
+`
+		newContent := strings.ReplaceAll(string(content), pattern, "uint8 status;\nstring phone;\nstring statusName;")
+
+		require.NoError(t, os.WriteFile(customSolFilePath, []byte(newContent), 0660))
+
+		// must compile hardhat script(s) again
+		require.NoError(t, cardanofw.RunCommandContextAndDirectory(
+			ctx, "npx", []string{"hardhat", "compile"}, os.Stdout, workingDir))
+
+		// second upgrade upgrades changed contract
+		require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
+			"deploy-evm", "upgrade",
+			"--url", apex.GetBridgeDefaultJSONRPCAddr(),
+			"--key", hex.EncodeToString(privateKeyRaw),
+			"--dir", workingDir,
+			"--contract", "Custom:" + addr.String(),
+		}, os.Stdout))
+
+		// name: "Second",
+		// value: 50,
+		// status: 0,
+		// statusName: "InProgress",
+		// phone: "067"
+		input, _ := hex.DecodeString("c8487edc000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000032000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000065365636f6e64000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000033036370000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a496e50726f677265737300000000000000000000000000000000000000000000")
+
+		tx := types.NewTx(
+			types.NewLegacyTx(types.WithFrom(privateKey.Address()), types.WithTo(&addr), types.WithInput(input)))
+
+		receipt, err := txRelayer.SendTransaction(tx, privateKey)
+		require.NoError(t, err)
+		require.True(t, receipt != nil && receipt.Status == uint64(types.ReceiptSuccess))
+	}
+
+	getCustomItems := func(t *testing.T, workingDir string, addr types.Address) []map[string]any {
+		t.Helper()
+
+		artifactCustomContract, err := contracts.LoadArtifactFromFile(
+			filepath.Join(workingDir, "artifacts", "contracts", "Custom.sol", "Custom.json"))
+		require.NoError(t, err)
+
+		// getCustomItems
+		fn := artifactCustomContract.Abi.Methods["getCustomItems"]
+
+		input, err := fn.Encode([]any{})
+		require.NoError(t, err)
+
+		response, err := txRelayer.Call(types.ZeroAddress, addr, input)
+		require.NoError(t, err)
+
+		byteResponse, err := hex.DecodeString(strings.TrimPrefix(response, "0x"))
+		require.NoError(t, err)
+
+		decoded, err := fn.Outputs.Decode(byteResponse)
+		require.NoError(t, err)
+
+		mp, _ := decoded.(map[string]any)
+
+		return mp["0"].([]map[string]any)
+	}
 
 	getVersion := func(t *testing.T) string {
 		t.Helper()
@@ -203,6 +340,11 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 
 	fmt.Printf("apex-bridge-smartcontracts branchName: %s\n", branchName)
 
+	// custom contract
+	customContractPath, customContractAddr := cloneCustomRepoAndSendTx(t, tmpPath2, privateKey)
+	upgradeCustomContract(t, customContractPath, customContractAddr, privateKey)
+	fmt.Println(getCustomItems(t, customContractPath, customContractAddr))
+
 	// first upgrade just to clone repository
 	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
 		"deploy-evm", "upgrade",
@@ -229,10 +371,8 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(bridgeSolFilePath, newContent, 0660))
 
-	require.NoError(t, os.Chdir(baseRepoFilePath))
 	// must compile hardhat script(s) again
-	require.NoError(t, cardanofw.RunCommand("npx", []string{"hardhat", "compile"}, os.Stdout))
-	require.NoError(t, os.Chdir(currentWorkingDir))
+	require.NoError(t, cardanofw.RunCommandContextAndDirectory(ctx, "npx", []string{"hardhat", "compile"}, os.Stdout, baseRepoFilePath))
 
 	// second upgrade upgrades changed contract
 	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
