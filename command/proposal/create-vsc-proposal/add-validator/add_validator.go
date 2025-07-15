@@ -18,7 +18,6 @@ var (
 	cardanoLikeChainsParam []string
 	bladeParam             string
 	nexusParam             bool
-	//evmLikeChainsParam     []string
 )
 
 func GetCommand() *cobra.Command {
@@ -49,13 +48,6 @@ func GetCommand() *cobra.Command {
 	)
 
 	_ = cmd.MarkFlagRequired("cardano-like-chain")
-
-	// cmd.Flags().StringSliceVar(
-	// 	&evmLikeChainsParam,
-	// 	"evm-like-chain",
-	// 	nil,
-	// 	"chain_name:bls_key",
-	// )
 
 	cmd.Flags().StringVar(
 		&bladeParam,
@@ -105,42 +97,6 @@ func parseCardanoLikeChainEntry(entry string) (string, [4]string, error) {
 	return parts[0], [4]string{parts[1], parts[2], parts[3], parts[4]}, nil
 }
 
-// func parseEVMLikeChainEntry(entry string) (string, [4]string, error) {
-// 	errReturnFn := func(err error) (string, [4]string, error) {
-// 		return "", [4]string{}, err
-// 	}
-
-// 	parts := strings.Split(entry, ":")
-// 	if len(parts) != 2 {
-// 		return errReturnFn(fmt.Errorf("invalid entry format"))
-// 	}
-
-// 	if parts[0] != "nexus" {
-// 		return errReturnFn(fmt.Errorf("invalid chain name: %s", parts[0]))
-// 	}
-
-// 	keyBytes, err := hex.DecodeString(parts[1])
-// 	if err != nil {
-// 		return errReturnFn(fmt.Errorf("invalid key hex format, %w", err))
-// 	}
-
-// 	pubKey, err := bls.UnmarshalPublicKey(keyBytes)
-// 	if err != nil {
-// 		return errReturnFn(fmt.Errorf("cannot unmarshal public key, %w", err))
-// 	}
-
-// 	bigInts := pubKey.ToBigInt()
-
-// 	keys := [4]string{
-// 		fmt.Sprintf("%064x", bigInts[0]),
-// 		fmt.Sprintf("%064x", bigInts[1]),
-// 		fmt.Sprintf("%064x", bigInts[2]),
-// 		fmt.Sprintf("%064x", bigInts[3]),
-// 	}
-
-// 	return parts[0], keys, nil
-// }
-
 func runCommand(cmd *cobra.Command, _ []string) error {
 	address, err := types.IsValidAddress(addressParam, false)
 	if err != nil {
@@ -157,17 +113,12 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 		Chains:  make(map[string]schema.Key),
 	}
 
-	validChains := map[string]struct{}{}
+	var validChains map[string]struct{}
 
-	if len(proposal.Added) == 0 ||
-		len(proposal.Added) == 1 && proposal.Added[0].Address == address.String() {
-		validChains = map[string]struct{}{
-			"prime":   {},
-			"vector":  {},
-			"cardano": {},
-			"nexus":   {},
-		}
-	} else {
+	if len(proposal.Added) > 1 ||
+		len(proposal.Added) == 1 && proposal.Added[0].Address != address.String() {
+		validChains = map[string]struct{}{}
+
 		for chain := range proposal.Added[0].Chains {
 			validChains[chain] = struct{}{}
 		}
@@ -183,29 +134,14 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 			return fmt.Errorf("duplicate chain entry: %s", name)
 		}
 
-		if _, ok := validChains[name]; !ok {
+		if _, ok := validChains[name]; validChains != nil && !ok {
 			return fmt.Errorf("chain entry %s not found for other validators", name)
 		}
 
+		delete(validChains, name)
+
 		validator.Chains[name] = schema.Key{Key: keys}
 	}
-
-	// for _, chain := range evmLikeChainsParam {
-	// 	name, keys, err := parseEVMLikeChainEntry(chain)
-	// 	if err != nil {
-	// 		return fmt.Errorf("invalid evm-like chain entry: %w", err)
-	// 	}
-
-	// 	if _, ok := validator.Chains[name]; ok {
-	// 		return fmt.Errorf("duplicate chain entry: %s", name)
-	// 	}
-
-	// 	if _, ok := validChains[name]; !ok {
-	// 		return fmt.Errorf("chain entry %s not found for other validators", name)
-	// 	}
-
-	// 	validator.Chains[name] = schema.Key{Key: keys}
-	// }
 
 	keyBytes, err := hex.DecodeString(bladeParam)
 	if err != nil {
@@ -229,10 +165,19 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 	validator.Chains["blade"] = schema.Key{Key: bladeKeys}
 
 	if nexusParam {
-		if _, ok := validChains["nexus"]; !ok {
+		if _, ok := validChains["nexus"]; validChains != nil && !ok {
 			return fmt.Errorf("chain entry nexus not found for other validators")
 		}
+
+		delete(validChains, "nexus")
+
 		validator.Chains["nexus"] = schema.Key{Key: bladeKeys}
+	}
+
+	delete(validChains, "blade")
+
+	if len(validChains) != 0 {
+		return fmt.Errorf("validators in proposal have mismatched chain entries")
 	}
 
 	for i, removed := range proposal.Removed {
