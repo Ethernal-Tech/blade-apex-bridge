@@ -47,6 +47,7 @@ func testPrimeShelleyGenesis(mp map[string]interface{}) {
 	prParams["decentralisationParam"] = 0.7
 	prParams["rho"] = 0.1
 	prParams["tau"] = 0.1
+	prParams["keyDeposit"] = 2000000
 }
 
 func testVectorShelleyGenesis(mp map[string]interface{}) {
