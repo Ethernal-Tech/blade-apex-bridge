@@ -41,8 +41,8 @@ func testPrimeShelleyGenesis(mp map[string]interface{}) {
 	mp["updateQuorum"] = 2
 	prParams := getMapFromInterfaceKey(mp, "protocolParams")
 	getMapFromInterfaceKey(prParams, "protocolVersion")["major"] = 7
-	prParams["minFeeA"] = 44
-	prParams["minFeeB"] = 155381
+	prParams["minFeeA"] = 47
+	prParams["minFeeB"] = 158298
 	prParams["minUTxOValue"] = 1000000
 	prParams["decentralisationParam"] = 0.7
 	prParams["rho"] = 0.1
