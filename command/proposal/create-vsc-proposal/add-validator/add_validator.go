@@ -159,7 +159,8 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 
 	validChains := map[string]struct{}{}
 
-	if len(proposal.Added) == 0 {
+	if len(proposal.Added) == 0 ||
+		len(proposal.Added) == 1 && proposal.Added[0].Address == address.String() {
 		validChains = map[string]struct{}{
 			"prime":   {},
 			"vector":  {},
