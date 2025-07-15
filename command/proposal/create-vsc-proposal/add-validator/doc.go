@@ -22,13 +22,17 @@ as a 64-character hex string (e.g., f6b167a444402c7f42c6445d5f629f0a9b7944b29b77
 The string must not start with the 0x prefix. This flag may be used multiple times to define keys for
 multiple chains, but each chain may only be specified once.
 
-Optionally, the "evm-like-chain" flag can be used to define keys for EVM-compatible chains. The format is:
+The last required flag is "blade". It specifies the BLS public key that will be used within the Blade,
+and, if the --nexus flag is set, Nexus network. The BLS key must be provided as a hex string without
+the 0x prefix. Only one blade flag may be provided. BLS key example:
 
-chain_name:bls_key
+03516badf21abb14e32d2577118459f298d395f6d8ad451bb73097997d670f912c248ba7ddb029b0a440a56ed7c3c623f16c59 \
+fe19f1bbbafe311c9ed9c1f1342796f24214228f21b0ad5b1aafa94a12ed85790f873fa6229f3bee1672b4a69608050ea872196 \
+734ca37599493a1e165cf98f3ad1b6e9e390595adaa637730ef
 
-Currently, only the nexus chain is supported. The BLS key must be provided as a hex string without the
-0x prefix. As with Cardano-like chains, this flag can be used multiple times for different chains, but
-each chain may only be specified once.
+Optionally, the "nexus" flag can be set to indicate that the validator should also be added to the
+validator set of the Nexus blockchain. When this flag is set, the same BLS key provided via blade flag
+will be used for Nexus as well.
 
 If the validator already exists in the proposal, its information will be updated with the newly provided values.
 If the validator is currently listed in proposal as one to be removed from the validator set, it will be
