@@ -2528,6 +2528,20 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
+	_, err := cardanofw.FundUserWithToken(
+		ctx, apex, cardanofw.ChainIDPrime,
+		apex.GetCardanoInfo(cardanofw.ChainIDPrime).GenesisWallet, apex.Users[1],
+		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+		uint64(2_000_000), uint64(100_000_000))
+	require.NoError(t, err)
+
+	_, err = cardanofw.FundUserWithToken(
+		ctx, apex, cardanofw.ChainIDCardano,
+		apex.GetCardanoInfo(cardanofw.ChainIDCardano).GenesisWallet, apex.Users[1],
+		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+		uint64(2_000_000), uint64(100_000_000))
+	require.NoError(t, err)
+
 	sendAmountDfm := big.NewInt(1_500_000)
 
 	executeBridging := func(
@@ -2548,21 +2562,21 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 			defer wg.Done()
 
 			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, senders[1], receivers[0], srcChainID, dstChainID, sendAmountDfm, sendtx.BridgingTypeNativeTokenOnSource)
+				t, ctx, apex, senders[1], receivers[1], srcChainID, dstChainID, sendAmountDfm, sendtx.BridgingTypeNativeTokenOnSource)
 		}()
 
 		wg.Wait()
 	}
 
 	executeBridging(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
-		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[2]})
+		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
 
 	// 1. Check existing stake pools in the system
 	stakePools := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetExistingStakePools(t, ctx)
 	require.NotEmpty(t, stakePools)
 
 	// 2. Register and delegate bridging address
-	err := apex.RegisterAndDelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0])
+	err = apex.RegisterAndDelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0])
 	require.NoError(t, err)
 
 	// 3. Check if the registration and delegation was successful
@@ -2570,6 +2584,6 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 	require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
 	fmt.Println("Bridging address staked succesfully")
 
-	executeBridging(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
-		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[2]})
+	executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
+		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
 }

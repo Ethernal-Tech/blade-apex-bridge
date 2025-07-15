@@ -158,7 +158,7 @@ type TestCardanoChain struct {
 // GetBridgingStakeAddressInfo implements ITestApexChain.
 func (ec *TestCardanoChain) GetBridgingStakeAddressInfo(t *testing.T, ctx context.Context, indx uint8) infrawallet.QueryStakeAddressInfo {
 	t.Helper()
-	require.Equal(t, true, ec.config.BridgeAddrHasStake)
+	require.True(t, ec.config.BridgeAddrHasStake)
 
 	txProvider, err := ec.GetTxProvider()
 	require.NoError(t, err)
