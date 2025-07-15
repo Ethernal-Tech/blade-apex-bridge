@@ -2507,3 +2507,57 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
+	const apiKey = "test_api_key"
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig.FundTokenAmount = 1_000_000_000
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	sendAmountDfm := big.NewInt(1_500_000)
+
+	executeBridging := func(
+		srcChainID, dstChainID cardanofw.ChainID, sendAmountDfm *big.Int,
+		senders, receivers []*cardanofw.TestApexUser,
+	) {
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+
+		go func() {
+			wg.Done()
+
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, senders[0], receivers[0], srcChainID, dstChainID, sendAmountDfm, sendtx.BridgingTypeCurrencyOnSource)
+		}()
+
+		go func() {
+			wg.Done()
+
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, senders[1], receivers[0], srcChainID, dstChainID, sendAmountDfm, sendtx.BridgingTypeNativeTokenOnSource)
+		}()
+
+		wg.Wait()
+	}
+
+	executeBridging(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
+		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[2]})
+
+	// TODO:
+
+	executeBridging(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
+		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[2]})
+}
