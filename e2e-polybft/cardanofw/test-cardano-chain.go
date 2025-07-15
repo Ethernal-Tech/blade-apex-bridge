@@ -156,21 +156,26 @@ type TestCardanoChain struct {
 }
 
 // GetBridgingStakeAddressInfo implements ITestApexChain.
-func (ec *TestCardanoChain) GetBridgingStakeAddressInfo(t *testing.T, ctx context.Context, indx uint8) infrawallet.QueryStakeAddressInfo {
+func (ec *TestCardanoChain) GetBridgingStakeAddressInfo(
+	t *testing.T,
+	ctx context.Context,
+	indx uint8,
+) infrawallet.QueryStakeAddressInfo {
 	t.Helper()
 	require.True(t, ec.config.BridgeAddrHasStake)
 
 	txProvider, err := ec.GetTxProvider()
 	require.NoError(t, err)
 
-	stakeBridgingAddrInfo, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (infrawallet.QueryStakeAddressInfo, error) {
-		addrInfo, err := txProvider.GetStakeAddressInfo(ctx, ec.multisigStakeAddr)
-		if err != nil {
-			return infrawallet.QueryStakeAddressInfo{}, infracommon.ErrRetryTryAgain
-		}
+	stakeBridgingAddrInfo, err := infracommon.ExecuteWithRetry(ctx,
+		func(ctx context.Context) (infrawallet.QueryStakeAddressInfo, error) {
+			addrInfo, err := txProvider.GetStakeAddressInfo(ctx, ec.multisigStakeAddr)
+			if err != nil {
+				return infrawallet.QueryStakeAddressInfo{}, infracommon.ErrRetryTryAgain
+			}
 
-		return addrInfo, nil
-	}, infracommon.WithRetryCount(60), infracommon.WithRetryWaitTime(time.Second))
+			return addrInfo, nil
+		}, infracommon.WithRetryCount(60), infracommon.WithRetryWaitTime(time.Second))
 	require.NoError(t, err)
 
 	return stakeBridgingAddrInfo

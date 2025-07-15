@@ -47,6 +47,15 @@ const (
 	DefaultTokenMintAmount = uint64(1_000_000_000)
 )
 
+type BatchTypes uint8
+
+const (
+	BatchTypeNormal BatchTypes = iota
+	BatchTypeConsolidation
+	BatchTypeValidatorSet
+	BatchTypeValidatorSetFinal
+)
+
 func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
 	var env, name string
 

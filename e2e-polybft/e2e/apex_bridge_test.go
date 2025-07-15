@@ -2182,12 +2182,12 @@ func checkConsolidationBatchCounts(
 
 					batchInfo := decoded.(map[string]any)["_batch"].(map[string]any)
 					id := batchInfo["id"].(uint64)
-					isConsolidation := batchInfo["isConsolidation"].(bool)
+					batchType := batchInfo["batchType"].(uint8)
 
 					if lastBatchID != id {
 						lastBatchID = id
 
-						if isConsolidation {
+						if batchType == uint8(cardanofw.BatchTypeConsolidation) {
 							lock.Lock()
 							consolidationCntMap[chainID]++
 							lock.Unlock()
