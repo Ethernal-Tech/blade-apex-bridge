@@ -1,5 +1,5 @@
 ---
-name: E2E Internal/Partner Skyline Testnet
+name: E2E Partner Skyline Testnet
 on: # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
@@ -18,8 +18,6 @@ on: # yamllint disable-line rule:truthy
     secrets:
       PERSONAL_ACCESS_TOKEN:
         required: true
-      TESTNET_SKYLINE_BRIDGING_API_KEY:
-        required: false
       PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY:
         required: false
       SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT:
@@ -33,7 +31,6 @@ jobs:
       E2E_TESTS: true
       E2E_LOGS: true
       CI_VERBOSE: true
-      TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.TESTNET_SKYLINE_BRIDGING_API_KEY }}
       PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY }}
       E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT }}
       TESTNET_ENV: ${{ inputs.blade_apex_bridge_version }}

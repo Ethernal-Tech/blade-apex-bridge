@@ -1,5 +1,5 @@
 ---
-name: Skyline Notification - Internal/Partner Skyline Testnet
+name: Skyline Notification - Partner Skyline Testnet
 on: # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
@@ -13,10 +13,6 @@ on: # yamllint disable-line rule:truthy
         required: true
       lint_output:
         description: Lint output
-        type: string
-        required: true
-      e2e_skyline_internal_testnet_test_output:
-        description: E2E Skyline Internal Testnet Tests output
         type: string
         required: true
       e2e_skyline_partner_testnet_test_output:
@@ -71,7 +67,7 @@ jobs:
                         "type": "plain_text",
                         "text": "Workflow Run"
                       },
-                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.e2e_skyline_internal_testnet_test_output == '' && inputs.e2e_skyline_partner_testnet_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
+                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.e2e_skyline_partner_testnet_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
                       "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                     }
                   ]
@@ -98,10 +94,6 @@ jobs:
                     {
                       "type": "mrkdwn",
                       "text": "${{ inputs.lint_output == '' && env.succeed_job || env.failed_job }} *Lint*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_skyline_internal_testnet_test_output == '' && env.succeed_job || env.failed_job }} *E2E Skyline Internal Testnet Tests*"
                     },
                     {
                       "type": "mrkdwn",
