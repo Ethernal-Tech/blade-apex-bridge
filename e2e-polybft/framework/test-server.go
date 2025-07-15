@@ -492,7 +492,8 @@ func (t *TestServer) AddValidatorToVSCProposal(
 	path string,
 	address types.Address,
 	keysForCardanoLikeChains []string,
-	keysForEvmLikeChains []string) error {
+	bladeBlsKey string,
+	nexus bool) error {
 	args := []string{
 		"proposal", "create-vsc-proposal", "add-validator",
 		"--address", address.String(),
@@ -502,8 +503,10 @@ func (t *TestServer) AddValidatorToVSCProposal(
 		args = append(args, "--cardano-like-chain", v)
 	}
 
-	for _, v := range keysForEvmLikeChains {
-		args = append(args, "--evm-like-chain", v)
+	args = append(args, "--blade", bladeBlsKey)
+
+	if nexus {
+		args = append(args, "--nexus")
 	}
 
 	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("execute"))
