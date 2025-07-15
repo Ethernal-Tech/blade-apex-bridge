@@ -59,10 +59,22 @@ type ITestApexChain interface {
 		operationFee uint64,
 	) ([]byte, error)
 	GetServerMust(t *testing.T, indx int) ITestApexChainServer
+	GetExistingStakePools(t *testing.T, ctx context.Context) []string
+	GetBridgingStakeAddressInfo(t *testing.T, ctx context.Context, indx uint8) infrawallet.QueryStakeAddressInfo
 }
 
 type TestApexChainDummy struct {
 	configParams []string
+}
+
+// GetBridgingStakeAddressInfo implements ITestApexChain.
+func (td *TestApexChainDummy) GetBridgingStakeAddressInfo(t *testing.T, ctx context.Context, indx uint8) infrawallet.QueryStakeAddressInfo {
+	panic("unimplemented")
+}
+
+// GetExistingStakePools implements ITestApexChain.
+func (td *TestApexChainDummy) GetExistingStakePools(t *testing.T, ctx context.Context) []string {
+	panic("unimplemented")
 }
 
 func NewTestApexChainDummy(configParams []string) *TestApexChainDummy {

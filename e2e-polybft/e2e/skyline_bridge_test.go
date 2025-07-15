@@ -2508,6 +2508,7 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 	wg.Wait()
 }
 
+// go test -timeout 0 -run ^TestE2E_SkylineBridge_SimpleStakingTest$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
 func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 	const apiKey = "test_api_key"
 
@@ -2537,14 +2538,14 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 		wg.Add(2)
 
 		go func() {
-			wg.Done()
+			defer wg.Done()
 
 			e2ehelper.ExecuteSingleBridging(
 				t, ctx, apex, senders[0], receivers[0], srcChainID, dstChainID, sendAmountDfm, sendtx.BridgingTypeCurrencyOnSource)
 		}()
 
 		go func() {
-			wg.Done()
+			defer wg.Done()
 
 			e2ehelper.ExecuteSingleBridging(
 				t, ctx, apex, senders[1], receivers[0], srcChainID, dstChainID, sendAmountDfm, sendtx.BridgingTypeNativeTokenOnSource)
@@ -2556,7 +2557,18 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 	executeBridging(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
 		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[2]})
 
-	// TODO:
+	// 1. Check existing stake pools in the system
+	stakePools := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetExistingStakePools(t, ctx)
+	require.NotEmpty(t, stakePools)
+
+	// 2. Register and delegate bridging address
+	err := apex.RegisterAndDelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0])
+	require.NoError(t, err)
+
+	// 3. Check if the registration and delegation was successful
+	addrInfo := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0)
+	require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
+	fmt.Println("Bridging address staked succesfully")
 
 	executeBridging(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
 		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[2]})

@@ -24,7 +24,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
-	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
@@ -89,6 +89,17 @@ type TestEVMChain struct {
 	gatewayAddr   types.Address
 	relayerWallet *crypto.ECDSAKey
 	fundBlockNum  uint64
+}
+
+// GetBridgingStakeAddressInfo implements ITestApexChain.
+func (ec *TestEVMChain) GetBridgingStakeAddressInfo(t *testing.T, ctx context.Context, indx uint8) infrawallet.QueryStakeAddressInfo {
+	fmt.Println("OVDE")
+	panic("unimplemented")
+}
+
+// GetExistingStakePools implements ITestApexChain.
+func (ec *TestEVMChain) GetExistingStakePools(t *testing.T, ctx context.Context) []string {
+	panic("unimplemented")
 }
 
 var _ ITestApexChain = (*TestEVMChain)(nil)
@@ -338,7 +349,7 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (map
 	}
 
 	return map[string]*big.Int{
-		cardanowallet.AdaTokenName: amount,
+		infrawallet.AdaTokenName: amount,
 	}, err
 }
 
@@ -406,7 +417,7 @@ func (ec *TestEVMChain) BridgingRequest(
 
 func (ec *TestEVMChain) SendTx(
 	ctx context.Context, privateKey string, receiver string,
-	amount *big.Int, _ []cardanowallet.TokenAmount, data []byte,
+	amount *big.Int, _ []infrawallet.TokenAmount, data []byte,
 ) (string, error) {
 	rec, err := ec.sendTx(privateKey, receiver, amount, data)
 	if err != nil {

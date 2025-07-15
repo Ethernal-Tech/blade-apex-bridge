@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BRANCH=feat/skyline
+BRANCH=staking-delegation-on-smart-contracts
 
 # build Apex-bridge smartcontracts
 cd ./apex-bridge-smartcontracts
