@@ -16,8 +16,8 @@ jobs:
       e2e_apex_test: true
       e2e_skyline_test: false
       e2e_refund_test: true
-      apex_bridge_ref: feat/refund
-      blade_apex_bridge_ref: feat/refund
+      apex_bridge_ref: feat/skyline_refund
+      blade_apex_bridge_ref: feat/skyline_refund
       e2e_apex_big_test: ${{ vars.RUN_E2E_BIG_TESTS }}
       e2e_apex_skip_redundant_tests: ${{ vars.SKIP_E2E_REDUNDANT_TESTS }}
     secrets:
@@ -29,7 +29,7 @@ jobs:
     if: success() || failure()
     with:
       environment: nightly
-      blade_apex_bridge_ref: feat/refund
+      blade_apex_bridge_ref: feat/skyline_refund
       build_blade_output: ${{ needs.refund_ci.outputs.build_blade }}
       lint_output: ${{ needs.refund_ci.outputs.lint }}
       unit_test_output: ${{ needs.refund_ci.outputs.unit_test }}
