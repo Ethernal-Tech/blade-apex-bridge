@@ -414,7 +414,10 @@ func WaitForRequestStateGeneric(
 		requestURL = fmt.Sprintf(
 			"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, chainID, txHash)
 		currentStatus string
+		currentState  *BridgingRequestStateResponse
 	)
+
+	fmt.Printf("requestURL: %s\n", requestURL)
 
 	timeoutTimer := time.NewTimer(timeout)
 	defer timeoutTimer.Stop()
@@ -424,14 +427,18 @@ func WaitForRequestStateGeneric(
 		case <-timeoutTimer.C:
 			fmt.Printf("Timeout\n")
 
-			return errors.New("timeout")
+			return fmt.Errorf("timeout. last err: %w", err)
 		case <-ctx.Done():
 			return errors.New("context done")
-		case <-time.After(time.Millisecond * 500):
+		case <-time.After(time.Second * 3):
 		}
 
-		currentState, err := GetBridgingRequestState(ctx, requestURL, apiKey)
+		currentState, err = GetBridgingRequestState(ctx, requestURL, apiKey)
 		if err != nil {
+			if !strings.Contains(err.Error(), fmt.Sprintf("%d", http.StatusNotFound)) {
+				fmt.Printf("error while GetBridgingRequestState. err: %v\n", err)
+			}
+
 			continue
 		}
 

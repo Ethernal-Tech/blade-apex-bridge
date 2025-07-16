@@ -57,6 +57,8 @@ func executeInvalidMismatchSendLovelaceAmount(
 		new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 	require.NoError(t, err)
 
+	fmt.Printf("txHash: %s\n", txHash)
+
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, timeoutSec)
 }
 
@@ -77,6 +79,8 @@ func executeInvalidMetadataType(
 		ctx, srcChain, user, apex.GetCardanoInfo(srcChain).MultisigAddr,
 		new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 	require.NoError(t, err)
+
+	fmt.Printf("txHash: %s\n", txHash)
 
 	_, err = cardanofw.WaitForRequestStates(ctx, apex, srcChain, txHash, apex.Config.APIKey, nil, timeoutSec)
 	require.ErrorContains(t, err, "timeout")
@@ -107,6 +111,8 @@ func executeInvalidMetadataSender(
 		new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 	require.NoError(t, err)
 
+	fmt.Printf("txHash: %s\n", txHash)
+
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, timeoutSec)
 }
 
@@ -129,6 +135,8 @@ func executeInvalidBridgingFee(
 		new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 	require.NoError(t, err)
 
+	fmt.Printf("txHash: %s\n", txHash)
+
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, timeoutSec)
 }
 
@@ -148,6 +156,8 @@ func executeInvalidEmptyReceivers(
 		ctx, srcChain, user, apex.GetCardanoInfo(srcChain).MultisigAddr,
 		new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 	require.NoError(t, err)
+
+	fmt.Printf("txHash: %s\n", txHash)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, timeoutSec)
 }
@@ -170,6 +180,8 @@ func executeInvalidDestination(
 		ctx, srcChain, user, apex.GetCardanoInfo(srcChain).MultisigAddr,
 		new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 	require.NoError(t, err)
+
+	fmt.Printf("txHash: %s\n", txHash)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, timeoutSec)
 }
@@ -197,6 +209,8 @@ func executeInvalidFeeReceiverAddr(
 		new(big.Int).SetUint64(feeAmount+operationFee), nil, metadata)
 
 	require.NoError(t, err)
+
+	fmt.Printf("txHash: %s\n", txHash)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, timeoutSec)
 }
@@ -228,6 +242,8 @@ func executeInvalidMismatchSendNativeTokenAmount(
 	)
 	require.NoError(t, err)
 
+	fmt.Printf("txHash: %s\n", txHash)
+
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, timeoutSec)
 }
 
@@ -253,6 +269,8 @@ func executeInvalidSendUnknownToken(
 		user, apex.GetCardanoInfo(srcChain).MultisigAddr,
 		new(big.Int).SetUint64(lovelaceAmount+feeAmount+operationFee), []wallet.TokenAmount{nativeTokenAmount}, metadata)
 	require.NoError(t, err)
+
+	fmt.Printf("txHash: %s\n", txHash)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, timeoutSec)
 }
