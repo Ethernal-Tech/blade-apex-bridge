@@ -78,7 +78,7 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		NetworkType:            infrawallet.TestNetNetwork,
 		NetworkMagic:           infrawallet.VectorTestNetProtocolMagic,
 		NodesCount:             4,
-		StartBlockHash:         "0x123",
+		StartBlockHash:         "0x0000000000000000000000000000000000000000000000000000000000000000",
 		StartSlot:              0,
 		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,

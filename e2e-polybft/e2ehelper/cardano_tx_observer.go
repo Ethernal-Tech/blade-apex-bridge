@@ -24,6 +24,8 @@ const (
 	indexerRestartDelay   = time.Second * 5
 	indexerKeepAlive      = true
 	indexerSyncStartTries = math.MaxInt
+
+	defaultObservingWaitTime = 10 * time.Second
 )
 
 type CardanoTxObserverImpl struct {
@@ -53,8 +55,8 @@ func NewCardanoTxObserver(
 
 	confirmedBlockHandler := func(txChan chan channelMsg, chainID int) func(block *indexer.CardanoBlock, blockTxs []*indexer.Tx) error {
 		return func(block *indexer.CardanoBlock, blockTxs []*indexer.Tx) error {
-			fmt.Println("Confirmed Block Handler invoked",
-				"block", block.Hash, "slot", block.Slot, "block txs", len(blockTxs))
+			// fmt.Println("Confirmed Block Handler invoked",
+			// 	"block", block.Hash, "slot", block.Slot, "block txs", len(blockTxs))
 
 			// do not rely only on blockTx, instead retrieve all unprocessed transactions from the database
 			// to account for any previous errors
@@ -63,10 +65,9 @@ func NewCardanoTxObserver(
 				return err
 			}
 
-			fmt.Printf("UnprocessedConfirmedTxs:\n")
+			// Process confirmed Txs
+			fmt.Printf("\nUnprocessedConfirmedTxs:\n")
 			for _, tx := range txs {
-				fmt.Printf("\t%d: \n\t%d \n\t%s \n\t%s\n", tx.Indx, tx.BlockSlot, tx.BlockHash, tx.Hash)
-
 				msg := channelMsg{
 					chainID: chainID,
 					txHash:  tx.Hash,
@@ -76,15 +77,12 @@ func NewCardanoTxObserver(
 				case <-ctx.Done():
 					return nil
 				case txChan <- msg:
-					fmt.Printf("Msg %v is successfully sent over the channel", msg)
+					fmt.Printf("Channel message with chain ID: %d and txHash: %s is successfully sent over the channel", msg.chainID, msg.txHash)
 				default:
-					fmt.Printf("ERROR: Msg %v failed to be sent over the channel", msg)
+					fmt.Printf("ERROR: Channel message with chain ID: %d and txHash: %s failed to be sent over the channel", msg.chainID, msg.txHash)
 				}
 			}
-
-			// Process confirmed Txs
 			// Send transaction hashes through the channel, signal to the test that transactions are not rolled back
-
 			err = indexerDB.MarkConfirmedTxsProcessed(txs)
 			if err != nil {
 				return err

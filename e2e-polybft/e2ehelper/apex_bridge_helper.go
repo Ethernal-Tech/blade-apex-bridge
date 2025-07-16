@@ -100,7 +100,6 @@ func ExecuteBridging(
 	var (
 		observedTxs = make(map[int][]string)
 		mu          sync.Mutex
-		observers   []*CardanoTxObserverImpl
 	)
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -120,8 +119,6 @@ func ExecuteBridging(
 			err = cardanoTxObserver.Start()
 			require.NoError(t, err)
 
-			observers = append(observers, cardanoTxObserver)
-
 			// Launch listener goroutine
 			go func(txChan <-chan channelMsg) {
 				for {
@@ -130,6 +127,7 @@ func ExecuteBridging(
 						return
 					case msg, ok := <-txChan:
 						if !ok {
+							fmt.Printf("ERROR: Failed to receive a channel message: %v", msg)
 							return
 						}
 						mu.Lock()
@@ -154,11 +152,11 @@ func ExecuteBridging(
 
 	sentTxHashes := config.sendTxStrategy(t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender)
 
-	// Give some time to indexer to observe the transactions and update the expected amounts
+	// Sleep for some time so indexer can observe all the transactions and update the expected amounts
 	select {
 	case <-ctx.Done():
 		return
-	case <-time.After(10 * time.Second):
+	case <-time.After(defaultObservingWaitTime):
 	}
 
 	// update expectedAmountPerChainDfm
@@ -183,9 +181,10 @@ func ExecuteBridging(
 
 						expectedAmountPerChainDfm[recieverUserIdx][destChain] = newValue
 
-						fmt.Printf("Updated expected amount for user idx %d on chain %s: %v\n", recieverUserIdx, destChain, observedTxs[chainConfigs[chain].ID])
+						fmt.Printf("\nTxHash %s not found in observed transactions\n", sentTxHash)
+						fmt.Printf("\nUpdated expected amount for user idx %d on chain %s: %v\nTime: %v", recieverUserIdx, destChain, observedTxs[chainConfigs[chain].ID], time.Now())
 					} else {
-						fmt.Printf("Sent transaction %s is found in observed ones: %v\n", sentTxHash, observedTxs[chainConfigs[chain].ID])
+						fmt.Printf("\nSent transaction %s is found in observed ones: %v\n", sentTxHash, observedTxs[chainConfigs[chain].ID])
 					}
 				}
 			}

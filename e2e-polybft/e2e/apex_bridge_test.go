@@ -1062,7 +1062,8 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
-			}))
+			}),
+			e2ehelper.WithRunIndexer(true))
 	})
 
 	t.Run("Both directions sequential and parallel - two nodes goes off in the middle and then one comes back", func(t *testing.T) {
@@ -1146,6 +1147,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 				{WaitTime: stopAfter, StopIndxs: []int{0, 1}, ExecutableOption: e2ehelper.Blade},
 				{WaitTime: stopAfter2, StopIndxs: []int{2, 3}, StartIndxs: []int{0, 1, 2, 3}, ExecutableOption: e2ehelper.Blade},
 			}),
+			e2ehelper.WithRunIndexer(true),
 		)
 	})
 
@@ -1810,7 +1812,10 @@ func PrimeVectorBothDirectionsSequentialAndParallel(
 		sendAmount = uint64(1_000_000)
 	)
 
-	options = append(options, e2ehelper.WithWaitForUnexpectedBridges(true))
+	options = append(
+		options,
+		e2ehelper.WithWaitForUnexpectedBridges(true),
+		e2ehelper.WithRunIndexer(true))
 
 	chainConfigs := map[string]*cardanofw.TestCardanoChainConfig{
 		cardanofw.ChainIDPrime:  apex.Config.PrimeConfig,
