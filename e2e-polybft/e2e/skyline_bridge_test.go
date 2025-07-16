@@ -2507,3 +2507,182 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 
 	wg.Wait()
 }
+
+// go test -timeout 0 -run ^TestE2E_SkylineBridge_SimpleStakingTest$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
+func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
+	const apiKey = "test_api_key"
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig.FundTokenAmount = 1_000_000_000
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	_, err := cardanofw.FundUserWithToken(
+		ctx, apex, cardanofw.ChainIDPrime,
+		apex.GetCardanoInfo(cardanofw.ChainIDPrime).GenesisWallet, apex.Users[1],
+		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+		uint64(2_000_000), uint64(100_000_000))
+	require.NoError(t, err)
+
+	_, err = cardanofw.FundUserWithToken(
+		ctx, apex, cardanofw.ChainIDCardano,
+		apex.GetCardanoInfo(cardanofw.ChainIDCardano).GenesisWallet, apex.Users[1],
+		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+		uint64(2_000_000), uint64(100_000_000))
+	require.NoError(t, err)
+
+	sendAmountDfm := big.NewInt(1_500_000)
+
+	executeBridging := func(
+		srcChainID, dstChainID cardanofw.ChainID, sendAmountDfm *big.Int,
+		senders, receivers []*cardanofw.TestApexUser,
+	) {
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+
+		bridgingTypes := []sendtx.BridgingType{
+			sendtx.BridgingTypeCurrencyOnSource,
+			sendtx.BridgingTypeNativeTokenOnSource,
+		}
+
+		for i := range bridgingTypes {
+			go func(idx int) {
+				defer wg.Done()
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, senders[idx], receivers[idx], srcChainID, dstChainID, sendAmountDfm, bridgingTypes[idx])
+			}(i)
+		}
+
+		wg.Wait()
+	}
+
+	executeBridging(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
+		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
+
+	// 1. Check existing stake pools in the system
+	stakePools := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetExistingStakePools(t, ctx)
+	require.NotEmpty(t, stakePools)
+
+	// 2. Register and delegate bridging address
+	err = apex.RegisterAndDelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0])
+	require.NoError(t, err)
+
+	// 3. Check if the registration and delegation was successful
+	addrInfo := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0)
+	require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
+	fmt.Println("Bridging address staked successfully")
+
+	executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
+		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
+}
+
+// go test -timeout 0 -run ^TestE2E_SkylineBridge_SimultaniousStakingTest$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
+func TestE2E_SkylineBridge_SimultaniousStakingTest(t *testing.T) {
+	const apiKey = "test_api_key"
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig.FundTokenAmount = 1_000_000_000
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	_, err := cardanofw.FundUserWithToken(
+		ctx, apex, cardanofw.ChainIDPrime,
+		apex.GetCardanoInfo(cardanofw.ChainIDPrime).GenesisWallet, apex.Users[1],
+		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+		uint64(2_000_000), uint64(100_000_000))
+	require.NoError(t, err)
+
+	_, err = cardanofw.FundUserWithToken(
+		ctx, apex, cardanofw.ChainIDCardano,
+		apex.GetCardanoInfo(cardanofw.ChainIDCardano).GenesisWallet, apex.Users[1],
+		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+		uint64(2_000_000), uint64(100_000_000))
+	require.NoError(t, err)
+
+	sendAmountDfm := big.NewInt(1_500_000)
+
+	executeBridging := func(
+		srcChainID, dstChainID cardanofw.ChainID, sendAmountDfm *big.Int,
+		senders, receivers []*cardanofw.TestApexUser, doRegDeleg bool,
+	) {
+		wg := sync.WaitGroup{}
+		wg.Add(5)
+
+		bridgingTypes := []sendtx.BridgingType{
+			sendtx.BridgingTypeCurrencyOnSource,
+			sendtx.BridgingTypeNativeTokenOnSource,
+			sendtx.BridgingTypeCurrencyOnSource,
+			sendtx.BridgingTypeCurrencyOnSource,
+		}
+
+		for i := range bridgingTypes {
+			go func(idx int) {
+				defer wg.Done()
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, senders[idx], receivers[idx], srcChainID, dstChainID, sendAmountDfm, bridgingTypes[idx])
+			}(i)
+		}
+
+		go func() {
+			defer wg.Done()
+
+			if !doRegDeleg {
+				return
+			}
+
+			// 1. Check existing stake pools in the system
+			stakePools := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetExistingStakePools(t, ctx)
+			require.NotEmpty(t, stakePools)
+
+			// 2. Register and delegate bridging address
+			err = apex.RegisterAndDelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0])
+			require.NoError(t, err)
+
+			// 3. Check if the registration and delegation was successful
+			addrInfo := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0)
+			require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
+			fmt.Println("Bridging address staked successfully")
+		}()
+
+		wg.Wait()
+	}
+
+	doRegDelegValues := []bool{false, true, false}
+
+	for _, doRegDeleg := range doRegDelegValues {
+		executeBridging(
+			cardanofw.ChainIDCardano,
+			cardanofw.ChainIDPrime,
+			sendAmountDfm,
+			[]*cardanofw.TestApexUser{
+				apex.Users[0], apex.Users[1], apex.Users[2], apex.Users[3],
+			},
+			[]*cardanofw.TestApexUser{
+				apex.Users[4], apex.Users[5], apex.Users[6], apex.Users[7],
+			},
+			doRegDeleg,
+		)
+	}
+}
