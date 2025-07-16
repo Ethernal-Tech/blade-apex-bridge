@@ -2550,6 +2550,7 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 	) {
 		wg := sync.WaitGroup{}
 		wg.Add(2)
+
 		bridgingTypes := []sendtx.BridgingType{
 			sendtx.BridgingTypeCurrencyOnSource,
 			sendtx.BridgingTypeNativeTokenOnSource,
