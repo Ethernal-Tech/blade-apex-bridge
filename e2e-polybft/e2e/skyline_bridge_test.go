@@ -2550,20 +2550,18 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 	) {
 		wg := sync.WaitGroup{}
 		wg.Add(2)
+		bridgingTypes := []sendtx.BridgingType{
+			sendtx.BridgingTypeCurrencyOnSource,
+			sendtx.BridgingTypeNativeTokenOnSource,
+		}
 
-		go func() {
-			defer wg.Done()
-
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, senders[0], receivers[0], srcChainID, dstChainID, sendAmountDfm, sendtx.BridgingTypeCurrencyOnSource)
-		}()
-
-		go func() {
-			defer wg.Done()
-
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, senders[1], receivers[1], srcChainID, dstChainID, sendAmountDfm, sendtx.BridgingTypeNativeTokenOnSource)
-		}()
+		for i := range 2 {
+			go func(idx int) {
+				defer wg.Done()
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, senders[idx], receivers[idx], srcChainID, dstChainID, sendAmountDfm, bridgingTypes[idx])
+			}(i)
+		}
 
 		wg.Wait()
 	}
@@ -2631,33 +2629,20 @@ func TestE2E_SkylineBridge_SimultaniousStakingTest(t *testing.T) {
 		wg := sync.WaitGroup{}
 		wg.Add(5)
 
-		go func() {
-			defer wg.Done()
+		bridgingTypes := []sendtx.BridgingType{
+			sendtx.BridgingTypeCurrencyOnSource,
+			sendtx.BridgingTypeNativeTokenOnSource,
+			sendtx.BridgingTypeCurrencyOnSource,
+			sendtx.BridgingTypeCurrencyOnSource,
+		}
 
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, senders[0], receivers[0], srcChainID, dstChainID, sendAmountDfm, sendtx.BridgingTypeCurrencyOnSource)
-		}()
-
-		go func() {
-			defer wg.Done()
-
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, senders[1], receivers[1], srcChainID, dstChainID, sendAmountDfm, sendtx.BridgingTypeNativeTokenOnSource)
-		}()
-
-		go func() {
-			defer wg.Done()
-
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, senders[2], receivers[2], srcChainID, dstChainID, sendAmountDfm, sendtx.BridgingTypeCurrencyOnSource)
-		}()
-
-		go func() {
-			defer wg.Done()
-
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, senders[3], receivers[3], srcChainID, dstChainID, sendAmountDfm, sendtx.BridgingTypeCurrencyOnSource)
-		}()
+		for i := range 4 {
+			go func(idx int) {
+				defer wg.Done()
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, senders[idx], receivers[idx], srcChainID, dstChainID, sendAmountDfm, bridgingTypes[idx])
+			}(i)
+		}
 
 		go func() {
 			defer wg.Done()
@@ -2683,12 +2668,20 @@ func TestE2E_SkylineBridge_SimultaniousStakingTest(t *testing.T) {
 		wg.Wait()
 	}
 
-	executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
-		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1], apex.Users[2], apex.Users[3]}, []*cardanofw.TestApexUser{apex.Users[4], apex.Users[5], apex.Users[6], apex.Users[7]}, false)
+	doRegDelegValues := []bool{false, true, false}
 
-	executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
-		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1], apex.Users[2], apex.Users[3]}, []*cardanofw.TestApexUser{apex.Users[4], apex.Users[5], apex.Users[6], apex.Users[7]}, true)
-
-	executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
-		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1], apex.Users[2], apex.Users[3]}, []*cardanofw.TestApexUser{apex.Users[4], apex.Users[5], apex.Users[6], apex.Users[7]}, false)
+	for _, doRegDeleg := range doRegDelegValues {
+		executeBridging(
+			cardanofw.ChainIDCardano,
+			cardanofw.ChainIDPrime,
+			sendAmountDfm,
+			[]*cardanofw.TestApexUser{
+				apex.Users[0], apex.Users[1], apex.Users[2], apex.Users[3],
+			},
+			[]*cardanofw.TestApexUser{
+				apex.Users[4], apex.Users[5], apex.Users[6], apex.Users[7],
+			},
+			doRegDeleg,
+		)
+	}
 }
