@@ -18,7 +18,7 @@ var (
 	cardanoLikeChainsParam []string
 	bladeParam             string
 	nexusParam             bool
-	//evmLikeChainsParam     []string
+	// evmLikeChainsParam     []string
 )
 
 func GetCommand() *cobra.Command {
@@ -48,7 +48,7 @@ func GetCommand() *cobra.Command {
 		"chain_name:multisig_verification:fee_verification:multisig_stake_verification:fee_stake_verification",
 	)
 
-	_ = cmd.MarkFlagRequired("cardano-like-chain")
+	// _ = cmd.MarkFlagRequired("cardano-like-chain")
 
 	// cmd.Flags().StringSliceVar(
 	// 	&evmLikeChainsParam,
@@ -232,6 +232,7 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 		if _, ok := validChains["nexus"]; !ok {
 			return fmt.Errorf("chain entry nexus not found for other validators")
 		}
+
 		validator.Chains["nexus"] = schema.Key{Key: bladeKeys}
 	}
 

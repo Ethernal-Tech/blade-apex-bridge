@@ -22,6 +22,7 @@ func GetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "vote",
 		Short: "Vote for proposal",
+		Run:   runCommand,
 	}
 
 	setFlags(cmd)

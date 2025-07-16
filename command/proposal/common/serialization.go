@@ -75,32 +75,3 @@ func GetProposalType(path string) (string, error) {
 
 	return metadata.Metadata.Type, nil
 }
-
-type ProposalData struct {
-	ProposalID  string `json:"proposal_id"`
-	Input       []byte `json:"input"`
-	Description string `json:"description"`
-}
-
-const tmpFolder = "/tmp/proposals/"
-
-func GetProposalData(id string) (*ProposalData, error) {
-	data, err := os.ReadFile(tmpFolder + id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	var ret *ProposalData
-	err = json.Unmarshal(data, &ret)
-
-	return ret, err
-}
-
-func (p ProposalData) Save() error {
-	data, err := json.Marshal(p)
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(tmpFolder+p.ProposalID, data, os.FileMode(os.O_CREATE|os.O_RDWR))
-}

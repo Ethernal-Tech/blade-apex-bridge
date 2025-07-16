@@ -8,13 +8,12 @@ import (
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
-	"github.com/0xPolygon/polygon-edge/helper/common"
+	"github.com/0xPolygon/polygon-edge/helper/hex"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/spf13/cobra"
 
 	bridgeHelper "github.com/0xPolygon/polygon-edge/command/bridge/helper"
-	proposalCommon "github.com/0xPolygon/polygon-edge/command/proposal/common"
 )
 
 var (
@@ -23,8 +22,9 @@ var (
 
 func GetCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "vote",
-		Short: "Vote for proposal",
+		Use:   "queue",
+		Short: "Queue for proposal",
+		Run:   runCommand,
 	}
 
 	setFlags(cmd)
@@ -52,13 +52,22 @@ func setFlags(cmd *cobra.Command) {
 	_ = cmd.MarkFlagRequired(jsonRPCAddressFlag)
 
 	cmd.Flags().StringVar(
-		&params.proposalID,
-		proposalIDFlag,
+		&params.input,
+		inputFlag,
 		"",
-		"Proposal ID to vote for",
+		"Input to queue",
 	)
 
-	_ = cmd.MarkFlagRequired(proposalIDFlag)
+	_ = cmd.MarkFlagRequired(inputFlag)
+
+	cmd.Flags().StringVar(
+		&params.description,
+		descriptionFlag,
+		"",
+		"description to queue",
+	)
+
+	_ = cmd.MarkFlagRequired(descriptionFlag)
 }
 
 func runCommand(cmd *cobra.Command, _ []string) {
@@ -81,14 +90,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		return
 	}
 
-	proposalID, err := common.ParseUint256orHex(&params.proposalID)
-	if err != nil {
-		outputter.SetError(err)
-
-		return
-	}
-
-	proposalData, err := proposalCommon.GetProposalData(proposalID.String())
+	input, err := hex.DecodeString(params.input)
 	if err != nil {
 		outputter.SetError(err)
 
@@ -97,12 +99,14 @@ func runCommand(cmd *cobra.Command, _ []string) {
 
 	queueFn := contractsapi.QueueChildGovernorFn{
 		Targets:         []types.Address{contracts.NetworkParamsContract},
-		Calldatas:       [][]byte{proposalData.Input},
-		DescriptionHash: crypto.Keccak256Hash([]byte(proposalData.Description)),
+		Calldatas:       [][]byte{input},
+		DescriptionHash: crypto.Keccak256Hash([]byte(params.description)),
 		Values:          []*big.Int{big.NewInt(0)},
 	}
 
-	input, err := queueFn.EncodeAbi()
+	fmt.Printf("Queue: %+v", queueFn)
+
+	queueInput, err := queueFn.EncodeAbi()
 	if err != nil {
 		outputter.SetError(err)
 
@@ -111,7 +115,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 
 	txn := types.NewTx(types.NewLegacyTx(
 		types.WithTo(&contracts.ChildGovernorContract),
-		types.WithInput(input),
+		types.WithInput(queueInput),
 	))
 
 	receipt, err := relayer.SendTransaction(txn, proposer)

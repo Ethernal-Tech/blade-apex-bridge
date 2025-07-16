@@ -428,7 +428,7 @@ func (t *TestServer) WaitForNonZeroBalance(address types.Address, dur time.Durat
 	}
 }
 
-func (t *TestServer) SubmitProposal(filePath, privateKey, description string) ([]byte, error) {
+func (t *TestServer) SubmitProposal(filePath, privateKey, description string) (*submit.SubmitResult, error) {
 	args := []string{
 		"proposal", "submit",
 		"--json-rpc", t.JSONRPCAddr(),
@@ -448,7 +448,7 @@ func (t *TestServer) SubmitProposal(filePath, privateKey, description string) ([
 		return nil, err
 	}
 
-	return []byte(result.ProposalID), nil
+	return &result, nil
 }
 
 func (t *TestServer) VoteProposal(proposalID, privateKey string, against bool) error {
@@ -466,23 +466,25 @@ func (t *TestServer) VoteProposal(proposalID, privateKey string, against bool) e
 	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("vote"))
 }
 
-func (t *TestServer) QueueProposal(proposalID, privateKey string) error {
+func (t *TestServer) QueueProposal(input, description, privateKey string) error {
 	args := []string{
 		"proposal", "queue",
 		"--json-rpc", t.JSONRPCAddr(),
 		"--private-key", privateKey,
-		"--proposal-id", proposalID,
+		"--input", input,
+		"--description", description,
 	}
 
 	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("queue"))
 }
 
-func (t *TestServer) ExecuteProposal(proposalID, privateKey string) error {
+func (t *TestServer) ExecuteProposal(input, description, privateKey string) error {
 	args := []string{
 		"proposal", "execute",
 		"--json-rpc", t.JSONRPCAddr(),
 		"--private-key", privateKey,
-		"--proposal-id", proposalID,
+		"--input", input,
+		"--description", description,
 	}
 
 	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("execute"))

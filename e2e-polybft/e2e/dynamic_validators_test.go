@@ -3,6 +3,7 @@ package e2e
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"path"
 	"path/filepath"
 	"testing"
@@ -24,17 +25,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
 )
-
-type validatorSetState struct {
-	BlockNumber          uint64                                         `json:"block"`
-	EpochID              uint64                                         `json:"epoch"`
-	UpdatedAtBlockNumber uint64                                         `json:"updated_at_block"`
-	Validators           map[types.Address]*validator.ValidatorMetadata `json:"validators"`
-}
-
-func (vs *validatorSetState) Unmarshal(b []byte) error {
-	return json.Unmarshal(b, vs)
-}
 
 func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 	const (
@@ -90,32 +80,14 @@ func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 	require.Equal(t, recp.Status, uint64(types.ReceiptSuccess))
 
 	// propose and execute validator set change
-
-	method := contractsapi.NewValidatorSetNetworkParamsFn{
-		ValidatorDelta: &contractsapi.ValidatorDelta{
-			AddedValidators: []*contractsapi.BridgeValidatorsData{
-				{
-					ChainID: 0xFF,
-					ValidatorData: []*contractsapi.ValidatorData{
-						{
-							Addr:         validatorAcc.Address(),
-							Key:          blsKey.PublicKey().ToBigInt(),
-							FeeSignature: []byte("feeSignature"),
-							Signature:    []byte("signature"),
-						},
-					},
-				},
-			},
-			RemovedValidators: []types.Address{},
+	addedValidators := []*addedValidator{
+		{
+			Address: validatorAcc.Address(),
+			Key:     blsKey.PublicKey(),
 		},
 	}
 
-	input, err := method.EncodeAbi()
-	require.NoError(t, err)
-
-	description := "validatorSetChange"
-
-	executeProposal(t, relayer, proposerAcc, input, description, cluster, polybftCfg)
+	executeValidatorChangeProposal(t, relayer, proposerAcc, addedValidators, []types.Address{}, cluster, polybftCfg)
 
 	// Check on stake manager
 	currentBlockNumber, err := relayer.Client().BlockNumber()
@@ -167,20 +139,7 @@ func TestE2E_DynamicValidators_RemoveValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	// propose and execute validator set change
-
-	method := contractsapi.NewValidatorSetNetworkParamsFn{
-		ValidatorDelta: &contractsapi.ValidatorDelta{
-			AddedValidators:   []*contractsapi.BridgeValidatorsData{},
-			RemovedValidators: []types.Address{removeValidatorAddr},
-		},
-	}
-
-	input, err := method.EncodeAbi()
-	require.NoError(t, err)
-
-	description := "validatorSetChange"
-
-	executeProposal(t, relayer, proposerAcc, input, description, cluster, polybftCfg)
+	executeValidatorChangeProposal(t, relayer, proposerAcc, []*addedValidator{}, []types.Address{removeValidatorAddr}, cluster, polybftCfg)
 
 	// Check on stake manager
 	currentBlockNumber, err := relayer.Client().BlockNumber()
@@ -260,33 +219,14 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 
 	removeValidatorAddr := removeValidatorKey.Address()
 
-	method := contractsapi.NewValidatorSetNetworkParamsFn{
-		ValidatorDelta: &contractsapi.ValidatorDelta{
-			AddedValidators: []*contractsapi.BridgeValidatorsData{
-				{
-					ChainID: 0xFF,
-					ValidatorData: []*contractsapi.ValidatorData{
-						{
-							Addr:         validatorAcc.Address(),
-							Key:          blsKey.PublicKey().ToBigInt(),
-							FeeSignature: []byte("feeSignature"),
-							Signature:    []byte("signature"),
-						},
-					},
-				},
-			},
-			RemovedValidators: []types.Address{
-				removeValidatorAddr,
-			},
+	addedValidators := []*addedValidator{
+		{
+			Address: validatorAcc.Address(),
+			Key:     blsKey.PublicKey(),
 		},
 	}
 
-	input, err := method.EncodeAbi()
-	require.NoError(t, err)
-
-	description := "validatorSetChange"
-
-	executeProposal(t, relayer, proposerAcc, input, description, cluster, polybftCfg)
+	executeValidatorChangeProposal(t, relayer, proposerAcc, addedValidators, []types.Address{removeValidatorAddr}, cluster, polybftCfg)
 
 	// Check on stake manager
 	currentBlockNumber, err := relayer.Client().BlockNumber()
@@ -371,16 +311,37 @@ func checkValidatorActive(t *testing.T, address types.Address,
 	require.Equal(t, validatorDataMap["isActive"], isAdded)
 }
 
-func executeProposal(t *testing.T, relayer txrelayer.TxRelayer, proposerAcc *wallet.Account,
-	input []byte, description string, cluster *framework.TestCluster, polybftCfg polybft.PolyBFTConfig) {
+func executeValidatorChangeProposal(t *testing.T, relayer txrelayer.TxRelayer, proposerAcc *wallet.Account,
+	addedValidators []*addedValidator, removedValidators []types.Address, cluster *framework.TestCluster, polybftCfg polybft.PolyBFTConfig) {
 	t.Helper()
 
-	proposalID := sendProposalTransaction(t, relayer, proposerAcc.Ecdsa,
-		contracts.ChildGovernorContract, contracts.NetworkParamsContract,
-		input, description)
+	description := "validatorSetChange"
+
+	filePath := fmt.Sprintf("test_proposal_%d", time.Now().UTC().UnixMilli())
+
+	server := cluster.Servers[0]
+
+	for _, added := range addedValidators {
+		require.NoError(t, server.AddValidatorToVSCProposal(filePath, added.Address, []string{}, hex.EncodeToHex(added.Key.Marshal())[2:], false))
+	}
+
+	for _, removed := range removedValidators {
+		require.NoError(t, server.RemoveValidatorToVSCProposal(filePath, removed))
+	}
+
+	key, err := proposerAcc.Ecdsa.MarshallPrivateKey()
+	require.NoError(t, err)
+
+	hexKey := hex.EncodeToHex(key)[2:]
+
+	submitResult, err := server.SubmitProposal(filePath, hexKey, description)
+	require.NoError(t, err)
+
+	proposalIDBig, ok := new(big.Int).SetString(submitResult.ProposalID, 10)
+	require.True(t, ok)
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		proposalState := getProposalState(t, proposalID,
+		proposalState := getProposalState(t, proposalIDBig,
 			polybftCfg.GovernanceConfig.ChildGovernorAddr, relayer)
 
 		return proposalState == Active
@@ -390,24 +351,23 @@ func executeProposal(t *testing.T, relayer txrelayer.TxRelayer, proposerAcc *wal
 		voterAcc, err := helper.GetAccountFromDir(s.DataDir())
 		require.NoError(t, err)
 
-		sendVoteTransaction(t, proposalID, For, polybftCfg.GovernanceConfig.ChildGovernorAddr,
-			relayer, voterAcc.Ecdsa)
+		voteKey, err := voterAcc.Ecdsa.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		require.NoError(t, server.VoteProposal(submitResult.ProposalID, hex.EncodeToHex(voteKey)[2:], false))
 	}
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		proposalState := getProposalState(t, proposalID,
+		proposalState := getProposalState(t, proposalIDBig,
 			polybftCfg.GovernanceConfig.ChildGovernorAddr, relayer)
 
 		return proposalState == Succeeded
 	}))
 
-	sendQueueProposalTransaction(t, relayer, proposerAcc.Ecdsa,
-		polybftCfg.GovernanceConfig.ChildGovernorAddr,
-		polybftCfg.GovernanceConfig.NetworkParamsAddr,
-		input, description)
+	require.NoError(t, server.QueueProposal(submitResult.Input, description, hexKey))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		proposalState := getProposalState(t, proposalID,
+		proposalState := getProposalState(t, proposalIDBig,
 			polybftCfg.GovernanceConfig.ChildGovernorAddr, relayer)
 
 		return proposalState == Queued
@@ -418,8 +378,21 @@ func executeProposal(t *testing.T, relayer txrelayer.TxRelayer, proposerAcc *wal
 
 	require.NoError(t, cluster.WaitForBlock(currentBlockNumber+2, 10*time.Second))
 
-	sendExecuteProposalTransaction(t, relayer, proposerAcc.Ecdsa,
-		polybftCfg.GovernanceConfig.ChildGovernorAddr,
-		polybftCfg.GovernanceConfig.NetworkParamsAddr,
-		input, description)
+	require.NoError(t, server.ExecuteProposal(submitResult.Input, description, hexKey))
+}
+
+type addedValidator struct {
+	Address types.Address
+	Key     *bls.PublicKey
+}
+
+type validatorSetState struct {
+	BlockNumber          uint64                                         `json:"block"`
+	EpochID              uint64                                         `json:"epoch"`
+	UpdatedAtBlockNumber uint64                                         `json:"updated_at_block"`
+	Validators           map[types.Address]*validator.ValidatorMetadata `json:"validators"`
+}
+
+func (vs *validatorSetState) Unmarshal(b []byte) error {
+	return json.Unmarshal(b, vs)
 }

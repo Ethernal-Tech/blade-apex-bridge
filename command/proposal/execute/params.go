@@ -3,11 +3,13 @@ package execute
 const (
 	privateKeyFlag     = "private-key"
 	jsonRPCAddressFlag = "json-rpc"
-	proposalIDFlag     = "proposal-id"
+	inputFlag          = "input"
+	descriptionFlag    = "description"
 )
 
 type executeParams struct {
 	privateKey     string
 	jsonRPCAddress string
-	proposalID     string
+	input          string
+	description    string
 }

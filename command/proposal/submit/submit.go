@@ -1,10 +1,10 @@
 package submit
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"strconv"
 
 	"github.com/0xPolygon/polygon-edge/command"
 	"github.com/0xPolygon/polygon-edge/command/helper"
@@ -27,6 +27,7 @@ func GetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "submit",
 		Short: "Submit proposal",
+		Run:   runCommand,
 	}
 
 	helper.RegisterJSONOutputFlag(cmd)
@@ -119,47 +120,51 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		return
 	}
 
-	var methodProposing = &contractsapi.NewValidatorSetDelta{}
+	var methodProposing = &contractsapi.NewValidatorSetNetworkParamsFn{
+		ValidatorDelta: &contractsapi.ValidatorDelta{
+			AddedValidators:   []*contractsapi.BridgeValidatorsData{},
+			RemovedValidators: []types.Address{},
+		},
+	}
 
 	// convert added validators
 	for _, v := range validatorSetChange.Added {
 		address := types.StringToAddress(v.Address)
 
 		for mapKey, key := range v.Chains {
-			converted, err := strconv.Atoi(mapKey)
-			if err != nil {
-				outputter.SetError(err)
+			converted, ok := common.ChainIDMap[mapKey]
+			if !ok {
+				outputter.SetError(fmt.Errorf("unknown chain name"))
 
 				return
 			}
 
 			var (
 				blsKey [4]*big.Int
-				ok     bool
 			)
 
 			for i := range key.Key {
-				blsKey[i], ok = new(big.Int).SetString(key.Key[i], 10)
+				blsKey[i], ok = new(big.Int).SetString(key.Key[i], 16)
 				if !ok {
 					outputter.SetError(fmt.Errorf("cannot convert string to big int in public key"))
+
+					return
 				}
 			}
 
-			validator := contractsapi.ValidatorSet{
+			validator := contractsapi.BridgeValidatorsData{
 				ChainID: uint8(converted),
-				Validators: []*contractsapi.ValidatorAddressChainData{
+				ValidatorData: []*contractsapi.ValidatorData{
 					{
-						Addr: address,
-						Data: &contractsapi.ValidatorChainData{
-							Key: blsKey,
-						},
-						KeySignature:    []byte(""),
-						KeyFeeSignature: []byte(""),
+						Addr:         address,
+						Key:          blsKey,
+						Signature:    []byte(""),
+						FeeSignature: []byte(""),
 					},
 				},
 			}
 
-			methodProposing.AddedValidators = append(methodProposing.AddedValidators, &validator)
+			methodProposing.ValidatorDelta.AddedValidators = append(methodProposing.ValidatorDelta.AddedValidators, &validator)
 		}
 	}
 
@@ -167,7 +172,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	for _, v := range validatorSetChange.Removed {
 		address := types.StringToAddress(v)
 
-		methodProposing.RemovedValidators = append(methodProposing.RemovedValidators, address)
+		methodProposing.ValidatorDelta.RemovedValidators = append(methodProposing.ValidatorDelta.RemovedValidators, address)
 	}
 
 	// propose
@@ -224,20 +229,9 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		}
 	}
 
-	p := common.ProposalData{
-		ProposalID:  proposalCreatedEvent.ProposalID.String(),
-		Input:       input,
-		Description: params.description,
-	}
-
-	if err := p.Save(); err != nil {
-		outputter.SetError(err)
-
-		return
-	}
-
 	result := &SubmitResult{
 		ProposalID: proposalCreatedEvent.ProposalID.String(),
+		Input:      hex.EncodeToString(input),
 	}
 
 	outputter.SetCommandResult(result)
@@ -245,6 +239,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 
 type SubmitResult struct {
 	ProposalID string `json:"proposal_id"`
+	Input      string `json:"input"`
 }
 
 func (pr SubmitResult) GetOutput() string {
