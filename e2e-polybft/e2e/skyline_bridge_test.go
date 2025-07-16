@@ -2556,7 +2556,7 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 			sendtx.BridgingTypeNativeTokenOnSource,
 		}
 
-		for i := range 2 {
+		for i := range bridgingTypes {
 			go func(idx int) {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
@@ -2637,7 +2637,7 @@ func TestE2E_SkylineBridge_SimultaniousStakingTest(t *testing.T) {
 			sendtx.BridgingTypeCurrencyOnSource,
 		}
 
-		for i := range 4 {
+		for i := range bridgingTypes {
 			go func(idx int) {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
