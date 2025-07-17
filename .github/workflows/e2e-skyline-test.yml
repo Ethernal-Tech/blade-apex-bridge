@@ -57,7 +57,12 @@ jobs:
       - name: Install Cardano tools
         uses: milos-ethernal/cardano-node-action@5a3bce7266cc1500d96e8fa63b3bb97135988482
       - name: Install ogmios
-        uses: milos-ethernal/ogmios-action@13e2be0b00da80f26bb8583fa129bd7c08856a49
+        uses: milos-ethernal/ogmios-action@b7331ce2e68000770cd8663c49ba963fc1f74dbf
+        with:
+          tag: 'v6.4.0'
+      - name: Display Ogmios version
+        run: |
+          echo "Ogmios version: $(ogmios version)"
       - name: Install Vector Cardano binaries
         run: |
           wget https://artifacts.apexfusion.org/vector-node-beta-8.9.3.0.0.0.0.5-linux.tar.gz
