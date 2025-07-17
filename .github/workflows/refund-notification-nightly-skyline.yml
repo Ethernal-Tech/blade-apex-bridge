@@ -1,5 +1,5 @@
 ---
-name: Refund Notification - Nightly (Skyline)
+name: Refund Notification - Nightly Skyline
 on: # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
@@ -53,9 +53,9 @@ jobs:
       - name: Short SHA
         id: short_sha
         run: |
-          sha=$(git rev-parse HEAD)
-          echo "full_value=${sha}" >> $GITHUB_OUTPUT
-          echo "value=${sha:0:7}"   >> $GITHUB_OUTPUT
+          sha=`git rev-parse HEAD`
+          echo "full_value=`echo ${sha}`" >> $GITHUB_OUTPUT
+          echo "value=`echo ${sha} | cut -c1-7`" >> $GITHUB_OUTPUT
 
       - name: Notify Slack
         uses: slackapi/slack-github-action@v1.25.0
@@ -104,7 +104,9 @@ jobs:
                     }
                   ]
                 },
-                { "type": "divider" },
+                {
+                  "type": "divider"
+                },
                 {
                   "type": "section",
                   "fields": [
