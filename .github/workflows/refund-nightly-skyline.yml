@@ -24,7 +24,7 @@ jobs:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   notification_refund_nightly:
     name: Refund Nightly Notification
-    uses: ./.github/workflows/refund-notification-nightly.yml
+    uses: ./.github/workflows/refund-notification-nightly-skyline.yml
     needs: refund_ci
     if: success() || failure()
     with:
