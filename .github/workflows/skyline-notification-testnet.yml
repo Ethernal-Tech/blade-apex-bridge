@@ -1,5 +1,5 @@
 ---
-name: Apex Bridge Notification - Internal/Partner Skyline Testnet
+name: Skyline Notification - Partner Skyline Testnet
 on: # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
@@ -15,8 +15,8 @@ on: # yamllint disable-line rule:truthy
         description: Lint output
         type: string
         required: true
-      e2e_apex_internal_testnet_test_output:
-        description: E2E Apex Bridge Internal Testnet Tests output
+      e2e_skyline_partner_testnet_test_output:
+        description: E2E Skyline Partner Testnet Tests output
         type: string
         required: true
     secrets:
@@ -67,7 +67,7 @@ jobs:
                         "type": "plain_text",
                         "text": "Workflow Run"
                       },
-                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.e2e_apex_internal_testnet_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
+                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.e2e_skyline_partner_testnet_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
                       "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                     }
                   ]
@@ -97,7 +97,7 @@ jobs:
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_apex_internal_testnet_test_output == '' && env.succeed_job || env.failed_job }} *E2E Apex Bridge Internal Testnet Tests*"
+                      "text": "${{ inputs.e2e_skyline_partner_testnet_test_output == '' && env.succeed_job || env.failed_job }} *E2E Skyline Partner Testnet Tests*"
                     }
                   ]
                 }
