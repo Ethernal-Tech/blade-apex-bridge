@@ -34,6 +34,7 @@ jobs:
       lint_output: ${{ needs.refund_ci.outputs.lint }}
       unit_test_output: ${{ needs.refund_ci.outputs.unit_test }}
       e2e_apex_test_output: ${{ needs.refund_ci.outputs.e2e_apex_test }}
+      e2e_skyline_test_output: ${{ needs.refund_ci.outputs.e2e_skyline_test }}
       e2e_refund_test_output: ${{ needs.refund_ci.outputs.e2e_refund_test }}
     secrets:
       APEX_SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}
