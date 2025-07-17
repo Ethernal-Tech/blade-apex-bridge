@@ -1,138 +1,119 @@
 ---
-name: Refund Notification - Nightly (Skyline)
+name: E2E Refund Tests
 on: # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      environment:
-        description: The environment to run against
+      e2e_apex_skip_redundant_tests:
+        description: E2E Refund Skip Redundant Tests
+        type: string
+        required: true
+      apex_bridge_ref:
+        description: The branch/commit from the Apex Bridge
         type: string
         required: true
       blade_apex_bridge_ref:
         description: The branch/commit from the Blade Apex Bridge
         type: string
-        required: true
-      build_blade_output:
-        description: Build Blade output
-        type: string
-        required: true
-      lint_output:
-        description: Lint output
-        type: string
-        required: true
-      unit_test_output:
-        description: Unit Tests output
-        type: string
-        required: true
-      e2e_apex_test_output:
-        description: E2E ApexBridge Tests output
-        type: string
-        required: true
-      e2e_skyline_test_output:
-        description: E2E Skyline Tests output
-        type: string
-        required: true
-      e2e_refund_test_output:
+    outputs:
+      workflow_output:
         description: E2E Refund Tests output
-        type: string
-        required: true
+        value: ${{ jobs.e2e_refund.outputs.e2e_refund_output_failure }}
     secrets:
-      APEX_SLACK_WEBHOOK_URL:
+      PERSONAL_ACCESS_TOKEN:
         required: true
 
 jobs:
-  notification:
-    name: Notification
+  e2e_refund:
+    name: Run E2E Refund Tests
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    env:
+      E2E_TESTS: true
+      E2E_LOGS: true
+      CI_VERBOSE: true
+    outputs:
+      e2e_refund_output_failure: ${{ steps.run_e2e_refund_failure.outputs.test_output }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.1.1
         with:
           ref: ${{ inputs.blade_apex_bridge_ref }}
-
-      - name: Short SHA
-        id: short_sha
-        run: |
-          sha=$(git rev-parse HEAD)
-          echo "full_value=${sha}" >> $GITHUB_OUTPUT
-          echo "value=${sha:0:7}"   >> $GITHUB_OUTPUT
-
-      - name: Notify Slack
-        uses: slackapi/slack-github-action@v1.25.0
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-          succeed_bnt: 'primary'
-          failed_bnt: 'danger'
-          succeed_job: ':green:'
-          failed_job: ':red:'
+      - name: Install Go
+        uses: actions/setup-go@v5.0.0
         with:
-          payload: |
-            {
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "Skyline Refund Main Nightly Local Tests"
-                  }
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "Workflow Run"
-                      },
-                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.unit_test_output == '' && inputs.e2e_apex_test_output == '' && inputs.e2e_skyline_test_output == '' && inputs.e2e_refund_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
-                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                    }
-                  ]
-                },
-                {
-                  "type": "context",
-                  "elements": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "Commit: *<https://github.com/${{ github.repository }}/tree/${{ steps.short_sha.outputs.full_value }}|${{ steps.short_sha.outputs.value }}>*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "Environment: *${{ inputs.environment }}*"
-                    }
-                  ]
-                },
-                { "type": "divider" },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.build_blade_output == '' && env.succeed_job || env.failed_job }} *Build*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.lint_output == '' && env.succeed_job || env.failed_job }} *Lint*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.unit_test_output == '' && env.succeed_job || env.failed_job }} *Unit Tests*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_apex_test_output == '' && env.succeed_job || env.failed_job }} *E2E ApexBridge Tests*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_skyline_test_output == '' && env.succeed_job || env.failed_job }} *E2E Skyline Tests*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_refund_test_output == '' && env.succeed_job || env.failed_job }} *E2E Refund Tests*"
-                    }
-                  ]
-                }
-              ]
-            }
+          go-version: ${{ vars.GOLANG_VERSION }}
+          check-latest: true
+      - name: Generate OpenSSL certificate
+        run: openssl req -x509 -out localhost.crt -keyout localhost.key -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' -extensions EXT -config <(printf "[dn]\nCN=localhost\n[req]\ndistinguished_name = dn\n[EXT]\nsubjectAltName=DNS:localhost\nkeyUsage=digitalSignature\nextendedKeyUsage=serverAuth")
+      - name: Copy certificate key
+        run: sudo cp localhost.key /etc/ssl/private/localhost.key
+      - name: Copy certificate itself
+        run: sudo cp localhost.crt /usr/local/share/ca-certificates/localhost.crt
+      - name: Add certificate to trusted list
+        run: sudo update-ca-certificates
+      - name: Update certificate key folder permissions
+        run: sudo chmod -R 755 /etc/ssl/private
+      - name: Update certificate key file permissions
+        run: sudo chmod 644 /etc/ssl/private/localhost.key
+      - name: Install Cardano tools
+        uses: milos-ethernal/cardano-node-action@5a3bce7266cc1500d96e8fa63b3bb97135988482
+      - name: Install ogmios
+        uses: milos-ethernal/ogmios-action@13e2be0b00da80f26bb8583fa129bd7c08856a49
+      - name: Install Vector Cardano binaries
+        run: |
+          wget https://artifacts.apexfusion.org/vector-node-beta-8.9.3.0.0.0.0.5-linux.tar.gz
+          tar xvzf vector-node-beta-8.9.3.0.0.0.0.5-linux.tar.gz
+          sudo mv bin/vector-node /usr/local/bin/
+          sudo mv bin/vector-cli /usr/local/bin/
+      - name: Install Vector Ogmios binaries
+        run: |
+          wget https://artifacts.apexfusion.org/vector-ogmios-v6.2.0-x86_64-linux.tar.gz
+          tar xvzf vector-ogmios-v6.2.0-x86_64-linux.tar.gz
+          sudo mv vector-ogmios-v6.2.0-x86_64-linux/bin/vector-ogmios /usr/local/bin/
+          sudo rm -rf vector-ogmios-v6.2.0-x86_64-linux
+      - name: Display Vector Cardano version
+        run: |
+          echo "Vector Cardano Node version: $(vector-node version)"
+          echo "Vector Cardano CLI version: $(vector-cli version)"
+      - name: Display Vector Ogmios version
+        run: |
+          echo "Vector Ogmios version: $(vector-ogmios version)"
+      - name: Checkout apex-bridge repo
+        uses: actions/checkout@v4.1.1
+        with:
+          repository: Ethernal-Tech/apex-bridge
+          ref: ${{ inputs.apex_bridge_ref }}
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      - name: Build apex-bridge
+        run: |
+          go build -tags testenv
+          sudo mv apex-bridge /usr/local/bin/
+      - name: Verify apex-bridge executable
+        run: apex-bridge --help
+      - name: Checkout blade
+        uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ inputs.blade_apex_bridge_ref }}
+      - name: Check certificate key permissions
+        run: ls -l /etc/ssl/private/localhost.key
+      - name: Run tests
+        run: make test-e2e-refund-apex-bridge
+        env: 
+          SKIP_E2E_REDUNDANT_TESTS: ${{ inputs.e2e_apex_skip_redundant_tests }}
+      - name: Run tests failed
+        if: failure()
+        id: run_e2e_refund_failure
+        run: echo "test_output=false" >> $GITHUB_OUTPUT
+      - name: Archive test logs
+        if: always()
+        uses: actions/upload-artifact@v4.3.0
+        with:
+          name: e2e-refund-logs
+          path: e2e-logs-*/
+          retention-days: 30
+      - name: Archive e2e refund data
+        if: always()
+        uses: actions/upload-artifact@v4.3.0
+        with:
+          name: e2e-refund-data
+          path: e2e-bridge-data-tmp-*/
+          retention-days: 3
