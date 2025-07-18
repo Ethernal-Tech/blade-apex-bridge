@@ -4,6 +4,12 @@ on: # yamllint disable-line rule:truthy
   schedule:
     # * is a special character in YAML so you have to quote this string
     - cron: '0 0 * * *'
+  push:
+    branches:
+      - feat/skyline_refund
+  pull_request:
+    branches:
+      - feat/skyline_refund
   workflow_dispatch:
 
 jobs:
