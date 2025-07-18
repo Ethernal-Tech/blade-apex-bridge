@@ -113,6 +113,7 @@ func ExecuteBridging(
 				// we want indexer to run only for cardano chains
 				continue
 			}
+
 			indexerConfig, syncerConfig := loadSyncerConfigs(chainConfigs[chain], chainInfos[chain])
 
 			txExecutedComponents[chain], err = e2eindexer.NewTxsExecutedComponent(
