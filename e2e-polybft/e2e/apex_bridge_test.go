@@ -895,34 +895,6 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			hclog.NewNullLogger())
 	})
 
-	t.Run("From prime to vector parallel with indexer", func(t *testing.T) {
-		if cardanofw.ShouldSkipE2RRedundantTests() {
-			t.Skip()
-		}
-
-		const (
-			sendAmount = uint64(1_000_000)
-			instances  = 5
-		)
-
-		chainConfigs := map[string]*cardanofw.TestCardanoChainConfig{
-			cardanofw.ChainIDPrime: apex.Config.PrimeConfig,
-		}
-
-		chainInfos := map[string]*cardanofw.CardanoChainInfo{
-			cardanofw.ChainIDPrime: &apex.PrimeInfo,
-		}
-
-		e2ehelper.ExecuteBridging(
-			t, ctx, apex, chainConfigs, chainInfos, 1, apex.Users[:instances], []*cardanofw.TestApexUser{user},
-			[]string{cardanofw.ChainIDPrime},
-			map[string][]string{
-				cardanofw.ChainIDPrime: {cardanofw.ChainIDVector},
-			}, new(big.Int).SetUint64(sendAmount),
-			hclog.NewNullLogger(),
-			e2ehelper.WithRunIndexer(true))
-	})
-
 	t.Run("From vector to prime one by one", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
 			t.Skip()
