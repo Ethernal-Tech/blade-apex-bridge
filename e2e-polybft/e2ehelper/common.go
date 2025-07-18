@@ -7,15 +7,16 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
-	"github.com/Ethernal-Tech/cardano-infrastructure/indexer"
 )
 
 type IApexSystem interface {
 	SubmitBridgingRequest(
 		t *testing.T, ctx context.Context,
 		sourceChain cardanofw.ChainID, destinationChain cardanofw.ChainID,
-		sender *cardanofw.TestApexUser, dfmAmount *big.Int, receivers ...*cardanofw.TestApexUser,
+		sender *cardanofw.TestApexUser, dfmAmount *big.Int,
+		txsExecutedComponent *e2eindexer.TxsExecutedComponent, receivers ...*cardanofw.TestApexUser,
 	) string
 	WaitForGreaterAmount(
 		ctx context.Context, user *cardanofw.TestApexUser, chain cardanofw.ChainID,
@@ -68,19 +69,4 @@ func getAllChainPairs(chains []string, chainsDst map[string][]string) (res []src
 	}
 
 	return res
-}
-
-func getDestinationChain(chainPairs []srcDstChainPair, srcChain string) string {
-	for _, chainPair := range chainPairs {
-		if chainPair.srcChain == srcChain {
-			return chainPair.dstChain
-		}
-	}
-
-	return ""
-}
-
-type channelMsg struct {
-	chainID int
-	txHash  indexer.Hash
 }

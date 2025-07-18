@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/polygon-edge/crypto"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 )
 
 type ITestApexChainServer interface {
@@ -26,10 +27,12 @@ type ITestApexChain interface {
 	ChainID() string
 	GetAddressBalance(ctx context.Context, addr string) (*big.Int, error)
 	BridgingRequest(
-		ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
+		ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int,
+		feeAmount *big.Int, txsExecutedComponent *e2eindexer.TxsExecutedComponent,
 	) (string, error)
 	SendTx(
 		ctx context.Context, privateKey string, receiver string, amount *big.Int, data []byte,
+		txsExecutedComponent *e2eindexer.TxsExecutedComponent,
 	) (string, error)
 	GetHotWalletAddress() string
 	GetAdminPrivateKey() (string, error)
@@ -47,7 +50,8 @@ func NewTestApexChainDummy(configParams []string) *TestApexChainDummy {
 }
 
 func (td *TestApexChainDummy) BridgingRequest(
-	ctx context.Context, destChainID string, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
+	ctx context.Context, destChainID string, privateKey string, receivers map[string]*big.Int,
+	feeAmount *big.Int, _ *e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	return "", nil
 }
@@ -95,6 +99,7 @@ func (*TestApexChainDummy) RunChain(t *testing.T) error {
 
 func (td *TestApexChainDummy) SendTx(
 	ctx context.Context, privateKey string, receiver string, amount *big.Int, data []byte,
+	_ *e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	return "", nil
 }

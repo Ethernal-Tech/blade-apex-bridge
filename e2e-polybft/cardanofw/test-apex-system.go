@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/crypto"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/types"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
@@ -255,7 +256,7 @@ func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, dfm
 	}
 
 	_, err = chain.SendTx(
-		ctx, pk, chain.GetHotWalletAddress(), DfmToChainNativeTokenAmount(chainID, dfmAmount), nil)
+		ctx, pk, chain.GetHotWalletAddress(), DfmToChainNativeTokenAmount(chainID, dfmAmount), nil, nil)
 
 	return err
 }
@@ -537,13 +538,15 @@ func (a *ApexSystem) SubmitTx(
 
 	return chain.SendTx(
 		ctx, privateKey, receiverAddr,
-		DfmToChainNativeTokenAmount(sourceChain, dfmAmount), data)
+		DfmToChainNativeTokenAmount(sourceChain, dfmAmount), data, nil)
 }
 
 func (a *ApexSystem) SubmitBridgingRequest(
 	t *testing.T, ctx context.Context,
 	sourceChain ChainID, destinationChain ChainID,
-	sender *TestApexUser, dfmAmount *big.Int, receivers ...*TestApexUser,
+	sender *TestApexUser, dfmAmount *big.Int,
+	txsExecutedComponent *e2eindexer.TxsExecutedComponent,
+	receivers ...*TestApexUser,
 ) string {
 	t.Helper()
 
@@ -605,7 +608,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
 		txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
-			ctx, destinationChain, privateKey, receiversMap, feeAmount)
+			ctx, destinationChain, privateKey, receiversMap, feeAmount, txsExecutedComponent)
 		if err != nil {
 			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") ||
 				strings.Contains(err.Error(), infracommon.ErrRetryTimeout.Error()) {

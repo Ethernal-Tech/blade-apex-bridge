@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -60,10 +61,12 @@ type RestartValidatorsConfig struct {
 	ExecutableOption ExecutableType
 }
 
-// returns map that contains hashes of transactions that were sent and source chain ID and receiver user as a key
+// returns map chainID -> receiverIdx -> txHash
 type SendTxStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
-	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int) map[string]map[*cardanofw.TestApexUser][]string
+	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
+	txsExecutedComponents map[string]*e2eindexer.TxsExecutedComponent,
+) map[string]map[int][]string
 
 type RestartValidatorStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig)
@@ -126,14 +129,16 @@ func WithTimeoutConfig(tc TimeoutConfig) ExecuteBridgingOption {
 var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
-		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int) map[string]map[*cardanofw.TestApexUser][]string {
+		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
+		txsExecutedComponents map[string]*e2eindexer.TxsExecutedComponent,
+	) map[string]map[int][]string {
 		t.Helper()
 
 		var (
 			wg sync.WaitGroup
 			mu sync.Mutex
 
-			txHashes = make(map[string]map[*cardanofw.TestApexUser][]string, len(chains))
+			txHashes = make(map[string]map[int][]string, len(chains))
 		)
 
 		for i, sender := range senders {
@@ -145,27 +150,27 @@ var (
 
 					for j := 0; j < txCountPerSender; j++ {
 						txHash := apex.SubmitBridgingRequest(
-							t, ctx, chainPair.srcChain, chainPair.dstChain, senderUser, sendAmountDfm, receivers...)
+							t, ctx, chainPair.srcChain, chainPair.dstChain, senderUser, sendAmountDfm,
+							txsExecutedComponents[chainPair.srcChain], receivers...)
 
 						fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
 							idx+1, j+1, chainPair.srcChain, chainPair.dstChain, txHash)
 
-						for _, receiver := range receivers {
+						for receiverIdx := range receivers {
 							mu.Lock()
 							if _, ok := txHashes[chainPair.srcChain]; !ok {
-								txHashes[chainPair.srcChain] = make(map[*cardanofw.TestApexUser][]string)
+								txHashes[chainPair.srcChain] = make(map[int][]string)
 							}
-							txHashes[chainPair.srcChain][receiver] = append(txHashes[chainPair.srcChain][receiver], txHash)
+							txHashes[chainPair.srcChain][receiverIdx] = append(txHashes[chainPair.srcChain][receiverIdx], txHash)
 							mu.Unlock()
 						}
-
-						fmt.Printf("Added txHash: %s\n Tx Hashes for chain %s: %v\n", txHash, chainPair.srcChain, txHashes[chainPair.srcChain])
 					}
 				}(i, sender, chainPair)
 			}
 		}
 
 		wg.Wait()
+
 		return txHashes
 	}
 	defaultRestartValidatorStrategy RestartValidatorStrategyFn = func(

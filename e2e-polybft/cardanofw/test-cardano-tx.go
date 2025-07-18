@@ -7,7 +7,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
+	"github.com/Ethernal-Tech/cardano-infrastructure/indexer"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
@@ -25,6 +27,7 @@ func SendTx(ctx context.Context,
 	networkType wallet.CardanoNetworkType,
 	networkMagic uint,
 	metadata []byte,
+	txsExecutedComponent *e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
 		txBuilder, err := wallet.NewTxBuilder(ResolveCardanoCliBinary(networkType))
@@ -43,6 +46,10 @@ func SendTx(ctx context.Context,
 			ctx, txBuilder, txProvider, caddr.String(), amount, receiver, networkMagic, metadata)
 		if err != nil {
 			return "", fmt.Errorf("failed to create transaction: %w", err)
+		}
+
+		if txsExecutedComponent != nil {
+			txsExecutedComponent.Add(indexer.NewHashFromHexString(txHash))
 		}
 
 		signedTx, err := txBuilder.SignTx(txRaw, []wallet.ITxSigner{senderWallet})

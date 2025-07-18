@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,7 +29,7 @@ func ExecuteSingleBridging(
 	require.NoError(t, err)
 
 	txHash := apex.SubmitBridgingRequest(
-		t, ctx, srcChain, dstChain, senderUser, sendAmountDfm, receiverUser)
+		t, ctx, srcChain, dstChain, senderUser, sendAmountDfm, nil, receiverUser)
 	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -50,7 +52,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 		prevAmountDfm, err := apex.GetBalance(ctx, user, dstChain)
 		require.NoError(t, err)
 
-		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, user)
+		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, nil, user)
 		expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
 
 		err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm,
@@ -73,7 +75,7 @@ func ExecuteBridgingWaitAfterSubmits(
 	expectedAmountDfm := new(big.Int).Set(prevAmountDfm)
 
 	for i := 0; i < txCountPerSender; i++ {
-		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, user)
+		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, nil, user)
 		expectedAmountDfm = expectedAmountDfm.Add(expectedAmountDfm, sendAmountDfm)
 	}
 
@@ -87,8 +89,8 @@ func ExecuteBridging(
 	chainConfigs map[string]*cardanofw.TestCardanoChainConfig,
 	chainInfos map[string]*cardanofw.CardanoChainInfo, txCountPerSender int,
 	senderUsers []*cardanofw.TestApexUser, receiverUsers []*cardanofw.TestApexUser,
-	chains []string, chainsDst map[string][]string,
-	sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
+	chains []string, chainsDst map[string][]string, sendAmountDfm *big.Int,
+	logger hclog.Logger, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -98,44 +100,24 @@ func ExecuteBridging(
 	expectedAmountPerChainDfm := make([]map[string]*big.Int, len(receiverUsers))
 
 	var (
-		observedTxs = make(map[int][]string)
-		mu          sync.Mutex
+		txExecutedComponents = make(map[string]*e2eindexer.TxsExecutedComponent)
+		err                  error
 	)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	if config.runIndexerInstance {
-		indexerDBs, err := initIndexerDBs(chains)
-		require.NoError(t, err)
-
 		for _, chain := range chains {
-			cardanoTxObserver, err := NewCardanoTxObserver(
-				ctx, chainConfigs[chain],
-				chainInfos[chain], indexerDBs[chain],
-			)
-			require.NoError(t, err)
+			if chain == cardanofw.ChainIDNexus {
+				// we want indexer to run only for cardano chains
+				continue
+			}
+			indexerConfig, syncerConfig := loadSyncerConfigs(chainConfigs[chain], chainInfos[chain])
 
-			err = cardanoTxObserver.Start()
+			txExecutedComponents[chain], err = e2eindexer.NewTxsExecutedComponent(
+				syncerConfig, *indexerConfig.StartingBlockPoint, nil, logger)
 			require.NoError(t, err)
-
-			// Launch listener goroutine
-			go func(txChan <-chan channelMsg) {
-				for {
-					select {
-					case <-ctx.Done():
-						return
-					case msg, ok := <-txChan:
-						if !ok {
-							fmt.Printf("ERROR: Failed to receive a channel message: %v", msg)
-							return
-						}
-						mu.Lock()
-						observedTxs[chainConfigs[chain].ID] = append(observedTxs[chainConfigs[chain].ID], msg.txHash.String())
-						mu.Unlock()
-					}
-				}
-			}(cardanoTxObserver.TxChan())
 		}
 	}
 
@@ -150,53 +132,65 @@ func ExecuteBridging(
 		}
 	}
 
-	sentTxHashes := config.sendTxStrategy(t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender)
-
-	// Sleep for some time so indexer can observe all the transactions and update the expected amounts
-	select {
-	case <-ctx.Done():
-		return
-	case <-time.After(defaultObservingWaitTime):
-	}
-
-	// update expectedAmountPerChainDfm
-	for recieverUserIdx := range receiverUsers {
-		for _, chainPair := range chainPairs {
-			tmp := expectedAmountPerChainDfm[recieverUserIdx][chainPair.dstChain]
-			tmp.Add(tmp, new(big.Int).Mul(sendAmountDfm, big.NewInt(int64(txCountPerSender)*int64(len(senderUsers)))))
-		}
-	}
-
-	if config.runIndexerInstance {
-		// check whether expectedAmountPerChainDfm should be updated
-		for recieverUserIdx, receiver := range receiverUsers {
-			for _, chain := range chains {
-				for _, sentTxHash := range sentTxHashes[chain][receiver] {
-					if !slices.Contains(observedTxs[chainConfigs[chain].ID], sentTxHash) {
-						// tx is rolled back, we need to update the users expected amount on this chain
-						destChain := getDestinationChain(chainPairs, chain)
-
-						oldExpectedValue := expectedAmountPerChainDfm[recieverUserIdx][destChain]
-						newValue := new(big.Int).Sub(oldExpectedValue, sendAmountDfm)
-
-						expectedAmountPerChainDfm[recieverUserIdx][destChain] = newValue
-
-						fmt.Printf("\nTxHash %s not found in observed transactions\n", sentTxHash)
-						fmt.Printf("\nUpdated expected amount for user idx %d on chain %s: %v\nTime: %v", recieverUserIdx, destChain, observedTxs[chainConfigs[chain].ID], time.Now())
-					} else {
-						fmt.Printf("\nSent transaction %s is found in observed ones: %v\n", sentTxHash, observedTxs[chainConfigs[chain].ID])
-					}
-				}
-			}
-		}
-	}
+	sentTxHashes := config.sendTxStrategy(t, ctx, apex, chainPairs, senderUsers, receiverUsers,
+		sendAmountDfm, txCountPerSender, txExecutedComponents)
 
 	config.restartValidatorStrategy(t, ctx, apex, config.restartValidatorsConfigs)
 
 	var (
 		wgResults sync.WaitGroup
 		errs      = make([]error, len(receiverUsers)*len(dstChains))
+
+		processedChains int
 	)
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	if config.runIndexerInstance {
+		for {
+			<-ticker.C
+
+			processedChains = 0
+
+			for _, chainPair := range chainPairs {
+				// if chain source is nexus, we just mark it as processed
+				if chainPair.srcChain == cardanofw.ChainIDNexus {
+					processedChains++
+				} else if txExecutedComponents[chainPair.srcChain].GetTxs().IsEverythingProcessed() {
+					processedChains++
+				}
+			}
+
+			if processedChains == len(chainPairs) {
+				break
+			}
+		}
+	}
+
+	// update expectedAmountPerChainDfm
+	for recieverUserIdx := range receiverUsers {
+		for _, chainPair := range chainPairs {
+			// expected amount of user on destination chain (currently user's balance on destination chain)
+			expectedUsrChainAmount := expectedAmountPerChainDfm[recieverUserIdx][chainPair.dstChain]
+
+			if config.runIndexerInstance && chainPair.srcChain != cardanofw.ChainIDNexus {
+				sentTxsForReceiver := sentTxHashes[chainPair.srcChain][recieverUserIdx]
+				txsInfo := txExecutedComponents[chainPair.srcChain].GetTxs()
+
+				for _, txHash := range txsInfo.Executed {
+					if slices.Contains(sentTxsForReceiver, txHash.String()) {
+						expectedUsrChainAmount.Add(expectedUsrChainAmount, sendAmountDfm)
+					}
+				}
+			} else {
+				expectedUsrChainAmount.Add(expectedUsrChainAmount,
+					new(big.Int).Mul(sendAmountDfm, big.NewInt(int64(txCountPerSender)*int64(len(senderUsers)))))
+			}
+
+			expectedAmountPerChainDfm[recieverUserIdx][chainPair.dstChain] = expectedUsrChainAmount
+		}
+	}
 
 	for i, user := range receiverUsers {
 		for j, dstChain := range dstChains {

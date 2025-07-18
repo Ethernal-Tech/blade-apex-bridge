@@ -17,6 +17,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
@@ -271,7 +272,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 	if totalAmount := ec.config.FundFeeAmount; totalAmount != 0 {
 		for _, amount := range SplitAmountNTimes(new(big.Int).SetUint64(totalAmount), ec.config.FundFeeUTxOCount) {
-			txHash, err := ec.SendTx(ctx, privateKey, ec.multisigFeeAddr, amount, nil)
+			txHash, err := ec.SendTx(ctx, privateKey, ec.multisigFeeAddr, amount, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -282,7 +283,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 	if totalAmount := ec.config.FundAmount; totalAmount != 0 {
 		for _, amount := range SplitAmountNTimes(new(big.Int).SetUint64(totalAmount), ec.config.FundUTxOCount) {
-			txHash, err := ec.SendTx(ctx, privateKey, ec.multisigAddr, amount, nil)
+			txHash, err := ec.SendTx(ctx, privateKey, ec.multisigAddr, amount, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -364,7 +365,8 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 }
 
 func (ec *TestCardanoChain) BridgingRequest(
-	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
+	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int,
+	feeAmount *big.Int, txsExecutedComponent *e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	paymentKey, stakeKey, err := FromCardanoPrivateKeyString(privateKey)
 	if err != nil {
@@ -394,11 +396,12 @@ func (ec *TestCardanoChain) BridgingRequest(
 		return "", err
 	}
 
-	return ec.SendTx(ctx, privateKey, ec.multisigAddr, totalAmount, bridgingRequestMetadata)
+	return ec.SendTx(ctx, privateKey, ec.multisigAddr, totalAmount, bridgingRequestMetadata, txsExecutedComponent)
 }
 
 func (ec *TestCardanoChain) SendTx(
 	ctx context.Context, privateKey string, receiverAddr string, amount *big.Int, data []byte,
+	txsExecutedComponent *e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	const (
 		retryCount    = 90
@@ -418,7 +421,7 @@ func (ec *TestCardanoChain) SendTx(
 	}
 
 	txHash, err := SendTx(ctx, txProvider, wallet,
-		amount.Uint64(), receiverAddr, ec.config.NetworkType, ec.config.NetworkMagic, data)
+		amount.Uint64(), receiverAddr, ec.config.NetworkType, ec.config.NetworkMagic, data, txsExecutedComponent)
 	if err != nil {
 		return "", err
 	}

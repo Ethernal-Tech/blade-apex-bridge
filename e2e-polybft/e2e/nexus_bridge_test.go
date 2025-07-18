@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/ethgo"
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -116,7 +117,9 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				srcChain: {dstChain},
 			},
-			sendAmountDfm)
+			sendAmountDfm,
+			hclog.NewNullLogger(),
+		)
 	})
 
 	t.Run("From Nexus to Prime - sequential and parallel", func(t *testing.T) {
@@ -133,7 +136,8 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				srcChain: {dstChain},
 			},
-			sendAmountDfm)
+			sendAmountDfm,
+			hclog.NewNullLogger())
 	})
 
 	t.Run("From Nexus to Prime - sequential and parallel multiple receivers", func(t *testing.T) {
@@ -163,6 +167,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 				srcChain: {dstChain},
 			},
 			sendAmountDfm,
+			hclog.NewNullLogger(),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
 			}))
@@ -324,7 +329,9 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 			},
-			sendAmountDfm)
+			sendAmountDfm,
+			hclog.NewNullLogger(),
+			e2ehelper.WithRunIndexer(true))
 	})
 
 	t.Run("From Prime to Nexus sequential and parallel", func(t *testing.T) {
@@ -346,7 +353,9 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 			},
-			sendAmountDfm)
+			sendAmountDfm,
+			hclog.NewNullLogger(),
+			e2ehelper.WithRunIndexer(true))
 	})
 
 	t.Run("From Prime to Nexus sequential and parallel with max receivers", func(t *testing.T) {
@@ -360,7 +369,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 		)
 
 		PrimeToNexusSequentialAndParallelWithMaxReceivers(
-			t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm)
+			t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm, e2ehelper.WithRunIndexer(true))
 	})
 
 	t.Run("From Prime to Nexus sequential and parallel - one node goes off in the midle", func(t *testing.T) {
@@ -385,9 +394,11 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 			},
 			sendAmountDfm,
+			hclog.NewNullLogger(),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
-			}))
+			}),
+			e2ehelper.WithRunIndexer(true))
 	})
 
 	t.Run("Both directions sequential", func(t *testing.T) {
@@ -407,7 +418,9 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 				cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 			},
-			sendAmountDfm)
+			sendAmountDfm,
+			hclog.NewNullLogger(),
+			e2ehelper.WithRunIndexer(true))
 	})
 
 	t.Run("Both directions sequential and parallel", func(t *testing.T) {
@@ -417,7 +430,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 		)
 
 		PrimeNexusBothDirectionsSequentialAndParallel(
-			t, ctx, apex, user, sequentialInstances, parallelInstances, sendAmountDfm)
+			t, ctx, apex, user, sequentialInstances, parallelInstances, sendAmountDfm, e2ehelper.WithRunIndexer(true))
 	})
 
 	t.Run("Both directions sequential and parallel - one node goes off in the midle", func(t *testing.T) {
@@ -439,10 +452,12 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 			},
 			sendAmountDfm,
+			hclog.NewNullLogger(),
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
-			}))
+			}),
+			e2ehelper.WithRunIndexer(true))
 	})
 
 	t.Run("Both directions sequential and parallel - two nodes go off in the middle and then one comes back", func(t *testing.T) {
@@ -466,11 +481,13 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 			},
 			sendAmountDfm,
+			hclog.NewNullLogger(),
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx1, validatorStoppingIdx2}},
 				{WaitTime: startAgainAfter, StartIndxs: []int{validatorStoppingIdx1}},
-			}))
+			}),
+			e2ehelper.WithRunIndexer(true))
 	})
 }
 
@@ -566,7 +583,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		txHash := apex.SubmitBridgingRequest(t, ctx,
 			cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-			user, sendAmountDfm, user,
+			user, sendAmountDfm, nil, user,
 		)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -633,7 +650,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		txHash := apex.SubmitBridgingRequest(t, ctx,
 			cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-			user, sendAmountDfm, user,
+			user, sendAmountDfm, nil, user,
 		)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -693,7 +710,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		txHash := apex.SubmitBridgingRequest(t, ctx,
 			cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-			user, sendAmountDfm, user)
+			user, sendAmountDfm, nil, user)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
 
@@ -766,7 +783,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		txHash := apex.SubmitBridgingRequest(t, ctx,
 			cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-			user, sendAmountDfm, user,
+			user, sendAmountDfm, nil, user,
 		)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -821,7 +838,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 		txHash := apex.SubmitBridgingRequest(t, ctx,
 			cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-			user, sendAmountDfm, user,
+			user, sendAmountDfm, nil, user,
 		)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -876,7 +893,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		for i := 0; i < instances; i++ {
 			txHash := apex.SubmitBridgingRequest(t, ctx,
 				cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-				user, sendAmountDfm, user,
+				user, sendAmountDfm, nil, user,
 			)
 
 			fmt.Printf("Tx %v sent. hash: %s\n", i, txHash)
@@ -929,7 +946,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		for i := 0; i < instances; i++ {
 			txHash := apex.SubmitBridgingRequest(t, ctx,
 				cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
-				user, sendAmountDfm, user,
+				user, sendAmountDfm, nil, user,
 			)
 
 			fmt.Printf("Tx %v sent. hash: %s\n", i, txHash)
@@ -1027,7 +1044,7 @@ func TestE2E_NexusFundAmount(t *testing.T) {
 
 			txHash := apex.SubmitBridgingRequest(t, ctx,
 				tc.fromChain, tc.toChain,
-				user, tc.sendAmountDfm, user,
+				user, tc.sendAmountDfm, nil, user,
 			)
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
@@ -1039,7 +1056,7 @@ func TestE2E_NexusFundAmount(t *testing.T) {
 
 			txHash = apex.SubmitBridgingRequest(t, ctx,
 				tc.fromChain, tc.toChain,
-				user, tc.sendAmountDfm, user,
+				user, tc.sendAmountDfm, nil, user,
 			)
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
@@ -1070,6 +1087,7 @@ func PrimeToNexusSequentialAndParallelWithMaxReceivers(
 			cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 		},
 		sendAmountDfm,
+		hclog.NewNullLogger(),
 		options...)
 }
 
@@ -1092,6 +1110,7 @@ func PrimeNexusBothDirectionsSequentialAndParallel(
 			cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 		},
 		sendAmountDfm,
+		hclog.NewNullLogger(),
 		options...)
 }
 
@@ -1114,6 +1133,7 @@ func NexusToPrimeSequentialAndParallelWithMaxReceivers(
 			cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 		},
 		sendAmountDfm,
+		hclog.NewNullLogger(),
 		options...)
 }
 
@@ -1413,7 +1433,7 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 	case <-time.After(60 * time.Second):
 	}
 
-	txHash := apex.SubmitBridgingRequest(t, ctx, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
+	txHash := apex.SubmitBridgingRequest(t, ctx, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, user, sendAmountDfm, nil, user)
 
 	fmt.Printf("Submitted bridging request from Prime to Nexus, txHash: %s\n", txHash)
 
@@ -1446,5 +1466,6 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 		map[string][]string{
 			cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 		},
-		sendAmountDfm)
+		sendAmountDfm,
+		hclog.NewNullLogger())
 }

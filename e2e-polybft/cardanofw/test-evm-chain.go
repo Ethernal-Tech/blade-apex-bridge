@@ -18,6 +18,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/consensus/polybft"
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
@@ -331,7 +332,8 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (*bi
 }
 
 func (ec *TestEVMChain) BridgingRequest(
-	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
+	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int,
+	feeAmount *big.Int, _ *e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	params := []string{
 		"sendtx",
@@ -367,6 +369,7 @@ func (ec *TestEVMChain) BridgingRequest(
 
 func (ec *TestEVMChain) SendTx(
 	ctx context.Context, privateKey string, receiver string, amount *big.Int, data []byte,
+	_ *e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	rec, err := ec.sendTx(privateKey, receiver, amount, data)
 	if err != nil {
