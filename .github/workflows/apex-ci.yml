@@ -259,22 +259,7 @@ jobs:
     needs: [inputs_check, build_blade]
     if: |
       inputs.e2e_skyline_test ||
-      (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/feat/skyline')
-    with:
-      apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
-      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
-      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
-    secrets:
-      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-  e2e_skyline_refund_test:
-    name: E2E Skyline-Refund Tests
-    uses: ./.github/workflows/e2e-skyline-refund-test.yml
-    needs: [inputs_check, build_blade]
-    if: |
-      inputs.e2e_refund_skyline_bridge_test ||
-      (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline_refund') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/feat/skyline_refund')
+      (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline')
     with:
       apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
