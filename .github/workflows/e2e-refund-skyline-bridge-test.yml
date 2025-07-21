@@ -15,7 +15,6 @@ on: # yamllint disable-line rule:truthy
         description: Skip redundant Apex tests (passed down from parent CI)
         type: string
         required: false
-        default: "true"
     outputs:
       workflow_output:
         description: E2E Refund-Skyline Bridge Tests output
