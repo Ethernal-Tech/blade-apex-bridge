@@ -53,10 +53,6 @@ on: # yamllint disable-line rule:truthy
         description: The branch/commit from the Apex Bridge
         type: string
         default: main
-      blade_apex_bridge_ref:
-        description: The branch/commit from the Blade Apex Bridge
-        type: string
-        default: main
   workflow_call:
     inputs:
       lint:
@@ -227,7 +223,7 @@ jobs:
     needs: build_blade
     if: (github.event_name == 'push' && github.ref == 'refs/heads/develop')
     with:
-      apex_bridge_ref: main
+      apex_bridge_ref: develop
       blade_apex_bridge_ref: develop
       e2e_apex_big_test: false
       e2e_apex_skip_redundant_tests: false
