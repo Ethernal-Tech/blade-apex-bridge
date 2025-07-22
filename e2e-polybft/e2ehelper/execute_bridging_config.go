@@ -10,6 +10,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,6 +79,7 @@ type executeBridgingConfig struct {
 	sendTxStrategy           SendTxStrategyFn
 	restartValidatorStrategy RestartValidatorStrategyFn
 	timeoutConfig            TimeoutConfig
+	logger                   hclog.Logger
 }
 
 func newExecuteBridgingConfig(opts ...ExecuteBridgingOption) *executeBridgingConfig {
@@ -85,6 +87,7 @@ func newExecuteBridgingConfig(opts ...ExecuteBridgingOption) *executeBridgingCon
 		sendTxStrategy:           defaultSendTxStrategy,
 		restartValidatorStrategy: defaultRestartValidatorStrategy,
 		timeoutConfig:            NewTimeoutConfig(),
+		logger:                   hclog.NewNullLogger(),
 	}
 
 	for _, x := range opts {
@@ -105,6 +108,12 @@ func WithWaitForUnexpectedBridges(waitForUnexpectedBridges bool) ExecuteBridging
 func WithRunIndexer(runIndexerInstance bool) ExecuteBridgingOption {
 	return func(config *executeBridgingConfig) {
 		config.runIndexerInstance = runIndexerInstance
+	}
+}
+
+func WithLogger(logger hclog.Logger) ExecuteBridgingOption {
+	return func(cfg *executeBridgingConfig) {
+		cfg.logger = logger
 	}
 }
 

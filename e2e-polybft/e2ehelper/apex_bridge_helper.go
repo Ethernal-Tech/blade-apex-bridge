@@ -13,7 +13,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
-	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -85,12 +84,10 @@ func ExecuteBridgingWaitAfterSubmits(
 }
 
 func ExecuteBridging(
-	t *testing.T, ctx context.Context, apex IApexSystem,
-	chainConfigs map[string]*cardanofw.TestCardanoChainConfig,
-	chainInfos map[string]*cardanofw.CardanoChainInfo, txCountPerSender int,
+	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	senderUsers []*cardanofw.TestApexUser, receiverUsers []*cardanofw.TestApexUser,
 	chains []string, chainsDst map[string][]string, sendAmountDfm *big.Int,
-	logger hclog.Logger, options ...ExecuteBridgingOption,
+	options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -109,7 +106,7 @@ func ExecuteBridging(
 
 	for _, chain := range chains {
 		if config.runIndexerInstance {
-			txExecutedComponents[chain], err = apex.GetChainMust(t, chain).CreateIndexer(logger)
+			txExecutedComponents[chain], err = apex.GetChainMust(t, chain).CreateIndexer(config.logger)
 			require.NoError(t, err)
 		} else {
 			txExecutedComponents[chain] = e2eindexer.NewTxsExecutedComponentDummy()
