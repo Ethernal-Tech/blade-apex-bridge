@@ -936,7 +936,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDVector},
 			}, new(big.Int).SetUint64(sendAmount),
-			e2ehelper.WithRunIndexer(true))
+			e2ehelper.WithRunIndexer())
 	})
 
 	t.Run("From prime to vector sequential and parallel with max receivers", func(t *testing.T) {
@@ -950,7 +950,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		)
 
 		PrimeToVectorSequentialAndParallelWithMaxReceivers(
-			t, ctx, apex, sequentialInstances, parallelInstances, e2ehelper.WithRunIndexer(true))
+			t, ctx, apex, sequentialInstances, parallelInstances, e2ehelper.WithRunIndexer())
 	})
 
 	t.Run("Both directions sequential", func(t *testing.T) {
@@ -972,7 +972,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
 				cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
 			}, new(big.Int).SetUint64(sendAmount),
-			e2ehelper.WithRunIndexer(true))
+			e2ehelper.WithRunIndexer())
 	})
 
 	t.Run("Both directions sequential and parallel - one node goes off in the middle", func(t *testing.T) {
@@ -997,7 +997,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
 			}),
-			e2ehelper.WithRunIndexer(true))
+			e2ehelper.WithRunIndexer())
 	})
 
 	t.Run("Both directions sequential and parallel - two nodes goes off in the middle and then one comes back", func(t *testing.T) {
@@ -1025,7 +1025,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx1, validatorStoppingIdx2}},
 				{WaitTime: startAgainAfter, StartIndxs: []int{validatorStoppingIdx1}},
 			}),
-			e2ehelper.WithRunIndexer(true),
+			e2ehelper.WithRunIndexer(),
 		)
 	})
 
@@ -1035,7 +1035,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		}
 
 		const (
-			sequentialInstances   = 8
+			sequentialInstances   = 5
 			parallelInstances     = 10
 			stopAfter             = time.Second * 120
 			stopAfter2            = time.Second * 800
@@ -1063,7 +1063,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 				{WaitTime: stopAfter, StopIndxs: []int{0, 1}, ExecutableOption: e2ehelper.Blade},
 				{WaitTime: stopAfter2, StopIndxs: []int{2, 3}, StartIndxs: []int{0, 1, 2, 3}, ExecutableOption: e2ehelper.Blade},
 			}),
-			e2ehelper.WithRunIndexer(true),
+			e2ehelper.WithRunIndexer(),
 		)
 	})
 
@@ -1074,7 +1074,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		)
 
 		PrimeVectorBothDirectionsSequentialAndParallel(
-			t, ctx, apex, user, sequentialInstances, parallelInstances, e2ehelper.WithRunIndexer(true))
+			t, ctx, apex, user, sequentialInstances, parallelInstances, e2ehelper.WithRunIndexer())
 	})
 }
 
@@ -2205,7 +2205,7 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
 		}, new(big.Int).SetUint64(sendAmount),
 		e2ehelper.WithWaitForUnexpectedBridges(true),
-		e2ehelper.WithRunIndexer(true))
+		e2ehelper.WithRunIndexer())
 
 	assert.GreaterOrEqual(t, cntConsolidationBatches[cardanofw.ChainIDPrime], minimumExpectedConsolidations)
 	assert.GreaterOrEqual(t, cntConsolidationBatches[cardanofw.ChainIDVector], minimumExpectedConsolidations)

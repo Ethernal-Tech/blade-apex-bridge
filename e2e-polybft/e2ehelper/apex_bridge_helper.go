@@ -113,6 +113,12 @@ func ExecuteBridging(
 		}
 	}
 
+	defer func() {
+		for _, comp := range txExecutedComponents {
+			comp.Close()
+		}
+	}()
+
 	for i, receiverUser := range receiverUsers {
 		expectedAmountPerChainDfm[i] = make(map[string]*big.Int)
 

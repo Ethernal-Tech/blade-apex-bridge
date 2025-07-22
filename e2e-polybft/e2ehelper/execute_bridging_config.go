@@ -105,9 +105,9 @@ func WithWaitForUnexpectedBridges(waitForUnexpectedBridges bool) ExecuteBridging
 	}
 }
 
-func WithRunIndexer(runIndexerInstance bool) ExecuteBridgingOption {
+func WithRunIndexer() ExecuteBridgingOption {
 	return func(config *executeBridgingConfig) {
-		config.runIndexerInstance = runIndexerInstance
+		config.runIndexerInstance = true
 	}
 }
 

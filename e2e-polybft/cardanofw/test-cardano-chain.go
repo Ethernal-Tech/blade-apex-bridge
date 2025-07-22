@@ -38,7 +38,7 @@ type TestCardanoChainConfig struct {
 	NetworkType            infrawallet.CardanoNetworkType
 	NetworkMagic           uint
 	NodesCount             int
-	StartBlockHash         string
+	StartBlockHash         indexer.Hash
 	StartSlot              uint64
 	InitialHotWalletAmount *big.Int
 	FundAmount             uint64
@@ -50,7 +50,6 @@ type TestCardanoChainConfig struct {
 	SlotRoundingThreshold  uint64
 	TTLInc                 uint64
 	BridgeAddrHasStake     bool
-	InitialUtxos           []CardanoChainConfigUtxo
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -61,7 +60,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		NetworkType:            infrawallet.TestNetNetwork,
 		NetworkMagic:           infrawallet.PrimeTestNetProtocolMagic,
 		NodesCount:             4,
-		StartBlockHash:         "0x0000000000000000000000000000000000000000000000000000000000000000",
+		StartBlockHash:         indexer.Hash{},
 		StartSlot:              0,
 		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,
@@ -70,7 +69,6 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		FundUTxOCount:          1,
 		FundFeeUTxOCount:       1,
 		BridgeAddrHasStake:     true,
-		InitialUtxos:           []CardanoChainConfigUtxo{},
 	}
 }
 
@@ -82,7 +80,7 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		NetworkType:            infrawallet.TestNetNetwork,
 		NetworkMagic:           infrawallet.VectorTestNetProtocolMagic,
 		NodesCount:             4,
-		StartBlockHash:         "0x0000000000000000000000000000000000000000000000000000000000000000",
+		StartBlockHash:         indexer.Hash{},
 		StartSlot:              0,
 		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,
@@ -90,7 +88,6 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		FundFeeAmount:          defaultFundTokenAmount,
 		FundUTxOCount:          1,
 		FundFeeUTxOCount:       1,
-		InitialUtxos:           []CardanoChainConfigUtxo{},
 	}
 }
 
@@ -432,7 +429,7 @@ func (ec *TestCardanoChain) CreateIndexer(logger hclog.Logger) (e2eindexer.TxsEx
 			SyncStartTries: indexerSyncStartTries,
 		}, indexer.BlockPoint{
 			BlockSlot: ec.config.StartSlot,
-			BlockHash: indexer.NewHashFromHexString(ec.config.StartBlockHash),
+			BlockHash: ec.config.StartBlockHash,
 		}, nil, logger)
 }
 

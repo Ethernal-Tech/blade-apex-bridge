@@ -116,8 +116,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				srcChain: {dstChain},
 			},
-			sendAmountDfm,
-		)
+			sendAmountDfm)
 	})
 
 	t.Run("From Nexus to Prime - sequential and parallel", func(t *testing.T) {
@@ -134,8 +133,7 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				srcChain: {dstChain},
 			},
-			sendAmountDfm,
-		)
+			sendAmountDfm)
 	})
 
 	t.Run("From Nexus to Prime - sequential and parallel multiple receivers", func(t *testing.T) {
@@ -327,7 +325,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 			},
 			sendAmountDfm,
-			e2ehelper.WithRunIndexer(true))
+			e2ehelper.WithRunIndexer())
 	})
 
 	t.Run("From Prime to Nexus sequential and parallel", func(t *testing.T) {
@@ -350,7 +348,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 			},
 			sendAmountDfm,
-			e2ehelper.WithRunIndexer(true))
+			e2ehelper.WithRunIndexer())
 	})
 
 	t.Run("From Prime to Nexus sequential and parallel with max receivers", func(t *testing.T) {
@@ -364,7 +362,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 		)
 
 		PrimeToNexusSequentialAndParallelWithMaxReceivers(
-			t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm, e2ehelper.WithRunIndexer(true))
+			t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm, e2ehelper.WithRunIndexer())
 	})
 
 	t.Run("From Prime to Nexus sequential and parallel - one node goes off in the midle", func(t *testing.T) {
@@ -392,7 +390,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
 			}),
-			e2ehelper.WithRunIndexer(true))
+			e2ehelper.WithRunIndexer())
 	})
 
 	t.Run("Both directions sequential", func(t *testing.T) {
@@ -413,7 +411,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 			},
 			sendAmountDfm,
-			e2ehelper.WithRunIndexer(true))
+			e2ehelper.WithRunIndexer())
 	})
 
 	t.Run("Both directions sequential and parallel", func(t *testing.T) {
@@ -423,7 +421,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 		)
 
 		PrimeNexusBothDirectionsSequentialAndParallel(
-			t, ctx, apex, user, sequentialInstances, parallelInstances, sendAmountDfm, e2ehelper.WithRunIndexer(true))
+			t, ctx, apex, user, sequentialInstances, parallelInstances, sendAmountDfm, e2ehelper.WithRunIndexer())
 	})
 
 	t.Run("Both directions sequential and parallel - one node goes off in the midle", func(t *testing.T) {
@@ -449,7 +447,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
 			}),
-			e2ehelper.WithRunIndexer(true))
+			e2ehelper.WithRunIndexer())
 	})
 
 	t.Run("Both directions sequential and parallel - two nodes go off in the middle and then one comes back", func(t *testing.T) {
@@ -478,7 +476,7 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx1, validatorStoppingIdx2}},
 				{WaitTime: startAgainAfter, StartIndxs: []int{validatorStoppingIdx1}},
 			}),
-			e2ehelper.WithRunIndexer(true))
+			e2ehelper.WithRunIndexer())
 	})
 }
 
@@ -1454,6 +1452,5 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 		map[string][]string{
 			cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 		},
-		sendAmountDfm,
-	)
+		sendAmountDfm)
 }
