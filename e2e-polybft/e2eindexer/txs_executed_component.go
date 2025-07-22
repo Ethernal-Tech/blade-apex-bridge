@@ -9,50 +9,93 @@ import (
 )
 
 type TxsExecutedCallback interface {
-	Forward(executed []indexer.Hash)
-	Rollback(failed []indexer.Hash)
+	Forward(executed []string)
+	Rollback(failed []string)
 }
 
 type TxsInfo struct {
-	Desired  []indexer.Hash
-	Executed []indexer.Hash
-	Failed   []indexer.Hash
+	Desired  []string
+	Executed []string
+	Failed   []string
 }
 
 func (ti TxsInfo) IsEverythingProcessed() bool {
 	return len(ti.Desired) > 0 && len(ti.Desired) == len(ti.Executed)+len(ti.Failed)
 }
 
-type blockData struct {
-	indexer.BlockPoint
-	txs []indexer.Hash
+type TxsExecutedComponent interface {
+	GetTxs() TxsInfo
+	Add(txs ...string)
+	Close() error
 }
 
-// TxsExecutedComponent tracks count of transactions that are not rolled back
-type TxsExecutedComponent struct {
+type TxsExecutedComponentDummy struct {
+	lock sync.RWMutex
+	txs  []string
+}
+
+func NewTxsExecutedComponentDummy() *TxsExecutedComponentDummy {
+	return &TxsExecutedComponentDummy{
+		lock: sync.RWMutex{},
+	}
+}
+
+// Add implements TxsExecutedComponent.
+func (t *TxsExecutedComponentDummy) Add(txs ...string) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.txs = append(t.txs, txs...)
+}
+
+// Close implements TxsExecutedComponent.
+func (t *TxsExecutedComponentDummy) Close() error {
+	return nil
+}
+
+// GetTxs implements TxsExecutedComponent.
+func (t *TxsExecutedComponentDummy) GetTxs() TxsInfo {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	return TxsInfo{
+		Desired:  t.txs,
+		Executed: t.txs,
+	}
+}
+
+var _, _ TxsExecutedComponent = (*TxsExecutedComponentCardano)(nil), (*TxsExecutedComponentDummy)(nil)
+
+type blockData struct {
+	indexer.BlockPoint
+	txs []string
+}
+
+// TxsExecutedComponentCardano tracks count of transactions that are not rolled back
+type TxsExecutedComponentCardano struct {
 	lock        sync.RWMutex
 	blocks      []blockData
-	desiredTxs  map[indexer.Hash]struct{}
-	failedTxs   map[indexer.Hash]struct{}
-	executedTxs map[indexer.Hash]struct{}
+	desiredTxs  map[string]struct{}
+	failedTxs   map[string]struct{}
+	executedTxs map[string]struct{}
 	callback    TxsExecutedCallback
 
 	syncer indexer.BlockSyncer
 	logger hclog.Logger
 }
 
-var _ indexer.BlockSyncerHandler = (*TxsExecutedComponent)(nil)
+var _ indexer.BlockSyncerHandler = (*TxsExecutedComponentCardano)(nil)
 
-// NewTxsExecutedComponent creates TxsExecutedComponent
-func NewTxsExecutedComponent(
+// NewTxsExecutedComponentCardano creates TxsExecutedComponent
+func NewTxsExecutedComponentCardano(
 	config *gouroboros.BlockSyncerConfig, startingBlockPoint indexer.BlockPoint,
 	callback TxsExecutedCallback, logger hclog.Logger,
-) (*TxsExecutedComponent, error) {
-	component := &TxsExecutedComponent{
+) (*TxsExecutedComponentCardano, error) {
+	component := &TxsExecutedComponentCardano{
 		lock:        sync.RWMutex{},
-		desiredTxs:  map[indexer.Hash]struct{}{},
-		executedTxs: map[indexer.Hash]struct{}{},
-		failedTxs:   map[indexer.Hash]struct{}{},
+		desiredTxs:  map[string]struct{}{},
+		executedTxs: map[string]struct{}{},
+		failedTxs:   map[string]struct{}{},
 		blocks: []blockData{
 			{
 				BlockPoint: startingBlockPoint,
@@ -72,13 +115,13 @@ func NewTxsExecutedComponent(
 }
 
 // GetTxs returns TxsInfo
-func (b *TxsExecutedComponent) GetTxs() TxsInfo {
+func (b *TxsExecutedComponentCardano) GetTxs() TxsInfo {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
-	desired := make([]indexer.Hash, 0, len(b.desiredTxs))
-	executed := make([]indexer.Hash, 0, len(b.executedTxs))
-	failed := make([]indexer.Hash, 0, len(b.failedTxs))
+	desired := make([]string, 0, len(b.desiredTxs))
+	executed := make([]string, 0, len(b.executedTxs))
+	failed := make([]string, 0, len(b.failedTxs))
 
 	for hash := range b.desiredTxs {
 		desired = append(desired, hash)
@@ -100,7 +143,7 @@ func (b *TxsExecutedComponent) GetTxs() TxsInfo {
 }
 
 // Add must be called before adding submit actual tx
-func (b *TxsExecutedComponent) Add(txs ...indexer.Hash) {
+func (b *TxsExecutedComponentCardano) Add(txs ...string) {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
@@ -110,12 +153,12 @@ func (b *TxsExecutedComponent) Add(txs ...indexer.Hash) {
 }
 
 // Close closes the syncer
-func (b *TxsExecutedComponent) Close() error {
+func (b *TxsExecutedComponentCardano) Close() error {
 	return b.syncer.Close()
 }
 
 // Reset implements indexer.BlockSyncerHandler.
-func (b *TxsExecutedComponent) Reset() (indexer.BlockPoint, error) {
+func (b *TxsExecutedComponentCardano) Reset() (indexer.BlockPoint, error) {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
@@ -123,7 +166,7 @@ func (b *TxsExecutedComponent) Reset() (indexer.BlockPoint, error) {
 }
 
 // RollBackward implements indexer.BlockSyncerHandler.
-func (b *TxsExecutedComponent) RollBackward(point indexer.BlockPoint) error {
+func (b *TxsExecutedComponentCardano) RollBackward(point indexer.BlockPoint) error {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
@@ -137,7 +180,7 @@ func (b *TxsExecutedComponent) RollBackward(point indexer.BlockPoint) error {
 		}
 	}
 
-	var failedTxs []indexer.Hash
+	var failedTxs []string
 
 	// remove all executed transactions from subsequent blocks and them to failed map
 	for _, innerBlock := range b.blocks[failedBlockInd:] {
@@ -167,7 +210,7 @@ func (b *TxsExecutedComponent) RollBackward(point indexer.BlockPoint) error {
 }
 
 // RollForward implements indexer.BlockSyncerHandler.
-func (b *TxsExecutedComponent) RollForward(
+func (b *TxsExecutedComponentCardano) RollForward(
 	blockHeader indexer.BlockHeader, txsRetriver indexer.BlockTxsRetriever,
 ) error {
 	b.lock.Lock()
@@ -179,17 +222,19 @@ func (b *TxsExecutedComponent) RollForward(
 	}
 
 	//nolint:prealloc
-	var txs []indexer.Hash
+	var txs []string
 
 	for _, txFromBlock := range allRetrievedTxs {
-		if _, exists := b.desiredTxs[txFromBlock.Hash]; !exists {
+		txHashStr := txFromBlock.Hash.String()
+
+		if _, exists := b.desiredTxs[txHashStr]; !exists {
 			continue
 		}
 
-		b.executedTxs[txFromBlock.Hash] = struct{}{}
-		delete(b.failedTxs, txFromBlock.Hash)
+		b.executedTxs[txHashStr] = struct{}{}
+		delete(b.failedTxs, txHashStr)
 
-		txs = append(txs, txFromBlock.Hash)
+		txs = append(txs, txHashStr)
 	}
 
 	if b.callback != nil {

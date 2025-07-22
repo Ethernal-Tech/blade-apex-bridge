@@ -16,7 +16,7 @@ type IApexSystem interface {
 		t *testing.T, ctx context.Context,
 		sourceChain cardanofw.ChainID, destinationChain cardanofw.ChainID,
 		sender *cardanofw.TestApexUser, dfmAmount *big.Int,
-		txsExecutedComponent *e2eindexer.TxsExecutedComponent, receivers ...*cardanofw.TestApexUser,
+		txsExecutedComponent e2eindexer.TxsExecutedComponent, receivers ...*cardanofw.TestApexUser,
 	) string
 	WaitForGreaterAmount(
 		ctx context.Context, user *cardanofw.TestApexUser, chain cardanofw.ChainID,
@@ -35,6 +35,7 @@ type IApexSystem interface {
 	) (*big.Int, error)
 	GetValidator(t *testing.T, idx int) *cardanofw.TestApexValidator
 	GetBridgeNode(t *testing.T, idx int) *framework.TestServer
+	GetChainMust(t *testing.T, chainID cardanofw.ChainID) cardanofw.ITestApexChain
 }
 
 func getAllDestionationChains(chains []string, chainsDst map[string][]string) (res []string) {

@@ -256,7 +256,7 @@ func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, dfm
 	}
 
 	_, err = chain.SendTx(
-		ctx, pk, chain.GetHotWalletAddress(), DfmToChainNativeTokenAmount(chainID, dfmAmount), nil, nil)
+		ctx, pk, chain.GetHotWalletAddress(), DfmToChainNativeTokenAmount(chainID, dfmAmount), nil)
 
 	return err
 }
@@ -538,14 +538,14 @@ func (a *ApexSystem) SubmitTx(
 
 	return chain.SendTx(
 		ctx, privateKey, receiverAddr,
-		DfmToChainNativeTokenAmount(sourceChain, dfmAmount), data, nil)
+		DfmToChainNativeTokenAmount(sourceChain, dfmAmount), data)
 }
 
 func (a *ApexSystem) SubmitBridgingRequest(
 	t *testing.T, ctx context.Context,
 	sourceChain ChainID, destinationChain ChainID,
 	sender *TestApexUser, dfmAmount *big.Int,
-	txsExecutedComponent *e2eindexer.TxsExecutedComponent,
+	txsExecutedComponent e2eindexer.TxsExecutedComponent,
 	receivers ...*TestApexUser,
 ) string {
 	t.Helper()
@@ -625,7 +625,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	return txHash
 }
 
-func (a *ApexSystem) GetChainMust(t *testing.T, chainID string) ITestApexChain {
+func (a *ApexSystem) GetChainMust(t *testing.T, chainID ChainID) ITestApexChain {
 	t.Helper()
 
 	chain, err := a.getChain(chainID)

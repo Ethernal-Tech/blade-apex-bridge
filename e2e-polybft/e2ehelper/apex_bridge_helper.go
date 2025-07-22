@@ -97,28 +97,22 @@ func ExecuteBridging(
 	config := newExecuteBridgingConfig(options...)
 	dstChains := getAllDestionationChains(chains, chainsDst)
 	chainPairs := getAllChainPairs(chains, chainsDst)
-	expectedAmountPerChainDfm := make([]map[string]*big.Int, len(receiverUsers))
 
 	var (
-		txExecutedComponents = make(map[string]*e2eindexer.TxsExecutedComponent)
-		err                  error
+		expectedAmountPerChainDfm = make([]map[string]*big.Int, len(receiverUsers))
+		txExecutedComponents      = make(map[string]e2eindexer.TxsExecutedComponent)
+		err                       error
 	)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if config.runIndexerInstance {
-		for _, chain := range chains {
-			if chain == cardanofw.ChainIDNexus {
-				// we want indexer to run only for cardano chains
-				continue
-			}
-
-			indexerConfig, syncerConfig := loadSyncerConfigs(chainConfigs[chain], chainInfos[chain])
-
-			txExecutedComponents[chain], err = e2eindexer.NewTxsExecutedComponent(
-				syncerConfig, *indexerConfig.StartingBlockPoint, nil, logger)
+	for _, chain := range chains {
+		if config.runIndexerInstance {
+			txExecutedComponents[chain], err = apex.GetChainMust(t, chain).CreateIndexer(logger)
 			require.NoError(t, err)
+		} else {
+			txExecutedComponents[chain] = e2eindexer.NewTxsExecutedComponentDummy()
 		}
 	}
 
@@ -141,33 +135,9 @@ func ExecuteBridging(
 	var (
 		wgResults sync.WaitGroup
 		errs      = make([]error, len(receiverUsers)*len(dstChains))
-
-		processedChains int
 	)
 
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-
-	if config.runIndexerInstance {
-		for {
-			<-ticker.C
-
-			processedChains = 0
-
-			for _, chainPair := range chainPairs {
-				// if chain source is nexus, we just mark it as processed
-				if chainPair.srcChain == cardanofw.ChainIDNexus {
-					processedChains++
-				} else if txExecutedComponents[chainPair.srcChain].GetTxs().IsEverythingProcessed() {
-					processedChains++
-				}
-			}
-
-			if processedChains == len(chainPairs) {
-				break
-			}
-		}
-	}
+	require.NoError(t, waitUntilEverythingIsProcessed(ctx, chainPairs, txExecutedComponents))
 
 	// update expectedAmountPerChainDfm
 	for recieverUserIdx := range receiverUsers {
@@ -175,18 +145,13 @@ func ExecuteBridging(
 			// expected amount of user on destination chain (currently user's balance on destination chain)
 			expectedUsrChainAmount := expectedAmountPerChainDfm[recieverUserIdx][chainPair.dstChain]
 
-			if config.runIndexerInstance && chainPair.srcChain != cardanofw.ChainIDNexus {
-				sentTxsForReceiver := sentTxHashes[chainPair.srcChain][recieverUserIdx]
-				txsInfo := txExecutedComponents[chainPair.srcChain].GetTxs()
+			sentTxsForReceiver := sentTxHashes[chainPair.srcChain][recieverUserIdx]
+			txsInfo := txExecutedComponents[chainPair.srcChain].GetTxs()
 
-				for _, txHash := range txsInfo.Executed {
-					if slices.Contains(sentTxsForReceiver, txHash.String()) {
-						expectedUsrChainAmount.Add(expectedUsrChainAmount, sendAmountDfm)
-					}
+			for _, txHash := range txsInfo.Executed {
+				if slices.Contains(sentTxsForReceiver, txHash) {
+					expectedUsrChainAmount.Add(expectedUsrChainAmount, sendAmountDfm)
 				}
-			} else {
-				expectedUsrChainAmount.Add(expectedUsrChainAmount,
-					new(big.Int).Mul(sendAmountDfm, big.NewInt(int64(txCountPerSender)*int64(len(senderUsers)))))
 			}
 
 			expectedAmountPerChainDfm[recieverUserIdx][chainPair.dstChain] = expectedUsrChainAmount
@@ -232,4 +197,33 @@ func ExecuteBridging(
 	wgResults.Wait()
 
 	require.NoError(t, errors.Join(errs...))
+}
+
+func waitUntilEverythingIsProcessed(
+	ctx context.Context, chainPairs []srcDstChainPair, txExecutedComponents map[string]e2eindexer.TxsExecutedComponent,
+) error {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+
+		processedChains := 0
+
+		for _, chainPair := range chainPairs {
+			if txExecutedComponents[chainPair.srcChain].GetTxs().IsEverythingProcessed() {
+				processedChains++
+			}
+		}
+
+		if processedChains == len(chainPairs) {
+			break
+		}
+	}
+
+	return nil
 }

@@ -9,7 +9,6 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
-	"github.com/Ethernal-Tech/cardano-infrastructure/indexer"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
@@ -27,7 +26,7 @@ func SendTx(ctx context.Context,
 	networkType wallet.CardanoNetworkType,
 	networkMagic uint,
 	metadata []byte,
-	txsExecutedComponent *e2eindexer.TxsExecutedComponent,
+	txsExecutedComponent e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
 		txBuilder, err := wallet.NewTxBuilder(ResolveCardanoCliBinary(networkType))
@@ -49,7 +48,7 @@ func SendTx(ctx context.Context,
 		}
 
 		if txsExecutedComponent != nil {
-			txsExecutedComponent.Add(indexer.NewHashFromHexString(txHash))
+			txsExecutedComponent.Add(txHash)
 		}
 
 		signedTx, err := txBuilder.SignTx(txRaw, []wallet.ITxSigner{senderWallet})

@@ -65,7 +65,7 @@ type RestartValidatorsConfig struct {
 type SendTxStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-	txsExecutedComponents map[string]*e2eindexer.TxsExecutedComponent,
+	txsExecutedComponents map[string]e2eindexer.TxsExecutedComponent,
 ) map[string]map[int][]string
 
 type RestartValidatorStrategyFn func(
@@ -130,7 +130,7 @@ var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
 		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-		txsExecutedComponents map[string]*e2eindexer.TxsExecutedComponent,
+		txsExecutedComponents map[string]e2eindexer.TxsExecutedComponent,
 	) map[string]map[int][]string {
 		t.Helper()
 

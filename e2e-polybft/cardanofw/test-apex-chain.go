@@ -7,6 +7,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
+	"github.com/hashicorp/go-hclog"
 )
 
 type ITestApexChainServer interface {
@@ -28,15 +29,15 @@ type ITestApexChain interface {
 	GetAddressBalance(ctx context.Context, addr string) (*big.Int, error)
 	BridgingRequest(
 		ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int,
-		feeAmount *big.Int, txsExecutedComponent *e2eindexer.TxsExecutedComponent,
+		feeAmount *big.Int, txsExecutedComponent e2eindexer.TxsExecutedComponent,
 	) (string, error)
 	SendTx(
 		ctx context.Context, privateKey string, receiver string, amount *big.Int, data []byte,
-		txsExecutedComponent *e2eindexer.TxsExecutedComponent,
 	) (string, error)
 	GetHotWalletAddress() string
 	GetAdminPrivateKey() (string, error)
 	GetServerMust(t *testing.T, indx int) ITestApexChainServer
+	CreateIndexer(logger hclog.Logger) (e2eindexer.TxsExecutedComponent, error)
 }
 
 type TestApexChainDummy struct {
@@ -51,7 +52,7 @@ func NewTestApexChainDummy(configParams []string) *TestApexChainDummy {
 
 func (td *TestApexChainDummy) BridgingRequest(
 	ctx context.Context, destChainID string, privateKey string, receivers map[string]*big.Int,
-	feeAmount *big.Int, _ *e2eindexer.TxsExecutedComponent,
+	feeAmount *big.Int, _ e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	return "", nil
 }
@@ -99,7 +100,6 @@ func (*TestApexChainDummy) RunChain(t *testing.T) error {
 
 func (td *TestApexChainDummy) SendTx(
 	ctx context.Context, privateKey string, receiver string, amount *big.Int, data []byte,
-	_ *e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	return "", nil
 }
@@ -121,6 +121,10 @@ func (td *TestApexChainDummy) GetServerMust(t *testing.T, indx int) ITestApexCha
 	t.Fail()
 
 	return nil
+}
+
+func (td *TestApexChainDummy) CreateIndexer(logger hclog.Logger) (e2eindexer.TxsExecutedComponent, error) {
+	return e2eindexer.NewTxsExecutedComponentDummy(), nil
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)

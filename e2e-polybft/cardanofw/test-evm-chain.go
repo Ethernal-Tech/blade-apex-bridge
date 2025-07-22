@@ -25,6 +25,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/ethgo"
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -333,7 +334,7 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (*bi
 
 func (ec *TestEVMChain) BridgingRequest(
 	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int,
-	feeAmount *big.Int, _ *e2eindexer.TxsExecutedComponent,
+	feeAmount *big.Int, txsExecutedComponent e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	params := []string{
 		"sendtx",
@@ -361,6 +362,10 @@ func (ec *TestEVMChain) BridgingRequest(
 	reTxHash := regexp.MustCompile(`Tx Hash\s*=\s*([^\s]+)`)
 
 	if match := reTxHash.FindStringSubmatch(output); len(match) > 0 {
+		if txsExecutedComponent != nil {
+			txsExecutedComponent.Add(match[1])
+		}
+
 		return match[1], nil
 	}
 
@@ -369,7 +374,6 @@ func (ec *TestEVMChain) BridgingRequest(
 
 func (ec *TestEVMChain) SendTx(
 	ctx context.Context, privateKey string, receiver string, amount *big.Int, data []byte,
-	_ *e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	rec, err := ec.sendTx(privateKey, receiver, amount, data)
 	if err != nil {
@@ -390,6 +394,10 @@ func (ec *TestEVMChain) GetAdminPrivateKey() (string, error) {
 	}
 
 	return hex.EncodeToString(key), nil
+}
+
+func (ec *TestEVMChain) CreateIndexer(logger hclog.Logger) (e2eindexer.TxsExecutedComponent, error) {
+	return e2eindexer.NewTxsExecutedComponentDummy(), nil
 }
 
 func (ec *TestEVMChain) sendTx(
