@@ -310,7 +310,7 @@ jobs:
   e2e_refund_skyline_bridge_test_push:
     name: E2E Refund-Skyline Bridge Tests (push on feat/skyline_refund branch)
     uses: ./.github/workflows/e2e-refund-skyline-bridge-test.yml
-    needs: [inputs_check, build_blade]
+    needs: build_blade
     if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/skyline_refund')
     with:
       apex_bridge_ref: feat/skyline_refund
