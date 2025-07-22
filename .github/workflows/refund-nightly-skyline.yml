@@ -16,6 +16,7 @@ jobs:
       e2e_apex_test: true
       e2e_skyline_test: true
       e2e_refund_test: true
+      e2e_refund_skyline_bridge_test: true
       apex_bridge_ref: feat/skyline_refund
       blade_apex_bridge_ref: feat/skyline_refund
       e2e_apex_big_test: ${{ vars.RUN_E2E_BIG_TESTS }}
