@@ -327,13 +327,15 @@ func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string)
 	return result
 }
 
-func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) {
+func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) error {
 	switch ec.ChainID() {
 	case ChainIDPrime:
 		apexSystem.PrimeInfo = ec.getChainInfo()
 	case ChainIDVector:
 		apexSystem.VectorInfo = ec.getChainInfo()
 	}
+
+	return nil
 }
 
 func (ec *TestCardanoChain) ChainID() string {

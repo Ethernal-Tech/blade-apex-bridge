@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -96,9 +95,9 @@ func ExecuteBridging(
 	chainPairs := getAllChainPairs(chains, chainsDst)
 
 	var (
-		expectedAmountPerChainDfm = make([]map[string]*big.Int, len(receiverUsers))
-		txExecutedComponents      = make(map[string]e2eindexer.TxsExecutedComponent)
-		err                       error
+		initialReceiverAmounts = make([]map[string]*big.Int, len(receiverUsers))
+		txExecutedComponents   = make(map[string]e2eindexer.TxsExecutedComponent)
+		err                    error
 	)
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -120,18 +119,18 @@ func ExecuteBridging(
 	}()
 
 	for i, receiverUser := range receiverUsers {
-		expectedAmountPerChainDfm[i] = make(map[string]*big.Int)
+		initialReceiverAmounts[i] = make(map[string]*big.Int)
 
 		for _, dstChain := range dstChains {
 			dfm, err := apex.GetBalance(ctx, receiverUser, dstChain)
 			require.NoError(t, err)
 
-			expectedAmountPerChainDfm[i][dstChain] = dfm
+			initialReceiverAmounts[i][dstChain] = dfm
 		}
 	}
 
-	sentTxHashes := config.sendTxStrategy(t, ctx, apex, chainPairs, senderUsers, receiverUsers,
-		sendAmountDfm, txCountPerSender, txExecutedComponents)
+	sendTxDataPerReceiver := config.sendTxStrategy(
+		t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender, txExecutedComponents)
 
 	config.restartValidatorStrategy(t, ctx, apex, config.restartValidatorsConfigs)
 
@@ -140,36 +139,22 @@ func ExecuteBridging(
 		errs      = make([]error, len(receiverUsers)*len(dstChains))
 	)
 
-	require.NoError(t, waitUntilEverythingIsProcessed(ctx, chainPairs, txExecutedComponents))
-
-	// update expectedAmountPerChainDfm
-	for recieverUserIdx := range receiverUsers {
-		for _, chainPair := range chainPairs {
-			// expected amount of user on destination chain (currently user's balance on destination chain)
-			expectedUsrChainAmount := expectedAmountPerChainDfm[recieverUserIdx][chainPair.dstChain]
-
-			sentTxsForReceiver := sentTxHashes[chainPair.srcChain][recieverUserIdx]
-			txsInfo := txExecutedComponents[chainPair.srcChain].GetTxs()
-
-			for _, txHash := range txsInfo.Executed {
-				if slices.Contains(sentTxsForReceiver, txHash) {
-					expectedUsrChainAmount.Add(expectedUsrChainAmount, sendAmountDfm)
-				}
-			}
-
-			expectedAmountPerChainDfm[recieverUserIdx][chainPair.dstChain] = expectedUsrChainAmount
-		}
-	}
-
 	for i, user := range receiverUsers {
 		for j, dstChain := range dstChains {
 			wgResults.Add(1)
 
-			go func(idx int, idxChain int, receiverUser *cardanofw.TestApexUser, dstChain string, expectedAmountDfm *big.Int) {
+			go func(
+				idx int, idxChain int, receiverUser *cardanofw.TestApexUser, dstChain string,
+				initialAmountDfm *big.Int, txsData []SubmittedTxData,
+			) {
 				defer wgResults.Done()
 
-				err := apex.WaitForExactAmount(
-					ctx, receiverUser, dstChain, expectedAmountDfm,
+				receivedAmount, err := apex.WaitForAmount(
+					ctx, receiverUser, dstChain, func(currentAmount *big.Int) bool {
+						desiredAmount := getDesiredAmount(txExecutedComponents, initialAmountDfm, txsData)
+
+						return currentAmount.Cmp(desiredAmount) == 0
+					},
 					len(receiverUsers)*config.timeoutConfig.bridgingNumRetries,
 					config.timeoutConfig.bridgingRetryWaitTime)
 				if err != nil {
@@ -183,7 +168,7 @@ func ExecuteBridging(
 				if config.waitForUnexpectedBridges {
 					// nothing else should be bridged for 2 minutes
 					err = apex.WaitForGreaterAmount(
-						ctx, receiverUser, dstChain, expectedAmountDfm, 12, time.Second*10)
+						ctx, receiverUser, dstChain, receivedAmount, 12, time.Second*10)
 					if !errors.Is(err, infracommon.ErrRetryTimeout) {
 						errs[idx*len(dstChains)+idxChain] = fmt.Errorf(
 							"receiver %d on %s should not receive more tokens: %w", idx, dstChain, err)
@@ -193,7 +178,7 @@ func ExecuteBridging(
 
 					fmt.Printf("TXs on %s for user %d finished with success\n", dstChain, idx)
 				}
-			}(i, j, user, dstChain, expectedAmountPerChainDfm[i][dstChain])
+			}(i, j, user, dstChain, initialReceiverAmounts[i][dstChain], sendTxDataPerReceiver[i][dstChain])
 		}
 	}
 
@@ -202,31 +187,30 @@ func ExecuteBridging(
 	require.NoError(t, errors.Join(errs...))
 }
 
-func waitUntilEverythingIsProcessed(
-	ctx context.Context, chainPairs []srcDstChainPair, txExecutedComponents map[string]e2eindexer.TxsExecutedComponent,
-) error {
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
+func getDesiredAmount(
+	txsExecutedComponents map[string]e2eindexer.TxsExecutedComponent,
+	initialAmountDfm *big.Int, txsData []SubmittedTxData,
+) *big.Int {
+	failedTxsPerChain := map[string]map[string]bool{}
+	expectedAmount := new(big.Int).Set(initialAmountDfm)
 
-	for {
-		select {
-		case <-ticker.C:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
+	for _, txData := range txsData {
+		failedTxs, exists := failedTxsPerChain[txData.SrcChainID]
+		if !exists {
+			failedTxsSlice := txsExecutedComponents[txData.SrcChainID].GetTxs().Failed
+			failedTxs = make(map[string]bool, len(failedTxs))
 
-		processedChains := 0
-
-		for _, chainPair := range chainPairs {
-			if txExecutedComponents[chainPair.srcChain].GetTxs().IsEverythingProcessed() {
-				processedChains++
+			for _, x := range failedTxsSlice {
+				failedTxs[x] = true
 			}
+
+			failedTxsPerChain[txData.SrcChainID] = failedTxs
 		}
 
-		if processedChains == len(chainPairs) {
-			break
+		if !failedTxs[txData.TxHash] {
+			expectedAmount.Add(expectedAmount, txData.SendAmountDfm)
 		}
 	}
 
-	return nil
+	return expectedAmount
 }

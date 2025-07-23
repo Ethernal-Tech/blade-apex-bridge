@@ -14,6 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type SubmittedTxData struct {
+	SrcChainID    cardanofw.ChainID
+	TxHash        string
+	SendAmountDfm *big.Int
+}
+
 type TimeoutConfig struct {
 	bridgingRetryWaitTime time.Duration
 	bridgingNumRetries    int
@@ -67,7 +73,7 @@ type SendTxStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
 	txsExecutedComponents map[string]e2eindexer.TxsExecutedComponent,
-) map[string]map[int][]string
+) []map[string][]SubmittedTxData
 
 type RestartValidatorStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig)
@@ -140,14 +146,14 @@ var (
 		t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
 		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
 		txsExecutedComponents map[string]e2eindexer.TxsExecutedComponent,
-	) map[string]map[int][]string {
+	) []map[string][]SubmittedTxData {
 		t.Helper()
 
 		var (
 			wg sync.WaitGroup
 			mu sync.Mutex
 
-			txHashes = make(map[string]map[int][]string, len(chains))
+			submittedTxData = make([]map[string][]SubmittedTxData, len(receivers))
 		)
 
 		for i, sender := range senders {
@@ -167,10 +173,15 @@ var (
 
 						for receiverIdx := range receivers {
 							mu.Lock()
-							if _, ok := txHashes[chainPair.srcChain]; !ok {
-								txHashes[chainPair.srcChain] = make(map[int][]string)
+							if submittedTxData[receiverIdx] == nil {
+								submittedTxData[receiverIdx] = make(map[string][]SubmittedTxData)
 							}
-							txHashes[chainPair.srcChain][receiverIdx] = append(txHashes[chainPair.srcChain][receiverIdx], txHash)
+							submittedTxData[receiverIdx][chainPair.dstChain] = append(
+								submittedTxData[receiverIdx][chainPair.dstChain], SubmittedTxData{
+									SrcChainID:    chainPair.srcChain,
+									TxHash:        txHash,
+									SendAmountDfm: sendAmountDfm,
+								})
 							mu.Unlock()
 						}
 					}
@@ -180,8 +191,9 @@ var (
 
 		wg.Wait()
 
-		return txHashes
+		return submittedTxData
 	}
+
 	defaultRestartValidatorStrategy RestartValidatorStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig) {
 		t.Helper()

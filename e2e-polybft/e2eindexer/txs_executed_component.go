@@ -26,6 +26,7 @@ func (ti TxsInfo) IsEverythingProcessed() bool {
 type TxsExecutedComponent interface {
 	GetTxs() TxsInfo
 	Add(txs ...string)
+	ResetData()
 	Close() error
 }
 
@@ -62,6 +63,14 @@ func (t *TxsExecutedComponentDummy) GetTxs() TxsInfo {
 		Desired:  t.txs,
 		Executed: t.txs,
 	}
+}
+
+// ResetData implements TxsExecutedComponent.
+func (t *TxsExecutedComponentDummy) ResetData() {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.txs = nil
 }
 
 var _, _ TxsExecutedComponent = (*TxsExecutedComponentCardano)(nil), (*TxsExecutedComponentDummy)(nil)
@@ -152,6 +161,15 @@ func (b *TxsExecutedComponentCardano) Add(txs ...string) {
 	}
 }
 
+func (b *TxsExecutedComponentCardano) ResetData() {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
+	b.desiredTxs = map[string]struct{}{}
+	b.executedTxs = map[string]struct{}{}
+	b.failedTxs = map[string]struct{}{}
+}
+
 // Close closes the syncer
 func (b *TxsExecutedComponentCardano) Close() error {
 	return b.syncer.Close()
@@ -187,8 +205,10 @@ func (b *TxsExecutedComponentCardano) RollBackward(point indexer.BlockPoint) err
 		failedTxs = append(failedTxs, innerBlock.txs...)
 
 		for _, txHash := range innerBlock.txs {
-			delete(b.executedTxs, txHash)
-			b.failedTxs[txHash] = struct{}{}
+			if _, exists := b.desiredTxs[txHash]; exists { // because of ResetData
+				delete(b.executedTxs, txHash)
+				b.failedTxs[txHash] = struct{}{}
+			}
 		}
 	}
 

@@ -302,7 +302,7 @@ func (ec *TestEVMChain) GetGenerateConfigsParams(indx int) (result []string) {
 	}
 }
 
-func (ec *TestEVMChain) PopulateApexSystem(apexSystem *ApexSystem) {
+func (ec *TestEVMChain) PopulateApexSystem(apexSystem *ApexSystem) error {
 	if ec.config.ChainID == ChainIDNexus {
 		apexSystem.NexusInfo = EVMChainInfo{
 			GatewayAddress: ec.gatewayAddr,
@@ -312,6 +312,8 @@ func (ec *TestEVMChain) PopulateApexSystem(apexSystem *ApexSystem) {
 			FundBlockNum:   ec.fundBlockNum,
 		}
 	}
+
+	return nil
 }
 
 func (ec *TestEVMChain) ChainID() string {

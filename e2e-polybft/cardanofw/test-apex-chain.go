@@ -24,7 +24,7 @@ type ITestApexChain interface {
 	RegisterChain(validator *TestApexValidator) error
 	InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error
 	GetGenerateConfigsParams(indx int) []string
-	PopulateApexSystem(apexSystem *ApexSystem)
+	PopulateApexSystem(apexSystem *ApexSystem) error
 	ChainID() string
 	GetAddressBalance(ctx context.Context, addr string) (*big.Int, error)
 	BridgingRequest(
@@ -85,7 +85,8 @@ func (td *TestApexChainDummy) InitContracts(ctx context.Context, bridgeAdmin *cr
 	return nil
 }
 
-func (td *TestApexChainDummy) PopulateApexSystem(apexSystem *ApexSystem) {
+func (td *TestApexChainDummy) PopulateApexSystem(apexSystem *ApexSystem) error {
+	return nil
 }
 
 func (td *TestApexChainDummy) RegisterChain(validator *TestApexValidator) error {

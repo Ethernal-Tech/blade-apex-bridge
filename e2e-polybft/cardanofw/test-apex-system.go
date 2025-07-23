@@ -232,7 +232,9 @@ func (a *ApexSystem) InitContracts(ctx context.Context) error {
 
 	// after contracts have been initialized populate all the needed things into apex object
 	for _, chain := range a.chains {
-		chain.PopulateApexSystem(a)
+		if err := chain.PopulateApexSystem(a); err != nil {
+			return err
+		}
 	}
 
 	return nil
