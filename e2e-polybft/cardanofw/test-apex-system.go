@@ -130,11 +130,11 @@ func (a *ApexSystem) StopAll() error {
 			var err1, err2 error
 
 			if err := chain.GetIndexer().Close(); err != nil {
-				err1 = fmt.Errorf("failed to close indexer %d: %w", idx, err)
+				err1 = fmt.Errorf("failed to close chain indexer %d: %w", idx, err)
 			}
 
 			if err := chain.Stop(); err != nil {
-				err2 = fmt.Errorf("failed to close chain %d: %w", idx, err)
+				err2 = fmt.Errorf("failed to stop chain %d: %w", idx, err)
 			}
 
 			errs[idx] = errors.Join(err1, err2)

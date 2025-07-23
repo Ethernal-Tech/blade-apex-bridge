@@ -168,6 +168,10 @@ func (b *TxsExecutedComponentCardano) ResetData() {
 	b.desiredTxs = map[string]struct{}{}
 	b.executedTxs = map[string]struct{}{}
 	b.failedTxs = map[string]struct{}{}
+	// old txs hashes are not important anymore
+	for i := range b.blocks {
+		b.blocks[i].txs = nil
+	}
 }
 
 // Close closes the syncer
@@ -205,14 +209,16 @@ func (b *TxsExecutedComponentCardano) RollBackward(point indexer.BlockPoint) err
 		failedTxs = append(failedTxs, innerBlock.txs...)
 
 		for _, txHash := range innerBlock.txs {
-			if _, exists := b.desiredTxs[txHash]; exists { // because of ResetData
-				delete(b.executedTxs, txHash)
-				b.failedTxs[txHash] = struct{}{}
-			}
+			delete(b.executedTxs, txHash)
+			b.failedTxs[txHash] = struct{}{}
 		}
 	}
 
 	b.blocks = b.blocks[:failedBlockInd] // keep all blocks until point
+
+	if len(failedTxs) > 0 {
+		b.logger.Warn("roll backward happened, some txs are lost", "txs", failedTxs)
+	}
 
 	if b.callback != nil {
 		b.callback.Rollback(failedTxs)
@@ -255,6 +261,10 @@ func (b *TxsExecutedComponentCardano) RollForward(
 		delete(b.failedTxs, txHashStr)
 
 		txs = append(txs, txHashStr)
+	}
+
+	if len(txs) > 0 {
+		b.logger.Info("roll forward happened, some txs are executed", "txs", txs)
 	}
 
 	if b.callback != nil {

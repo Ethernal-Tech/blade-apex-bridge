@@ -445,7 +445,11 @@ func (ec *TestCardanoChain) createIndexer(chainInfo CardanoChainInfo) (e2eindexe
 		}, indexer.BlockPoint{
 			BlockSlot: ec.config.StartSlot,
 			BlockHash: ec.config.StartBlockHash,
-		}, nil, hclog.NewNullLogger())
+		}, nil, hclog.New(&hclog.LoggerOptions{
+			Name:   fmt.Sprintf("indexer_%d", ec.config.ID),
+			Output: os.Stdout,
+			Level:  hclog.Info,
+		}))
 }
 
 func (ec *TestCardanoChain) getChainInfo() CardanoChainInfo {
