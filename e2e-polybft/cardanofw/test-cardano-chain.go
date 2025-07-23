@@ -50,6 +50,7 @@ type TestCardanoChainConfig struct {
 	SlotRoundingThreshold  uint64
 	TTLInc                 uint64
 	BridgeAddrHasStake     bool
+	UseIndexer             bool
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -119,6 +120,7 @@ type TestCardanoChain struct {
 	blockfrostAPIKey string
 	multisigAddr     string
 	multisigFeeAddr  string
+	indexer          e2eindexer.TxsExecutedComponent
 }
 
 func (ec *TestCardanoChain) GetTxProvider() (infrawallet.ITxProvider, error) {
@@ -150,7 +152,8 @@ func NewTestCardanoChain(config *TestCardanoChainConfig) ITestApexChain {
 	}
 
 	return &TestCardanoChain{
-		config: config,
+		config:  config,
+		indexer: e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 }
 
@@ -335,6 +338,15 @@ func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) error {
 		apexSystem.VectorInfo = ec.getChainInfo()
 	}
 
+	if ec.config.UseIndexer {
+		indexer, err := ec.createIndexer(ec.getChainInfo())
+		if err != nil {
+			return err
+		}
+
+		ec.indexer = indexer
+	}
+
 	return nil
 }
 
@@ -359,8 +371,7 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 }
 
 func (ec *TestCardanoChain) BridgingRequest(
-	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int,
-	feeAmount *big.Int, txsExecutedComponent e2eindexer.TxsExecutedComponent,
+	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
 ) (string, error) {
 	paymentKey, stakeKey, err := FromCardanoPrivateKeyString(privateKey)
 	if err != nil {
@@ -390,7 +401,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		return "", err
 	}
 
-	return ec.sendTx(ctx, privateKey, ec.multisigAddr, totalAmount, bridgingRequestMetadata, txsExecutedComponent)
+	return ec.sendTx(ctx, privateKey, ec.multisigAddr, totalAmount, bridgingRequestMetadata, ec.indexer)
 }
 
 func (ec *TestCardanoChain) SendTx(
@@ -412,14 +423,16 @@ func (ec *TestCardanoChain) GetAdminPrivateKey() (string, error) {
 	return hex.EncodeToString(genesisWallet.SigningKey), nil
 }
 
-func (ec *TestCardanoChain) CreateIndexer(logger hclog.Logger) (e2eindexer.TxsExecutedComponent, error) {
+func (ec *TestCardanoChain) GetIndexer() e2eindexer.TxsExecutedComponent {
+	return ec.indexer
+}
+
+func (ec *TestCardanoChain) createIndexer(chainInfo CardanoChainInfo) (e2eindexer.TxsExecutedComponent, error) {
 	const (
 		indexerRestartDelay   = time.Second * 5
 		indexerKeepAlive      = true
 		indexerSyncStartTries = 1_000_000_000
 	)
-
-	chainInfo := ec.getChainInfo()
 
 	return e2eindexer.NewTxsExecutedComponentCardano(
 		&gouroboros.BlockSyncerConfig{
@@ -432,7 +445,7 @@ func (ec *TestCardanoChain) CreateIndexer(logger hclog.Logger) (e2eindexer.TxsEx
 		}, indexer.BlockPoint{
 			BlockSlot: ec.config.StartSlot,
 			BlockHash: ec.config.StartBlockHash,
-		}, nil, logger)
+		}, nil, hclog.NewNullLogger())
 }
 
 func (ec *TestCardanoChain) getChainInfo() CardanoChainInfo {

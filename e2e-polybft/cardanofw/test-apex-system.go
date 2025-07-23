@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/crypto"
-	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/types"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
@@ -128,7 +127,17 @@ func (a *ApexSystem) StopAll() error {
 		go func(idx int, chain ITestApexChain) {
 			defer wg.Done()
 
-			errs[idx] = chain.Stop()
+			var err1, err2 error
+
+			if err := chain.GetIndexer().Close(); err != nil {
+				err1 = fmt.Errorf("failed to close indexer %d: %w", idx, err)
+			}
+
+			if err := chain.Stop(); err != nil {
+				err2 = fmt.Errorf("failed to close chain %d: %w", idx, err)
+			}
+
+			errs[idx] = errors.Join(err1, err2)
 		}(i, chain)
 	}
 
@@ -546,9 +555,7 @@ func (a *ApexSystem) SubmitTx(
 func (a *ApexSystem) SubmitBridgingRequest(
 	t *testing.T, ctx context.Context,
 	sourceChain ChainID, destinationChain ChainID,
-	sender *TestApexUser, dfmAmount *big.Int,
-	txsExecutedComponent e2eindexer.TxsExecutedComponent,
-	receivers ...*TestApexUser,
+	sender *TestApexUser, dfmAmount *big.Int, receivers ...*TestApexUser,
 ) string {
 	t.Helper()
 
@@ -610,7 +617,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
 		txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
-			ctx, destinationChain, privateKey, receiversMap, feeAmount, txsExecutedComponent)
+			ctx, destinationChain, privateKey, receiversMap, feeAmount)
 		if err != nil {
 			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") ||
 				strings.Contains(err.Error(), infracommon.ErrRetryTimeout.Error()) {
@@ -634,6 +641,14 @@ func (a *ApexSystem) GetChainMust(t *testing.T, chainID ChainID) ITestApexChain 
 	require.NoError(t, err)
 
 	return chain
+}
+
+func (a *ApexSystem) ResetIndexers() {
+	_ = a.execForEachChain(func(chain ITestApexChain) error {
+		chain.GetIndexer().ResetData()
+
+		return nil
+	})
 }
 
 func (a *ApexSystem) execForEachChain(handler func(chain ITestApexChain) error) error {

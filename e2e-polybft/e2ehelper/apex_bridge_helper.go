@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
-	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/stretchr/testify/require"
 )
@@ -26,8 +25,7 @@ func ExecuteSingleBridging(
 	prevAmountDfm, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	require.NoError(t, err)
 
-	txHash := apex.SubmitBridgingRequest(
-		t, ctx, srcChain, dstChain, senderUser, sendAmountDfm, nil, receiverUser)
+	txHash := apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, senderUser, sendAmountDfm, receiverUser)
 	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -50,7 +48,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 		prevAmountDfm, err := apex.GetBalance(ctx, user, dstChain)
 		require.NoError(t, err)
 
-		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, nil, user)
+		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, user)
 		expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
 
 		err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm,
@@ -73,7 +71,7 @@ func ExecuteBridgingWaitAfterSubmits(
 	expectedAmountDfm := new(big.Int).Set(prevAmountDfm)
 
 	for i := 0; i < txCountPerSender; i++ {
-		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, nil, user)
+		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, user)
 		expectedAmountDfm = expectedAmountDfm.Add(expectedAmountDfm, sendAmountDfm)
 	}
 
@@ -93,30 +91,10 @@ func ExecuteBridging(
 	config := newExecuteBridgingConfig(options...)
 	dstChains := getAllDestionationChains(chains, chainsDst)
 	chainPairs := getAllChainPairs(chains, chainsDst)
-
-	var (
-		initialReceiverAmounts = make([]map[string]*big.Int, len(receiverUsers))
-		txExecutedComponents   = make(map[string]e2eindexer.TxsExecutedComponent)
-		err                    error
-	)
+	initialReceiverAmounts := make([]map[string]*big.Int, len(receiverUsers))
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-
-	for _, chain := range chains {
-		if config.runIndexerInstance {
-			txExecutedComponents[chain], err = apex.GetChainMust(t, chain).CreateIndexer(config.logger)
-			require.NoError(t, err)
-		} else {
-			txExecutedComponents[chain] = e2eindexer.NewTxsExecutedComponentDummy()
-		}
-	}
-
-	defer func() {
-		for _, comp := range txExecutedComponents {
-			comp.Close()
-		}
-	}()
 
 	for i, receiverUser := range receiverUsers {
 		initialReceiverAmounts[i] = make(map[string]*big.Int)
@@ -130,7 +108,7 @@ func ExecuteBridging(
 	}
 
 	sendTxDataPerReceiver := config.sendTxStrategy(
-		t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender, txExecutedComponents)
+		t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender)
 
 	config.restartValidatorStrategy(t, ctx, apex, config.restartValidatorsConfigs)
 
@@ -151,7 +129,7 @@ func ExecuteBridging(
 
 				receivedAmount, err := apex.WaitForAmount(
 					ctx, receiverUser, dstChain, func(currentAmount *big.Int) bool {
-						desiredAmount := getDesiredAmount(txExecutedComponents, initialAmountDfm, txsData)
+						desiredAmount := getDesiredAmount(t, apex, initialAmountDfm, txsData)
 
 						return currentAmount.Cmp(desiredAmount) == 0
 					},
@@ -188,16 +166,18 @@ func ExecuteBridging(
 }
 
 func getDesiredAmount(
-	txsExecutedComponents map[string]e2eindexer.TxsExecutedComponent,
+	t *testing.T, apex IApexSystem,
 	initialAmountDfm *big.Int, txsData []SubmittedTxData,
 ) *big.Int {
+	t.Helper()
+
 	failedTxsPerChain := map[string]map[string]bool{}
 	expectedAmount := new(big.Int).Set(initialAmountDfm)
 
 	for _, txData := range txsData {
 		failedTxs, exists := failedTxsPerChain[txData.SrcChainID]
 		if !exists {
-			failedTxsSlice := txsExecutedComponents[txData.SrcChainID].GetTxs().Failed
+			failedTxsSlice := apex.GetChainMust(t, txData.SrcChainID).GetIndexer().GetTxs().Failed
 			failedTxs = make(map[string]bool, len(failedTxs))
 
 			for _, x := range failedTxsSlice {

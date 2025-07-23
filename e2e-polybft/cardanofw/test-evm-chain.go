@@ -25,7 +25,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/ethgo"
-	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -86,6 +85,7 @@ type TestEVMChain struct {
 	gatewayAddr   types.Address
 	relayerWallet *crypto.ECDSAKey
 	fundBlockNum  uint64
+	indexer       e2eindexer.TxsExecutedComponent
 }
 
 var _ ITestApexChain = (*TestEVMChain)(nil)
@@ -107,8 +107,9 @@ func NewTestEVMChain(config *TestEVMChainConfig) (ITestApexChain, error) {
 	}
 
 	return &TestEVMChain{
-		config: config,
-		admin:  admin,
+		config:  config,
+		admin:   admin,
+		indexer: e2eindexer.NewTxsExecutedComponentDummy(),
 	}, nil
 }
 
@@ -335,8 +336,7 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (*bi
 }
 
 func (ec *TestEVMChain) BridgingRequest(
-	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int,
-	feeAmount *big.Int, txsExecutedComponent e2eindexer.TxsExecutedComponent,
+	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
 ) (string, error) {
 	params := []string{
 		"sendtx",
@@ -364,9 +364,7 @@ func (ec *TestEVMChain) BridgingRequest(
 	reTxHash := regexp.MustCompile(`Tx Hash\s*=\s*([^\s]+)`)
 
 	if match := reTxHash.FindStringSubmatch(output); len(match) > 0 {
-		if txsExecutedComponent != nil {
-			txsExecutedComponent.Add(match[1])
-		}
+		ec.indexer.Add(match[1])
 
 		return match[1], nil
 	}
@@ -398,8 +396,8 @@ func (ec *TestEVMChain) GetAdminPrivateKey() (string, error) {
 	return hex.EncodeToString(key), nil
 }
 
-func (ec *TestEVMChain) CreateIndexer(logger hclog.Logger) (e2eindexer.TxsExecutedComponent, error) {
-	return e2eindexer.NewTxsExecutedComponentDummy(), nil
+func (ec *TestEVMChain) GetIndexer() e2eindexer.TxsExecutedComponent {
+	return ec.indexer
 }
 
 func (ec *TestEVMChain) sendTx(

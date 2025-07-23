@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
-	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
@@ -72,7 +71,6 @@ type RestartValidatorsConfig struct {
 type SendTxStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-	txsExecutedComponents map[string]e2eindexer.TxsExecutedComponent,
 ) []map[string][]SubmittedTxData
 
 type RestartValidatorStrategyFn func(
@@ -80,7 +78,6 @@ type RestartValidatorStrategyFn func(
 
 type executeBridgingConfig struct {
 	waitForUnexpectedBridges bool
-	runIndexerInstance       bool
 	restartValidatorsConfigs []RestartValidatorsConfig
 	sendTxStrategy           SendTxStrategyFn
 	restartValidatorStrategy RestartValidatorStrategyFn
@@ -108,12 +105,6 @@ type ExecuteBridgingOption func(config *executeBridgingConfig)
 func WithWaitForUnexpectedBridges(waitForUnexpectedBridges bool) ExecuteBridgingOption {
 	return func(config *executeBridgingConfig) {
 		config.waitForUnexpectedBridges = waitForUnexpectedBridges
-	}
-}
-
-func WithRunIndexer() ExecuteBridgingOption {
-	return func(config *executeBridgingConfig) {
-		config.runIndexerInstance = true
 	}
 }
 
@@ -145,7 +136,6 @@ var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
 		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-		txsExecutedComponents map[string]e2eindexer.TxsExecutedComponent,
 	) []map[string][]SubmittedTxData {
 		t.Helper()
 
@@ -165,8 +155,7 @@ var (
 
 					for j := 0; j < txCountPerSender; j++ {
 						txHash := apex.SubmitBridgingRequest(
-							t, ctx, chainPair.srcChain, chainPair.dstChain, senderUser, sendAmountDfm,
-							txsExecutedComponents[chainPair.srcChain], receivers...)
+							t, ctx, chainPair.srcChain, chainPair.dstChain, senderUser, sendAmountDfm, receivers...)
 
 						fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
 							idx+1, j+1, chainPair.srcChain, chainPair.dstChain, txHash)

@@ -7,7 +7,6 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
-	"github.com/hashicorp/go-hclog"
 )
 
 type ITestApexChainServer interface {
@@ -28,8 +27,7 @@ type ITestApexChain interface {
 	ChainID() string
 	GetAddressBalance(ctx context.Context, addr string) (*big.Int, error)
 	BridgingRequest(
-		ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int,
-		feeAmount *big.Int, txsExecutedComponent e2eindexer.TxsExecutedComponent,
+		ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
 	) (string, error)
 	SendTx(
 		ctx context.Context, privateKey string, receiver string, amount *big.Int, data []byte,
@@ -37,22 +35,23 @@ type ITestApexChain interface {
 	GetHotWalletAddress() string
 	GetAdminPrivateKey() (string, error)
 	GetServerMust(t *testing.T, indx int) ITestApexChainServer
-	CreateIndexer(logger hclog.Logger) (e2eindexer.TxsExecutedComponent, error)
+	GetIndexer() e2eindexer.TxsExecutedComponent
 }
 
 type TestApexChainDummy struct {
 	configParams []string
+	indexer      e2eindexer.TxsExecutedComponent
 }
 
 func NewTestApexChainDummy(configParams []string) *TestApexChainDummy {
 	return &TestApexChainDummy{
 		configParams: configParams,
+		indexer:      e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 }
 
 func (td *TestApexChainDummy) BridgingRequest(
-	ctx context.Context, destChainID string, privateKey string, receivers map[string]*big.Int,
-	feeAmount *big.Int, _ e2eindexer.TxsExecutedComponent,
+	ctx context.Context, destChainID string, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
 ) (string, error) {
 	return "", nil
 }
@@ -124,8 +123,8 @@ func (td *TestApexChainDummy) GetServerMust(t *testing.T, indx int) ITestApexCha
 	return nil
 }
 
-func (td *TestApexChainDummy) CreateIndexer(logger hclog.Logger) (e2eindexer.TxsExecutedComponent, error) {
-	return e2eindexer.NewTxsExecutedComponentDummy(), nil
+func (td *TestApexChainDummy) GetIndexer() e2eindexer.TxsExecutedComponent {
+	return td.indexer
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)
