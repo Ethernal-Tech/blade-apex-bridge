@@ -49,8 +49,8 @@ func GetInternalTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 		VectorInfo: CardanoChainInfo{
 			NetworkAddress: "relay-0.vector.testnet.apexfusion.org:7522",
 			OgmiosURL:      "http://ogmios.vector.testnet.apexfusion.org:1337",
-			MultisigAddr:   "addr_test1w2h482rf4gf44ek0rekamxksulazkr64yf2fhmm7f5gxjpsdm4zsg",
-			FeeAddr:        "addr_test1wtyslvqxffyppmzhs7ecwunsnpq6g2p6kf9r4aa8ntfzc4qj925fr",
+			MultisigAddr:   "vector_test1w2h482rf4gf44ek0rekamxksulazkr64yf2fhmm7f5gxjpsdm4zsg",
+			FeeAddr:        "vector_test1wtyslvqxffyppmzhs7ecwunsnpq6g2p6kf9r4aa8ntfzc4qj925fr",
 		},
 		NexusInfo: EVMChainInfo{
 			GatewayAddress: types.StringToAddress("0xc68221AD72397d85084f2D5C7089e4e9487c118c"),
