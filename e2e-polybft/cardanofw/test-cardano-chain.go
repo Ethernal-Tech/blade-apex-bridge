@@ -30,7 +30,9 @@ const (
 type TestCardanoChainConfig struct {
 	IsEnabled              bool
 	ID                     int
+	ChainID                string
 	NetworkType            infrawallet.CardanoNetworkType
+	NetworkMagic           uint
 	NodesCount             int
 	InitialHotWalletAmount *big.Int
 	FundAmount             uint64
@@ -48,7 +50,9 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:              true,
 		ID:                     0,
+		ChainID:                ChainIDPrime,
 		NetworkType:            infrawallet.TestNetNetwork,
+		NetworkMagic:           infrawallet.PrimeTestNetProtocolMagic,
 		NodesCount:             4,
 		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,
@@ -64,7 +68,9 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:              isEnabled,
 		ID:                     1,
-		NetworkType:            infrawallet.VectorTestNetNetwork,
+		ChainID:                ChainIDVector,
+		NetworkType:            infrawallet.TestNetNetwork,
+		NetworkMagic:           infrawallet.VectorTestNetProtocolMagic,
 		NodesCount:             4,
 		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,
@@ -77,17 +83,21 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 
 func NewRemotePrimeChainConfig() *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:   true,
-		ID:          0,
-		NetworkType: infrawallet.TestNetNetwork,
+		IsEnabled:    true,
+		ID:           0,
+		ChainID:      ChainIDPrime,
+		NetworkType:  infrawallet.TestNetNetwork,
+		NetworkMagic: infrawallet.PrimeTestNetProtocolMagic,
 	}
 }
 
 func NewRemoteVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:   isEnabled,
-		ID:          1,
-		NetworkType: infrawallet.VectorTestNetNetwork,
+		IsEnabled:    isEnabled,
+		ID:           1,
+		ChainID:      ChainIDVector,
+		NetworkType:  infrawallet.TestNetNetwork,
+		NetworkMagic: infrawallet.VectorTestNetProtocolMagic,
 	}
 }
 
@@ -118,12 +128,12 @@ var _ ITestApexChain = (*TestCardanoChain)(nil)
 func NewTestCardanoChain(config *TestCardanoChainConfig) ITestApexChain {
 	if !config.IsEnabled {
 		getFlag := func(suffix string) string {
-			return fmt.Sprintf("--%s-%s", GetNetworkName(config.NetworkType), suffix)
+			return fmt.Sprintf("--%s-%s", config.ChainID, suffix)
 		}
 
 		return NewTestApexChainDummy([]string{
 			getFlag("network-address"), "localhost:1000",
-			getFlag("network-magic"), fmt.Sprint(GetNetworkMagic(config.NetworkType)),
+			getFlag("network-magic"), fmt.Sprint(config.NetworkMagic),
 			getFlag("network-id"), fmt.Sprint(config.NetworkType),
 			getFlag("ogmios-url"), "http://localhost:5500",
 		})
@@ -145,7 +155,7 @@ func (ec *TestCardanoChain) GetServerMust(t *testing.T, indx int) ITestApexChain
 func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 	t.Helper()
 
-	networkName := GetNetworkName(ec.config.NetworkType)
+	networkName := ec.config.ChainID
 	ogmiosLogsFilePath := filepath.Join("..", "..", "e2e-logs-cardano",
 		fmt.Sprintf("ogmios-%s-%s.log", networkName, strings.ReplaceAll(t.Name(), "/", "_")))
 
@@ -156,6 +166,7 @@ func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 		WithPort(5100+ec.config.ID*100),
 		WithOgmiosPort(1337+ec.config.ID),
 		WithNetworkType(ec.config.NetworkType),
+		WithNetworkMagic(ec.config.NetworkMagic),
 		WithConfigGenesisDir(networkName),
 		WithInitialFunds(ec.config.PreminesAddresses, ec.config.PremineAmount),
 	)
@@ -214,11 +225,11 @@ func (ec *TestCardanoChain) CreateAddresses(
 	args := []string{
 		"create-address",
 		"--network-id", fmt.Sprint(ec.config.NetworkType),
-		"--testnet-magic", fmt.Sprint(GetNetworkMagic(ec.config.NetworkType)),
+		"--testnet-magic", fmt.Sprint(ec.config.NetworkMagic),
 		"--bridge-url", bridgeURL,
 		"--bridge-addr", contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
-		"--chain", GetNetworkName(ec.config.NetworkType),
+		"--chain", ec.config.ChainID,
 	}
 
 	var outb bytes.Buffer
@@ -256,7 +267,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 				return err
 			}
 
-			fmt.Printf("%s fee addr funded with %s: %s\n", GetNetworkName(ec.config.NetworkType), amount, txHash)
+			fmt.Printf("%s fee addr funded with %s: %s\n", ec.config.ChainID, amount, txHash)
 		}
 	}
 
@@ -267,7 +278,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 				return err
 			}
 
-			fmt.Printf("%s addr funded with %s: %s\n", GetNetworkName(ec.config.NetworkType), amount, txHash)
+			fmt.Printf("%s addr funded with %s: %s\n", ec.config.ChainID, amount, txHash)
 		}
 	}
 
@@ -290,7 +301,7 @@ func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string)
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	result = []string{
 		getFlag("network-address"), server.NetworkAddress(),
-		getFlag("network-magic"), fmt.Sprint(GetNetworkMagic(ec.config.NetworkType)),
+		getFlag("network-magic"), fmt.Sprint(ec.config.NetworkMagic),
 		getFlag("network-id"), fmt.Sprint(ec.config.NetworkType),
 		getFlag("ogmios-url"), ec.ogmiosURL,
 	}
@@ -324,7 +335,7 @@ func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) {
 }
 
 func (ec *TestCardanoChain) ChainID() string {
-	return GetNetworkName(ec.config.NetworkType)
+	return ec.config.ChainID
 }
 
 func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) (*big.Int, error) {
@@ -398,7 +409,7 @@ func (ec *TestCardanoChain) SendTx(
 	}
 
 	txHash, err := SendTx(ctx, txProvider, wallet,
-		amount.Uint64(), receiverAddr, ec.config.NetworkType, data)
+		amount.Uint64(), receiverAddr, ec.config.NetworkType, ec.config.NetworkMagic, data)
 	if err != nil {
 		return "", err
 	}
