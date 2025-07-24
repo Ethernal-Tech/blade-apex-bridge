@@ -14,9 +14,9 @@ import (
 )
 
 type SubmittedTxData struct {
-	SrcChainID    cardanofw.ChainID
-	TxHash        string
-	SendAmountDfm *big.Int
+	SrcChainID, DstChainID cardanofw.ChainID
+	TxHash                 string
+	SendAmountDfm          *big.Int
 }
 
 type TimeoutConfig struct {
@@ -71,7 +71,7 @@ type RestartValidatorsConfig struct {
 type SendTxStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-) []map[string][]SubmittedTxData
+) []*SubmittedTxData
 
 type RestartValidatorStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig)
@@ -136,14 +136,13 @@ var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
 		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-	) []map[string][]SubmittedTxData {
+	) []*SubmittedTxData {
 		t.Helper()
 
 		var (
-			wg sync.WaitGroup
-			mu sync.Mutex
-
-			submittedTxData = make([]map[string][]SubmittedTxData, len(receivers))
+			wg              sync.WaitGroup
+			mu              sync.Mutex
+			submittedTxData []*SubmittedTxData
 		)
 
 		for i, sender := range senders {
@@ -160,19 +159,14 @@ var (
 						fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
 							idx+1, j+1, chainPair.srcChain, chainPair.dstChain, txHash)
 
-						for receiverIdx := range receivers {
-							mu.Lock()
-							if submittedTxData[receiverIdx] == nil {
-								submittedTxData[receiverIdx] = make(map[string][]SubmittedTxData)
-							}
-							submittedTxData[receiverIdx][chainPair.dstChain] = append(
-								submittedTxData[receiverIdx][chainPair.dstChain], SubmittedTxData{
-									SrcChainID:    chainPair.srcChain,
-									TxHash:        txHash,
-									SendAmountDfm: sendAmountDfm,
-								})
-							mu.Unlock()
-						}
+						mu.Lock()
+						submittedTxData = append(submittedTxData, &SubmittedTxData{
+							SrcChainID:    chainPair.srcChain,
+							DstChainID:    chainPair.dstChain,
+							TxHash:        txHash,
+							SendAmountDfm: sendAmountDfm,
+						})
+						mu.Unlock()
 					}
 				}(i, sender, chainPair)
 			}

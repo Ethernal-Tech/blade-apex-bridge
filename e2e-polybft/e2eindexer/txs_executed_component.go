@@ -25,8 +25,9 @@ func (ti TxsInfo) IsEverythingProcessed() bool {
 
 type TxsExecutedComponent interface {
 	GetTxs() TxsInfo
-	GetFailedTxsMap() map[string]struct{}
+	GetFailedTxs() []string
 	Add(txs ...string)
+	SetCallback(callback TxsExecutedCallback)
 	ResetData()
 	Close() error
 }
@@ -69,11 +70,11 @@ func (t *TxsExecutedComponentDummy) GetTxs() TxsInfo {
 }
 
 // GetFailedTxsMap implements TxsExecutedComponent.
-func (t *TxsExecutedComponentDummy) GetFailedTxsMap() map[string]struct{} {
+func (t *TxsExecutedComponentDummy) GetFailedTxs() []string {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
-	return map[string]struct{}{}
+	return nil
 }
 
 // ResetData implements TxsExecutedComponent.
@@ -82,6 +83,10 @@ func (t *TxsExecutedComponentDummy) ResetData() {
 	defer t.lock.Unlock()
 
 	t.txs = nil
+}
+
+// SetCallback implements TxsExecutedComponent.
+func (t *TxsExecutedComponentDummy) SetCallback(callback TxsExecutedCallback) {
 }
 
 var _, _ TxsExecutedComponent = (*TxsExecutedComponentCardano)(nil), (*TxsExecutedComponentDummy)(nil)
@@ -108,8 +113,7 @@ var _ indexer.BlockSyncerHandler = (*TxsExecutedComponentCardano)(nil)
 
 // NewTxsExecutedComponentCardano creates TxsExecutedComponent
 func NewTxsExecutedComponentCardano(
-	config *gouroboros.BlockSyncerConfig, startingBlockPoint indexer.BlockPoint,
-	callback TxsExecutedCallback, logger hclog.Logger,
+	config *gouroboros.BlockSyncerConfig, startingBlockPoint indexer.BlockPoint, logger hclog.Logger,
 ) (*TxsExecutedComponentCardano, error) {
 	component := &TxsExecutedComponentCardano{
 		lock:        sync.RWMutex{},
@@ -121,8 +125,7 @@ func NewTxsExecutedComponentCardano(
 				BlockPoint: startingBlockPoint,
 			},
 		},
-		callback: callback,
-		logger:   logger,
+		logger: logger,
 	}
 
 	component.syncer = gouroboros.NewBlockSyncer(config, component, logger)
@@ -162,14 +165,14 @@ func (b *TxsExecutedComponentCardano) GetTxs() TxsInfo {
 	}
 }
 
-func (b *TxsExecutedComponentCardano) GetFailedTxsMap() map[string]struct{} {
+func (b *TxsExecutedComponentCardano) GetFailedTxs() []string {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
-	result := make(map[string]struct{}, len(b.failedTxs))
+	result := make([]string, 0, len(b.failedTxs))
 
 	for hash := range b.failedTxs {
-		result[hash] = struct{}{}
+		result = append(result, hash)
 	}
 
 	return result
@@ -201,6 +204,13 @@ func (b *TxsExecutedComponentCardano) ResetData() {
 // Close closes the syncer
 func (b *TxsExecutedComponentCardano) Close() error {
 	return b.syncer.Close()
+}
+
+func (b *TxsExecutedComponentCardano) SetCallback(callback TxsExecutedCallback) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
+	b.callback = callback
 }
 
 // Reset implements indexer.BlockSyncerHandler.

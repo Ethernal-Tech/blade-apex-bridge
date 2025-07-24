@@ -1082,8 +1082,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			sequentialInstances   = 5
 			parallelInstances     = 10
 			stopAfter             = time.Second * 120
-			stopAfter2            = time.Second * 800
-			startAgainAfter       = time.Second * 1000
+			restartAfter          = time.Second * 240
 			validatorStoppingIdx1 = 1
 			validatorStoppingIdx2 = 2
 			sendAmount            = uint64(1_000_000)
@@ -1105,7 +1104,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			)),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{0, 1}, ExecutableOption: e2ehelper.Blade},
-				{WaitTime: stopAfter2, StopIndxs: []int{2, 3}, StartIndxs: []int{0, 1, 2, 3}, ExecutableOption: e2ehelper.Blade},
+				{WaitTime: restartAfter, StopIndxs: []int{2, 3}, StartIndxs: []int{0, 1, 2, 3}, ExecutableOption: e2ehelper.Blade},
 			}))
 	})
 

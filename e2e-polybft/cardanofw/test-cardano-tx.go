@@ -47,13 +47,13 @@ func SendTx(ctx context.Context,
 			return "", fmt.Errorf("failed to create transaction: %w", err)
 		}
 
-		if txsExecutedComponent != nil {
-			txsExecutedComponent.Add(txHash)
-		}
-
 		signedTx, err := txBuilder.SignTx(txRaw, []wallet.ITxSigner{senderWallet})
 		if err != nil {
 			return "", fmt.Errorf("failed to sign transaction: %w", err)
+		}
+
+		if txsExecutedComponent != nil {
+			txsExecutedComponent.Add(txHash)
 		}
 
 		if err := txProvider.SubmitTx(ctx, signedTx); err != nil {

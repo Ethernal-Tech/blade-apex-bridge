@@ -107,29 +107,74 @@ func ExecuteBridging(
 		}
 	}
 
-	sendTxDataPerReceiver := config.sendTxStrategy(
+	sendTxDatas := config.sendTxStrategy(
 		t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender)
 
 	config.restartValidatorStrategy(t, ctx, apex, config.restartValidatorsConfigs)
 
 	var (
-		wgResults sync.WaitGroup
-		errs      = make([]error, len(receiverUsers)*len(dstChains))
+		wgResults              sync.WaitGroup
+		lock                   sync.RWMutex
+		originalDesiredAmounts = make(map[string]*big.Int, len(dstChains))
+		desiredAmounts         = make(map[string]*big.Int, len(dstChains))
+		closeCh                = make(chan struct{})
+		txHashTxDataMap        = make(map[string]*SubmittedTxData)
+		errs                   = make([]error, len(receiverUsers)*len(dstChains))
 	)
+	// calculate desired amounts per chain
+	for _, txData := range sendTxDatas {
+		if _, exists := originalDesiredAmounts[txData.DstChainID]; !exists {
+			originalDesiredAmounts[txData.DstChainID] = big.NewInt(0)
+		}
+
+		originalDesiredAmounts[txData.DstChainID].Add(originalDesiredAmounts[txData.DstChainID], txData.SendAmountDfm)
+		txHashTxDataMap[txData.TxHash] = txData
+	}
+	// set initial desired amounts
+	for _, chainID := range dstChains {
+		desiredAmounts[chainID] = new(big.Int).Set(originalDesiredAmounts[chainID])
+	}
+	// recalculate desired amounts every N seconds
+	go func() {
+		for {
+			select {
+			case <-time.After(time.Second * 5):
+			case <-closeCh:
+				return
+			}
+
+			lock.Lock()
+
+			for _, chainID := range dstChains {
+				amount := desiredAmounts[chainID]
+				amount.Set(originalDesiredAmounts[chainID])
+
+				for _, txHash := range apex.GetChainMust(t, chainID).GetIndexer().GetFailedTxs() {
+					amount.Sub(amount, txHashTxDataMap[txHash].SendAmountDfm)
+				}
+			}
+
+			lock.Unlock()
+		}
+	}()
 
 	for i, user := range receiverUsers {
 		for j, dstChain := range dstChains {
 			wgResults.Add(1)
 
 			go func(
-				idx int, idxChain int, receiverUser *cardanofw.TestApexUser, dstChain string,
-				initialAmountDfm *big.Int, txsData []SubmittedTxData,
+				idx int, idxChain int, receiverUser *cardanofw.TestApexUser,
+				dstChain string, initialAmountDfm *big.Int,
 			) {
 				defer wgResults.Done()
 
 				receivedAmount, err := apex.WaitForAmount(
 					ctx, receiverUser, dstChain, func(currentAmount *big.Int) bool {
-						desiredAmount := getDesiredAmount(t, apex, initialAmountDfm, txsData)
+						desiredAmount := new(big.Int).Set(initialAmountDfm)
+
+						lock.RLock()
+						desiredAmount.Add(desiredAmount, desiredAmounts[dstChain])
+						lock.RUnlock()
 
 						return currentAmount.Cmp(desiredAmount) == 0
 					},
@@ -156,33 +201,13 @@ func ExecuteBridging(
 
 					fmt.Printf("TXs on %s for user %d finished with success\n", dstChain, idx)
 				}
-			}(i, j, user, dstChain, initialReceiverAmounts[i][dstChain], sendTxDataPerReceiver[i][dstChain])
+			}(i, j, user, dstChain, initialReceiverAmounts[i][dstChain])
 		}
 	}
 
 	wgResults.Wait()
 
+	close(closeCh)
+
 	require.NoError(t, errors.Join(errs...))
-}
-
-func getDesiredAmount(
-	t *testing.T, apex IApexSystem, initialAmountDfm *big.Int, txsData []SubmittedTxData,
-) *big.Int {
-	t.Helper()
-
-	failedTxsPerChain := map[string]map[string]struct{}{}
-	expectedAmount := new(big.Int).Set(initialAmountDfm)
-
-	for _, txData := range txsData {
-		failedTxs, exists := failedTxsPerChain[txData.SrcChainID]
-		if !exists {
-			failedTxsPerChain[txData.SrcChainID] = apex.GetChainMust(t, txData.SrcChainID).GetIndexer().GetFailedTxsMap()
-		}
-
-		if _, isInFailed := failedTxs[txData.TxHash]; !isInFailed {
-			expectedAmount.Add(expectedAmount, txData.SendAmountDfm)
-		}
-	}
-
-	return expectedAmount
 }
