@@ -207,7 +207,7 @@ jobs:
       apex_bridge_ref: feat/skyline_refund
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       e2e_apex_big_test: ${{ inputs.e2e_apex_big_test || 'false' }}
-      e2e_apex_skip_redundant_tests: false
+      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_apex_test_push_develop:
@@ -252,11 +252,11 @@ jobs:
     needs: [inputs_check, build_blade]
     if: |
       inputs.e2e_skyline_test ||
-      (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline')
+      (github.event_name == 'pull_request' && (github.base_ref == 'feat/skyline' || github.base_ref == 'feat/skyline_refund'))
     with:
       apex_bridge_ref: feat/skyline_refund
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
-      e2e_apex_skip_redundant_tests: false
+      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_skyline_test_push:
@@ -274,10 +274,13 @@ jobs:
     name: E2E Refund Tests
     uses: ./.github/workflows/e2e-refund-test.yml
     needs: [inputs_check, build_blade]
+    if: |
+      inputs.e2e_refund_test ||
+      (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline_refund')
     with:
       apex_bridge_ref: feat/skyline_refund
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
-      e2e_apex_skip_redundant_tests: false
+      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_refund_test_push:
@@ -301,7 +304,7 @@ jobs:
     with:
       apex_bridge_ref: feat/skyline_refund
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
-      e2e_apex_skip_redundant_tests: false
+      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_refund_skyline_bridge_test_push:
