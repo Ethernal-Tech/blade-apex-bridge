@@ -1082,7 +1082,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			sequentialInstances   = 5
 			parallelInstances     = 10
 			stopAfter             = time.Second * 120
-			restartAfter          = time.Second * 240
+			restartAfter          = time.Second * 800
 			validatorStoppingIdx1 = 1
 			validatorStoppingIdx2 = 2
 			sendAmount            = uint64(1_000_000)
