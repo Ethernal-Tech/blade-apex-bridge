@@ -213,7 +213,7 @@ func (t *TestServer) Start() error {
 	return nil
 }
 
-func (t *TestServer) Stop() error {
+func (t *TestServer) Stop(removeDB ...bool) error {
 	if err := t.node.Stop(); err != nil {
 		if !errors.Is(err, os.ErrProcessDone) {
 			return err
