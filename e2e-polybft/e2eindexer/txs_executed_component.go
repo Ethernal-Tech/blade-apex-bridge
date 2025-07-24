@@ -25,6 +25,7 @@ func (ti TxsInfo) IsEverythingProcessed() bool {
 
 type TxsExecutedComponent interface {
 	GetTxs() TxsInfo
+	GetFailedTxsMap() map[string]struct{}
 	Add(txs ...string)
 	ResetData()
 	Close() error
@@ -59,10 +60,20 @@ func (t *TxsExecutedComponentDummy) GetTxs() TxsInfo {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
+	txs := append([]string(nil), t.txs...)
+
 	return TxsInfo{
-		Desired:  t.txs,
-		Executed: t.txs,
+		Desired:  txs,
+		Executed: txs,
 	}
+}
+
+// GetFailedTxsMap implements TxsExecutedComponent.
+func (t *TxsExecutedComponentDummy) GetFailedTxsMap() map[string]struct{} {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	return map[string]struct{}{}
 }
 
 // ResetData implements TxsExecutedComponent.
@@ -149,6 +160,19 @@ func (b *TxsExecutedComponentCardano) GetTxs() TxsInfo {
 		Executed: executed,
 		Failed:   failed,
 	}
+}
+
+func (b *TxsExecutedComponentCardano) GetFailedTxsMap() map[string]struct{} {
+	b.lock.RLock()
+	defer b.lock.RUnlock()
+
+	result := make(map[string]struct{}, len(b.failedTxs))
+
+	for hash := range b.failedTxs {
+		result[hash] = struct{}{}
+	}
+
+	return result
 }
 
 // Add must be called before adding submit actual tx

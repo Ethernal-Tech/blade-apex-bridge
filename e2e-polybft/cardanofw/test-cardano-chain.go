@@ -38,8 +38,8 @@ type TestCardanoChainConfig struct {
 	NetworkType            infrawallet.CardanoNetworkType
 	NetworkMagic           uint
 	NodesCount             int
-	StartBlockHash         indexer.Hash
-	StartSlot              uint64
+	IndexerStartBlockHash  indexer.Hash
+	IndexerStartSlot       uint64
 	InitialHotWalletAmount *big.Int
 	FundAmount             uint64
 	FundFeeAmount          uint64
@@ -61,8 +61,6 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		NetworkType:            infrawallet.TestNetNetwork,
 		NetworkMagic:           infrawallet.PrimeTestNetProtocolMagic,
 		NodesCount:             4,
-		StartBlockHash:         indexer.Hash{},
-		StartSlot:              0,
 		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,
 		FundAmount:             defaultFundTokenAmount,
@@ -81,8 +79,6 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		NetworkType:            infrawallet.TestNetNetwork,
 		NetworkMagic:           infrawallet.VectorTestNetProtocolMagic,
 		NodesCount:             4,
-		StartBlockHash:         indexer.Hash{},
-		StartSlot:              0,
 		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          defaultPremineAmount,
 		FundAmount:             defaultFundTokenAmount,
@@ -443,12 +439,12 @@ func (ec *TestCardanoChain) createIndexer(chainInfo CardanoChainInfo) (e2eindexe
 			KeepAlive:      indexerKeepAlive,
 			SyncStartTries: indexerSyncStartTries,
 		}, indexer.BlockPoint{
-			BlockSlot: ec.config.StartSlot,
-			BlockHash: ec.config.StartBlockHash,
+			BlockSlot: ec.config.IndexerStartSlot,
+			BlockHash: ec.config.IndexerStartBlockHash,
 		}, nil, hclog.New(&hclog.LoggerOptions{
 			Name:   fmt.Sprintf("indexer_%d", ec.config.ID),
 			Output: os.Stdout,
-			Level:  hclog.Info,
+			Level:  hclog.Warn,
 		}))
 }
 

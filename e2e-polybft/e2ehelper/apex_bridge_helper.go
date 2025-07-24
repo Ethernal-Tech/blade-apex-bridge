@@ -166,28 +166,20 @@ func ExecuteBridging(
 }
 
 func getDesiredAmount(
-	t *testing.T, apex IApexSystem,
-	initialAmountDfm *big.Int, txsData []SubmittedTxData,
+	t *testing.T, apex IApexSystem, initialAmountDfm *big.Int, txsData []SubmittedTxData,
 ) *big.Int {
 	t.Helper()
 
-	failedTxsPerChain := map[string]map[string]bool{}
+	failedTxsPerChain := map[string]map[string]struct{}{}
 	expectedAmount := new(big.Int).Set(initialAmountDfm)
 
 	for _, txData := range txsData {
 		failedTxs, exists := failedTxsPerChain[txData.SrcChainID]
 		if !exists {
-			failedTxsSlice := apex.GetChainMust(t, txData.SrcChainID).GetIndexer().GetTxs().Failed
-			failedTxs = make(map[string]bool, len(failedTxs))
-
-			for _, x := range failedTxsSlice {
-				failedTxs[x] = true
-			}
-
-			failedTxsPerChain[txData.SrcChainID] = failedTxs
+			failedTxsPerChain[txData.SrcChainID] = apex.GetChainMust(t, txData.SrcChainID).GetIndexer().GetFailedTxsMap()
 		}
 
-		if !failedTxs[txData.TxHash] {
+		if _, isInFailed := failedTxs[txData.TxHash]; !isInFailed {
 			expectedAmount.Add(expectedAmount, txData.SendAmountDfm)
 		}
 	}
