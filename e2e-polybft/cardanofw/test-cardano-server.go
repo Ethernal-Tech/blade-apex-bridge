@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 
@@ -40,13 +41,18 @@ func (t *TestCardanoServer) IsRunning() bool {
 	return t.node != nil
 }
 
-func (t *TestCardanoServer) Stop() error {
-	if t.node == nil {
-		return nil
-	}
-
+func (t *TestCardanoServer) Stop(removeDB ...bool) error {
 	if err := t.node.Stop(); err != nil {
 		return err
+	}
+
+	if len(removeDB) > 0 && removeDB[0] {
+		err := os.RemoveAll(fmt.Sprintf("%s/db", t.config.NodeDir))
+		if err != nil {
+			return fmt.Errorf("error removing db directory: %w", err)
+		}
+
+		fmt.Println("Db directory removed successfully")
 	}
 
 	if t.txProvider != nil {

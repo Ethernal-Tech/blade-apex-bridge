@@ -1,5 +1,5 @@
 ---
-name: Refund Nightly Local Tests
+name: Refund Nightly Skyline Local Tests
 on: # yamllint disable-line rule:truthy
   schedule:
     # * is a special character in YAML so you have to quote this string
@@ -14,8 +14,9 @@ jobs:
       lint: true
       unit_test: true
       e2e_apex_test: true
-      e2e_skyline_test: false
+      e2e_skyline_test: true
       e2e_refund_test: true
+      e2e_refund_skyline_bridge_test: true
       apex_bridge_ref: feat/skyline_refund
       blade_apex_bridge_ref: feat/skyline_refund
       e2e_apex_big_test: ${{ vars.RUN_E2E_BIG_TESTS }}
@@ -24,7 +25,7 @@ jobs:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   notification_refund_nightly:
     name: Refund Nightly Notification
-    uses: ./.github/workflows/refund-notification-nightly.yml
+    uses: ./.github/workflows/refund-notification-nightly-skyline.yml
     needs: refund_ci
     if: success() || failure()
     with:
@@ -34,6 +35,8 @@ jobs:
       lint_output: ${{ needs.refund_ci.outputs.lint }}
       unit_test_output: ${{ needs.refund_ci.outputs.unit_test }}
       e2e_apex_test_output: ${{ needs.refund_ci.outputs.e2e_apex_test }}
+      e2e_skyline_test_output: ${{ needs.refund_ci.outputs.e2e_skyline_test }}
       e2e_refund_test_output: ${{ needs.refund_ci.outputs.e2e_refund_test }}
+      e2e_refund_skyline_bridge_test_output: ${{ needs.refund_ci.outputs.e2e_refund_skyline_bridge_test }}
     secrets:
       APEX_SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}

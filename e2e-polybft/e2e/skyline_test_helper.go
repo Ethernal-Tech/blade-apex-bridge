@@ -38,6 +38,8 @@ func executeInvalidBridgingFee(
 		lovelaceAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
+	fmt.Printf("txHash: %s\n", txHash)
+
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
 		bridgingType, refundEnabled, timeoutSec)
 }
@@ -72,6 +74,8 @@ func executeInvalidFeeReceiverAddr(
 			sentAmount, []wallet.TokenAmount{}, metadata)
 		require.NoError(t, err)
 
+		fmt.Printf("txHash: %s\n", txHash)
+
 		WaitForTestResult(t, ctx, apex, config, user, txHash, initialBalances, sentAmount.Uint64(),
 			bridgingType, refundEnabled, timeoutSec)
 	} else {
@@ -79,6 +83,8 @@ func executeInvalidFeeReceiverAddr(
 			ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
 			new(big.Int).SetUint64(feeAmount+config.operationFee), sentTokenAmount, metadata)
 		require.NoError(t, err)
+
+		fmt.Printf("txHash: %s\n", txHash)
 
 		WaitForTestResult(t, ctx, apex, config, user, txHash, initialBalances, sentTokenAmount[0].Amount,
 			bridgingType, refundEnabled, timeoutSec)
@@ -162,6 +168,8 @@ func executeInvalidMismatchSendNativeTokenAmount(
 		lovelaceAmount, sentTokenAmount, bridgingRequestMetadata)
 	require.NoError(t, err)
 
+	fmt.Printf("txHash: %s\n", txHash)
+
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
 		bridgingType, refundEnabled, timeoutSec)
 }
@@ -209,40 +217,8 @@ func executeInvalidSendUnknownToken(
 		new(big.Int).SetUint64(lovelaceAmount), []wallet.TokenAmount{nativeTokenAmount}, metadata)
 	require.NoError(t, err)
 
+	fmt.Printf("txHash: %s\n", txHash)
+
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, lovelaceAmount,
 		bridgingType, refundEnabled, timeoutSec)
-}
-
-func createMetadata(
-	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	srcChain, dstChain cardanofw.ChainID, bridgingFee, operationFee uint64,
-	sender *cardanofw.TestApexUser, receivers []sendtx.BridgingTxReceiver,
-) ([]byte, uint64) {
-	t.Helper()
-
-	chain := apex.GetChainMust(t, srcChain)
-
-	feeAmount, err := chain.GetBridgingFee(ctx, dstChain, receivers, bridgingFee, operationFee)
-	require.NoError(t, err)
-
-	metadata, err := chain.CreateMetadata(sender.GetAddress(srcChain), dstChain, receivers, feeAmount, operationFee)
-	require.NoError(t, err)
-
-	return metadata, feeAmount
-}
-
-func createReceivers(
-	apex *cardanofw.ApexSystem, receiversCount int, dstChain string, sendAmount uint64, bridgingType sendtx.BridgingType,
-) []sendtx.BridgingTxReceiver {
-	receivers := make([]sendtx.BridgingTxReceiver, receiversCount)
-
-	for i := range receivers {
-		receivers[i] = sendtx.BridgingTxReceiver{
-			Addr:         apex.Users[len(apex.Users)-1-i].GetAddress(dstChain),
-			Amount:       sendAmount,
-			BridgingType: bridgingType,
-		}
-	}
-
-	return receivers
 }

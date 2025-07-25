@@ -1,5 +1,5 @@
 ---
-name: Apex Bridge Internal/Partner Skyline Testnet
+name: Skyline Partner Skyline Testnet
 on: # yamllint disable-line rule:truthy
   schedule:
     # * is a special character in YAML so you have to quote this string
@@ -10,8 +10,8 @@ on: # yamllint disable-line rule:truthy
         description: The branch/commit from the Blade Apex Bridge
         type: string
         required: true
-      run_blade_apex_bridge_internal:
-        description: Run E2E Tests on Internal Testnet
+      run_blade_apex_bridge_partner:
+        description: Run E2E Tests on Partner Testnet
         type: boolean
         default: true
       notification:
@@ -24,18 +24,10 @@ jobs:
     name: Inputs Check
     runs-on: ubuntu-latest
     outputs:
-      run_blade_apex_bridge_internal: ${{ steps.internal_input_check.outputs.run_blade_apex_bridge_internal }}
       blade_apex_bridge_ref: ${{ steps.blade_apex_bridge_ref_input_check.outputs.blade_apex_bridge_ref }}
+      run_blade_apex_bridge_partner: ${{ steps.partner_input_check.outputs.run_blade_apex_bridge_partner }}
       notification: ${{ steps.notification_input_check.outputs.notification }}
     steps:
-      - name: Internal Input Check
-        id: internal_input_check
-        run: |
-          if [[ "${{ inputs.run_blade_apex_bridge_internal }}" != "false" ]]; then
-            echo "run_blade_apex_bridge_internal=true" >> $GITHUB_OUTPUT
-          else
-            echo "run_blade_apex_bridge_internal=false" >> $GITHUB_OUTPUT
-          fi
       - name: Blade Apex Bridge Ref Input Check
         id: blade_apex_bridge_ref_input_check
         run: |
@@ -44,6 +36,14 @@ jobs:
           else
             echo "blade_apex_bridge_ref=${{ inputs.blade_apex_bridge_ref }}" >> $GITHUB_OUTPUT
           fi
+      - name: Partner Input Check
+        id: partner_input_check
+        run: |
+          if [[ "${{ inputs.run_blade_apex_bridge_partner }}" != "false" ]]; then
+            echo "run_blade_apex_bridge_partner=true" >> $GITHUB_OUTPUT
+          else
+            echo "run_blade_apex_bridge_partner=false" >> $GITHUB_OUTPUT
+          fi   
       - name: Notification Input Check
         id: notification_input_check
         run: |
@@ -64,27 +64,27 @@ jobs:
     needs: [inputs_check, build_blade]
     with:
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
-  e2e_apex_internal_testnet_test:
-    name: E2E Apex Bridge Internal Testnet Tests
+  e2e_skyline_partner_testnet_test:
+    name: E2E Skyline Partner Testnet Tests
     uses: ./.github/workflows/skyline-e2e-testnet-test.yml
-    needs: [inputs_check, build_blade]
-    if: needs.inputs_check.outputs.run_blade_apex_bridge_internal == 'true'
+    needs: [build_blade, inputs_check]
+    if: needs.inputs_check.outputs.run_blade_apex_bridge_partner == 'true' && !cancelled()
     with:
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
-      blade_apex_bridge_version: internal
+      blade_apex_bridge_version: partner
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-      TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.TESTNET_SKYLINE_BRIDGING_API_KEY }}
+      PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY }}
       SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT }}
-  notification_apex_testnet:
-    name: Apex Bridge Testnet Notification
+  notification_skyline_testnet:
+    name: Skyline Testnet Notification
     uses: ./.github/workflows/skyline-notification-testnet.yml
-    needs: [inputs_check, build_blade, lint, e2e_apex_internal_testnet_test]
+    needs: [build_blade, inputs_check, lint, e2e_skyline_partner_testnet_test]
     if: needs.inputs_check.outputs.notification == 'true' && !cancelled()
     with:
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       build_blade_output: ${{ needs.build_blade.outputs.workflow_output }}
       lint_output: ${{ needs.lint.outputs.workflow_output }}
-      e2e_apex_internal_testnet_test_output: ${{ needs.e2e_apex_internal_testnet_test.outputs.workflow_output }}
+      e2e_skyline_partner_testnet_test_output: ${{ needs.e2e_skyline_partner_testnet_test.outputs.workflow_output }}
     secrets:
       APEX_SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}
