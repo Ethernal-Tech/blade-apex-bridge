@@ -551,6 +551,9 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		apiKey  = "test_api_key"
 		userCnt = 15
 
+		maxWaitTimeSec = 600
+		retryDelaySec  = 5
+
 		bridgingFee  = uint64(1_000_010)
 		operationFee = uint64(0)
 
@@ -609,15 +612,15 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	fmt.Printf("cardano user tokenAmount: %+v\n", cardanoTokenAmount)
 
 	t.Run("1. Mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, user, 0, bridgingType, false)
+		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, bridgingType, false)
 	})
 
 	t.Run("2 Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, 0, bridgingType, false)
+		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, bridgingType, false)
 	})
 
 	t.Run("3. Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, 0, bridgingType, false)
+		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, bridgingType, false)
 	})
 
 	t.Run("5.Submitted invalid metadata - currency under min - token on source", func(t *testing.T) {
@@ -665,27 +668,27 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	})
 
 	t.Run("6. Submitted invalid metadata - wrong type", func(t *testing.T) {
-		executeInvalidMetadataType(t, ctx, apex, primeTestConfig, user, 60, bridgingType, false)
+		executeInvalidMetadataType(t, ctx, apex, primeTestConfig, user, 60, retryDelaySec, bridgingType, false)
 	})
 
 	t.Run("7. Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestination(t, ctx, apex, primeTestConfig, user, 0, bridgingType, false)
+		executeInvalidDestination(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, bridgingType, false)
 	})
 
 	t.Run("8. Submitted invalid metadata - invalid sender", func(t *testing.T) {
-		executeInvalidMetadataInvalidSender(t, ctx, apex, primeTestConfig, user, 0, bridgingType)
+		executeInvalidMetadataInvalidSender(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, bridgingType)
 	})
 
 	t.Run("9. Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
-		executeInvalidBridgingFee(t, ctx, apex, primeTestConfig, 0, sendtx.BridgingTypeCurrencyOnSource, false)
+		executeInvalidBridgingFee(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, false)
 	})
 
 	t.Run("10. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
-		executeInvalidFeeReceiverAddr(t, ctx, apex, primeTestConfig, 2*60, sendtx.BridgingTypeCurrencyOnSource, false)
+		executeInvalidFeeReceiverAddr(t, ctx, apex, primeTestConfig, 2*60, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, false)
 	})
 
 	t.Run("11. Submitted invalid metadata - empty receivers", func(t *testing.T) {
-		executeInvalidEmptyReceivers(t, ctx, apex, primeTestConfig, user, 0, sendtx.BridgingTypeCurrencyOnSource, false)
+		executeInvalidEmptyReceivers(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, false)
 	})
 
 	t.Run("12. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
@@ -699,7 +702,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendUnknownToken(t, ctx, apex, user, primeTestConfig, *tokensFunded, 0, false)
+		executeInvalidSendUnknownToken(t, ctx, apex, user, primeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false)
 	})
 
 	t.Run("13. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
@@ -715,7 +718,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		primeTestConfig.srcTokenName = tokensFunded.TokenName()
 
-		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, primeTestConfig, 0, false)
+		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, primeTestConfig, maxWaitTimeSec, retryDelaySec, false)
 	})
 }
 

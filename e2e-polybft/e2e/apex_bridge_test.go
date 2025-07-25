@@ -647,8 +647,10 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		userCnt = 15
 
 		requestStateTimeoutSec = 600
-		bridgingFee            = uint64(1_000_010)
-		operationFee           = uint64(0)
+		retryDelaySec          = 5
+
+		bridgingFee  = uint64(1_000_010)
+		operationFee = uint64(0)
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -678,35 +680,35 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	bridgingType := sendtx.BridgingTypeNormal
 
 	t.Run("1 .Mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, user, 0, bridgingType, false)
+		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType, false)
 	})
 
 	t.Run("2. Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, 0, bridgingType, false)
+		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryDelaySec, bridgingType, false)
 	})
 
 	t.Run("3. Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, 0, bridgingType, false)
+		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryDelaySec, bridgingType, false)
 	})
 
 	t.Run("4. Submitted invalid metadata - wrong type", func(t *testing.T) {
 		executeInvalidMetadataType(
-			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, bridgingType, false)
+			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType, false)
 	})
 
 	t.Run("5. Submitted invalid metadata - invalid destination", func(t *testing.T) {
 		executeInvalidDestination(
-			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, bridgingType, false)
+			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType, false)
 	})
 
 	t.Run("6. Submitted invalid metadata - invalid sender", func(t *testing.T) {
 		executeInvalidMetadataInvalidSender(
-			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, bridgingType)
+			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType)
 	})
 
 	t.Run("7. Submitted invalid metadata - empty receivers", func(t *testing.T) {
 		executeInvalidEmptyReceivers(
-			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, bridgingType, false)
+			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType, false)
 	})
 
 	t.Run("8. Submitted with tokens to bridging addr", func(t *testing.T) {
