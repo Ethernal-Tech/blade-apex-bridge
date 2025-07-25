@@ -1,12 +1,17 @@
 package e2eindexer
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 
+	"github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/indexer"
 	"github.com/Ethernal-Tech/cardano-infrastructure/indexer/gouroboros"
 	"github.com/hashicorp/go-hclog"
 )
+
+const blocksQueueSize = 35
 
 type TxsExecutedCallback interface {
 	Forward(executed []string)
@@ -98,12 +103,13 @@ type blockData struct {
 
 // TxsExecutedComponentCardano tracks count of transactions that are not rolled back
 type TxsExecutedComponentCardano struct {
-	lock        sync.RWMutex
-	blocks      []blockData
-	desiredTxs  map[string]struct{}
-	failedTxs   map[string]struct{}
-	executedTxs map[string]struct{}
-	callback    TxsExecutedCallback
+	lock           sync.RWMutex
+	confirmedPoint indexer.BlockPoint
+	blocks         common.CircularQueue[*blockData]
+	desiredTxs     map[string]struct{}
+	failedTxs      map[string]struct{}
+	executedTxs    map[string]struct{}
+	callback       TxsExecutedCallback
 
 	syncer indexer.BlockSyncer
 	logger hclog.Logger
@@ -116,16 +122,13 @@ func NewTxsExecutedComponentCardano(
 	config *gouroboros.BlockSyncerConfig, startingBlockPoint indexer.BlockPoint, logger hclog.Logger,
 ) (*TxsExecutedComponentCardano, error) {
 	component := &TxsExecutedComponentCardano{
-		lock:        sync.RWMutex{},
-		desiredTxs:  map[string]struct{}{},
-		executedTxs: map[string]struct{}{},
-		failedTxs:   map[string]struct{}{},
-		blocks: []blockData{
-			{
-				BlockPoint: startingBlockPoint,
-			},
-		},
-		logger: logger,
+		lock:           sync.RWMutex{},
+		desiredTxs:     map[string]struct{}{},
+		executedTxs:    map[string]struct{}{},
+		failedTxs:      map[string]struct{}{},
+		blocks:         common.NewCircularQueue[*blockData](blocksQueueSize),
+		confirmedPoint: startingBlockPoint,
+		logger:         logger,
 	}
 
 	component.syncer = gouroboros.NewBlockSyncer(config, component, logger)
@@ -195,9 +198,9 @@ func (b *TxsExecutedComponentCardano) ResetData() {
 	b.desiredTxs = map[string]struct{}{}
 	b.executedTxs = map[string]struct{}{}
 	b.failedTxs = map[string]struct{}{}
-	// old txs hashes are not important anymore
-	for i := range b.blocks {
-		b.blocks[i].txs = nil
+	// clear old txs but keep blocks in queue
+	for _, blck := range b.blocks.ToList() {
+		blck.txs = nil
 	}
 }
 
@@ -218,7 +221,9 @@ func (b *TxsExecutedComponentCardano) Reset() (indexer.BlockPoint, error) {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
-	return b.blocks[len(b.blocks)-1].BlockPoint, nil
+	b.blocks.ClearFrom(0)
+
+	return b.confirmedPoint, nil
 }
 
 // RollBackward implements indexer.BlockSyncerHandler.
@@ -226,20 +231,27 @@ func (b *TxsExecutedComponentCardano) RollBackward(point indexer.BlockPoint) err
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	failedBlockInd := 0
-
-	for i := len(b.blocks) - 1; i >= 0; i-- {
-		if block := b.blocks[i]; block.BlockHash == point.BlockHash && block.BlockSlot == point.BlockSlot {
-			failedBlockInd = i + 1
-
-			break
-		}
+	indx := b.blocks.Find(func(blck *blockData) bool {
+		return blck.BlockSlot == point.BlockSlot && blck.BlockHash == point.BlockHash
+	})
+	//nolint
+	if indx != -1 {
+		indx++
+	} else if b.confirmedPoint.BlockSlot == point.BlockSlot && b.confirmedPoint.BlockHash == point.BlockHash {
+		// everything is ok -> we are reverting to the latest confirmed block
+		indx = 0
+	} else {
+		// we have confirmed a block that should NOT have been confirmed!
+		// recovering from this error is difficult and requires manual database changes
+		return errors.Join(indexer.ErrBlockIndexerFatal,
+			fmt.Errorf("roll backward block not found. new = (%d, %s) vs latest = (%d, %s)",
+				point.BlockSlot, point.BlockHash, b.confirmedPoint.BlockSlot, &b.confirmedPoint.BlockHash))
 	}
 
 	var failedTxs []string
 
-	// remove all executed transactions from subsequent blocks and them to failed map
-	for _, innerBlock := range b.blocks[failedBlockInd:] {
+	// remove all executed transactions from removed blocks and add those txs to failed txs map
+	for _, innerBlock := range b.blocks.ToList()[indx:] {
 		failedTxs = append(failedTxs, innerBlock.txs...)
 
 		for _, txHash := range innerBlock.txs {
@@ -248,7 +260,7 @@ func (b *TxsExecutedComponentCardano) RollBackward(point indexer.BlockPoint) err
 		}
 	}
 
-	b.blocks = b.blocks[:failedBlockInd] // keep all blocks until point
+	b.blocks.ClearFrom(indx) // remove all in memory blocks from indx
 
 	if len(failedTxs) > 0 {
 		b.logger.Warn("roll backward happened, some txs are lost", "txs", failedTxs)
@@ -256,14 +268,6 @@ func (b *TxsExecutedComponentCardano) RollBackward(point indexer.BlockPoint) err
 
 	if b.callback != nil {
 		b.callback.Rollback(failedTxs)
-	}
-
-	if failedBlockInd == 0 {
-		b.logger.Error("roll backward to non existing block point", "point", point)
-
-		b.blocks = append(b.blocks, blockData{
-			BlockPoint: point,
-		})
 	}
 
 	return nil
@@ -305,13 +309,15 @@ func (b *TxsExecutedComponentCardano) RollForward(
 		b.callback.Forward(txs)
 	}
 
-	b.blocks = append(b.blocks, blockData{
+	if b.blocks.IsFull() {
+		b.confirmedPoint = b.blocks.Pop().BlockPoint
+	}
+
+	return b.blocks.Push(&blockData{
 		BlockPoint: indexer.BlockPoint{
 			BlockSlot: blockHeader.Slot,
 			BlockHash: blockHeader.Hash,
 		},
 		txs: txs,
 	})
-
-	return nil
 }
