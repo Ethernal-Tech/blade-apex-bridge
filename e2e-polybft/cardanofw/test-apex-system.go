@@ -1,17 +1,20 @@
 package cardanofw
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/types"
@@ -78,6 +81,13 @@ type ApexSystem struct {
 	Users      []*TestApexUser
 
 	IsSkyline bool
+}
+
+type UpgradeSCParams struct {
+	contractName    string
+	contractAddress string
+	functionName    string
+	functionArgs    []string
 }
 
 func NewApexSystem(
@@ -229,7 +239,93 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 			a.dataDirPath, idx+1, a.BridgeCluster, a.BridgeCluster.Servers[idx])
 	}
 
+	deployedContractAddr, err := a.deploySCs("BridgingAddresses", []string{contracts.Bridge.String()})
+	require.NoError(t, err)
+
+	upgradeParams := &UpgradeSCParams{
+		contractName:    "Bridge",
+		contractAddress: contracts.Bridge.String(),
+		functionName:    "setBridgingAddrsDependencyAndSync",
+		functionArgs:    []string{deployedContractAddr},
+	}
+	err = a.upgradeSC(upgradeParams)
+	require.NoError(t, err)
+
 	a.BridgeCluster.WaitForReady(t)
+}
+
+func (a *ApexSystem) deploySCs(contractName string, addressesOfDependencies []string) (string, error) {
+	bridgeAdminAddr := a.GetBridgeAdmin().Address().String()
+	upgradeAdminAddr := a.GetBridgeProxyAdmin().Address().String()
+
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return "", err
+	}
+
+	pk := hex.EncodeToString(pkBytes)
+
+	var stdoutBuf bytes.Buffer
+
+	err = RunCommand(ResolveApexBridgeBinary(), []string{
+		"deploy-evm", "deploy-contract",
+		"--contract-dir", "../../apex-bridge-smartcontracts/",
+		"--contract-name", contractName,
+		"--dependencies", strings.Join(addressesOfDependencies, ";"),
+		"--key", pk,
+		"--url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--owner", bridgeAdminAddr,
+		"--upgrade-admin", upgradeAdminAddr,
+	}, &stdoutBuf)
+
+	if err != nil {
+		return "", fmt.Errorf("deploy contract command failed: %w", err)
+	}
+
+	output := stdoutBuf.String()
+	fmt.Println(output)
+
+	return extractProxyAddress(output)
+}
+
+func extractProxyAddress(output string) (string, error) {
+	re := regexp.MustCompile(`(?i)Proxy Address\s*=\s*(0x[0-9a-fA-F]{40})`)
+
+	match := re.FindStringSubmatch(output)
+	if len(match) >= 2 {
+		return match[1], nil
+	}
+
+	return "", fmt.Errorf("proxy address not found")
+}
+
+func (a *ApexSystem) upgradeSC(upgradeParams *UpgradeSCParams) error {
+	pkBytes, err := a.GetBridgeProxyAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	pk := hex.EncodeToString(pkBytes)
+
+	parts := []string{upgradeParams.contractName, upgradeParams.contractAddress}
+
+	if upgradeParams.functionName != "" {
+		parts = append(parts, upgradeParams.functionName)
+	}
+
+	if len(upgradeParams.functionArgs) > 0 {
+		parts = append(parts, strings.Join(upgradeParams.functionArgs, ";"))
+	}
+
+	contract := strings.Join(parts, ":")
+
+	return RunCommand(ResolveApexBridgeBinary(), []string{
+		"deploy-evm", "upgrade",
+		"--dir", "../../apex-bridge-smartcontracts/",
+		"--key", pk,
+		"--url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--contract", contract,
+	}, os.Stdout)
 }
 
 func (a *ApexSystem) GetBridgeNode(t *testing.T, idx int) *framework.TestServer {
