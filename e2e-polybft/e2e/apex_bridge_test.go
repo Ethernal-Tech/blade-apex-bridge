@@ -612,7 +612,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 			txHash, err := cardanofw.SendTx(
 				ctx, txProviderPrime, apex.Users[i].PrimeWallet, sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
-				apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
+				apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic, bridgingRequestMetadata)
 			require.NoError(t, err)
 
 			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
@@ -649,7 +649,9 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 				txHashes[idx], err = cardanofw.SendTx(
 					ctx, txProviderPrime, testUser.PrimeWallet,
 					sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
-					apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
+					apex.Config.PrimeConfig.NetworkType,
+					apex.Config.PrimeConfig.NetworkMagic,
+					bridgingRequestMetadata)
 				require.NoError(t, err)
 			}()
 		}
@@ -692,7 +694,8 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		tokensFunded, err := cardanofw.FundUserWithToken(
-			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType,
+			apex.Config.PrimeConfig.NetworkMagic, txProviderPrime,
 			minterUser, brSubmitterUser, uint64(10_000_000), uint64(1_000_000))
 		require.NoError(t, err)
 
@@ -714,9 +717,10 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 		brSubmitterWallet, _ := brSubmitterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
 
-		txHash, err := cardanofw.SendTxWithTokens(ctx, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			brSubmitterWallet, apex.PrimeInfo.MultisigAddr,
-			sendAmount, []infrawallet.TokenAmount{*tokensFunded}, bridgingRequestMetadata,
+		txHash, err := cardanofw.SendTxWithTokens(ctx, apex.Config.PrimeConfig.NetworkType,
+			apex.Config.PrimeConfig.NetworkMagic, txProviderPrime, brSubmitterWallet,
+			apex.PrimeInfo.MultisigAddr, sendAmount, []infrawallet.TokenAmount{*tokensFunded},
+			bridgingRequestMetadata,
 		)
 		require.NoError(t, err)
 
@@ -768,8 +772,8 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = cardanofw.FundUserWithToken(
-			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			minterUser, brSubmitterUser, uint64(10_000_000), uint64(1_000_000))
+			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic,
+			txProviderPrime, minterUser, brSubmitterUser, uint64(10_000_000), uint64(1_000_000))
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
@@ -794,8 +798,8 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		tokensFunded, err := cardanofw.FundUserWithToken(
-			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
-			minterUser, brSubmitterUser, uint64(10_000_000), uint64(1_000_000))
+			ctx, cardanofw.ChainIDPrime, apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic,
+			txProviderPrime, minterUser, brSubmitterUser, uint64(10_000_000), uint64(1_000_000))
 		require.NoError(t, err)
 
 		metadata := map[string]interface{}{
@@ -816,7 +820,8 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 
 		brSubmitterWallet, _ := brSubmitterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
 
-		txHash, err := cardanofw.SendTxWithTokens(ctx, apex.Config.PrimeConfig.NetworkType, txProviderPrime,
+		txHash, err := cardanofw.SendTxWithTokens(ctx, apex.Config.PrimeConfig.NetworkType,
+			apex.Config.PrimeConfig.NetworkMagic, txProviderPrime,
 			brSubmitterWallet, apex.PrimeInfo.MultisigAddr,
 			sendAmount, []infrawallet.TokenAmount{*tokensFunded}, bridgingRequestMetadata,
 		)
@@ -1771,7 +1776,7 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 
 	_, err = cardanofw.SendTx(
 		ctx, txProviderPrime, user.PrimeWallet, sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
-		apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
+		apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic, bridgingRequestMetadata)
 	require.Error(t, err)
 }
 
@@ -1814,7 +1819,7 @@ func PrimeToVectorInvalidMetadataWrongType(
 
 	txHash, err := cardanofw.SendTx(
 		ctx, txProviderPrime, user.PrimeWallet, sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
-		apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
+		apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	_, err = cardanofw.WaitForRequestStates(ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, nil, requestStateTimeoutSec)
@@ -1861,7 +1866,7 @@ func PrimeToVectorInvalidMetadataInvalidDestination(
 
 	txHash, err := cardanofw.SendTx(
 		ctx, txProviderPrime, user.PrimeWallet, sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
-		apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
+		apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
@@ -1906,7 +1911,7 @@ func PrimeToVectorInvalidMetadataInvalidSender(
 
 	txHash, err := cardanofw.SendTx(
 		ctx, txProviderPrime, user.PrimeWallet, sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
-		apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
+		apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
@@ -1939,7 +1944,7 @@ func PrimeToVectorInvalidMetadataInvalidTransactions(
 
 	txHash, err := cardanofw.SendTx(
 		ctx, txProviderPrime, user.PrimeWallet, sendAmount, apex.PrimeInfo.MultisigAddr,
-		apex.Config.PrimeConfig.NetworkType, bridgingRequestMetadata)
+		apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
