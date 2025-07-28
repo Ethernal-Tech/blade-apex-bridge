@@ -168,20 +168,24 @@ func ExecuteBridging(
 			) {
 				defer wgResults.Done()
 
+				bigIntCache := new(big.Int)
+
+				getDesiredAmount := func() *big.Int {
+					lock.RLock()
+					defer lock.RUnlock()
+
+					return bigIntCache.Add(bigIntCache.Set(initialAmountDfm), desiredAmounts[dstChain])
+				}
+
 				receivedAmount, err := apex.WaitForAmount(
 					ctx, receiverUser, dstChain, func(currentAmount *big.Int) bool {
-						desiredAmount := new(big.Int).Set(initialAmountDfm)
-
-						lock.RLock()
-						desiredAmount.Add(desiredAmount, desiredAmounts[dstChain])
-						lock.RUnlock()
-
-						return currentAmount.Cmp(desiredAmount) == 0
+						return currentAmount.Cmp(getDesiredAmount()) == 0
 					},
 					len(receiverUsers)*config.timeoutConfig.bridgingNumRetries,
 					config.timeoutConfig.bridgingRetryWaitTime)
 				if err != nil {
-					errs[idx*len(dstChains)+idxChain] = fmt.Errorf("receiver %d on %s: %w", idx, dstChain, err)
+					errs[idx*len(dstChains)+idxChain] = fmt.Errorf("receiver %d on %s (%s vs %s): %w",
+						idx, dstChain, receivedAmount, getDesiredAmount(), err)
 
 					return
 				}
