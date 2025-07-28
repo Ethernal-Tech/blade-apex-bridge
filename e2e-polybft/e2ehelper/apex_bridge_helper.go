@@ -143,18 +143,17 @@ func ExecuteBridging(
 				return
 			}
 
-			lock.Lock()
-
 			for _, chainID := range dstChains {
-				amount := desiredAmounts[chainID]
-				amount.Set(originalDesiredAmounts[chainID])
+				sum := new(big.Int)
 
 				for _, txHash := range apex.GetChainMust(t, chainID).GetIndexer().GetFailedTxs() {
-					amount.Sub(amount, txHashTxDataMap[txHash].SendAmountDfm)
+					sum.Add(sum, txHashTxDataMap[txHash].SendAmountDfm)
 				}
-			}
 
-			lock.Unlock()
+				lock.Lock()
+				desiredAmounts[chainID].Sub(originalDesiredAmounts[chainID], sum)
+				lock.Unlock()
+			}
 		}
 	}()
 
@@ -190,7 +189,7 @@ func ExecuteBridging(
 					return
 				}
 
-				fmt.Printf("TXs on %s for user %d expected amount received\n", dstChain, idx)
+				fmt.Printf("TXs on %s for user %d expected amount received %s\n", dstChain, idx, receivedAmount)
 
 				if config.waitForUnexpectedBridges {
 					// nothing else should be bridged for 2 minutes
