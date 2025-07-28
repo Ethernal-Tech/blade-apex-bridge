@@ -295,28 +295,11 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 }
 
 func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
-	const (
-		apiKey  = "test_api_key"
-		userCnt = 15
-	)
-
-	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-	primeConfig.FundTokenAmount = 1_000_000_000
-	cardanoConfig.FundTokenAmount = 1_000_000_000
-
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	apex := cardanofw.SetupAndRunSkylineBridge(
-		t, ctx,
-		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithUserCnt(userCnt),
-		cardanofw.WithCardanoConfig(cardanoConfig),
-		cardanofw.WithPrimeConfig(primeConfig),
-	)
-
-	// apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
-	// require.NoError(t, err)
+	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
+	require.NoError(t, err)
 
 	const (
 		requestStateTimeoutSec = 1500
