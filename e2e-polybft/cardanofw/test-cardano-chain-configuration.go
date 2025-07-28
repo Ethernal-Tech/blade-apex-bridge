@@ -9,11 +9,11 @@ import (
 
 func noChanges(mp map[string]interface{}) {}
 
-func getShelleyGenesis(networkType wallet.CardanoNetworkType) func(mp map[string]interface{}) {
-	switch networkType {
-	case wallet.TestNetNetwork:
+func getShelleyGenesis(networkMagic uint) func(mp map[string]interface{}) {
+	switch networkMagic {
+	case wallet.PrimeTestNetProtocolMagic:
 		return testPrimeShelleyGenesis
-	case wallet.VectorTestNetNetwork:
+	case wallet.VectorTestNetProtocolMagic:
 		return testVectorShelleyGenesis
 	default:
 		return nil
@@ -24,8 +24,6 @@ func getShelleyGenesis(networkType wallet.CardanoNetworkType) func(mp map[string
 func getConwayGenesis(networkType wallet.CardanoNetworkType) func(mp map[string]interface{}) {
 	switch networkType {
 	case wallet.TestNetNetwork:
-		return noChanges
-	case wallet.VectorTestNetNetwork:
 		return noChanges
 	default:
 		return nil
