@@ -64,10 +64,8 @@ func WaitForTestResult(
 ) {
 	t.Helper()
 
-	numRetries := int(maxWaitTimeSec / retryIntervalSec)
-	if numRetries < 1 {
-		numRetries = 1
-	}
+	retryIntervalSec = max(retryIntervalSec, 1)
+	numRetries := max(1, int(maxWaitTimeSec / retryIntervalSec))
 
 	if refundEnabled {
 		tokeName := wallet.AdaTokenName
