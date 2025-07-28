@@ -40,46 +40,19 @@ const (
 )
 
 func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
-	var env, name string
-
-	switch networkID {
-	case wallet.VectorMainNetNetwork, wallet.VectorTestNetNetwork:
-		env = "CARDANO_CLI_BINARY_VECTOR"
-		name = "vector-cli"
-	default:
-		env = "CARDANO_CLI_BINARY"
-		name = "cardano-cli"
-	}
+	env, name := "CARDANO_CLI_BINARY", "cardano-cli"
 
 	return tryResolveFromEnv(env, name)
 }
 
 func ResolveOgmiosBinary(networkID wallet.CardanoNetworkType) string {
-	var env, name string
-
-	switch networkID {
-	case wallet.VectorMainNetNetwork, wallet.VectorTestNetNetwork:
-		env = "OGMIOS_BINARY_VECTOR"
-		name = "vector-ogmios"
-	default:
-		env = "OGMIOS"
-		name = "ogmios"
-	}
+	env, name := "OGMIOS", "ogmios"
 
 	return tryResolveFromEnv(env, name)
 }
 
 func ResolveCardanoNodeBinary(networkID wallet.CardanoNetworkType) string {
-	var env, name string
-
-	switch networkID {
-	case wallet.VectorMainNetNetwork, wallet.VectorTestNetNetwork:
-		env = "CARDANO_NODE_BINARY_VECTOR"
-		name = "vector-node"
-	default:
-		env = "CARDANO_NODE_BINARY_VECTOR"
-		name = "cardano-node"
-	}
+	env, name := "CARDANO_NODE_BINARY", "cardano-node"
 
 	return tryResolveFromEnv(env, name)
 }
@@ -306,36 +279,6 @@ type OracleStateResponse struct {
 	Utxos     []CardanoChainConfigUtxo `json:"utxos"`
 	BlockSlot uint64                   `json:"slot"`
 	BlockHash string                   `json:"hash"`
-}
-
-func GetNetworkMagic(networkType wallet.CardanoNetworkType) uint {
-	switch networkType {
-	case wallet.VectorTestNetNetwork:
-		return wallet.VectorTestNetProtocolMagic
-	case wallet.VectorMainNetNetwork:
-		return wallet.VectorMainNetProtocolMagic
-	case wallet.MainNetNetwork:
-		return wallet.PrimeMainNetProtocolMagic
-	case wallet.TestNetNetwork:
-		return wallet.PrimeTestNetProtocolMagic
-	default:
-		return 0
-	}
-}
-
-func GetNetworkName(networkType wallet.CardanoNetworkType) string {
-	switch networkType {
-	case wallet.VectorTestNetNetwork:
-		return ChainIDVector
-	case wallet.VectorMainNetNetwork:
-		return ChainIDVector
-	case wallet.MainNetNetwork:
-		return ChainIDPrime
-	case wallet.TestNetNetwork:
-		return ChainIDPrime
-	default:
-		return ""
-	}
 }
 
 func GetAddress(networkType wallet.CardanoNetworkType, cardanoWallet *wallet.Wallet) (*wallet.CardanoAddress, error) {

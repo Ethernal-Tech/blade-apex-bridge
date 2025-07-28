@@ -23,6 +23,7 @@ func SendTx(ctx context.Context,
 	amount uint64,
 	receiver string,
 	networkType wallet.CardanoNetworkType,
+	networkMagic uint,
 	metadata []byte,
 ) (string, error) {
 	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
@@ -39,7 +40,7 @@ func SendTx(ctx context.Context,
 		}
 
 		txRaw, txHash, err := createTx(
-			ctx, txBuilder, txProvider, caddr.String(), amount, receiver, networkType, metadata)
+			ctx, txBuilder, txProvider, caddr.String(), amount, receiver, networkMagic, metadata)
 		if err != nil {
 			return "", fmt.Errorf("failed to create transaction: %w", err)
 		}
@@ -64,7 +65,7 @@ func createTx(
 	senderAddr string,
 	amount uint64,
 	receiverAddr string,
-	networkType wallet.CardanoNetworkType,
+	networkMagic uint,
 	metadata []byte,
 ) ([]byte, string, error) {
 	allUtxos, err := txProvider.GetUtxos(ctx, senderAddr)
@@ -81,7 +82,7 @@ func createTx(
 		return nil, "", err
 	}
 
-	txBuilder.SetTestNetMagic(GetNetworkMagic(networkType))
+	txBuilder.SetTestNetMagic(networkMagic)
 
 	if len(metadata) != 0 {
 		txBuilder.SetMetaData(metadata)

@@ -15,7 +15,7 @@ const (
 )
 
 func FundUserWithToken(ctx context.Context, chain ChainID,
-	networkType cardanowallet.CardanoNetworkType, txProvider cardanowallet.ITxProvider,
+	networkType cardanowallet.CardanoNetworkType, networkMagic uint, txProvider cardanowallet.ITxProvider,
 	minterUser *TestApexUser, userToFund *TestApexUser, lovelaceFundAmount uint64, tokenFundAmount uint64,
 ) (*cardanowallet.TokenAmount, error) {
 	minterWallet, _ := minterUser.GetCardanoWallet(chain)
@@ -40,7 +40,7 @@ func FundUserWithToken(ctx context.Context, chain ChainID,
 	mintToken := cardanowallet.NewTokenAmount(pid, defaultTokenName, defaultTokenMintAmount)
 
 	txHash, err := MintTokens(
-		ctx, networkType, txProvider, minterWallet, lovelaceFundAmount,
+		ctx, networkType, networkMagic, txProvider, minterWallet, lovelaceFundAmount,
 		[]cardanowallet.TokenAmount{mintToken}, []cardanowallet.IPolicyScript{policyScript},
 	)
 	if err != nil {
@@ -53,7 +53,7 @@ func FundUserWithToken(ctx context.Context, chain ChainID,
 	fundToken := cardanowallet.NewTokenAmount(pid, defaultTokenName, tokenFundAmount)
 
 	txHash, err = SendTxWithTokens(
-		ctx, networkType, txProvider, minterWallet, userToFundAddr, lovelaceFundAmount,
+		ctx, networkType, networkMagic, txProvider, minterWallet, userToFundAddr, lovelaceFundAmount,
 		[]cardanowallet.TokenAmount{fundToken}, nil,
 	)
 	if err != nil {
@@ -69,6 +69,7 @@ func FundUserWithToken(ctx context.Context, chain ChainID,
 func SendTxWithTokens(
 	ctx context.Context,
 	networkType cardanowallet.CardanoNetworkType,
+	networkMagic uint,
 	txProvider cardanowallet.ITxProvider,
 	senderWallet *cardanowallet.Wallet,
 	receiverAddr string,
@@ -81,7 +82,7 @@ func SendTxWithTokens(
 	}
 
 	txRaw, txHash, err := createNativeTokenTx(
-		ctx, networkType, txProvider, senderWallet, receiverAddr, lovelaceAmount, tokens, metadata)
+		ctx, networkType, networkMagic, txProvider, senderWallet, receiverAddr, lovelaceAmount, tokens, metadata)
 	if err != nil {
 		return "", err
 	}
@@ -97,6 +98,7 @@ func SendTxWithTokens(
 func MintTokens(
 	ctx context.Context,
 	networkType cardanowallet.CardanoNetworkType,
+	networkMagic uint,
 	txProvider cardanowallet.ITxProvider,
 	wallet *cardanowallet.Wallet,
 	lovelaceAmount uint64,
@@ -113,7 +115,7 @@ func MintTokens(
 	}
 
 	txRaw, txHash, err := createMintTx(
-		ctx, networkType, txProvider, wallet, lovelaceAmount,
+		ctx, networkType, networkMagic, txProvider, wallet, lovelaceAmount,
 		tokens, tokenPolicyScripts,
 	)
 	if err != nil {
@@ -131,6 +133,7 @@ func MintTokens(
 func createNativeTokenTx(
 	ctx context.Context,
 	networkType cardanowallet.CardanoNetworkType,
+	networkMagic uint,
 	txProvider cardanowallet.ITxProvider,
 	senderWallet *cardanowallet.Wallet,
 	receiverAddr string,
@@ -152,7 +155,7 @@ func createNativeTokenTx(
 
 	defer builder.Dispose()
 
-	builder.SetTestNetMagic(GetNetworkMagic(networkType))
+	builder.SetTestNetMagic(networkMagic)
 
 	if err := builder.SetProtocolParametersAndTTL(ctx, txProvider, 0); err != nil {
 		return nil, "", err
@@ -292,6 +295,7 @@ func getInputs(
 func createMintTx(
 	ctx context.Context,
 	networkType cardanowallet.CardanoNetworkType,
+	networkMagic uint,
 	txProvider cardanowallet.ITxProvider,
 	wallet *cardanowallet.Wallet,
 	lovelaceAmount uint64,
@@ -312,7 +316,7 @@ func createMintTx(
 
 	defer builder.Dispose()
 
-	builder.SetTestNetMagic(GetNetworkMagic(networkType))
+	builder.SetTestNetMagic(networkMagic)
 
 	if err := builder.SetProtocolParametersAndTTL(ctx, txProvider, 0); err != nil {
 		return nil, "", err
