@@ -432,7 +432,7 @@ func (ec *TestCardanoChain) createIndexer(chainInfo CardanoChainInfo) (e2eindexe
 
 	return e2eindexer.NewTxsExecutedComponentCardano(
 		&gouroboros.BlockSyncerConfig{
-			NetworkMagic:   uint32(GetNetworkMagic(ec.config.NetworkType)),
+			NetworkMagic:   uint32(ec.config.NetworkMagic),
 			NodeAddress:    strings.TrimPrefix(strings.TrimPrefix(chainInfo.NetworkAddress, "http://"), "https://"),
 			RestartOnError: true, // always try to restart on non-fatal errors
 			RestartDelay:   indexerRestartDelay,

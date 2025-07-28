@@ -138,7 +138,7 @@ func ExecuteBridging(
 	go func() {
 		for {
 			select {
-			case <-time.After(time.Second * 5):
+			case <-time.After(time.Second * 10):
 			case <-closeCh:
 				return
 			}

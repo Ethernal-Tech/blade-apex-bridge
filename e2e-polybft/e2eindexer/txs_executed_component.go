@@ -11,12 +11,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
-const blocksQueueSize = 35
-
-type TxsExecutedCallback interface {
-	Forward(executed []string)
-	Rollback(failed []string)
-}
+const blocksQueueSize = 30
 
 type TxsInfo struct {
 	Desired  []string
@@ -32,7 +27,6 @@ type TxsExecutedComponent interface {
 	GetTxs() TxsInfo
 	GetFailedTxs() []string
 	Add(txs ...string)
-	SetCallback(callback TxsExecutedCallback)
 	ResetData()
 	Close() error
 }
@@ -90,10 +84,6 @@ func (t *TxsExecutedComponentDummy) ResetData() {
 	t.txs = nil
 }
 
-// SetCallback implements TxsExecutedComponent.
-func (t *TxsExecutedComponentDummy) SetCallback(callback TxsExecutedCallback) {
-}
-
 var _, _ TxsExecutedComponent = (*TxsExecutedComponentCardano)(nil), (*TxsExecutedComponentDummy)(nil)
 
 type blockData struct {
@@ -109,7 +99,6 @@ type TxsExecutedComponentCardano struct {
 	desiredTxs     map[string]struct{}
 	failedTxs      map[string]struct{}
 	executedTxs    map[string]struct{}
-	callback       TxsExecutedCallback
 
 	syncer indexer.BlockSyncer
 	logger hclog.Logger
@@ -209,13 +198,6 @@ func (b *TxsExecutedComponentCardano) Close() error {
 	return b.syncer.Close()
 }
 
-func (b *TxsExecutedComponentCardano) SetCallback(callback TxsExecutedCallback) {
-	b.lock.Lock()
-	defer b.lock.Unlock()
-
-	b.callback = callback
-}
-
 // Reset implements indexer.BlockSyncerHandler.
 func (b *TxsExecutedComponentCardano) Reset() (indexer.BlockPoint, error) {
 	b.lock.RLock()
@@ -266,10 +248,6 @@ func (b *TxsExecutedComponentCardano) RollBackward(point indexer.BlockPoint) err
 		b.logger.Warn("roll backward happened, some txs are lost", "txs", failedTxs)
 	}
 
-	if b.callback != nil {
-		b.callback.Rollback(failedTxs)
-	}
-
 	return nil
 }
 
@@ -277,13 +255,13 @@ func (b *TxsExecutedComponentCardano) RollBackward(point indexer.BlockPoint) err
 func (b *TxsExecutedComponentCardano) RollForward(
 	blockHeader indexer.BlockHeader, txsRetriver indexer.BlockTxsRetriever,
 ) error {
-	b.lock.Lock()
-	defer b.lock.Unlock()
-
 	allRetrievedTxs, err := txsRetriver.GetBlockTransactions(blockHeader)
 	if err != nil {
 		return err
 	}
+
+	b.lock.Lock()
+	defer b.lock.Unlock()
 
 	//nolint:prealloc
 	var txs []string
@@ -303,10 +281,6 @@ func (b *TxsExecutedComponentCardano) RollForward(
 
 	if len(txs) > 0 {
 		b.logger.Info("roll forward happened, some txs are executed", "txs", txs)
-	}
-
-	if b.callback != nil {
-		b.callback.Forward(txs)
 	}
 
 	if b.blocks.IsFull() {
