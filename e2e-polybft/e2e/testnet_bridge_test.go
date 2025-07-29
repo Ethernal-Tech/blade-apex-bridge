@@ -37,7 +37,7 @@ type BridgingRequest struct {
 // This is called manually when needed. It is not called on every run.
 func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 	const (
-		apexAmountToBridge = 2_000
+		apexAmountToBridge = 10_000
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
