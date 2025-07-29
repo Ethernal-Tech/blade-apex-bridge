@@ -683,11 +683,11 @@ func (a *ApexSystem) WaitForGreaterAmount(
 
 func (a *ApexSystem) WaitForAmountInRange(
 	ctx context.Context, user *TestApexUser, dstChain ChainID, srcChain ChainID,
-	lowerBoundaryDfm *big.Int, higherBoundaryDfm *big.Int, numRetries int, waitTime time.Duration, isNativeToken ...bool,
+	lowerBoundaryDfm *big.Int, higherBoundaryDfm *big.Int, numRetries int, retryDelay time.Duration, isNativeToken ...bool,
 ) error {
 	lastAmount, err := a.WaitForAmount(ctx, user, dstChain, srcChain, func(val *big.Int) bool {
 		return val.Cmp(lowerBoundaryDfm) == 1 && val.Cmp(higherBoundaryDfm) != 1
-	}, numRetries, waitTime, isNativeToken...)
+	}, numRetries, retryDelay, isNativeToken...)
 	if err != nil {
 		return fmt.Errorf("amount mismatch: expected amount between %s and %s, but received %s: %w",
 			lowerBoundaryDfm, higherBoundaryDfm, lastAmount, err)
@@ -722,7 +722,7 @@ func (a *ApexSystem) WaitForExactAmount(
 
 func (a *ApexSystem) WaitForAmount(
 	ctx context.Context, user *TestApexUser, dstChain ChainID, srcChain string,
-	cmpHandler func(*big.Int) bool, numRetries int, waitTime time.Duration, isNativeToken ...bool,
+	cmpHandler func(*big.Int) bool, numRetries int, retryDelay time.Duration, isNativeToken ...bool,
 ) (*big.Int, error) {
 	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*big.Int, error) {
 		amounts, err := a.GetBalance(ctx, user, dstChain)
@@ -746,7 +746,7 @@ func (a *ApexSystem) WaitForAmount(
 		}
 
 		return newBalance, nil
-	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
+	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(retryDelay))
 }
 
 func (a *ApexSystem) DefundHotWallet(

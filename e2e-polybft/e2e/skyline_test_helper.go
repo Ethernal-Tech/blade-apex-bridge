@@ -16,7 +16,7 @@ import (
 
 func executeInvalidBridgingFee(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	config *testConfig, timeoutSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	config *testConfig, maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
 ) {
 	t.Helper()
 
@@ -41,12 +41,12 @@ func executeInvalidBridgingFee(
 	fmt.Printf("txHash: %s\n", txHash)
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
-		bridgingType, refundEnabled, timeoutSec)
+		bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
 func executeInvalidFeeReceiverAddr(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	config *testConfig, timeoutSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	config *testConfig, maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
 ) {
 	t.Helper()
 
@@ -77,7 +77,7 @@ func executeInvalidFeeReceiverAddr(
 		fmt.Printf("txHash: %s\n", txHash)
 
 		WaitForTestResult(t, ctx, apex, config, user, txHash, initialBalances, sentAmount.Uint64(),
-			bridgingType, refundEnabled, timeoutSec)
+			bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 	} else {
 		txHash, err := apex.SubmitTx(
 			ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
@@ -87,7 +87,7 @@ func executeInvalidFeeReceiverAddr(
 		fmt.Printf("txHash: %s\n", txHash)
 
 		WaitForTestResult(t, ctx, apex, config, user, txHash, initialBalances, sentTokenAmount[0].Amount,
-			bridgingType, refundEnabled, timeoutSec)
+			bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 	}
 }
 
@@ -137,7 +137,7 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 
 func executeInvalidMismatchSendNativeTokenAmount(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
-	config *testConfig, timeoutSec uint, refundEnabled bool,
+	config *testConfig, maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
 ) {
 	t.Helper()
 
@@ -171,13 +171,13 @@ func executeInvalidMismatchSendNativeTokenAmount(
 	fmt.Printf("txHash: %s\n", txHash)
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
-		bridgingType, refundEnabled, timeoutSec)
+		bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
 func executeInvalidSendUnknownToken(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
 	config *testConfig, nativeTokenAmount wallet.TokenAmount,
-	timeoutSec uint, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
 ) {
 	t.Helper()
 
@@ -220,5 +220,5 @@ func executeInvalidSendUnknownToken(
 	fmt.Printf("txHash: %s\n", txHash)
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, lovelaceAmount,
-		bridgingType, refundEnabled, timeoutSec)
+		bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }

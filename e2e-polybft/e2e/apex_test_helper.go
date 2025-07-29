@@ -60,15 +60,14 @@ func newTestConfig(
 func WaitForTestResult(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
 	txHash string, beforeSendingAmountDfm map[string]*big.Int, sentAmount uint64, bridgingType sendtx.BridgingType,
-	refundEnabled bool, timeoutSec uint,
+	refundEnabled bool, maxWaitTimeSec, retryIntervalSec uint,
 ) {
 	t.Helper()
 
-	if refundEnabled {
-		if timeoutSec == 0 {
-			timeoutSec = 6
-		}
+	retryIntervalSec = max(retryIntervalSec, 1)
+	numRetries := max(1, int(maxWaitTimeSec/retryIntervalSec))
 
+	if refundEnabled {
 		tokeName := wallet.AdaTokenName
 
 		if bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
@@ -81,18 +80,18 @@ func WaitForTestResult(
 			beforeSendingAmountDfm)
 
 		err := apex.WaitForAmountInRange(ctx, user, config.srcChainID, config.dstChainID, lowerBoundaryDfm,
-			beforeSendingAmountDfm[tokeName], 20, time.Second*time.Duration(timeoutSec),
+			beforeSendingAmountDfm[tokeName], numRetries, time.Second*time.Duration(retryIntervalSec),
 			bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
 		require.NoError(t, err)
 	} else {
-		cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, timeoutSec)
+		cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)
 	}
 }
 
 // Test methods
 func executeInvalidMismatchSendLovelaceAmount(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	timeoutSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
 ) {
 	t.Helper()
 
@@ -112,12 +111,12 @@ func executeInvalidMismatchSendLovelaceAmount(
 	require.NoError(t, err)
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount, bridgingType,
-		refundEnabled, timeoutSec)
+		refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
 func executeInvalidMismatchSendAmountMultipleInstances(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig,
-	timeoutSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
 ) {
 	t.Helper()
 
@@ -140,13 +139,13 @@ func executeInvalidMismatchSendAmountMultipleInstances(
 		require.NoError(t, err)
 
 		WaitForTestResult(t, ctx, apex, config, apex.Users[i], txHash, beforeSendingAmountDfm, waitForAmount,
-			bridgingType, refundEnabled, timeoutSec)
+			bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 	}
 }
 
 func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig,
-	timeoutSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
 ) {
 	t.Helper()
 
@@ -176,7 +175,7 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 			require.NoError(t, err)
 
 			WaitForTestResult(t, ctx, apex, config, apex.Users[idx], txHashe, beforeSendingAmountDfm, waitForAmount,
-				bridgingType, refundEnabled, timeoutSec)
+				bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 		}(i)
 	}
 
@@ -185,7 +184,7 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 
 func executeInvalidMetadataType(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	timeoutSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
 ) {
 	t.Helper()
 
@@ -207,11 +206,9 @@ func executeInvalidMetadataType(
 
 	if refundEnabled {
 		WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
-			bridgingType, refundEnabled, timeoutSec)
+			bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 	} else {
-		fmt.Printf("txHash: %s\n", txHash)
-
-		_, err = cardanofw.WaitForRequestStates(ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, nil, timeoutSec)
+		_, err = cardanofw.WaitForRequestStates(ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, nil, maxWaitTimeSec)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "timeout")
 	}
@@ -219,7 +216,7 @@ func executeInvalidMetadataType(
 
 func executeInvalidDestination(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	timeoutSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
 ) {
 	t.Helper()
 
@@ -253,12 +250,12 @@ func executeInvalidDestination(
 	require.NoError(t, err)
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
-		bridgingType, refundEnabled, timeoutSec)
+		bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
 func executeInvalidMetadataInvalidSender(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	timeoutSec uint, bridgingType sendtx.BridgingType,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType,
 ) {
 	t.Helper()
 
@@ -282,14 +279,12 @@ func executeInvalidMetadataInvalidSender(
 		lovelaceAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
-	fmt.Printf("txHash: %s\n", txHash)
-
-	cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, timeoutSec)
+	cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)
 }
 
 func executeInvalidEmptyReceivers(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	timeoutSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
 ) {
 	t.Helper()
 
@@ -322,7 +317,7 @@ func executeInvalidEmptyReceivers(
 	require.NoError(t, err)
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
-		bridgingType, refundEnabled, timeoutSec)
+		bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
 func getDefaultSendAmounts(t *testing.T, config *testConfig, minUtxoAmount uint64, bridgingType sendtx.BridgingType,
