@@ -367,6 +367,8 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[0]},
 		}
 		initialBalances = map[string]map[string]*big.Int{}
+
+		mu sync.RWMutex
 	)
 
 	_, err := cardanofw.FundUserWithToken(
@@ -391,7 +393,9 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		go func(i int, src, dest string, sender *cardanofw.TestApexUser) {
 			defer wg.Done()
 
+			mu.Lock()
 			initialBalances[src], err = apex.GetBalance(ctx, sender, src)
+			mu.Unlock()
 			require.NoError(t, err)
 
 			txHash := apex.SubmitBridgingRequest(
@@ -409,7 +413,10 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 			defer wg.Done()
 
 			tokenName := apex.GetTokenNameForChains(src, dest)
+
+			mu.RLock()
 			tokenBalance := initialBalances[br.src][tokenName]
+			mu.RUnlock()
 
 			err := apex.WaitForExactAmount(ctx, br.sender, br.src, br.dest, tokenBalance, 30, 30*time.Second, true)
 			require.NoError(t, err)
