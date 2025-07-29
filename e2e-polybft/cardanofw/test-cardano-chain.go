@@ -430,12 +430,11 @@ func (ec *TestCardanoChain) createIndexer() (e2eindexer.TxsExecutedComponent, er
 		indexerSyncStartTries = 1_000_000_000
 	)
 
-	server := ec.cluster.Servers[len(ec.cluster.Servers)-1].NetworkAddress()
-
 	return e2eindexer.NewTxsExecutedComponentCardano(
 		&gouroboros.BlockSyncerConfig{
-			NetworkMagic:   uint32(ec.config.NetworkMagic),
-			NodeAddress:    strings.TrimPrefix(strings.TrimPrefix(server, "http://"), "https://"),
+			NetworkMagic: uint32(ec.config.NetworkMagic),
+			NodeAddress: strings.TrimPrefix(strings.TrimPrefix(
+				ec.cluster.Servers[0].NetworkAddress(), "http://"), "https://"),
 			RestartOnError: true, // always try to restart on non-fatal errors
 			RestartDelay:   indexerRestartDelay,
 			KeepAlive:      indexerKeepAlive,

@@ -1021,6 +1021,9 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 
 		t.Cleanup(func() {
 			apex.ResetIndexers()
+
+			_ = apex.GetValidator(t, validatorStoppingIdx).Stop() // make sure it was stopped
+			require.NoError(t, apex.GetValidator(t, validatorStoppingIdx).Start(ctx, false))
 		})
 
 		e2ehelper.ExecuteBridging(
@@ -1051,6 +1054,9 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 
 		t.Cleanup(func() {
 			apex.ResetIndexers()
+
+			_ = apex.GetValidator(t, validatorStoppingIdx2).Stop() // make sure it was stopped
+			require.NoError(t, apex.GetValidator(t, validatorStoppingIdx2).Start(ctx, false))
 		})
 
 		e2ehelper.ExecuteBridging(
