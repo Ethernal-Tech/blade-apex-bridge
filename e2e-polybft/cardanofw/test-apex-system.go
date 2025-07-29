@@ -995,12 +995,13 @@ func (a *ApexSystem) DeploySmartContract(
 		"--owner", a.GetBridgeAdmin().Address().String(),
 		"--upgrade-admin", a.GetBridgeProxyAdmin().Address().String(),
 	}, &stdoutBuf)
-	if err != nil {
-		return "", fmt.Errorf("deploy contract command failed: %w", err)
-	}
 
 	output := stdoutBuf.String()
 	fmt.Println(output)
+
+	if err != nil {
+		return "", fmt.Errorf("deploy contract command failed: %w", err)
+	}
 
 	re := regexp.MustCompile(`(?i)Proxy Address\s*=\s*(0x[0-9a-fA-F]{40})`)
 

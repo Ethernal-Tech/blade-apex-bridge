@@ -83,10 +83,7 @@ func SetupAndRunApexBridge(
 
 	require.NoError(t, apexSystem.CreateWallets())
 
-	switch system {
-	case SystemIDSkyline:
-		skylineBridgeSmartContractsUpgrades(t, apexSystem)
-	}
+	bridgeSmartContractsUpgrades(t, apexSystem, filepath.Join("..", "..", "apex-bridge-smartcontracts"))
 
 	fmt.Printf("Wallets have been created.\n")
 
@@ -122,15 +119,18 @@ func SetupAndRunApexBridge(
 	return apexSystem
 }
 
-func skylineBridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem) {
+func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSmartContractsDirPath string) {
 	t.Helper()
 
+	dir, err := filepath.Abs(bridgeSmartContractsDirPath)
+	require.NoError(t, err)
+
 	deployedContractAddr, err := apexSystem.DeploySmartContract(
-		"../../apex-bridge-smartcontracts/", "BridgingAddresses", []string{contracts.Bridge.String()})
+		dir, "BridgingAddresses", []string{contracts.Bridge.String()})
 	require.NoError(t, err)
 
 	require.NoError(t, apexSystem.UpgradeSmartContract(&UpgradeSCParams{
-		contractsDir:    "../../apex-bridge-smartcontracts/",
+		contractsDir:    dir,
 		contractName:    "Bridge",
 		contractAddress: contracts.Bridge.String(),
 		functionName:    "setBridgingAddrsDependencyAndSync",
