@@ -17,7 +17,6 @@ import (
 )
 
 var (
-	chains        = []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus}
 	timeoutConfig = e2ehelper.NewTimeoutConfig(
 		e2ehelper.WithBridgingNumRetries(defaultDstNumRetries),
 		e2ehelper.WithBridgingRetryWaitTime(defaultDstWaitTime),
@@ -29,6 +28,11 @@ const (
 	defaultDstNumRetries = 120
 	defaultDstWaitTime   = 30 * time.Second
 )
+
+type BridgingRequest struct {
+	src  string
+	dest string
+}
 
 // This is called manually when needed. It is not called on every run.
 func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
@@ -49,10 +53,12 @@ func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 
 	sendAmountDfm := cardanofw.ApexToDfm(new(big.Int).SetUint64(apexAmountToBridge))
 
-	fmt.Printf("bridging %v apex to vector\n", apexAmountToBridge)
+	if IsVectorEnabled(apex) {
+		fmt.Printf("bridging %v apex to vector\n", apexAmountToBridge)
 
-	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm, bridgingOpts...)
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm, bridgingOpts...)
+	}
 
 	fmt.Printf("bridging %v apex to nexus\n", apexAmountToBridge)
 	e2ehelper.ExecuteSingleBridging(
@@ -77,6 +83,8 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 	printUserBalances(apex, apex.Users, balances)
 
 	fmt.Printf("defunding the wallets\n")
+
+	chains := getEnabledChains(apex)
 
 	for _, user := range apex.Users {
 		for _, chain := range chains {
@@ -149,6 +157,8 @@ func Test_E2E_TestnetFund(t *testing.T) {
 
 	fmt.Printf("funding the wallets\n")
 
+	chains := getEnabledChains(apex)
+
 	for _, user := range apex.Users {
 		fmt.Printf("-----------------------------\n")
 
@@ -200,15 +210,7 @@ func Test_E2E_SanityCheck(t *testing.T) {
 	var (
 		user             = apex.Users[0]
 		sendAmount       = cardanofw.ApexToDfm(big.NewInt(1))
-		bridgingRequests = []struct {
-			src  string
-			dest string
-		}{
-			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDVector},
-			{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDPrime},
-			{src: cardanofw.ChainIDNexus, dest: cardanofw.ChainIDPrime},
-			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDNexus},
-		}
+		bridgingRequests = getEnabledDirections(apex)
 	)
 
 	for _, dir := range bridgingRequests {
@@ -226,25 +228,27 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetTestnetApexBridgeConfig())
 	require.NoError(t, err)
 
-	t.Run("From Prime to Vector sequential and parallel with max receivers", func(t *testing.T) {
-		const (
-			sequentialInstances = 3
-			parallelInstances   = 10
-		)
+	if IsVectorEnabled(apex) {
+		t.Run("From Prime to Vector sequential and parallel with max receivers", func(t *testing.T) {
+			const (
+				sequentialInstances = 3
+				parallelInstances   = 10
+			)
 
-		PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, bridgingOpts...)
-	})
+			PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, bridgingOpts...)
+		})
 
-	t.Run("Prime and Vector both directions sequential and parallel", func(t *testing.T) {
-		const (
-			sequentialInstances = 3
-			parallelInstances   = 6
-		)
+		t.Run("Prime and Vector both directions sequential and parallel", func(t *testing.T) {
+			const (
+				sequentialInstances = 3
+				parallelInstances   = 6
+			)
 
-		receiverUser := apex.Users[parallelInstances]
+			receiverUser := apex.Users[parallelInstances]
 
-		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, bridgingOpts...)
-	})
+			PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, bridgingOpts...)
+		})
+	}
 
 	t.Run("From Prime to Nexus sequential and parallel with max receivers", func(t *testing.T) {
 		const (
@@ -293,29 +297,31 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 		requestStateTimeoutSec = 1500
 	)
 
-	t.Run("Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
-		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, apex.Users[0], requestStateTimeoutSec)
-	})
+	if IsVectorEnabled(apex) {
+		t.Run("Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
+			PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, apex.Users[0], requestStateTimeoutSec)
+		})
 
-	t.Run("Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[1])
-	})
+		t.Run("Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
+			PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[1])
+		})
 
-	t.Run("Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, apex.Users[2], requestStateTimeoutSec)
-	})
+		t.Run("Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
+			PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, apex.Users[2], requestStateTimeoutSec)
+		})
 
-	t.Run("Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[3], requestStateTimeoutSec)
-	})
+		t.Run("Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
+			PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[3], requestStateTimeoutSec)
+		})
 
-	t.Run("Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[4], requestStateTimeoutSec)
-	})
+		t.Run("Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
+			PrimeToVectorInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[4], requestStateTimeoutSec)
+		})
 
-	t.Run("Prime to Vector submitted invalid metadata - empty tx", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[5], requestStateTimeoutSec)
-	})
+		t.Run("Prime to Vector submitted invalid metadata - empty tx", func(t *testing.T) {
+			PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[5], requestStateTimeoutSec)
+		})
+	}
 
 	t.Run("Prime to Nexus submitter not enough funds", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(500_000))
@@ -366,6 +372,8 @@ func printUserBalances(apex *cardanofw.ApexSystem, users []*cardanofw.TestApexUs
 		fmt.Printf("=============================\n")
 		fmt.Printf("user: %d\n", i)
 
+		chains := getEnabledChains(apex)
+
 		for _, chain := range chains {
 			var (
 				addr       = user.GetAddress(chain)
@@ -388,6 +396,7 @@ func getUserBalances(
 	users []*cardanofw.TestApexUser,
 ) map[string]*big.Int {
 	var (
+		chains   = getEnabledChains(apex)
 		balances = make(map[string]*big.Int, len(users)*len(chains))
 		wg       sync.WaitGroup
 		mu       sync.Mutex
@@ -428,4 +437,41 @@ func getUserBalances(
 	wg.Wait()
 
 	return balances
+}
+
+func IsVectorEnabled(apex *cardanofw.ApexSystem) bool {
+	if apex.Config.VectorConfig == nil {
+		return false
+	}
+
+	return apex.Config.VectorConfig.IsEnabled
+}
+
+func getEnabledChains(apex *cardanofw.ApexSystem) []string {
+	chains := []string{
+		cardanofw.ChainIDPrime,
+		cardanofw.ChainIDNexus,
+	}
+
+	if IsVectorEnabled(apex) {
+		chains = append(chains, cardanofw.ChainIDVector)
+	}
+
+	return chains
+}
+
+func getEnabledDirections(apex *cardanofw.ApexSystem) []BridgingRequest {
+	directions := []BridgingRequest{
+		{src: cardanofw.ChainIDNexus, dest: cardanofw.ChainIDPrime},
+		{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDNexus},
+	}
+
+	if IsVectorEnabled(apex) {
+		directions = append(directions, []BridgingRequest{
+			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDVector},
+			{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDPrime},
+		}...)
+	}
+
+	return directions
 }
