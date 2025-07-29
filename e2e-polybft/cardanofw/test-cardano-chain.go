@@ -335,7 +335,7 @@ func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) error {
 	}
 
 	if ec.config.UseIndexer {
-		indexer, err := ec.createIndexer(ec.getChainInfo())
+		indexer, err := ec.createIndexer()
 		if err != nil {
 			return err
 		}
@@ -423,17 +423,19 @@ func (ec *TestCardanoChain) GetIndexer() e2eindexer.TxsExecutedComponent {
 	return ec.indexer
 }
 
-func (ec *TestCardanoChain) createIndexer(chainInfo CardanoChainInfo) (e2eindexer.TxsExecutedComponent, error) {
+func (ec *TestCardanoChain) createIndexer() (e2eindexer.TxsExecutedComponent, error) {
 	const (
 		indexerRestartDelay   = time.Second * 5
 		indexerKeepAlive      = true
 		indexerSyncStartTries = 1_000_000_000
 	)
 
+	server := ec.cluster.Servers[len(ec.cluster.Servers)-1].NetworkAddress()
+
 	return e2eindexer.NewTxsExecutedComponentCardano(
 		&gouroboros.BlockSyncerConfig{
 			NetworkMagic:   uint32(ec.config.NetworkMagic),
-			NodeAddress:    strings.TrimPrefix(strings.TrimPrefix(chainInfo.NetworkAddress, "http://"), "https://"),
+			NodeAddress:    strings.TrimPrefix(strings.TrimPrefix(server, "http://"), "https://"),
 			RestartOnError: true, // always try to restart on non-fatal errors
 			RestartDelay:   indexerRestartDelay,
 			KeepAlive:      indexerKeepAlive,
