@@ -445,7 +445,7 @@ func (ec *TestCardanoChain) createIndexer() (e2eindexer.TxsExecutedComponent, er
 		}, hclog.New(&hclog.LoggerOptions{
 			Name:   fmt.Sprintf("indexer_%d", ec.config.ID),
 			Output: os.Stdout,
-			Level:  hclog.Info,
+			Level:  hclog.Warn,
 		}))
 }
 
