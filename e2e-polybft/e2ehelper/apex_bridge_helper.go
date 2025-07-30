@@ -93,9 +93,6 @@ func ExecuteBridging(
 	chainPairs := getAllChainPairs(chains, chainsDst)
 	initialReceiverAmounts := make([]map[string]*big.Int, len(receiverUsers))
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	for i, receiverUser := range receiverUsers {
 		initialReceiverAmounts[i] = make(map[string]*big.Int)
 
