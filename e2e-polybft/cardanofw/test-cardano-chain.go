@@ -17,8 +17,12 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
+	"github.com/Ethernal-Tech/cardano-infrastructure/indexer"
+	"github.com/Ethernal-Tech/cardano-infrastructure/indexer/gouroboros"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,6 +38,8 @@ type TestCardanoChainConfig struct {
 	NetworkType            infrawallet.CardanoNetworkType
 	NetworkMagic           uint
 	NodesCount             int
+	IndexerStartBlockHash  indexer.Hash
+	IndexerStartSlot       uint64
 	InitialHotWalletAmount *big.Int
 	FundAmount             uint64
 	FundFeeAmount          uint64
@@ -44,6 +50,7 @@ type TestCardanoChainConfig struct {
 	SlotRoundingThreshold  uint64
 	TTLInc                 uint64
 	BridgeAddrHasStake     bool
+	UseIndexer             bool
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -109,6 +116,7 @@ type TestCardanoChain struct {
 	blockfrostAPIKey string
 	multisigAddr     string
 	multisigFeeAddr  string
+	indexer          e2eindexer.TxsExecutedComponent
 }
 
 func (ec *TestCardanoChain) GetTxProvider() (infrawallet.ITxProvider, error) {
@@ -140,7 +148,8 @@ func NewTestCardanoChain(config *TestCardanoChainConfig) ITestApexChain {
 	}
 
 	return &TestCardanoChain{
-		config: config,
+		config:  config,
+		indexer: e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 }
 
@@ -262,7 +271,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 	if totalAmount := ec.config.FundFeeAmount; totalAmount != 0 {
 		for _, amount := range SplitAmountNTimes(new(big.Int).SetUint64(totalAmount), ec.config.FundFeeUTxOCount) {
-			txHash, err := ec.SendTx(ctx, privateKey, ec.multisigFeeAddr, amount, nil)
+			txHash, err := ec.sendTx(ctx, privateKey, ec.multisigFeeAddr, amount, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -273,7 +282,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 	if totalAmount := ec.config.FundAmount; totalAmount != 0 {
 		for _, amount := range SplitAmountNTimes(new(big.Int).SetUint64(totalAmount), ec.config.FundUTxOCount) {
-			txHash, err := ec.SendTx(ctx, privateKey, ec.multisigAddr, amount, nil)
+			txHash, err := ec.sendTx(ctx, privateKey, ec.multisigAddr, amount, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -317,21 +326,24 @@ func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string)
 	return result
 }
 
-func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) {
-	chainInfo := CardanoChainInfo{
-		NetworkAddress: ec.cluster.Servers[0].NetworkAddress(),
-		OgmiosURL:      ec.ogmiosURL,
-		MultisigAddr:   ec.multisigAddr,
-		FeeAddr:        ec.multisigFeeAddr,
-		SocketPath:     ec.cluster.OgmiosServer.SocketPath(),
-	}
-
+func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) error {
 	switch ec.ChainID() {
 	case ChainIDPrime:
-		apexSystem.PrimeInfo = chainInfo
+		apexSystem.PrimeInfo = ec.getChainInfo()
 	case ChainIDVector:
-		apexSystem.VectorInfo = chainInfo
+		apexSystem.VectorInfo = ec.getChainInfo()
 	}
+
+	if ec.config.UseIndexer {
+		indexer, err := ec.createIndexer()
+		if err != nil {
+			return err
+		}
+
+		ec.indexer = indexer
+	}
+
+	return nil
 }
 
 func (ec *TestCardanoChain) ChainID() string {
@@ -385,11 +397,71 @@ func (ec *TestCardanoChain) BridgingRequest(
 		return "", err
 	}
 
-	return ec.SendTx(ctx, privateKey, ec.multisigAddr, totalAmount, bridgingRequestMetadata)
+	return ec.sendTx(ctx, privateKey, ec.multisigAddr, totalAmount, bridgingRequestMetadata, ec.indexer)
 }
 
 func (ec *TestCardanoChain) SendTx(
 	ctx context.Context, privateKey string, receiverAddr string, amount *big.Int, data []byte,
+) (string, error) {
+	return ec.sendTx(ctx, privateKey, receiverAddr, amount, data, nil)
+}
+
+func (ec *TestCardanoChain) GetHotWalletAddress() string {
+	return ec.multisigAddr
+}
+
+func (ec *TestCardanoChain) GetAdminPrivateKey() (string, error) {
+	genesisWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
+	if err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(genesisWallet.SigningKey), nil
+}
+
+func (ec *TestCardanoChain) GetIndexer() e2eindexer.TxsExecutedComponent {
+	return ec.indexer
+}
+
+func (ec *TestCardanoChain) createIndexer() (e2eindexer.TxsExecutedComponent, error) {
+	const (
+		indexerRestartDelay   = time.Second * 5
+		indexerKeepAlive      = true
+		indexerSyncStartTries = 1_000_000_000
+	)
+
+	return e2eindexer.NewTxsExecutedComponentCardano(
+		&gouroboros.BlockSyncerConfig{
+			NetworkMagic: uint32(ec.config.NetworkMagic),
+			NodeAddress: strings.TrimPrefix(strings.TrimPrefix(
+				ec.cluster.Servers[0].NetworkAddress(), "http://"), "https://"),
+			RestartOnError: true, // always try to restart on non-fatal errors
+			RestartDelay:   indexerRestartDelay,
+			KeepAlive:      indexerKeepAlive,
+			SyncStartTries: indexerSyncStartTries,
+		}, indexer.BlockPoint{
+			BlockSlot: ec.config.IndexerStartSlot,
+			BlockHash: ec.config.IndexerStartBlockHash,
+		}, hclog.New(&hclog.LoggerOptions{
+			Name:   fmt.Sprintf("indexer_%d", ec.config.ID),
+			Output: os.Stdout,
+			Level:  hclog.Warn,
+		}))
+}
+
+func (ec *TestCardanoChain) getChainInfo() CardanoChainInfo {
+	return CardanoChainInfo{
+		NetworkAddress: ec.cluster.Servers[0].NetworkAddress(),
+		OgmiosURL:      ec.ogmiosURL,
+		MultisigAddr:   ec.multisigAddr,
+		FeeAddr:        ec.multisigFeeAddr,
+		SocketPath:     ec.cluster.OgmiosServer.SocketPath(),
+	}
+}
+
+func (ec *TestCardanoChain) sendTx(
+	ctx context.Context, privateKey string, receiverAddr string, amount *big.Int, data []byte,
+	txsExecutedComponent e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	const (
 		retryCount    = 90
@@ -409,7 +481,7 @@ func (ec *TestCardanoChain) SendTx(
 	}
 
 	txHash, err := SendTx(ctx, txProvider, wallet,
-		amount.Uint64(), receiverAddr, ec.config.NetworkType, ec.config.NetworkMagic, data)
+		amount.Uint64(), receiverAddr, ec.config.NetworkType, ec.config.NetworkMagic, data, txsExecutedComponent)
 	if err != nil {
 		return "", err
 	}
@@ -429,17 +501,4 @@ func (ec *TestCardanoChain) SendTx(
 	}
 
 	return txHash, nil
-}
-
-func (ec *TestCardanoChain) GetHotWalletAddress() string {
-	return ec.multisigAddr
-}
-
-func (ec *TestCardanoChain) GetAdminPrivateKey() (string, error) {
-	genesisWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
-	if err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(genesisWallet.SigningKey), nil
 }
