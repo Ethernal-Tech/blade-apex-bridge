@@ -2585,6 +2585,31 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 
 	executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
 		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
+
+	// Revert if we try to register again:
+	err = apex.RegisterAndDelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0])
+	require.Error(t, err)
+
+	// Test redelegation:
+	err = apex.RedelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[1])
+	require.NoError(t, err)
+
+	// Check if the redelegation was successful
+	previousStakePool := stakePools[0]
+
+	for range 60 {
+		time.Sleep(time.Second)
+
+		addrInfo = apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0)
+
+		if addrInfo.StakeDelegation != previousStakePool {
+			fmt.Println("Bridging address redelegated successfully")
+
+			break
+		}
+	}
+
+	require.Equal(t, stakePools[1], addrInfo.StakeDelegation)
 }
 
 // go test -timeout 0 -run ^TestE2E_SkylineBridge_SimultaniousStakingTest$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
