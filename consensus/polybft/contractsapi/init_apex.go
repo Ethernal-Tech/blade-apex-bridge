@@ -7,16 +7,14 @@ import (
 )
 
 type ApexBridgeContractsInfo struct {
-	Bridge               *contracts.Artifact
-	ClaimsHelper         *contracts.Artifact
-	Claims               *contracts.Artifact
-	SignedBatches        *contracts.Artifact
-	Slots                *contracts.Artifact
-	Validators           *contracts.Artifact
-	Admin                *contracts.Artifact
-	SpecialClaims        *contracts.Artifact
-	SpecialSignedBatches *contracts.Artifact
-	TestBridge           *contracts.Artifact
+	Bridge        *contracts.Artifact
+	ClaimsHelper  *contracts.Artifact
+	Claims        *contracts.Artifact
+	SignedBatches *contracts.Artifact
+	Slots         *contracts.Artifact
+	Validators    *contracts.Artifact
+	Admin         *contracts.Artifact
+	TestBridge    *contracts.Artifact
 }
 
 var ApexBridgeContracts *ApexBridgeContractsInfo
@@ -57,32 +55,20 @@ func initApexContracts() error {
 		return fmt.Errorf("failed to decode apex admin sc: %w", err)
 	}
 
-	specialClaims, err := contracts.DecodeArtifact([]byte(SpecialClaimsArtifact))
-	if err != nil {
-		return fmt.Errorf("failed to decode apex special claims: %w", err)
-	}
-
-	specialSignedBatchesArtifact, err := contracts.DecodeArtifact([]byte(SpecialSignedBatchesArtifact))
-	if err != nil {
-		return fmt.Errorf("failed to decode apex special signed batches %w", err)
-	}
-
-	testBridgeArtifact, err := contracts.DecodeArtifact([]byte(TestBridgeArtifact))
+	testBridge, err := contracts.DecodeArtifact(readTestContractContent("TestBridge.json"))
 	if err != nil {
 		return fmt.Errorf("failed to decoed apex test bridge %w", err)
 	}
 
 	ApexBridgeContracts = &ApexBridgeContractsInfo{
-		Bridge:               bridge,
-		ClaimsHelper:         claimsHelper,
-		Claims:               claims,
-		SignedBatches:        signedBatches,
-		Slots:                slots,
-		Validators:           validators,
-		Admin:                admin,
-		SpecialClaims:        specialClaims,
-		SpecialSignedBatches: specialSignedBatchesArtifact,
-		TestBridge:           testBridgeArtifact,
+		Bridge:        bridge,
+		ClaimsHelper:  claimsHelper,
+		Claims:        claims,
+		SignedBatches: signedBatches,
+		Slots:         slots,
+		Validators:    validators,
+		Admin:         admin,
+		TestBridge:    testBridge,
 	}
 
 	return nil

@@ -62,14 +62,6 @@ package contractsapi
 			"ApexBridgeAdmin",
 		},
 		{
-			"SpecialClaims.sol",
-			"SpecialClaims",
-		},
-		{
-			"SpecialSignedBatches.sol",
-			"SpecialSignedBatches",
-		},
-		{
 			"TestBridge.sol",
 			"TestBridge",
 		},

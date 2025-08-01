@@ -46,14 +46,6 @@ func initApex(transition *state.Transition, polyBFTConfig PolyBFTConfig) (err er
 		return err
 	}
 
-	if err = initSpecialClaims(transition, polyBFTConfig.BladeAdmin); err != nil {
-		return nil
-	}
-
-	if err = initSpecialSignedBatches(transition, polyBFTConfig.BladeAdmin); err != nil {
-		return err
-	}
-
 	return initApexBridgeAdmin(transition, polyBFTConfig.BladeAdmin)
 }
 
@@ -142,16 +134,6 @@ func getDataForApexContract(contract types.Address, polyBFTConfig PolyBFTConfig)
 			Owner:        polyBFTConfig.BladeAdmin,
 			UpgradeAdmin: polyBFTConfig.ProxyContractsAdmin,
 		}).EncodeAbi()
-	case contracts.SpecialClaims:
-		return (&contractsapi.InitializeApexBridgeContractsSpecialClaimsFn{
-			Owner:        polyBFTConfig.BladeAdmin,
-			UpgradeAdmin: polyBFTConfig.ProxyContractsAdmin,
-		}).EncodeAbi()
-	case contracts.SpecialSignedBatches:
-		return (&contractsapi.InitializeApexBridgeContractsSpecialSignedBatchesFn{
-			Owner:        polyBFTConfig.BladeAdmin,
-			UpgradeAdmin: polyBFTConfig.ProxyContractsAdmin,
-		}).EncodeAbi()
 	default:
 		return nil, fmt.Errorf("no contract defined at address %v", contract)
 	}
@@ -162,13 +144,10 @@ func getDataForApexContract(contract types.Address, polyBFTConfig PolyBFTConfig)
 // initBridge initializes Bridge and it's proxy SC
 func initBridge(transition *state.Transition, from types.Address) error {
 	setDependenciesFn := &contractsapi.SetDependenciesApexBridgeContractsBridgeFn{
-		ClaimsAddress:               contracts.Claims,
-		SignedBatchesAddress:        contracts.SignedBatches,
-		SlotsAddress:                contracts.Slots,
-		ValidatorsAddress:           contracts.Validators,
-		SpecialClaimsAddress:        contracts.SpecialClaims,
-		SpecialSignedBatchesAddress: contracts.SpecialSignedBatches,
-		BladeStakeManagerAddress:    contracts.StakeManagerContract,
+		ClaimsAddress:        contracts.Claims,
+		SignedBatchesAddress: contracts.SignedBatches,
+		SlotsAddress:         contracts.Slots,
+		ValidatorsAddress:    contracts.Validators,
 	}
 
 	input, err := setDependenciesFn.EncodeAbi()
@@ -182,11 +161,9 @@ func initBridge(transition *state.Transition, from types.Address) error {
 // initSignedBatches initializes SignedBatches SC
 func initSignedBatches(transition *state.Transition, from types.Address) error {
 	setDependenciesFn := &contractsapi.SetDependenciesApexBridgeContractsSignedBatchesFn{
-		BridgeAddress:               contracts.Bridge,
-		ClaimsHelperAddress:         contracts.ClaimsHelper,
-		ValidatorsAddress:           contracts.Validators,
-		SpecialClaimsAddress:        contracts.SpecialClaims,
-		SpecialSignedBatchesAddress: contracts.SpecialSignedBatches,
+		BridgeAddress:       contracts.Bridge,
+		ClaimsHelperAddress: contracts.ClaimsHelper,
+		ValidatorsAddress:   contracts.Validators,
 	}
 
 	input, err := setDependenciesFn.EncodeAbi()
@@ -201,10 +178,8 @@ func initSignedBatches(transition *state.Transition, from types.Address) error {
 // initClaimsHelper initializes ClaimsHelper SC
 func initClaimsHelper(transition *state.Transition, from types.Address) error {
 	setDependenciesFn := &contractsapi.SetDependenciesApexBridgeContractsClaimsHelperFn{
-		ClaimsAddress:               contracts.Claims,
-		SignedBatchesAddress:        contracts.SignedBatches,
-		SpecialClaimsAddress:        contracts.SpecialClaims,
-		SpecialSignedBatchesAddress: contracts.SpecialSignedBatches,
+		ClaimsAddress:        contracts.Claims,
+		SignedBatchesAddress: contracts.SignedBatches,
 	}
 
 	input, err := setDependenciesFn.EncodeAbi()
@@ -278,40 +253,4 @@ func initApexBridgeAdmin(transition *state.Transition, from types.Address) error
 
 	return callContract(from,
 		contracts.ApexBridgeAdmin, input, "ApexBridgeAdmin.setDependencies", transition)
-}
-
-// initSpecialClaims initialized Special Claims sc
-func initSpecialClaims(transition *state.Transition, from types.Address) error {
-	setDependenciesFn := &contractsapi.SetDependenciesApexBridgeContractsSpecialClaimsFn{
-		BridgeAddress:       contracts.Bridge,
-		ClaimsAddress:       contracts.Claims,
-		ClaimsHelperAddress: contracts.ClaimsHelper,
-		ValidatorsAddress:   contracts.Validators,
-	}
-
-	input, err := setDependenciesFn.EncodeAbi()
-	if err != nil {
-		return fmt.Errorf("ApexBridgeAdmin.setDependencies params encoding failed: %w", err)
-	}
-
-	return callContract(from,
-		contracts.SpecialClaims, input, "SpecialClaims.setDependencies", transition)
-}
-
-// initSpecialSignedBatches initialized Special Claims sc
-func initSpecialSignedBatches(transition *state.Transition, from types.Address) error {
-	setDependenciesFn := &contractsapi.SetDependenciesApexBridgeContractsSpecialSignedBatchesFn{
-		BridgeAddress:        contracts.Bridge,
-		SignedBatchesAddress: contracts.SignedBatches,
-		ClaimsHelperAddress:  contracts.ClaimsHelper,
-		ValidatorsAddress:    contracts.Validators,
-	}
-
-	input, err := setDependenciesFn.EncodeAbi()
-	if err != nil {
-		return fmt.Errorf("ApexBridgeAdmin.setDependencies params encoding failed: %w", err)
-	}
-
-	return callContract(from,
-		contracts.SpecialSignedBatches, input, "SpecialSignedBatches.setDependencies", transition)
 }

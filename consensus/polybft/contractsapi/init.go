@@ -420,8 +420,6 @@ func init() {
 		"Slots":                           ApexBridgeContracts.Slots,
 		"Validators":                      ApexBridgeContracts.Validators,
 		"ApexBridgeAdmin":                 ApexBridgeContracts.Admin,
-		"SpecialClaims":                   ApexBridgeContracts.SpecialClaims,
-		"SpecialSignedBatches":            ApexBridgeContracts.SpecialSignedBatches,
 		"TestCardanoVerifySignature":      TestCardanoVerifySign,
 	}
 }

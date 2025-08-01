@@ -52,14 +52,6 @@ func getApexContracts(testBridge bool) []*contractInfo {
 			artifact: contractsapi.ApexBridgeContracts.Admin,
 			address:  contracts.ApexBridgeAdminAddr,
 		},
-		{
-			artifact: contractsapi.ApexBridgeContracts.SpecialClaims,
-			address:  contracts.SpecialClaimsAddr,
-		},
-		{
-			artifact: contractsapi.ApexBridgeContracts.SpecialSignedBatches,
-			address:  contracts.SpecialSignedBatchesAddr,
-		},
 	}
 }
 
