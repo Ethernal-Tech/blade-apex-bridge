@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,13 +58,13 @@ func SetupAndRunApexBridge(
 	switch system {
 	case SystemIDReactor:
 		apexSystem, err = NewApexSystem(bridgeDataDir, opts...)
+		require.NoError(t, err)
 	case SystemIDSkyline:
 		apexSystem, err = NewSkylineSystem(bridgeDataDir, opts...)
+		require.NoError(t, err)
 	default:
-		err = fmt.Errorf("unknown system ID: %s", system)
+		t.Fatalf("unknown system ID: %s", system)
 	}
-
-	require.NoError(t, err)
 
 	fmt.Printf("Starting chains...\n")
 
@@ -81,6 +82,8 @@ func SetupAndRunApexBridge(
 	fmt.Printf("Bridge chain has been started. Validators are ready\n")
 
 	require.NoError(t, apexSystem.CreateWallets())
+
+	bridgeSmartContractsUpgrades(t, apexSystem, filepath.Join("..", "..", "apex-bridge-smartcontracts"))
 
 	fmt.Printf("Wallets have been created.\n")
 
@@ -114,4 +117,23 @@ func SetupAndRunApexBridge(
 	fmt.Printf("Relayer started. Apex bridge setup done\n")
 
 	return apexSystem
+}
+
+func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSmartContractsDirPath string) {
+	t.Helper()
+
+	dir, err := filepath.Abs(bridgeSmartContractsDirPath)
+	require.NoError(t, err)
+
+	deployedContractAddr, err := apexSystem.DeploySmartContract(
+		dir, "BridgingAddresses", []string{contracts.Bridge.String()})
+	require.NoError(t, err)
+
+	require.NoError(t, apexSystem.UpgradeSmartContract(&UpgradeSCParams{
+		contractsDir:    dir,
+		contractName:    "Bridge",
+		contractAddress: contracts.Bridge.String(),
+		functionName:    "setBridgingAddrsDependencyAndSync",
+		functionArgs:    []string{deployedContractAddr},
+	}))
 }

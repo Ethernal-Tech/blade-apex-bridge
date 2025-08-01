@@ -1,12 +1,14 @@
 package cardanofw
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -78,6 +80,14 @@ type ApexSystem struct {
 	Users      []*TestApexUser
 
 	IsSkyline bool
+}
+
+type UpgradeSCParams struct {
+	contractsDir    string
+	contractName    string
+	contractAddress string
+	functionName    string
+	functionArgs    []string
 }
 
 func NewApexSystem(
@@ -1015,4 +1025,66 @@ func (a *ApexSystem) GetCardanoInfo(chainID string) CardanoChainInfo {
 	default:
 		return CardanoChainInfo{}
 	}
+}
+
+func (a *ApexSystem) DeploySmartContract(
+	contractsDir, contractName string, addressesOfDependencies []string,
+) (string, error) {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return "", err
+	}
+
+	var stdoutBuf bytes.Buffer
+
+	err = RunCommand(ResolveApexBridgeBinary(), []string{
+		"deploy-evm", "deploy-contract",
+		"--contract-dir", contractsDir,
+		"--contract-name", contractName,
+		"--dependencies", strings.Join(addressesOfDependencies, ";"),
+		"--key", hex.EncodeToString(pkBytes),
+		"--url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--owner", a.GetBridgeAdmin().Address().String(),
+		"--upgrade-admin", a.GetBridgeProxyAdmin().Address().String(),
+	}, &stdoutBuf)
+
+	output := stdoutBuf.String()
+	fmt.Println(output)
+
+	if err != nil {
+		return "", fmt.Errorf("deploy contract command failed: %w", err)
+	}
+
+	re := regexp.MustCompile(`(?i)Proxy Address\s*=\s*(0x[0-9a-fA-F]{40})`)
+
+	if match := re.FindStringSubmatch(output); len(match) >= 2 {
+		return match[1], nil
+	}
+
+	return "", fmt.Errorf("proxy address not found")
+}
+
+func (a *ApexSystem) UpgradeSmartContract(upgradeParams *UpgradeSCParams) error {
+	pkBytes, err := a.GetBridgeProxyAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	parts := []string{upgradeParams.contractName, upgradeParams.contractAddress}
+
+	if upgradeParams.functionName != "" {
+		parts = append(parts, upgradeParams.functionName)
+	}
+
+	if len(upgradeParams.functionArgs) > 0 {
+		parts = append(parts, strings.Join(upgradeParams.functionArgs, ";"))
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), []string{
+		"deploy-evm", "upgrade",
+		"--dir", upgradeParams.contractsDir,
+		"--key", hex.EncodeToString(pkBytes),
+		"--url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--contract", strings.Join(parts, ":"),
+	}, os.Stdout)
 }
