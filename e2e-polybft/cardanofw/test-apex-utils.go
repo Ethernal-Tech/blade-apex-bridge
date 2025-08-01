@@ -57,46 +57,19 @@ const (
 )
 
 func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
-	var env, name string
-
-	switch networkID {
-	case wallet.VectorMainNetNetwork, wallet.VectorTestNetNetwork:
-		env = "CARDANO_CLI_BINARY_VECTOR"
-		name = "vector-cli"
-	default:
-		env = "CARDANO_CLI_BINARY"
-		name = "cardano-cli"
-	}
+	env, name := "CARDANO_CLI_BINARY", "cardano-cli"
 
 	return tryResolveFromEnv(env, name)
 }
 
 func ResolveOgmiosBinary(networkID wallet.CardanoNetworkType) string {
-	var env, name string
-
-	switch networkID {
-	case wallet.VectorMainNetNetwork, wallet.VectorTestNetNetwork:
-		env = "OGMIOS_BINARY_VECTOR"
-		name = "vector-ogmios"
-	default:
-		env = "OGMIOS"
-		name = "ogmios"
-	}
+	env, name := "OGMIOS", "ogmios"
 
 	return tryResolveFromEnv(env, name)
 }
 
 func ResolveCardanoNodeBinary(networkID wallet.CardanoNetworkType) string {
-	var env, name string
-
-	switch networkID {
-	case wallet.VectorMainNetNetwork, wallet.VectorTestNetNetwork:
-		env = "CARDANO_NODE_BINARY_VECTOR"
-		name = "vector-node"
-	default:
-		env = "CARDANO_NODE_BINARY_VECTOR"
-		name = "cardano-node"
-	}
+	env, name := "CARDANO_NODE_BINARY", "cardano-node"
 
 	return tryResolveFromEnv(env, name)
 }
@@ -325,28 +298,28 @@ type OracleStateResponse struct {
 	BlockHash string                   `json:"hash"`
 }
 
-func GetNetworkMagic(networkType wallet.CardanoNetworkType, chainID ChainID) uint {
-	switch networkType {
-	case wallet.VectorTestNetNetwork:
-		return wallet.VectorTestNetProtocolMagic
-	case wallet.VectorMainNetNetwork:
-		return wallet.VectorMainNetProtocolMagic
-	case wallet.MainNetNetwork:
-		if chainID == ChainIDCardano {
-			return wallet.MainNetProtocolMagic
-		}
+// func GetNetworkMagic(networkType wallet.CardanoNetworkType, chainID ChainID) uint {
+// 	switch networkType {
+// 	case wallet.VectorTestNetNetwork:
+// 		return wallet.VectorTestNetProtocolMagic
+// 	case wallet.VectorMainNetNetwork:
+// 		return wallet.VectorMainNetProtocolMagic
+// 	case wallet.MainNetNetwork:
+// 		if chainID == ChainIDCardano {
+// 			return wallet.MainNetProtocolMagic
+// 		}
 
-		return wallet.PrimeMainNetProtocolMagic
-	case wallet.TestNetNetwork:
-		if chainID == ChainIDCardano {
-			return wallet.PreviewProtocolMagic
-		}
+// 		return wallet.PrimeMainNetProtocolMagic
+// 	case wallet.TestNetNetwork:
+// 		if chainID == ChainIDCardano {
+// 			return wallet.PreviewProtocolMagic
+// 		}
 
-		return wallet.PrimeTestNetProtocolMagic
-	default:
-		return 0
-	}
-}
+// 		return wallet.PrimeTestNetProtocolMagic
+// 	default:
+// 		return 0
+// 	}
+// }
 
 func GetAddress(networkType wallet.CardanoNetworkType, cardanoWallet *wallet.Wallet) (*wallet.CardanoAddress, error) {
 	if len(cardanoWallet.StakeVerificationKey) > 0 {
@@ -734,7 +707,7 @@ func FundAddressWithToken(
 			"--key", hex.EncodeToString(minterWallet.SigningKey),
 			"--ogmios", chain.ogmiosURL,
 			"--network-id", fmt.Sprintf("%v", chain.config.NetworkType),
-			"--testnet-magic", fmt.Sprintf("%v", GetNetworkMagic(chain.config.NetworkType, chain.ChainID())),
+			"--testnet-magic", fmt.Sprintf("%v", chain.config.NetworkMagic),
 			"--token-name", tokenName,
 			"--amount", fmt.Sprintf("%v", mintAmount),
 		}

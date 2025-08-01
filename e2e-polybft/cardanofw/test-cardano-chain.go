@@ -33,6 +33,7 @@ type TestCardanoChainConfig struct {
 	IsEnabled                   bool
 	ID                          int
 	NetworkType                 infrawallet.CardanoNetworkType
+	NetworkMagic                uint
 	NodesCount                  int
 	InitialHotWalletAmount      *big.Int
 	InitialHotWalletTokenAmount *big.Int
@@ -56,6 +57,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		IsEnabled:                   true,
 		ID:                          0,
 		NetworkType:                 infrawallet.TestNetNetwork,
+		NetworkMagic:                infrawallet.PrimeTestNetProtocolMagic,
 		ChainType:                   ChainIDPrime,
 		NodesCount:                  4,
 		InitialHotWalletAmount:      big.NewInt(0),
@@ -76,7 +78,8 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:                   isEnabled,
 		ID:                          1,
-		NetworkType:                 infrawallet.VectorTestNetNetwork,
+		NetworkType:                 infrawallet.TestNetNetwork,
+		NetworkMagic:                infrawallet.VectorTestNetProtocolMagic,
 		ChainType:                   ChainIDVector,
 		NodesCount:                  4,
 		InitialHotWalletAmount:      big.NewInt(0),
@@ -97,6 +100,7 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		IsEnabled:                   isEnabled,
 		ID:                          4,
 		NetworkType:                 infrawallet.TestNetNetwork,
+		NetworkMagic:                infrawallet.TestNetProtocolMagic,
 		ChainType:                   ChainIDCardano,
 		NodesCount:                  4,
 		InitialHotWalletAmount:      big.NewInt(0),
@@ -115,6 +119,7 @@ func NewRemotePrimeChainConfig(minBridgingFeeAmount, minOperationFee uint64) *Te
 		IsEnabled:       true,
 		ID:              0,
 		NetworkType:     infrawallet.TestNetNetwork,
+		NetworkMagic:    infrawallet.PrimeTestNetProtocolMagic,
 		ChainType:       ChainIDPrime,
 		MinBridgingFee:  minBridgingFeeAmount,
 		MinOperationFee: minOperationFee,
@@ -123,10 +128,11 @@ func NewRemotePrimeChainConfig(minBridgingFeeAmount, minOperationFee uint64) *Te
 
 func NewRemoteVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:   isEnabled,
-		ID:          1,
-		NetworkType: infrawallet.VectorTestNetNetwork,
-		ChainType:   ChainIDVector,
+		IsEnabled:    isEnabled,
+		ID:           1,
+		NetworkType:  infrawallet.TestNetNetwork,
+		NetworkMagic: infrawallet.VectorTestNetProtocolMagic,
+		ChainType:    ChainIDVector,
 	}
 }
 
@@ -137,6 +143,7 @@ func NewRemoteCardanoChainConfig(
 		IsEnabled:       isEnabled,
 		ID:              4,
 		NetworkType:     infrawallet.TestNetNetwork,
+		NetworkMagic:    infrawallet.TestNetProtocolMagic,
 		ChainType:       ChainIDCardano,
 		MinBridgingFee:  minBridgingFeeAmount,
 		MinOperationFee: minOperationFee,
@@ -216,7 +223,7 @@ func NewTestCardanoChain(config *TestCardanoChainConfig) ITestApexChain {
 
 		return NewTestApexChainDummy([]string{
 			getFlag("network-address"), "localhost:1000",
-			getFlag("network-magic"), fmt.Sprint(GetNetworkMagic(config.NetworkType, config.ChainType)),
+			getFlag("network-magic"), fmt.Sprint(config.NetworkMagic),
 			getFlag("network-id"), fmt.Sprint(config.NetworkType),
 			getFlag("ogmios-url"), "http://localhost:5500",
 		})
@@ -249,6 +256,7 @@ func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 		WithPort(5100+ec.config.ID*100),
 		WithOgmiosPort(1337+ec.config.ID),
 		WithNetworkType(ec.config.NetworkType),
+		WithNetworkMagic(ec.config.NetworkMagic),
 		WithChainType(networkName),
 		WithConfigGenesisDir(networkName),
 		WithInitialFunds(ec.config.PreminesAddresses, ec.config.PremineAmount),
@@ -308,7 +316,7 @@ func (ec *TestCardanoChain) CreateAddresses(
 	args := []string{
 		"create-address",
 		"--network-id", fmt.Sprint(ec.config.NetworkType),
-		"--testnet-magic", fmt.Sprint(GetNetworkMagic(ec.config.NetworkType, ec.ChainID())),
+		"--testnet-magic", fmt.Sprint(ec.config.NetworkMagic),
 		"--bridge-url", bridgeURL,
 		"--bridge-addr", contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
@@ -405,7 +413,7 @@ func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string)
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	result = []string{
 		getFlag("network-address"), server.NetworkAddress(),
-		getFlag("network-magic"), fmt.Sprint(GetNetworkMagic(ec.config.NetworkType, ec.ChainID())),
+		getFlag("network-magic"), fmt.Sprint(ec.config.NetworkMagic),
 		getFlag("network-id"), fmt.Sprint(ec.config.NetworkType),
 		getFlag("ogmios-url"), ec.ogmiosURL,
 	}
