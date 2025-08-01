@@ -18,6 +18,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/consensus/polybft"
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
@@ -84,6 +85,7 @@ type TestEVMChain struct {
 	gatewayAddr   types.Address
 	relayerWallet *crypto.ECDSAKey
 	fundBlockNum  uint64
+	indexer       e2eindexer.TxsExecutedComponent
 }
 
 var _ ITestApexChain = (*TestEVMChain)(nil)
@@ -105,8 +107,9 @@ func NewTestEVMChain(config *TestEVMChainConfig) (ITestApexChain, error) {
 	}
 
 	return &TestEVMChain{
-		config: config,
-		admin:  admin,
+		config:  config,
+		admin:   admin,
+		indexer: e2eindexer.NewTxsExecutedComponentDummy(),
 	}, nil
 }
 
@@ -300,7 +303,7 @@ func (ec *TestEVMChain) GetGenerateConfigsParams(indx int) (result []string) {
 	}
 }
 
-func (ec *TestEVMChain) PopulateApexSystem(apexSystem *ApexSystem) {
+func (ec *TestEVMChain) PopulateApexSystem(apexSystem *ApexSystem) error {
 	if ec.config.ChainID == ChainIDNexus {
 		apexSystem.NexusInfo = EVMChainInfo{
 			GatewayAddress: ec.gatewayAddr,
@@ -310,6 +313,8 @@ func (ec *TestEVMChain) PopulateApexSystem(apexSystem *ApexSystem) {
 			FundBlockNum:   ec.fundBlockNum,
 		}
 	}
+
+	return nil
 }
 
 func (ec *TestEVMChain) ChainID() string {
@@ -359,6 +364,8 @@ func (ec *TestEVMChain) BridgingRequest(
 	reTxHash := regexp.MustCompile(`Tx Hash\s*=\s*([^\s]+)`)
 
 	if match := reTxHash.FindStringSubmatch(output); len(match) > 0 {
+		ec.indexer.Add(match[1])
+
 		return match[1], nil
 	}
 
@@ -387,6 +394,10 @@ func (ec *TestEVMChain) GetAdminPrivateKey() (string, error) {
 	}
 
 	return hex.EncodeToString(key), nil
+}
+
+func (ec *TestEVMChain) GetIndexer() e2eindexer.TxsExecutedComponent {
+	return ec.indexer
 }
 
 func (ec *TestEVMChain) sendTx(

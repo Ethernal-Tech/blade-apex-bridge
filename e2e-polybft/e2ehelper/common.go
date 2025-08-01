@@ -24,6 +24,10 @@ type IApexSystem interface {
 		ctx context.Context, user *cardanofw.TestApexUser, chain cardanofw.ChainID,
 		expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration,
 	) error
+	WaitForAmount(
+		ctx context.Context, user *cardanofw.TestApexUser, chain cardanofw.ChainID,
+		cmpHandler func(*big.Int) bool, numRetries int, waitTime time.Duration,
+	) (*big.Int, error)
 	SubmitTx(
 		ctx context.Context, sourceChain cardanofw.ChainID, sender *cardanofw.TestApexUser,
 		receiver string, dfmAmount *big.Int, data []byte,
@@ -33,6 +37,7 @@ type IApexSystem interface {
 	) (*big.Int, error)
 	GetValidator(t *testing.T, idx int) *cardanofw.TestApexValidator
 	GetBridgeNode(t *testing.T, idx int) *framework.TestServer
+	GetChainMust(t *testing.T, chainID cardanofw.ChainID) cardanofw.ITestApexChain
 }
 
 func getAllDestionationChains(chains []string, chainsDst map[string][]string) (res []string) {

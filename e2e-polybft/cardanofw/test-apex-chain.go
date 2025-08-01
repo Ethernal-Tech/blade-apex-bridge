@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/polygon-edge/crypto"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 )
 
 type ITestApexChainServer interface {
@@ -22,7 +23,7 @@ type ITestApexChain interface {
 	RegisterChain(validator *TestApexValidator) error
 	InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error
 	GetGenerateConfigsParams(indx int) []string
-	PopulateApexSystem(apexSystem *ApexSystem)
+	PopulateApexSystem(apexSystem *ApexSystem) error
 	ChainID() string
 	GetAddressBalance(ctx context.Context, addr string) (*big.Int, error)
 	BridgingRequest(
@@ -34,15 +35,18 @@ type ITestApexChain interface {
 	GetHotWalletAddress() string
 	GetAdminPrivateKey() (string, error)
 	GetServerMust(t *testing.T, indx int) ITestApexChainServer
+	GetIndexer() e2eindexer.TxsExecutedComponent
 }
 
 type TestApexChainDummy struct {
 	configParams []string
+	indexer      e2eindexer.TxsExecutedComponent
 }
 
 func NewTestApexChainDummy(configParams []string) *TestApexChainDummy {
 	return &TestApexChainDummy{
 		configParams: configParams,
+		indexer:      e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 }
 
@@ -80,7 +84,8 @@ func (td *TestApexChainDummy) InitContracts(ctx context.Context, bridgeAdmin *cr
 	return nil
 }
 
-func (td *TestApexChainDummy) PopulateApexSystem(apexSystem *ApexSystem) {
+func (td *TestApexChainDummy) PopulateApexSystem(apexSystem *ApexSystem) error {
+	return nil
 }
 
 func (td *TestApexChainDummy) RegisterChain(validator *TestApexValidator) error {
@@ -116,6 +121,10 @@ func (td *TestApexChainDummy) GetServerMust(t *testing.T, indx int) ITestApexCha
 	t.Fail()
 
 	return nil
+}
+
+func (td *TestApexChainDummy) GetIndexer() e2eindexer.TxsExecutedComponent {
+	return td.indexer
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)

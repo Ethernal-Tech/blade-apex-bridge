@@ -68,7 +68,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 		txHash, err := cardanofw.SendTx(
 			ctx, txProviderPrime, user.PrimeWallet, sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
-			apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic, bridgingRequestMetadata)
+			apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic, bridgingRequestMetadata, nil)
 		require.NoError(t, err)
 
 		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
@@ -163,7 +163,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 			txHash, err := cardanofw.SendTx(
 				ctx, txProviderPrime, apex.Users[i].PrimeWallet, sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
-				apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic, bridgingRequestMetadata)
+				apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic, bridgingRequestMetadata, nil)
 			require.NoError(t, err)
 
 			lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
@@ -211,7 +211,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 				txHashes[idx], err = cardanofw.SendTx(
 					ctx, txProviderPrime, testUser.PrimeWallet,
 					sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
-					apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic, bridgingRequestMetadata)
+					apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic, bridgingRequestMetadata, nil)
 				require.NoError(t, err)
 
 				fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm)
