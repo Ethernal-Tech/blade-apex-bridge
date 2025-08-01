@@ -808,6 +808,31 @@ func (a *ApexSystem) RedelegateStakeAddress(
 	}, os.Stdout)
 }
 
+func (a *ApexSystem) DeregisterStakeAddress(
+	ctx context.Context, sourceChain ChainID,
+	bridgeAddressIndex int8,
+) error {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	pk := hex.EncodeToString(pkBytes)
+
+	chain, err := a.getChain(sourceChain)
+	if err != nil {
+		return err
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), []string{
+		"bridge-admin", "deregister-stake-address",
+		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--chain", chain.ChainID(),
+		"--key", pk,
+		"--bridge-address-index", fmt.Sprintf("%d", bridgeAddressIndex),
+	}, os.Stdout)
+}
+
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
 	receiverAddr string, lovelaceDfmAmount *big.Int, nativeTokenAmounts []cardanowallet.TokenAmount, data []byte,

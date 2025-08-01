@@ -2574,19 +2574,24 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 	stakePools := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetExistingStakePools(t, ctx)
 	require.NotEmpty(t, stakePools)
 
+	// Redelegation before register and delegate should fail:
+	err = apex.RedelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[1])
+	require.Error(t, err)
+
 	// 2. Register and delegate bridging address
 	err = apex.RegisterAndDelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0])
 	require.NoError(t, err)
 
 	// 3. Check if the registration and delegation was successful
-	addrInfo := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0)
+	addrInfo, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, false)
+	require.NoError(t, err)
 	require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
 	fmt.Println("Bridging address staked successfully")
 
 	executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
 		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
 
-	// Revert if we try to register again:
+	// Registering already registered address should fail:
 	err = apex.RegisterAndDelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0])
 	require.Error(t, err)
 
@@ -2594,13 +2599,13 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 	err = apex.RedelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[1])
 	require.NoError(t, err)
 
-	// Check if the redelegation was successful
 	previousStakePool := stakePools[0]
 
 	for range 60 {
 		time.Sleep(time.Second)
 
-		addrInfo = apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0)
+		addrInfo, err = apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, false)
+		require.NoError(t, err)
 
 		if addrInfo.StakeDelegation != previousStakePool {
 			fmt.Println("Bridging address redelegated successfully")
@@ -2610,6 +2615,32 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 	}
 
 	require.Equal(t, stakePools[1], addrInfo.StakeDelegation)
+
+	executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
+		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
+
+	// Test address deregistration:
+	err = apex.DeregisterStakeAddress(ctx, cardanofw.ChainIDPrime, 0)
+	require.NoError(t, err)
+
+	for range 60 {
+		time.Sleep(time.Second)
+
+		addrInfo, err = apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, true)
+
+		if err != nil {
+			require.ErrorContains(t, err, "stake address is not registered yet")
+			fmt.Println("Bridging address deregistered successfully")
+
+			break
+		}
+	}
+
+	require.Error(t, err)
+	require.Equal(t, addrInfo, wallet.QueryStakeAddressInfo{})
+
+	executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
+		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
 }
 
 // go test -timeout 0 -run ^TestE2E_SkylineBridge_SimultaniousStakingTest$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
@@ -2686,7 +2717,8 @@ func TestE2E_SkylineBridge_SimultaniousStakingTest(t *testing.T) {
 			require.NoError(t, err)
 
 			// 3. Check if the registration and delegation was successful
-			addrInfo := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0)
+			addrInfo, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, false)
+			require.NoError(t, err)
 			require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
 			fmt.Println("Bridging address staked successfully")
 		}()

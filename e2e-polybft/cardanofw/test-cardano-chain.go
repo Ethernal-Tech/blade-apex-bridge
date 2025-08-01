@@ -160,7 +160,8 @@ func (ec *TestCardanoChain) GetBridgingStakeAddressInfo(
 	t *testing.T,
 	ctx context.Context,
 	indx uint8,
-) infrawallet.QueryStakeAddressInfo {
+	expectError bool,
+) (infrawallet.QueryStakeAddressInfo, error) {
 	t.Helper()
 	require.True(t, ec.config.BridgeAddrHasStake)
 
@@ -170,15 +171,17 @@ func (ec *TestCardanoChain) GetBridgingStakeAddressInfo(
 	stakeBridgingAddrInfo, err := infracommon.ExecuteWithRetry(ctx,
 		func(ctx context.Context) (infrawallet.QueryStakeAddressInfo, error) {
 			addrInfo, err := txProvider.GetStakeAddressInfo(ctx, ec.multisigStakeAddr)
-			if err != nil {
+			if err != nil && !expectError {
 				return infrawallet.QueryStakeAddressInfo{}, infracommon.ErrRetryTryAgain
 			}
 
-			return addrInfo, nil
+			return addrInfo, err
 		}, infracommon.WithRetryCount(60), infracommon.WithRetryWaitTime(time.Second))
-	require.NoError(t, err)
+	if !expectError {
+		require.NoError(t, err)
+	}
 
-	return stakeBridgingAddrInfo
+	return stakeBridgingAddrInfo, err
 }
 
 // GetExistingStakePools implements ITestApexChain.
