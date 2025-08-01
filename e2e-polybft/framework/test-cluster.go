@@ -535,7 +535,8 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 		BlockGasLimit: command.DefaultGenesisGasLimit,
 		StakeAmounts:  []*big.Int{},
 		HasBridge:     false,
-		VotingDelay:   10,
+		VotingDelay:   1,
+		VotingPeriod:  30,
 		ApexConfig:    genesis.ApexConfigDefault,
 		InitialPort:   30300,
 	}

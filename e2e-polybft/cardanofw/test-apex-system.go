@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -195,6 +196,28 @@ func (a *ApexSystem) GetBridgeNode(t *testing.T, idx int) *framework.TestServer 
 	require.True(t, idx >= 0 && idx < len(a.BridgeCluster.Servers))
 
 	return a.BridgeCluster.Servers[idx]
+}
+
+func (a *ApexSystem) AddValidator(t *testing.T, ctx context.Context) {
+	t.Helper()
+
+	idx := len(a.validators)
+
+	dir := a.BridgeCluster.Config.ValidatorPrefix + strconv.Itoa(idx)
+	a.BridgeCluster.InitTestServer(t, dir, a.BridgeCluster.Bridge.JSONRPCAddr(), framework.Validator)
+
+	require.Equal(t, len(a.BridgeCluster.Servers), idx+1)
+
+	a.validators = append(a.validators,
+		NewTestApexValidator(a.dataDirPath, idx+1, a.BridgeCluster, a.BridgeCluster.Servers[idx]))
+
+	validator := a.validators[idx]
+
+	for _, chain := range a.chains {
+		require.NoError(t, chain.CreateWallets(validator))
+		// require.NoError(t, chain.RegisterChain(validator))
+		require.NoError(t, validator.Start(ctx, false))
+	}
 }
 
 func (a *ApexSystem) CreateWallets() (err error) {
