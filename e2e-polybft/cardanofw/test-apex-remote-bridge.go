@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
@@ -160,6 +161,7 @@ func SetupRemoteApexBridge(
 		ogmiosURL:        remoteConfig.PrimeInfo.OgmiosURL,
 		blockfrostURL:    remoteConfig.PrimeInfo.BlockfrostURL,
 		blockfrostAPIKey: remoteConfig.PrimeInfo.BlockfrostAPIKey,
+		indexer:          e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 
 	enabledChains := []ITestApexChain{primeChain}
@@ -173,6 +175,7 @@ func SetupRemoteApexBridge(
 			ogmiosURL:        remoteConfig.VectorInfo.OgmiosURL,
 			blockfrostURL:    remoteConfig.VectorInfo.BlockfrostURL,
 			blockfrostAPIKey: remoteConfig.VectorInfo.BlockfrostAPIKey,
+			indexer:          e2eindexer.NewTxsExecutedComponentDummy(),
 		}
 
 		enabledChains = append(enabledChains, vectorChain)
@@ -182,6 +185,7 @@ func SetupRemoteApexBridge(
 		config:      apexConfig.NexusConfig,
 		gatewayAddr: remoteConfig.NexusInfo.GatewayAddress,
 		jsonRPCAddr: remoteConfig.NexusInfo.JSONRPCAddr,
+		indexer:     e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 
 	enabledChains = append(enabledChains, nexusChain)
