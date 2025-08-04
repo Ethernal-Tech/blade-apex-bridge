@@ -61,10 +61,6 @@ package contractsapi
 			"Admin.sol",
 			"ApexBridgeAdmin",
 		},
-		{
-			"TestBridge.sol",
-			"TestBridge",
-		},
 	}
 
 	for _, v := range apexContracts {

@@ -170,13 +170,20 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 	bladeProxyAdmin, err := crypto.GenerateECDSAKey()
 	require.NoError(t, err)
 
-	a.bladeAdmin = bladeAdmin
-	a.bladeProxyAdmin = bladeProxyAdmin
-	a.BridgeCluster = framework.NewTestCluster(t, a.Config.BladeValidatorCount,
+	clusterOptions := []framework.ClusterOption{
 		framework.WithBladeAdmin(bladeAdmin.Address().String()),
 		framework.WithEpochReward(0),
 		framework.WithNativeTokenConfig("Blade:BLADE:18:true"),
 		framework.WithProxyContractsAdmin(bladeProxyAdmin.Address().String()),
+	}
+	if a.Config.TestBridge {
+		clusterOptions = append(clusterOptions, framework.WithTestBridge())
+	}
+
+	a.bladeAdmin = bladeAdmin
+	a.bladeProxyAdmin = bladeProxyAdmin
+	a.BridgeCluster = framework.NewTestCluster(t, a.Config.BladeValidatorCount,
+		clusterOptions...,
 	)
 
 	// create validators

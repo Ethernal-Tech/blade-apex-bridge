@@ -253,7 +253,7 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 	require.False(t, removedValidator.IsActive)
 }
 
-func TestE2E_DynamicValidators_CardanoAddValidator(t *testing.T) {
+func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 40
@@ -277,9 +277,12 @@ func TestE2E_DynamicValidators_CardanoAddValidator(t *testing.T) {
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithAPIValidatorID(-1),
+		cardanofw.WithTestBridge(),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	t.Log("Cluster started")
 
 	cluster := apex.BridgeCluster
 
@@ -327,6 +330,8 @@ func TestE2E_DynamicValidators_CardanoAddValidator(t *testing.T) {
 	primeMultisigAmount, primeFeeAmount := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
 	require.Equal(t, primeMultisigAmount, primeConfig.FundAmount)
 	require.Equal(t, primeFeeAmount, primeConfig.FundFeeAmount)
+
+	t.Logf("multisig, fee = %d, %d", primeMultisigAmount, primeFeeAmount)
 
 	datadir := fmt.Sprintf("%s%d", cluster.Config.ValidatorPrefix, len(cluster.Servers)+1)
 
@@ -379,6 +384,8 @@ func TestE2E_DynamicValidators_CardanoAddValidator(t *testing.T) {
 	require.NotNil(t, recp)
 	require.Equal(t, recp.Status, uint64(types.ReceiptSuccess))
 
+	t.Log("Approved")
+
 	removeValidator := cluster.Servers[3]
 	removeValidatorKey, err := helper.GetAccountFromDir(removeValidator.DataDir())
 	require.NoError(t, err)
@@ -390,9 +397,20 @@ func TestE2E_DynamicValidators_CardanoAddValidator(t *testing.T) {
 		},
 	}, []types.Address{removeValidatorKey.Address()}, cluster, polybftCfg)
 
-	// wait for validator set change to finish
+	t.Log("Executed validator set change")
 
+	currentBlockNumber, err := proposer.JSONRPC().BlockNumber()
+	require.NoError(t, err)
+
+	require.NoError(t, cluster.WaitForBlock(currentBlockNumber+uint64(cluster.Config.EpochSize), 2*time.Minute))
+
+	checkValidatorActive(t, newValidatorAddr, relayer, true)
+	checkValidatorActive(t, removeValidatorKey.Address(), relayer, false)
+
+	// wait for validator set change to finish
 	apex.AddValidator(t, ctx)
+
+	t.Logf("Added new validator")
 
 	// wait to sync new validator
 	// newValidator := cluster.Servers[len(cluster.Servers)-1]
@@ -410,6 +428,8 @@ func TestE2E_DynamicValidators_CardanoAddValidator(t *testing.T) {
 
 	// 	return proposerBlock == newValidatorBlock
 	// }))
+
+	// t.Logf("Synced new validator")
 
 	// sender := apex.Users[0]
 	// receiver := apex.Users[1]

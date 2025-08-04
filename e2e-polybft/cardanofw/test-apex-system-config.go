@@ -41,6 +41,8 @@ type ApexSystemConfig struct {
 	CustomRelayerConfigHandler CustomConfigHandler
 
 	UserCnt uint
+
+	TestBridge bool
 }
 
 type ApexSystemOptions func(*ApexSystemConfig)
@@ -115,6 +117,12 @@ func WithCustomConfigHandlers(callbackOracle, callbackRelayer CustomConfigHandle
 func WithUserCnt(userCnt uint) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.UserCnt = userCnt
+	}
+}
+
+func WithTestBridge() ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.TestBridge = true
 	}
 }
 
