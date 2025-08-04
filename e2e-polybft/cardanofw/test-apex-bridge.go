@@ -141,7 +141,7 @@ func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSm
 		contractsDir:    dir,
 		contractName:    "Claims",
 		contractAddress: contracts.Claims.String(),
-		functionName:    "setBridgingAddrsDependency",
+		functionName:    "setBridgingAddrsDependencyAndSync",
 		functionArgs:    []string{deployedContractAddr},
 		gasLimit:        7_000_000,
 	}))
