@@ -87,10 +87,15 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 
 	chains := getEnabledChains(apex)
 
-	info := map[string]*cardanofw.CardanoChainInfo{
-		cardanofw.ChainIDPrime:  &apex.PrimeInfo,
-		cardanofw.ChainIDVector: &apex.VectorInfo,
+	chainInfo := map[string]struct {
+		info        *cardanofw.CardanoChainInfo
+		networkType cardanowallet.CardanoNetworkType
+	}{
+		cardanofw.ChainIDPrime:  {info: &apex.PrimeInfo, networkType: apex.Config.PrimeConfig.NetworkType},
+		cardanofw.ChainIDVector: {info: &apex.VectorInfo, networkType: apex.Config.VectorConfig.NetworkType},
 	}
+
+	protParamsCached := map[string][]byte{}
 
 	for _, user := range apex.Users {
 		for _, chain := range chains {
@@ -105,13 +110,15 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 				change = new(big.Int).SetUint64(cardanofw.PotentialFee)
 				balanceAtleast = new(big.Int).Set(change)
 			} else {
-				txProvider, err := info[chain].GetTxProvider()
+				txProvider, err := chainInfo[chain].info.GetTxProvider()
 				require.NoError(t, err)
 
-				protParams, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
-					return txProvider.GetProtocolParameters(ctx)
-				})
-				require.NoError(t, err)
+				if _, exist := protParamsCached[chain]; !exist {
+					protParamsCached[chain], err = infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
+						return txProvider.GetProtocolParameters(ctx)
+					})
+					require.NoError(t, err)
+				}
 
 				utxos, err := txProvider.GetUtxos(ctx, addr)
 				require.NoError(t, err)
@@ -121,10 +128,11 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 				tokens, err := cardanowallet.GetTokensFromSumMap(balance)
 				require.NoError(t, err)
 
-				txBuilder, err := getTxBuilder(apex, chain)
+				txBuilder, err := cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary(chainInfo[chain].networkType))
 				require.NoError(t, err)
+				defer txBuilder.Dispose()
 
-				minUtxo, err := txBuilder.SetProtocolParameters(protParams).CalculateMinUtxo(cardanowallet.TxOutput{
+				minUtxo, err := txBuilder.SetProtocolParameters(protParamsCached[chain]).CalculateMinUtxo(cardanowallet.TxOutput{
 					Addr:   addr,
 					Tokens: tokens,
 				})
@@ -505,15 +513,4 @@ func getEnabledDirections(apex *cardanofw.ApexSystem) []BridgingRequest {
 	}
 
 	return directions
-}
-
-func getTxBuilder(apex *cardanofw.ApexSystem, chain string) (*cardanowallet.TxBuilder, error) {
-	switch chain {
-	case cardanofw.ChainIDPrime:
-		return cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary(apex.Config.PrimeConfig.NetworkType))
-	case cardanofw.ChainIDVector:
-		return cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary(apex.Config.VectorConfig.NetworkType))
-	default:
-		return nil, fmt.Errorf("unknown chain: %s", chain)
-	}
 }
