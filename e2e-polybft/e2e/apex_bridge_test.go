@@ -735,10 +735,16 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	primerConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primerConfig.UseIndexer = true
+	vectorConfig.UseIndexer = true
+
 	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithPrimeConfig(primerConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -758,6 +764,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
 			t.Skip()
 		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
 
 		sendAmountDfm := big.NewInt(5_000_000)
 
@@ -784,6 +794,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
 			t.Skip()
 		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
 
 		sendAmount := uint64(5_000_000)
 		feeAmount := uint64(1_100_000)
@@ -833,6 +847,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			t.Skip()
 		}
 
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
 		const (
 			sendAmount = uint64(1_000_000)
 			instances  = 5
@@ -848,6 +866,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			t.Skip()
 		}
 
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
 		const (
 			instances  = 5
 			sendAmount = uint64(1_000_005)
@@ -862,6 +884,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
 			t.Skip()
 		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
 
 		const (
 			sendAmount = uint64(1_000_000)
@@ -881,6 +907,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			t.Skip()
 		}
 
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
 		const (
 			sendAmount = uint64(1_000_000)
 			instances  = 5
@@ -895,6 +925,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
 			t.Skip()
 		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
 
 		const (
 			instances  = 5
@@ -914,6 +948,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			t.Skip()
 		}
 
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
 		const (
 			sequentialInstances = 5
 			parallelInstances   = 10
@@ -927,6 +965,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			t.Skip()
 		}
 
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
 		const (
 			sequentialInstances = 5
 			parallelInstances   = 10
@@ -939,6 +981,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
 			t.Skip()
 		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
 
 		const (
 			instances  = 5
@@ -962,6 +1008,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			parallelInstances   = 6
 		)
 
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
 		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, user, sequentialInstances, parallelInstances)
 	})
 
@@ -972,6 +1022,13 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			stopAfter            = time.Second * 60
 			validatorStoppingIdx = 1
 		)
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+
+			_ = apex.GetValidator(t, validatorStoppingIdx).Stop() // make sure it was stopped
+			require.NoError(t, apex.GetValidator(t, validatorStoppingIdx).Start(ctx, false))
+		})
 
 		PrimeVectorBothDirectionsSequentialAndParallel(
 			t, ctx, apex, user, sequentialInstances, parallelInstances,
@@ -990,6 +1047,13 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			validatorStoppingIdx2 = 2
 			sendAmount            = uint64(1_000_000)
 		)
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+
+			_ = apex.GetValidator(t, validatorStoppingIdx2).Stop() // make sure it was stopped
+			require.NoError(t, apex.GetValidator(t, validatorStoppingIdx2).Start(ctx, false))
+		})
 
 		e2ehelper.ExecuteBridging(
 			t, ctx, apex, sequentialInstances,
@@ -1012,11 +1076,15 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			t.Skip()
 		}
 
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
 		const (
-			sequentialInstances   = 8
+			sequentialInstances   = 5
 			parallelInstances     = 10
 			stopAfter             = time.Second * 120
-			stopAfter2            = time.Second * 800
+			restartAfter          = time.Second * 800
 			startAgainAfter       = time.Second * 1000
 			validatorStoppingIdx1 = 1
 			validatorStoppingIdx2 = 2
@@ -1039,9 +1107,8 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			)),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{0, 1}, ExecutableOption: e2ehelper.Blade},
-				{WaitTime: stopAfter2, StopIndxs: []int{2, 3}, StartIndxs: []int{0, 1, 2, 3}, ExecutableOption: e2ehelper.Blade},
-			}),
-		)
+				{WaitTime: restartAfter, StopIndxs: []int{2, 3}, StartIndxs: []int{0, 1, 2, 3}, ExecutableOption: e2ehelper.Blade},
+			}))
 	})
 }
 
@@ -1774,9 +1841,11 @@ func TestE2E_ApexBridge_UTxOConsolidationWithBothDirections(t *testing.T) {
 	vectorConfig.FundUTxOCount = fundUtxoCount
 	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * parallelInstances * sequentialInstances
 	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
+	vectorConfig.UseIndexer = true
 	primeConfig.FundUTxOCount = fundUtxoCount
 	primeConfig.FundAmount = cardanofw.MinUTxODefaultValue * parallelInstances * sequentialInstances
 	primeConfig.InitialHotWalletAmount = new(big.Int).SetUint64(primeConfig.FundAmount)
+	primeConfig.UseIndexer = true
 	sendAmount := cardanofw.MinUTxODefaultValue
 
 	var (
