@@ -347,11 +347,14 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("8. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
+		srcChain := cardanofw.ChainIDPrime
 		user := apex.Users[len(apex.Users)-1]
+
+		minterWallet, _ := user.GetCardanoWallet(srcChain)
 
 		tokensFunded, err := cardanofw.FundUserWithToken(
 			ctx, apex, cardanofw.ChainIDPrime,
-			primeTestConfig.srcMinterWallet, user,
+			minterWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
