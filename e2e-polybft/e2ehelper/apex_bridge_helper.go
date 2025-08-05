@@ -166,12 +166,9 @@ func ExecuteBridging(
 		if _, exists := originalDesiredAmounts[txData.DstChainID][tokenName]; !exists {
 			originalDesiredAmounts[txData.DstChainID][tokenName] = big.NewInt(0)
 		}
-		// update expectedAmountPerChainDfm
-		incrementPerReceiver := new(big.Int).Mul(
-			sendAmountDfm, big.NewInt(int64(txCountPerSender)*int64(len(senderUsers))))
 
 		originalDesiredAmounts[txData.DstChainID][tokenName].Add(
-			originalDesiredAmounts[txData.DstChainID][tokenName], incrementPerReceiver)
+			originalDesiredAmounts[txData.DstChainID][tokenName], txData.SendAmountDfm)
 
 		txHashTxDataMap[txData.TxHash] = txData
 	}
