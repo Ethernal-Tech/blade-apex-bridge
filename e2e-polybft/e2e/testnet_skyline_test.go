@@ -353,7 +353,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 		minterWallet, _ := user.GetCardanoWallet(srcChain)
 
 		tokensFunded, err := cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDPrime,
+			ctx, apex, srcChain,
 			minterWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 			uint64(1_500_000), uint64(1_000_000))
