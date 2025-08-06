@@ -308,7 +308,10 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 		operationFee           = uint64(0)
 	)
 
-	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee, operationFee, "")
+	srcChainID, dstChainID := cardanofw.ChainIDPrime, cardanofw.ChainIDCardano
+	srcTokenName := apex.GetTokenNameForChains(srcChainID, dstChainID)
+
+	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, dstChainID, bridgingFee, operationFee, srcTokenName)
 	bridgingType := sendtx.BridgingTypeCurrencyOnSource
 
 	t.Run("1. Mismatch submitted and receiver amounts", func(t *testing.T) {
