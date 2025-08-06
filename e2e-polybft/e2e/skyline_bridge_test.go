@@ -2508,8 +2508,8 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 	wg.Wait()
 }
 
-// go test -timeout 0 -run ^TestE2E_SkylineBridge_SimpleStakingTest$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
-func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
+// go test -timeout 0 -run ^TestE2E_SkylineBridge_StakeAddressOperationsTest$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
+func TestE2E_SkylineBridge_StakeAddressOperationsTest(t *testing.T) {
 	const apiKey = "test_api_key"
 
 	ctx, cncl := context.WithCancel(context.Background())
