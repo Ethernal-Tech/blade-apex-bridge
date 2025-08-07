@@ -308,7 +308,10 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 		operationFee           = uint64(0)
 	)
 
-	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee, operationFee, "")
+	srcChainID, dstChainID := cardanofw.ChainIDPrime, cardanofw.ChainIDCardano
+	srcTokenName := apex.GetTokenNameForChains(srcChainID, dstChainID)
+
+	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, dstChainID, bridgingFee, operationFee, srcTokenName)
 	bridgingType := sendtx.BridgingTypeCurrencyOnSource
 
 	t.Run("1. Mismatch submitted and receiver amounts", func(t *testing.T) {
@@ -347,13 +350,12 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("8. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
-		srcChain := cardanofw.ChainIDPrime
 		user := apex.Users[len(apex.Users)-1]
 
-		minterWallet, _ := user.GetCardanoWallet(srcChain)
+		minterWallet, _ := user.GetCardanoWallet(srcChainID)
 
 		tokensFunded, err := cardanofw.FundUserWithToken(
-			ctx, apex, srcChain,
+			ctx, apex, srcChainID,
 			minterWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 			uint64(1_500_000), uint64(1_000_000))
@@ -363,7 +365,18 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("9. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
-		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, apex.Users[len(apex.Users)-1], primeTestConfig, requestStateTimeoutSec, retryIntervalSec, true)
+		user := apex.Users[len(apex.Users)-1]
+
+		token, err := cardanowallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(srcChainID, dstChainID))
+		require.NoError(t, err)
+
+		tokenAmount := &cardanowallet.TokenAmount{
+			Amount: 1_000_000,
+			Token:  token,
+		}
+
+		executeInvalidMismatchSendNativeTokenAmount(
+			t, ctx, apex, user, primeTestConfig, *tokenAmount, requestStateTimeoutSec, retryIntervalSec, true)
 	})
 }
 
