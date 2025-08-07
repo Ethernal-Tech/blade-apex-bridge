@@ -226,6 +226,8 @@ func SetupRemoteApexBridge(
 		indexer:     e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 
+	enabledChains = append(enabledChains, nexusChain)
+
 	usersData, err := GetTestnetApexUsers(
 		NewApexNetworkTypes(apexConfig.PrimeConfig, apexConfig.VectorConfig, nil, apexConfig.NexusConfig))
 	if err != nil {
