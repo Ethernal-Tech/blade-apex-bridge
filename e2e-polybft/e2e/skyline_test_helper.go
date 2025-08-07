@@ -137,40 +137,40 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 
 func executeInvalidMismatchSendNativeTokenAmount(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
-	config *testConfig, maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
+	config *testConfig, nativeTokenAmount wallet.TokenAmount,
+	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
 ) {
 	t.Helper()
 
 	bridgingType := sendtx.BridgingTypeNativeTokenOnSource
 
-	sendAmount := uint64(1_000_000)
-
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:         user.GetAddress(config.dstChainID),
-			Amount:       sendAmount,
+			Amount:       nativeTokenAmount.Amount,
 			BridgingType: bridgingType,
 		},
 	}
 
-	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee,
-		config.operationFee, user, receivers)
+	metadata, feeAmount := createMetadata(
+		t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee, config.operationFee, user, receivers)
 
 	bridgingRequestMetadata := bytes.Replace(metadata,
-		[]byte(fmt.Sprintf("%d", sendAmount)), []byte(fmt.Sprintf("%d", sendAmount+1)), 1)
+		[]byte(fmt.Sprintf("%d", nativeTokenAmount.Amount)), []byte(fmt.Sprintf("%d", nativeTokenAmount.Amount+1)), 1)
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
 
-	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
-
-	txHash, err := apex.SubmitTx(ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
-		lovelaceAmount, sentTokenAmount, bridgingRequestMetadata)
+	txHash, err := apex.SubmitTx(ctx, config.srcChainID,
+		user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
+		new(big.Int).SetUint64(feeAmount+config.operationFee),
+		[]wallet.TokenAmount{nativeTokenAmount}, bridgingRequestMetadata,
+	)
 	require.NoError(t, err)
 
 	fmt.Printf("txHash: %s\n", txHash)
 
-	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
+	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, nativeTokenAmount.Amount,
 		bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 

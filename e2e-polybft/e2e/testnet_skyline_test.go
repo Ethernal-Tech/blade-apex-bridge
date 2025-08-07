@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -366,7 +365,6 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("9. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
-		bridgingType := sendtx.BridgingTypeNativeTokenOnSource
 		user := apex.Users[len(apex.Users)-1]
 
 		token, err := cardanowallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(srcChainID, dstChainID))
@@ -377,32 +375,8 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 			Token:  token,
 		}
 
-		receivers := []sendtx.BridgingTxReceiver{
-			{
-				Addr:         user.GetAddress(dstChainID),
-				Amount:       tokenAmount.Amount,
-				BridgingType: bridgingType,
-			},
-		}
-
-		beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, srcChainID)
-		require.NoError(t, err)
-
-		metadata, feeAmount := createMetadata(t, ctx, apex, srcChainID, dstChainID, bridgingFee, operationFee, user, receivers)
-
-		bridgingRequestMetadata := bytes.Replace(metadata,
-			[]byte(fmt.Sprintf("%d", tokenAmount.Amount)), []byte(fmt.Sprintf("%d", tokenAmount.Amount+1)), 1)
-
-		txHash, err := apex.SubmitTx(ctx, srcChainID,
-			user, apex.GetCardanoInfo(srcChainID).MultisigAddr,
-			new(big.Int).SetUint64(feeAmount+operationFee), []cardanowallet.TokenAmount{*tokenAmount}, bridgingRequestMetadata,
-		)
-		require.NoError(t, err)
-
-		fmt.Printf("txHash: %s\n", txHash)
-
-		WaitForTestResult(t, ctx, apex, primeTestConfig, user, txHash, beforeSendingAmountDfm, tokenAmount.Amount,
-			bridgingType, true, requestStateTimeoutSec, retryIntervalSec)
+		executeInvalidMismatchSendNativeTokenAmount(
+			t, ctx, apex, user, primeTestConfig, *tokenAmount, requestStateTimeoutSec, retryIntervalSec, true)
 	})
 }
 
