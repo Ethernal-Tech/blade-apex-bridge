@@ -26,6 +26,8 @@ import (
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
+
+	polybftsecrets "github.com/0xPolygon/polygon-edge/command/secrets/init"
 )
 
 func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
@@ -277,7 +279,8 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithAPIValidatorID(-1),
-		cardanofw.WithTestBridge(),
+		// cardanofw.WithTestBridge(),
+		cardanofw.WithNexusEnabled(false),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -390,46 +393,92 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	removeValidatorKey, err := helper.GetAccountFromDir(removeValidator.DataDir())
 	require.NoError(t, err)
 
+	apex.AddValidator(t, ctx)
+	newValidator := cluster.Servers[len(cluster.Servers)-1]
+
+	primeKeys := getMultisigAndFeeFromDataDir(t, newValidator.DataDir(), "prime")
+	vectorKeys := getMultisigAndFeeFromDataDir(t, newValidator.DataDir(), "vector")
+
+	keysToStr := func(chain string, keys *cardanofw.CardanoWallet) string {
+		return fmt.Sprintf("%s:%s:%s:%s:%s",
+			chain,
+			keys.Multisig.VerificationKey,
+			keys.MultisigFee.VerificationKey,
+			keys.Multisig.StakeVerificationKey,
+			keys.MultisigFee.StakeVerificationKey,
+		)
+	}
+
 	executeValidatorChangeProposal(t, relayer, proposerAcc, []*addedValidator{
 		{
 			Address: newValidatorAddr,
 			Key:     newValidatorAcc.Bls.PublicKey(),
+			CardanoLikeChains: []string{
+				keysToStr("prime", &primeKeys),
+				keysToStr("vector", &vectorKeys),
+			},
 		},
 	}, []types.Address{removeValidatorKey.Address()}, cluster, polybftCfg)
 
 	t.Log("Executed validator set change")
 
-	currentBlockNumber, err := proposer.JSONRPC().BlockNumber()
-	require.NoError(t, err)
+	// wait for validator set change to start
+	require.NoError(t, cluster.WaitUntil(5*time.Minute, 10*time.Second, func() bool {
+		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
+		require.NoError(t, err)
 
-	require.NoError(t, cluster.WaitForBlock(currentBlockNumber+uint64(cluster.Config.EpochSize), 2*time.Minute))
+		ret, err := relayer.Call(types.ZeroAddress, contracts.Bridge, input)
+		require.NoError(t, err)
+
+		num, err := hex.DecodeUint64(ret)
+		require.NoError(t, err)
+
+		t.Log(ret)
+
+		return num != 0
+	}))
+
+	require.NoError(t, cluster.WaitUntil(5*time.Minute, 10*time.Second, func() bool {
+		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
+		require.NoError(t, err)
+
+		ret, err := relayer.Call(types.ZeroAddress, contracts.Bridge, input)
+		require.NoError(t, err)
+
+		num, err := hex.DecodeUint64(ret)
+		require.NoError(t, err)
+
+		t.Log(ret)
+
+		return num == 0
+	}))
+
+	t.Log("Finished VSC")
 
 	checkValidatorActive(t, newValidatorAddr, relayer, true)
 	checkValidatorActive(t, removeValidatorKey.Address(), relayer, false)
 
 	// wait for validator set change to finish
-	apex.AddValidator(t, ctx)
 
 	t.Logf("Added new validator")
 
 	// wait to sync new validator
-	// newValidator := cluster.Servers[len(cluster.Servers)-1]
 
-	// require.NoError(t, cluster.WaitUntil(time.Minute*3, time.Second*2, func() bool {
-	// 	proposerBlock, err := proposer.JSONRPC().BlockNumber()
-	// 	if err != nil {
-	// 		return false
-	// 	}
+	require.NoError(t, cluster.WaitUntil(time.Minute*3, time.Second*2, func() bool {
+		proposerBlock, err := proposer.JSONRPC().BlockNumber()
+		if err != nil {
+			return false
+		}
 
-	// 	newValidatorBlock, err := newValidator.JSONRPC().BlockNumber()
-	// 	if err != nil {
-	// 		return false
-	// 	}
+		newValidatorBlock, err := newValidator.JSONRPC().BlockNumber()
+		if err != nil {
+			return false
+		}
 
-	// 	return proposerBlock == newValidatorBlock
-	// }))
+		return proposerBlock == newValidatorBlock
+	}))
 
-	// t.Logf("Synced new validator")
+	t.Logf("Synced new validator")
 
 	// sender := apex.Users[0]
 	// receiver := apex.Users[1]
@@ -445,6 +494,20 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	primeMultisigAmount, primeFeeAmount = getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
 	require.Equal(t, primeMultisigAmount, primeConfig.FundAmount)
 	require.Equal(t, primeFeeAmount, primeConfig.FundFeeAmount)
+}
+
+func getMultisigAndFeeFromDataDir(t *testing.T, dataDir, chain string) (keys cardanofw.CardanoWallet) {
+	t.Helper()
+
+	secretsManager, err := polybftsecrets.GetSecretsManager(dataDir, "", true)
+	require.NoError(t, err)
+
+	secret, err := secretsManager.GetSecret(chain)
+	require.NoError(t, err)
+
+	require.NoError(t, json.Unmarshal(secret, &keys))
+
+	return keys
 }
 
 func getFullValidatorSet(t *testing.T, proposer *framework.TestServer) *validatorSetState {
@@ -578,8 +641,9 @@ func executeValidatorChangeProposal(t *testing.T, relayer txrelayer.TxRelayer, p
 }
 
 type addedValidator struct {
-	Address types.Address
-	Key     *bls.PublicKey
+	Address           types.Address
+	Key               *bls.PublicKey
+	CardanoLikeChains []string
 }
 
 type validatorSetState struct {

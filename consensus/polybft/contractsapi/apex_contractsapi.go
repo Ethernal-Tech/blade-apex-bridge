@@ -137,6 +137,21 @@ func (v *ValidatorSetUpdatedApexBridgeContractsBridgeFn) DecodeAbi(buf []byte) e
 	return decodeMethod(ApexBridgeContracts.Bridge.Abi.Methods["validatorSetUpdated"], buf, v)
 }
 
+type IsNewValidatorSetPendingApexBridgeContractsBridgeFn struct {
+}
+
+func (i *IsNewValidatorSetPendingApexBridgeContractsBridgeFn) Sig() []byte {
+	return ApexBridgeContracts.Bridge.Abi.Methods["isNewValidatorSetPending"].ID()
+}
+
+func (i *IsNewValidatorSetPendingApexBridgeContractsBridgeFn) EncodeAbi() ([]byte, error) {
+	return ApexBridgeContracts.Bridge.Abi.Methods["isNewValidatorSetPending"].Encode(i)
+}
+
+func (i *IsNewValidatorSetPendingApexBridgeContractsBridgeFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(ApexBridgeContracts.Bridge.Abi.Methods["isNewValidatorSetPending"], buf, i)
+}
+
 type InitializeApexBridgeContractsClaimsHelperFn struct {
 	Owner        types.Address `abi:"_owner"`
 	UpgradeAdmin types.Address `abi:"_upgradeAdmin"`

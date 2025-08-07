@@ -591,6 +591,7 @@ import (
 				"setDependencies",
 				"submitNewValidatorSet",
 				"validatorSetUpdated",
+				"isNewValidatorSetPending",
 			},
 			[]string{},
 		},
