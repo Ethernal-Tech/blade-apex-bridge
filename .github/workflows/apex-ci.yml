@@ -278,9 +278,9 @@ jobs:
       inputs.e2e_refund_test ||
       (github.event_name == 'pull_request' && github.base_ref == 'feat/refund')
     with:
-      apex_bridge_ref: feat/merge-main-into-skyline
+      apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
-      e2e_apex_skip_redundant_tests: false
+      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_refund_test_push:
@@ -302,9 +302,9 @@ jobs:
       inputs.e2e_refund_skyline_bridge_test ||
       (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline_refund')
     with:
-      apex_bridge_ref: feat/merge-main-into-skyline
+      apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
-      e2e_apex_skip_redundant_tests: false
+      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_refund_skyline_bridge_test_push:
