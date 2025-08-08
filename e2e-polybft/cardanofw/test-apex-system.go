@@ -88,6 +88,7 @@ type UpgradeSCParams struct {
 	contractAddress string
 	functionName    string
 	functionArgs    []string
+	gasLimit        uint64
 }
 
 func NewApexSystem(
@@ -765,9 +766,42 @@ func (a *ApexSystem) DefundHotWallet(
 	}, os.Stdout)
 }
 
-func (a *ApexSystem) RegisterAndDelegateStakeAddress(
+func (a *ApexSystem) DelegateStakeAddress(
 	ctx context.Context, sourceChain ChainID,
 	bridgeAddressIndex int8, stakePoolID string,
+	doRegister bool,
+) error {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	pk := hex.EncodeToString(pkBytes)
+
+	chain, err := a.getChain(sourceChain)
+	if err != nil {
+		return err
+	}
+
+	cmnd := []string{
+		"bridge-admin", "delegate-address-to-stake-pool",
+		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--chain", chain.ChainID(),
+		"--key", pk,
+		"--stake-pool", stakePoolID,
+		"--bridge-address-index", fmt.Sprintf("%d", bridgeAddressIndex),
+	}
+
+	if doRegister {
+		cmnd = append(cmnd, "--do-registration")
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), cmnd, os.Stdout)
+}
+
+func (a *ApexSystem) DeregisterStakeAddress(
+	ctx context.Context, sourceChain ChainID,
+	bridgeAddressIndex int8,
 ) error {
 	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
 	if err != nil {
@@ -782,11 +816,10 @@ func (a *ApexSystem) RegisterAndDelegateStakeAddress(
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), []string{
-		"bridge-admin", "delegate-address-to-stake-pool",
+		"bridge-admin", "deregister-stake-address",
 		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
 		"--chain", chain.ChainID(),
 		"--key", pk,
-		"--stake-pool", stakePoolID,
 		"--bridge-address-index", fmt.Sprintf("%d", bridgeAddressIndex),
 	}, os.Stdout)
 }
@@ -1028,11 +1061,17 @@ func (a *ApexSystem) UpgradeSmartContract(upgradeParams *UpgradeSCParams) error 
 		parts = append(parts, strings.Join(upgradeParams.functionArgs, ";"))
 	}
 
-	return RunCommand(ResolveApexBridgeBinary(), []string{
+	cmnd := []string{
 		"deploy-evm", "upgrade",
 		"--dir", upgradeParams.contractsDir,
 		"--key", hex.EncodeToString(pkBytes),
 		"--url", a.GetBridgeDefaultJSONRPCAddr(),
 		"--contract", strings.Join(parts, ":"),
-	}, os.Stdout)
+	}
+
+	if upgradeParams.gasLimit > 0 {
+		cmnd = append(cmnd, "--gas-limit", fmt.Sprintf("%d", upgradeParams.gasLimit))
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), cmnd, os.Stdout)
 }

@@ -64,7 +64,8 @@ type ITestApexChain interface {
 		t *testing.T,
 		ctx context.Context,
 		indx uint8,
-	) infrawallet.QueryStakeAddressInfo
+		expectError bool,
+	) (infrawallet.QueryStakeAddressInfo, error)
 }
 
 type TestApexChainDummy struct {
@@ -73,11 +74,11 @@ type TestApexChainDummy struct {
 
 // GetBridgingStakeAddressInfo implements ITestApexChain.
 func (td *TestApexChainDummy) GetBridgingStakeAddressInfo(
-	t *testing.T, ctx context.Context, indx uint8,
-) infrawallet.QueryStakeAddressInfo {
+	t *testing.T, ctx context.Context, indx uint8, expectError bool,
+) (infrawallet.QueryStakeAddressInfo, error) {
 	t.Helper()
 
-	return infrawallet.QueryStakeAddressInfo{}
+	return infrawallet.QueryStakeAddressInfo{}, nil
 }
 
 // GetExistingStakePools implements ITestApexChain.

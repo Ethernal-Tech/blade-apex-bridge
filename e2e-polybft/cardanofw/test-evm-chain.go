@@ -93,8 +93,8 @@ type TestEVMChain struct {
 
 // GetBridgingStakeAddressInfo implements ITestApexChain.
 func (ec *TestEVMChain) GetBridgingStakeAddressInfo(
-	t *testing.T, ctx context.Context, indx uint8,
-) infrawallet.QueryStakeAddressInfo {
+	t *testing.T, ctx context.Context, indx uint8, expectError bool,
+) (infrawallet.QueryStakeAddressInfo, error) {
 	t.Helper()
 
 	panic("unimplemented") //nolint:gocritic
