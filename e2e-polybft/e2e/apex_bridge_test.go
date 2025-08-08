@@ -306,10 +306,10 @@ func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 
 				switch chainID {
 				case cardanofw.ChainIDPrime:
-					multisigAddr, feeAddr = apex.PrimeInfo.MultisigAddr, apex.PrimeInfo.FeeAddr
+					multisigAddr, feeAddr = apex.PrimeInfo.MultisigAddr[0], apex.PrimeInfo.FeeAddr
 					desiredAmount = apex.Config.PrimeConfig.FundAmount
 				case cardanofw.ChainIDVector:
-					multisigAddr, feeAddr = apex.VectorInfo.MultisigAddr, apex.VectorInfo.FeeAddr
+					multisigAddr, feeAddr = apex.VectorInfo.MultisigAddr[0], apex.VectorInfo.FeeAddr
 					desiredAmount = apex.Config.VectorConfig.FundAmount
 				}
 
@@ -619,7 +619,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 			txHash, err := apex.SubmitTx(
 				ctx, cardanofw.ChainIDPrime, apex.Users[i],
-				apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
+				apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 			require.NoError(t, err)
 
 			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
@@ -656,7 +656,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 				txHashes[idx], err = apex.SubmitTx(
 					ctx, cardanofw.ChainIDPrime, testUser,
-					apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
+					apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 				require.NoError(t, err)
 			}(i)
 		}
@@ -716,7 +716,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 			}, bridgingFeeAmount, operationFee)
 		require.NoError(t, err)
 
-		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr,
+		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
 			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata)
 		require.NoError(t, err)
 
@@ -812,7 +812,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			}, feeAmount, operationFee)
 		require.NoError(t, err)
 
-		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr,
+		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
 			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata)
 		require.NoError(t, err)
 
@@ -1699,7 +1699,7 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 			// retrieve only once for all validators
 			if len(initialUtxos) == 0 {
 				initialUtxos, tipData = getInitialUtxosAndTip(
-					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
+					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr[0], a.VectorInfo.FeeAddr)
 			}
 
 			// Vector indexer should start after multisig funding is done
@@ -1736,7 +1736,7 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 
 	require.Equal(t, uint64(0), getLastConfirmedBatchID(cardanofw.ChainIDVector))
 
-	utxos, err := txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr)
+	utxos, err := txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr[0])
 	require.NoError(t, err)
 
 	require.Len(t, utxos, vectorConfig.FundUTxOCount)
@@ -1747,7 +1747,7 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 
 	require.Equal(t, uint64(2), getLastConfirmedBatchID(cardanofw.ChainIDVector))
 
-	utxos, err = txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr)
+	utxos, err = txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr[0])
 	require.NoError(t, err)
 
 	require.Len(t, utxos, 1)
@@ -1799,9 +1799,9 @@ func TestE2E_ApexBridge_UTxOConsolidationWithBothDirections(t *testing.T) {
 			// retrieve only once for all validators
 			if len(initialUtxosVector) == 0 {
 				initialUtxosVector, tipDataVector = getInitialUtxosAndTip(
-					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
+					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr[0], a.VectorInfo.FeeAddr)
 				initialUtxosPrime, tipDataPrime = getInitialUtxosAndTip(
-					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr, a.PrimeInfo.FeeAddr)
+					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr[0], a.PrimeInfo.FeeAddr)
 			}
 
 			// Both chains indexers should start after multisig funding is done
@@ -1970,7 +1970,7 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 
 	_, err = apex.SubmitTx(
 		ctx, cardanofw.ChainIDPrime, user,
-		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
+		apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 	require.Error(t, err)
 }
 
@@ -1999,7 +1999,7 @@ func PrimeToVectorInvalidMetadataWrongType(
 
 	txHash, err := apex.SubmitTx(
 		ctx, cardanofw.ChainIDPrime, user,
-		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, bridgingRequestMetadata)
+		apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	_, err = cardanofw.WaitForRequestStates(ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, nil, requestStateTimeoutSec)
@@ -2032,7 +2032,7 @@ func PrimeToVectorInvalidMetadataInvalidDestination(
 		[]byte(fmt.Sprintf("\"%s\"", cardanofw.ChainIDVector)), []byte("\"hector\""), 1)
 
 	txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user,
-		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, bridgingRequestMetadata)
+		apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
@@ -2063,7 +2063,7 @@ func PrimeToVectorInvalidMetadataInvalidSender(
 	bridgingRequestMetadata := bytes.Replace(metadata,
 		[]byte("[\"dummy\"]"), []byte("\"\""), 1)
 
-	txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr,
+	txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr[0],
 		new(big.Int).SetUint64(sendAmount+feeAmount), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
@@ -2085,7 +2085,7 @@ func PrimeToVectorInvalidMetadataInvalidTransactions(
 		[]sendtx.BridgingTxReceiver{}, bridgingFeeAmount, operationFee)
 	require.NoError(t, err)
 
-	txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr,
+	txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr[0],
 		new(big.Int).SetUint64(sendAmount), nil, metadata)
 	require.NoError(t, err)
 
@@ -2118,7 +2118,7 @@ func PrimeToVectorMismatchSubmittedAndReceiverAmounts(
 
 	txHash, err := apex.SubmitTx(
 		ctx, cardanofw.ChainIDPrime, user,
-		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
+		apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, invalidStateTimeoutSec)

@@ -43,7 +43,8 @@ type ApexSystemConfig struct {
 	CustomOracleConfigHandler  CustomConfigHandler
 	CustomRelayerConfigHandler CustomConfigHandler
 
-	UserCnt uint
+	UserCnt      uint
+	AddressCount int
 }
 
 type ApexSystemOptions func(*ApexSystemConfig)
@@ -133,6 +134,12 @@ func WithUserCnt(userCnt uint) ApexSystemOptions {
 	}
 }
 
+func WithBridgingAddrCnt(addressCnt int) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.AddressCount = addressCnt
+	}
+}
+
 func getDefaultApexSystemConfig() *ApexSystemConfig {
 	return &ApexSystemConfig{
 		APIValidatorID: 1,
@@ -146,7 +153,8 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 		CardanoConfig: NewCardanoChainConfig(false),
 		NexusConfig:   NewNexusChainConfig(false),
 
-		UserCnt: 10,
+		UserCnt:      10,
+		AddressCount: 1,
 	}
 }
 
