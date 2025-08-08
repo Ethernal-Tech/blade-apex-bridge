@@ -766,9 +766,10 @@ func (a *ApexSystem) DefundHotWallet(
 	}, os.Stdout)
 }
 
-func (a *ApexSystem) RegisterAndDelegateStakeAddress(
+func (a *ApexSystem) DelegateStakeAddress(
 	ctx context.Context, sourceChain ChainID,
 	bridgeAddressIndex int8, stakePoolID string,
+	doRegister bool,
 ) error {
 	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
 	if err != nil {
@@ -782,41 +783,20 @@ func (a *ApexSystem) RegisterAndDelegateStakeAddress(
 		return err
 	}
 
-	return RunCommand(ResolveApexBridgeBinary(), []string{
+	cmnd := []string{
 		"bridge-admin", "delegate-address-to-stake-pool",
 		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
 		"--chain", chain.ChainID(),
 		"--key", pk,
 		"--stake-pool", stakePoolID,
 		"--bridge-address-index", fmt.Sprintf("%d", bridgeAddressIndex),
-		"--do-registration",
-	}, os.Stdout)
-}
-
-func (a *ApexSystem) RedelegateStakeAddress(
-	ctx context.Context, sourceChain ChainID,
-	bridgeAddressIndex int8, stakePoolID string,
-) error {
-	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
-	if err != nil {
-		return err
 	}
 
-	pk := hex.EncodeToString(pkBytes)
-
-	chain, err := a.getChain(sourceChain)
-	if err != nil {
-		return err
+	if doRegister {
+		cmnd = append(cmnd, "--do-registration")
 	}
 
-	return RunCommand(ResolveApexBridgeBinary(), []string{
-		"bridge-admin", "delegate-address-to-stake-pool",
-		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
-		"--chain", chain.ChainID(),
-		"--key", pk,
-		"--stake-pool", stakePoolID,
-		"--bridge-address-index", fmt.Sprintf("%d", bridgeAddressIndex),
-	}, os.Stdout)
+	return RunCommand(ResolveApexBridgeBinary(), cmnd, os.Stdout)
 }
 
 func (a *ApexSystem) DeregisterStakeAddress(
