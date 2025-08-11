@@ -11,7 +11,6 @@ import (
 type InitializeApexBridgeContractsBridgeFn struct {
 	Owner        types.Address `abi:"_owner"`
 	UpgradeAdmin types.Address `abi:"_upgradeAdmin"`
-	TestMode     bool          `abi:"_testMode"`
 }
 
 func (i *InitializeApexBridgeContractsBridgeFn) Sig() []byte {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -170,20 +169,15 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 	bladeProxyAdmin, err := crypto.GenerateECDSAKey()
 	require.NoError(t, err)
 
-	clusterOptions := []framework.ClusterOption{
+	a.bladeAdmin = bladeAdmin
+	a.bladeProxyAdmin = bladeProxyAdmin
+	a.BridgeCluster = framework.NewTestCluster(t, a.Config.BladeValidatorCount,
 		framework.WithBladeAdmin(bladeAdmin.Address().String()),
 		framework.WithEpochReward(0),
 		framework.WithNativeTokenConfig("Blade:BLADE:18:true"),
 		framework.WithProxyContractsAdmin(bladeProxyAdmin.Address().String()),
-	}
-	if a.Config.TestBridge {
-		clusterOptions = append(clusterOptions, framework.WithTestBridge())
-	}
-
-	a.bladeAdmin = bladeAdmin
-	a.bladeProxyAdmin = bladeProxyAdmin
-	a.BridgeCluster = framework.NewTestCluster(t, a.Config.BladeValidatorCount,
-		clusterOptions...,
+		framework.WithTestBridge(a.Config.TestBridge),
+		framework.WithNonValidators(a.Config.BladeNonValidatorCount),
 	)
 
 	// create validators
@@ -205,15 +199,8 @@ func (a *ApexSystem) GetBridgeNode(t *testing.T, idx int) *framework.TestServer 
 	return a.BridgeCluster.Servers[idx]
 }
 
-func (a *ApexSystem) AddValidator(t *testing.T, ctx context.Context) {
+func (a *ApexSystem) GenerateForNonValidator(t *testing.T, ctx context.Context, idx int) {
 	t.Helper()
-
-	idx := len(a.validators)
-
-	dir := a.BridgeCluster.Config.ValidatorPrefix + strconv.Itoa(idx)
-	a.BridgeCluster.InitTestServer(t, dir, a.BridgeCluster.Bridge.JSONRPCAddr(), framework.Validator)
-
-	require.Equal(t, len(a.BridgeCluster.Servers), idx+1)
 
 	a.validators = append(a.validators,
 		NewTestApexValidator(a.dataDirPath, idx+1, a.BridgeCluster, a.BridgeCluster.Servers[idx]))
@@ -223,8 +210,10 @@ func (a *ApexSystem) AddValidator(t *testing.T, ctx context.Context) {
 	for _, chain := range a.chains {
 		require.NoError(t, chain.CreateWallets(validator))
 		// require.NoError(t, chain.RegisterChain(validator))
-		require.NoError(t, validator.Start(ctx, false))
+		require.NoError(t, chain.CreateAddresses(a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr()))
 	}
+
+	require.NoError(t, validator.Start(ctx, false))
 }
 
 func (a *ApexSystem) CreateWallets() (err error) {
@@ -260,6 +249,18 @@ func (a *ApexSystem) InitContracts(ctx context.Context) error {
 	}
 
 	// after contracts have been initialized populate all the needed things into apex object
+	for _, chain := range a.chains {
+		chain.PopulateApexSystem(a)
+	}
+
+	return nil
+}
+
+func (a *ApexSystem) UpdateConfigs(ctx context.Context) error {
+	if err := a.CreateAddresses(); err != nil {
+		return err
+	}
+
 	for _, chain := range a.chains {
 		chain.PopulateApexSystem(a)
 	}

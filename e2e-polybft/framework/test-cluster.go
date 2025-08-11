@@ -502,9 +502,9 @@ func WithTLSCertificate(certFile string, keyFile string) ClusterOption {
 	}
 }
 
-func WithTestBridge() ClusterOption {
+func WithTestBridge(state bool) ClusterOption {
 	return func(h *TestClusterConfig) {
-		h.TestBridge = true
+		h.TestBridge = state
 	}
 }
 
@@ -833,7 +833,11 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 	}
 
 	for i := 1; i <= cluster.Config.NonValidatorCount; i++ {
-		dir := nonValidatorPrefix + strconv.Itoa(i)
+		dir := nonValidatorPrefix
+		if cluster.Config.NonValidatorCount > 1 {
+			dir += strconv.Itoa(i)
+		}
+
 		cluster.InitTestServer(t, dir, cluster.Bridge.JSONRPCAddr(), None)
 	}
 

@@ -19,6 +19,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/helper/hex"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
@@ -27,7 +28,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
 
-	polybftsecrets "github.com/0xPolygon/polygon-edge/command/secrets/init"
+	secretsCardano "github.com/Ethernal-Tech/cardano-infrastructure/secrets"
+	secretsHelper "github.com/Ethernal-Tech/cardano-infrastructure/secrets/helper"
 )
 
 func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
@@ -46,7 +48,7 @@ func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 		framework.WithGovernanceVotingDelay(1),
 		framework.WithGovernanceVotingPeriod(3*epochSize),
 		framework.WithPremine(validatorAcc.Address()),
-		framework.WithTestBridge(),
+		framework.WithTestBridge(true),
 	)
 	defer cluster.Stop()
 
@@ -119,7 +121,7 @@ func TestE2E_DynamicValidators_RemoveValidator(t *testing.T) {
 		framework.WithEpochSize(10),
 		framework.WithGovernanceVotingDelay(1),
 		framework.WithGovernanceVotingPeriod(3*epochSize),
-		framework.WithTestBridge(),
+		framework.WithTestBridge(true),
 	)
 	defer cluster.Stop()
 
@@ -178,7 +180,7 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 		framework.WithGovernanceVotingDelay(1),
 		framework.WithGovernanceVotingPeriod(3*epochSize),
 		framework.WithPremine(validatorAcc.Address()),
-		framework.WithTestBridge(),
+		framework.WithTestBridge(true),
 	)
 	defer cluster.Stop()
 
@@ -269,7 +271,9 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	defer cncl()
 
 	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig.BridgeAddrHasStake = true
 	primeConfig.PremineAmount = 500_000_000
+	vectorConfig.BridgeAddrHasStake = true
 	vectorConfig.PremineAmount = 500_000_000
 
 	apex := cardanofw.SetupAndRunApexBridge(
@@ -279,8 +283,9 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithAPIValidatorID(-1),
+		cardanofw.WithNonValidators(1),
+		cardanofw.WithNexusEnabled(true),
 		// cardanofw.WithTestBridge(),
-		cardanofw.WithNexusEnabled(false),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -336,13 +341,8 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 
 	t.Logf("multisig, fee = %d, %d", primeMultisigAmount, primeFeeAmount)
 
-	datadir := fmt.Sprintf("%s%d", cluster.Config.ValidatorPrefix, len(cluster.Servers)+1)
+	newValidatorSrv := cluster.Servers[4]
 
-	addresses, err := cluster.InitSecrets(datadir, 1)
-	require.NoError(t, err)
-	require.Len(t, addresses, 1)
-
-	newValidatorAddr := addresses[0]
 	proposer := cluster.Servers[0]
 
 	proposerAcc, err := helper.GetAccountFromDir(proposer.DataDir())
@@ -354,14 +354,14 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	polybftCfg, err := polybft.LoadPolyBFTConfig(path.Join(cluster.Config.TmpDir, chainConfigFileName))
 	require.NoError(t, err)
 
-	newValidatorAcc, err := helper.GetAccountFromDir(path.Join(cluster.Config.TmpDir, datadir))
+	newValidatorAcc, err := helper.GetAccountFromDir(newValidatorSrv.DataDir())
 	require.NoError(t, err)
 
 	// send some blade for transactions
 	recp, err := relayer.SendTransaction(types.NewTx(
 		types.NewLegacyTx(
 			types.WithFrom(proposerAcc.Address()),
-			types.WithTo(&newValidatorAddr),
+			types.WithTo(newValidatorAcc.Address().Ptr()),
 			types.WithValue(ethgo.Ether(1)),
 		),
 	), proposerAcc.Ecdsa)
@@ -379,7 +379,7 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	recp, err = relayer.SendTransaction(types.NewTx(types.NewLegacyTx(
-		types.WithFrom(newValidatorAddr),
+		types.WithFrom(newValidatorAcc.Address()),
 		types.WithTo(&polybftCfg.StakeTokenAddr),
 		types.WithInput(approveInput),
 	)), newValidatorAcc.Ecdsa)
@@ -393,25 +393,25 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	removeValidatorKey, err := helper.GetAccountFromDir(removeValidator.DataDir())
 	require.NoError(t, err)
 
-	apex.AddValidator(t, ctx)
-	newValidator := cluster.Servers[len(cluster.Servers)-1]
+	// generate for non validator
+	apex.GenerateForNonValidator(t, ctx, 4)
 
-	primeKeys := getMultisigAndFeeFromDataDir(t, newValidator.DataDir(), "prime")
-	vectorKeys := getMultisigAndFeeFromDataDir(t, newValidator.DataDir(), "vector")
+	primeKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "prime")
+	vectorKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "vector")
 
 	keysToStr := func(chain string, keys *cardanofw.CardanoWallet) string {
 		return fmt.Sprintf("%s:%s:%s:%s:%s",
 			chain,
-			keys.Multisig.VerificationKey,
-			keys.MultisigFee.VerificationKey,
-			keys.Multisig.StakeVerificationKey,
-			keys.MultisigFee.StakeVerificationKey,
+			addressToHex(keys.Multisig.VerificationKey),
+			addressToHex(keys.MultisigFee.VerificationKey),
+			addressToHex(keys.Multisig.StakeVerificationKey),
+			addressToHex(keys.MultisigFee.StakeVerificationKey),
 		)
 	}
 
 	executeValidatorChangeProposal(t, relayer, proposerAcc, []*addedValidator{
 		{
-			Address: newValidatorAddr,
+			Address: newValidatorAcc.Address(),
 			Key:     newValidatorAcc.Bls.PublicKey(),
 			CardanoLikeChains: []string{
 				keysToStr("prime", &primeKeys),
@@ -438,6 +438,7 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 		return num != 0
 	}))
 
+	// wait for validator set change to finish
 	require.NoError(t, cluster.WaitUntil(5*time.Minute, 10*time.Second, func() bool {
 		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
 		require.NoError(t, err)
@@ -455,54 +456,50 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 
 	t.Log("Finished VSC")
 
-	checkValidatorActive(t, newValidatorAddr, relayer, true)
+	checkValidatorActive(t, newValidatorAcc.Address(), relayer, true)
 	checkValidatorActive(t, removeValidatorKey.Address(), relayer, false)
-
-	// wait for validator set change to finish
 
 	t.Logf("Added new validator")
 
-	// wait to sync new validator
+	// create new multisig and fee addresses
+	require.NoError(t, apex.UpdateConfigs(ctx))
 
-	require.NoError(t, cluster.WaitUntil(time.Minute*3, time.Second*2, func() bool {
-		proposerBlock, err := proposer.JSONRPC().BlockNumber()
-		if err != nil {
-			return false
-		}
-
-		newValidatorBlock, err := newValidator.JSONRPC().BlockNumber()
-		if err != nil {
-			return false
-		}
-
-		return proposerBlock == newValidatorBlock
-	}))
-
-	t.Logf("Synced new validator")
-
-	// sender := apex.Users[0]
-	// receiver := apex.Users[1]
-
-	// sendAmountDfm := big.NewInt(500_000)
-
-	// e2ehelper.ExecuteSingleBridging(t, ctx,
-	// 	apex, sender, receiver, cardanofw.ChainIDPrime,
-	// 	cardanofw.ChainIDVector, sendAmountDfm)
-
-	// new multisig
-
+	// check on new multisig
 	primeMultisigAmount, primeFeeAmount = getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
 	require.Equal(t, primeMultisigAmount, primeConfig.FundAmount)
-	require.Equal(t, primeFeeAmount, primeConfig.FundFeeAmount)
+	require.True(t, primeFeeAmount > 0 && primeFeeAmount < primeConfig.FundFeeAmount)
+
+	// stop removed validator
+	require.NoError(t, removeValidator.Stop())
+
+	// stop one of validators to check if new validator participates in voting
+	require.NoError(t, cluster.Servers[1].Stop())
+
+	// send transaction to check
+	sender := apex.Users[0]
+	receiver := apex.Users[1]
+
+	sendAmountDfm := big.NewInt(500_000)
+
+	e2ehelper.ExecuteSingleBridging(t, ctx,
+		apex, sender, receiver, cardanofw.ChainIDPrime,
+		cardanofw.ChainIDVector, sendAmountDfm)
+}
+
+func addressToHex(address []byte) string {
+	return hex.EncodeToHex(address)[2:]
 }
 
 func getMultisigAndFeeFromDataDir(t *testing.T, dataDir, chain string) (keys cardanofw.CardanoWallet) {
 	t.Helper()
 
-	secretsManager, err := polybftsecrets.GetSecretsManager(dataDir, "", true)
+	secretsManager, err := secretsHelper.CreateSecretsManager(&secretsCardano.SecretsManagerConfig{
+		Path: dataDir,
+		Type: secretsCardano.Local,
+	})
 	require.NoError(t, err)
 
-	secret, err := secretsManager.GetSecret(chain)
+	secret, err := secretsManager.GetSecret(fmt.Sprintf("%s%s_key", secretsCardano.CardanoKeyLocalPrefix, chain))
 	require.NoError(t, err)
 
 	require.NoError(t, json.Unmarshal(secret, &keys))
@@ -581,7 +578,7 @@ func executeValidatorChangeProposal(t *testing.T, relayer txrelayer.TxRelayer, p
 	server := cluster.Servers[0]
 
 	for _, added := range addedValidators {
-		require.NoError(t, server.AddValidatorToVSCProposal(filePath, added.Address, []string{}, hex.EncodeToHex(added.Key.Marshal())[2:], false))
+		require.NoError(t, server.AddValidatorToVSCProposal(filePath, added.Address, added.CardanoLikeChains, addressToHex(added.Key.Marshal()), true))
 	}
 
 	for _, removed := range removedValidators {
@@ -591,7 +588,7 @@ func executeValidatorChangeProposal(t *testing.T, relayer txrelayer.TxRelayer, p
 	key, err := proposerAcc.Ecdsa.MarshallPrivateKey()
 	require.NoError(t, err)
 
-	hexKey := hex.EncodeToHex(key)[2:]
+	hexKey := addressToHex(key)
 
 	submitResult, err := server.SubmitProposal(filePath, hexKey, description)
 	require.NoError(t, err)
@@ -613,7 +610,7 @@ func executeValidatorChangeProposal(t *testing.T, relayer txrelayer.TxRelayer, p
 		voteKey, err := voterAcc.Ecdsa.MarshallPrivateKey()
 		require.NoError(t, err)
 
-		require.NoError(t, server.VoteProposal(submitResult.ProposalID, hex.EncodeToHex(voteKey)[2:], false))
+		require.NoError(t, server.VoteProposal(submitResult.ProposalID, addressToHex(voteKey), false))
 	}
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {

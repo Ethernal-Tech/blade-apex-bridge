@@ -31,7 +31,8 @@ type ApexSystemConfig struct {
 	TelemetryConfig        TelemetryConfig
 	TargetOneClusterServer bool
 
-	BladeValidatorCount int
+	BladeValidatorCount    int
+	BladeNonValidatorCount int
 
 	PrimeConfig  *TestCardanoChainConfig
 	VectorConfig *TestCardanoChainConfig
@@ -123,6 +124,12 @@ func WithUserCnt(userCnt uint) ApexSystemOptions {
 func WithTestBridge() ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.TestBridge = true
+	}
+}
+
+func WithNonValidators(count int) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.BladeNonValidatorCount = count
 	}
 }
 
