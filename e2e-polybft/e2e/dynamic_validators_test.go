@@ -339,7 +339,13 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	require.Equal(t, primeMultisigAmount, primeConfig.FundAmount)
 	require.Equal(t, primeFeeAmount, primeConfig.FundFeeAmount)
 
-	t.Logf("multisig, fee = %d, %d", primeMultisigAmount, primeFeeAmount)
+	t.Logf("multisig, fee prime = %d, %d", primeMultisigAmount, primeFeeAmount)
+
+	vectorMultisigAmount, vectorFeeAmount := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+	require.Equal(t, vectorMultisigAmount, vectorConfig.FundAmount)
+	require.Equal(t, vectorFeeAmount, vectorConfig.FundFeeAmount)
+
+	t.Logf("multisig, fee vector = %d, %d", vectorMultisigAmount, vectorFeeAmount)
 
 	newValidatorSrv := cluster.Servers[4]
 
@@ -422,21 +428,11 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 
 	t.Log("Executed validator set change")
 
-	// wait for validator set change to start
-	require.NoError(t, cluster.WaitUntil(5*time.Minute, 10*time.Second, func() bool {
-		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
-		require.NoError(t, err)
+	// wait for vsc to be sent for sure
+	currentBlock, err := proposer.JSONRPC().BlockNumber()
+	require.NoError(t, err)
 
-		ret, err := relayer.Call(types.ZeroAddress, contracts.Bridge, input)
-		require.NoError(t, err)
-
-		num, err := hex.DecodeUint64(ret)
-		require.NoError(t, err)
-
-		t.Log(ret)
-
-		return num != 0
-	}))
+	require.NoError(t, cluster.WaitForBlock(currentBlock+10, time.Minute))
 
 	// wait for validator set change to finish
 	require.NoError(t, cluster.WaitUntil(5*time.Minute, 10*time.Second, func() bool {
@@ -468,6 +464,10 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	primeMultisigAmount, primeFeeAmount = getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
 	require.Equal(t, primeMultisigAmount, primeConfig.FundAmount)
 	require.True(t, primeFeeAmount > 0 && primeFeeAmount < primeConfig.FundFeeAmount)
+
+	vectorMultisigAmount, vectorFeeAmount = getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+	require.Equal(t, vectorMultisigAmount, vectorConfig.FundAmount)
+	require.True(t, vectorFeeAmount > 0 && vectorFeeAmount < vectorConfig.FundFeeAmount)
 
 	// stop removed validator
 	require.NoError(t, removeValidator.Stop())
