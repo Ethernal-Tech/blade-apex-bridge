@@ -106,7 +106,9 @@ func (n *Node) Stop() error {
 		case <-n.Wait():
 		case <-time.After(time.Second * shutdownGracePeriodOnForceStopInSec):
 			for i := 0; i < numberOfInterruptsOnForceStop; i++ {
-				_ = n.cmd.Process.Signal(os.Interrupt)
+				if n.cmd != nil && n.cmd.Process != nil {
+					_ = n.cmd.Process.Signal(os.Interrupt)
+				}
 			}
 
 			<-n.Wait()
