@@ -2901,8 +2901,8 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(0), addrAmounts[2])
-		require.Equal(t, uint64(6_000_020), addrAmounts[3])
+		require.Equal(t, uint64(1000010), addrAmounts[2])
+		require.Equal(t, uint64(5_000_010), addrAmounts[3])
 	})
 
 	t.Run("Bridge full amount from 2 addresses", func(t *testing.T) {
@@ -2938,8 +2938,8 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 		fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
 		require.Equal(t, uint64(0), addrAmounts[0])
-		require.Equal(t, uint64(0), addrAmounts[1])
-		require.Equal(t, uint64(6_000_030), addrAmounts[2])
+		require.Equal(t, uint64(1_000_020), addrAmounts[1])
+		require.Equal(t, uint64(5_000_010), addrAmounts[2])
 	})
 
 	// replenish
@@ -2959,8 +2959,8 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 		fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
 		require.Equal(t, uint64(0), addrAmounts[0])
-		require.Equal(t, uint64(0), addrAmounts[1])
-		require.Equal(t, uint64(4000010), addrAmounts[3])
+		require.Equal(t, uint64(0), addrAmounts[3])
+		require.Equal(t, uint64(2999990), addrAmounts[2])
 	})
 
 	for range bridgeAddrCnt - 1 {
@@ -2982,6 +2982,7 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 
 		require.Equal(t, uint64(0), addrAmounts[0])
 		require.Equal(t, uint64(0), addrAmounts[1])
-		require.Equal(t, uint64(4000040), addrAmounts[3])
+		require.Equal(t, uint64(2999990), addrAmounts[2])
+		require.Equal(t, uint64(1000050), addrAmounts[3])
 	})
 }
