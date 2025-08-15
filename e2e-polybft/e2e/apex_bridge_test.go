@@ -1699,7 +1699,7 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 			// retrieve only once for all validators
 			if len(initialUtxos) == 0 {
 				initialUtxos, tipData = getInitialUtxosAndTip(
-					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr[0], a.VectorInfo.FeeAddr)
+					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
 			}
 
 			// Vector indexer should start after multisig funding is done
@@ -1799,9 +1799,9 @@ func TestE2E_ApexBridge_UTxOConsolidationWithBothDirections(t *testing.T) {
 			// retrieve only once for all validators
 			if len(initialUtxosVector) == 0 {
 				initialUtxosVector, tipDataVector = getInitialUtxosAndTip(
-					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr[0], a.VectorInfo.FeeAddr)
+					t, ctx, a.VectorInfo, a.VectorInfo.MultisigAddr, a.VectorInfo.FeeAddr)
 				initialUtxosPrime, tipDataPrime = getInitialUtxosAndTip(
-					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr[0], a.PrimeInfo.FeeAddr)
+					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr, a.PrimeInfo.FeeAddr)
 			}
 
 			// Both chains indexers should start after multisig funding is done
@@ -2174,23 +2174,35 @@ func PrimeVectorBothDirectionsSequentialAndParallel(
 }
 
 func getInitialUtxosAndTip(
-	t *testing.T, ctx context.Context, chainInfo cardanofw.CardanoChainInfo, multisigAddr, feeAddr string,
+	t *testing.T, ctx context.Context, chainInfo cardanofw.CardanoChainInfo, multisigAddresses []string, feeAddr string,
 ) ([]map[string]any, infrawallet.QueryTipData) {
 	t.Helper()
 
 	txProvider, err := chainInfo.GetTxProvider()
 	require.NoError(t, err)
 
-	multisigUtoxs, err := txProvider.GetUtxos(ctx, multisigAddr)
-	require.NoError(t, err)
+	addrUtxos := make(map[string][]infrawallet.Utxo, len(multisigAddresses))
+	multisigUtxosCnt := 0
+
+	for idx, addr := range multisigAddresses {
+		multisigUtoxs, err := txProvider.GetUtxos(ctx, addr)
+		require.NoError(t, err)
+
+		fmt.Printf("\nMultisig addr: %s[%d]: %v\n", addr, idx, multisigUtoxs)
+
+		addrUtxos[addr] = append(addrUtxos[addr], multisigUtoxs...)
+		multisigUtxosCnt += len(multisigUtoxs)
+	}
 
 	feeUtxos, err := txProvider.GetUtxos(ctx, feeAddr)
 	require.NoError(t, err)
 
+	fmt.Printf("\nFee addr: %s: %v\n", feeAddr, feeUtxos)
+
 	tipData, err := txProvider.GetTip(ctx)
 	require.NoError(t, err)
 
-	initialUtxos := make([]map[string]any, 0, len(multisigUtoxs)+len(feeUtxos))
+	initialUtxos := make([]map[string]any, 0, multisigUtxosCnt+len(feeUtxos))
 
 	utxoToMap := func(utxo infrawallet.Utxo, addr string) map[string]any {
 		bytes, _ := hex.DecodeString(utxo.Hash)
@@ -2204,11 +2216,11 @@ func getInitialUtxosAndTip(
 			"slot":    tipData.Slot,
 		}
 	}
-
-	for _, utxo := range multisigUtoxs {
-		initialUtxos = append(initialUtxos, utxoToMap(utxo, multisigAddr))
+	for _, addr := range multisigAddresses {
+		for _, utxo := range addrUtxos[addr] {
+			initialUtxos = append(initialUtxos, utxoToMap(utxo, addr))
+		}
 	}
-
 	for _, utxo := range feeUtxos {
 		initialUtxos = append(initialUtxos, utxoToMap(utxo, feeAddr))
 	}

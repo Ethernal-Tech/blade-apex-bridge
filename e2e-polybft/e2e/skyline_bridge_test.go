@@ -958,6 +958,7 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 	}
 
 	const (
+		bridgeAddrCnt                 = 4
 		fundUtxoCount                 = 9
 		maxFeeUtxoCount               = 1
 		maxUtxoCount                  = 3
@@ -986,6 +987,7 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 	cardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
 
 	primeConfig := cardanofw.NewPrimeChainConfig()
+	primeConfig.BridgingAddressCnt = bridgeAddrCnt
 	primeConfig.FundUTxOCount = fundUtxoCount
 	primeConfig.FundAmount = fundFactor * minValue * fundUtxoCount
 	primeConfig.FundTokenAmount = fundFactor * minValue * fundUtxoCount
@@ -1007,6 +1009,7 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 		cardanofw.WithUserCnt(parallelInstances+1),
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 		cardanofw.WithCustomConfigHandlers(func(a *cardanofw.ApexSystem, mp map[string]any) {
 			t.Helper()
 
@@ -1015,10 +1018,12 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 
 			// retrieve only once for all validators
 			if len(initialUtxosCardano) == 0 {
+				fmt.Print("\nCARDANO: \n")
 				initialUtxosCardano, tipDataCardano = getInitialUtxosAndTip(
-					t, ctx, a.CardanoInfo, a.CardanoInfo.MultisigAddr[0], a.CardanoInfo.FeeAddr)
+					t, ctx, a.CardanoInfo, a.CardanoInfo.MultisigAddr, a.CardanoInfo.FeeAddr)
+				fmt.Print("\nPRIME: \n")
 				initialUtxosPrime, tipDataPrime = getInitialUtxosAndTip(
-					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr[0], a.PrimeInfo.FeeAddr,
+					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr, a.PrimeInfo.FeeAddr,
 				)
 			}
 
@@ -1066,6 +1071,14 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 
 	require.Len(t, utxos, cardanoConfig.FundUTxOCount)
 
+	primeAddrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+	fmt.Println("Prime multisig addresses amounts: ", primeAddrAmounts)
+
+	cardanoAddrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
+	require.NoError(t, err)
+	fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
+
 	t.Run("with tokens", func(t *testing.T) {
 		ctxChild, cncl := context.WithCancel(ctx)
 		defer cncl()
@@ -1085,6 +1098,14 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 			assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
 		}
 	})
+
+	primeAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+	fmt.Println("Prime multisig addresses amounts: ", primeAddrAmounts)
+
+	cardanoAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
+	require.NoError(t, err)
+	fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
 
 	t.Run("with currency", func(t *testing.T) {
 		ctxChild, cncl := context.WithCancel(ctx)
@@ -1106,9 +1127,22 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 		}
 	})
 
+	primeAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+	fmt.Println("Prime multisig addresses amounts: ", primeAddrAmounts)
+
+	cardanoAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
+	require.NoError(t, err)
+	fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
+
 	t.Run("both directions", func(t *testing.T) {
 		ctxChild, cncl := context.WithCancel(ctx)
 		defer cncl()
+
+		txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
+		require.NoError(t, err)
+		txProviderCardano, err := apex.CardanoInfo.GetTxProvider()
+		require.NoError(t, err)
 
 		// when we send currency, this amount of native tokens will be released from multisig address
 		sendAmountCurrency := minValue*sendMinValueFactor + sendMinValueIncrement
@@ -1117,6 +1151,22 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 			t, ctxChild,
 			apex.BridgeCluster.Servers[0].JSONRPC(),
 			[]string{cardanofw.ChainIDCardano, cardanofw.ChainIDPrime})
+
+		fmt.Print("\nBEFORE: Prime chain")
+		for idx, addr := range apex.PrimeInfo.MultisigAddr {
+			multisigUtoxs, err := txProviderPrime.GetUtxos(ctx, addr)
+			require.NoError(t, err)
+
+			fmt.Printf("\n\tmultisig addr: %s[%d]: %v\n", addr, idx, multisigUtoxs)
+		}
+
+		fmt.Print("\nBEFORE: Cardano chain")
+		for idx, addr := range apex.CardanoInfo.MultisigAddr {
+			multisigUtoxs, err := txProviderCardano.GetUtxos(ctx, addr)
+			require.NoError(t, err)
+
+			fmt.Printf("\n\tmultisig addr: %s[%d]: %v\n", addr, idx, multisigUtoxs)
+		}
 
 		e2ehelper.ExecuteBridging(
 			t, ctxChild, apex, sequentialInstances,
@@ -1131,10 +1181,34 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 		)
 
+		fmt.Print("\nAFTER: Prime chain")
+		for idx, addr := range apex.PrimeInfo.MultisigAddr {
+			multisigUtoxs, err := txProviderPrime.GetUtxos(ctx, addr)
+			require.NoError(t, err)
+
+			fmt.Printf("\n\tmultisig addr: %s[%d]: %v\n", addr, idx, multisigUtoxs)
+		}
+
+		fmt.Print("\nAFTER: Cardano chain")
+		for idx, addr := range apex.CardanoInfo.MultisigAddr {
+			multisigUtoxs, err := txProviderCardano.GetUtxos(ctx, addr)
+			require.NoError(t, err)
+
+			fmt.Printf("\n\tmultisig addr: %s[%d]: %v\n", addr, idx, multisigUtoxs)
+		}
+
 		for _, cnt := range getCntConsolidationMap() {
 			assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
 		}
 	})
+
+	primeAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+	fmt.Println("Prime multisig addresses amounts: ", primeAddrAmounts)
+
+	cardanoAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
+	require.NoError(t, err)
+	fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
 }
 
 func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(t *testing.T) {
@@ -1201,9 +1275,9 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 			// retrieve only once for all validators
 			if len(initialUtxosCardano) == 0 {
 				initialUtxosCardano, tipDataCardano = getInitialUtxosAndTip(
-					t, ctx, a.CardanoInfo, a.CardanoInfo.MultisigAddr[0], a.CardanoInfo.FeeAddr)
+					t, ctx, a.CardanoInfo, a.CardanoInfo.MultisigAddr, a.CardanoInfo.FeeAddr)
 				initialUtxosPrime, tipDataPrime = getInitialUtxosAndTip(
-					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr[0], a.PrimeInfo.FeeAddr,
+					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr, a.PrimeInfo.FeeAddr,
 				)
 			}
 

@@ -792,7 +792,7 @@ func (a *ApexSystem) UpdateBridgingAddressCount(
 
 func (a *ApexSystem) GetBridgingAddressesTokenAmounts(
 	ctx context.Context, sourceChain ChainID,
-) ([]uint64, error) {
+) ([]map[string]*big.Int, error) {
 	bridingAddresses := []string{}
 	switch sourceChain {
 	case ChainIDPrime:
@@ -810,21 +810,17 @@ func (a *ApexSystem) GetBridgingAddressesTokenAmounts(
 		return nil, err
 	}
 
-	amounts := make([]uint64, 0)
+	balances := make([]map[string]*big.Int, 0)
 	for _, addr := range bridingAddresses {
-		utxos, err := txProvider.GetAddressBalance(ctx, addr)
+		addrBalances, err := txProvider.GetAddressBalance(ctx, addr)
 		if err != nil {
 			return nil, err
 		}
 
-		amount := uint64(0)
-		for _, u := range utxos {
-			amount += u.Uint64()
-		}
-		amounts = append(amounts, amount)
+		balances = append(balances, addrBalances)
 	}
 
-	return amounts, nil
+	return balances, nil
 }
 
 func (a *ApexSystem) RegisterAndDelegateStakeAddress(
