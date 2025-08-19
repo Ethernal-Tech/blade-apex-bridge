@@ -213,6 +213,39 @@ func (a *ApexSystem) GenerateForNonValidator(t *testing.T, ctx context.Context, 
 		require.NoError(t, chain.CreateAddresses(a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr()))
 	}
 
+	getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
+		return func(data map[string]any) {
+			callback(a, data)
+		}
+	}
+
+	serverIndx := idx + 1
+
+	var args []string
+
+	for _, chain := range a.chains {
+		args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
+	}
+
+	err := validator.GenerateConfigs(
+		a.Config.APIPortStart+serverIndx, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(serverIndx), args...)
+	require.NoError(t, err)
+
+	if handler := a.Config.CustomOracleConfigHandler; handler != nil {
+		fileName := validator.GetValidatorComponentsConfig()
+		err := UpdateJSONFile(fileName, fileName, getHandler(handler), false)
+		require.NoError(t, err)
+	}
+
+	if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
+		fileName := validator.GetRelayerConfig()
+		err := UpdateJSONFile(fileName, fileName, getHandler(handler), false)
+		require.NoError(t, err)
+	}
+
+	err = a.setBridgingAPIs()
+	require.NoError(t, err)
+
 	require.NoError(t, validator.Start(ctx, false))
 }
 
