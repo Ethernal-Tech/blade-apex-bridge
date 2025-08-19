@@ -195,11 +195,13 @@ func ExecuteBridging(
 
 				tokenName := getTokenNameForChains(apex, dstChain, chainPair.srcChain, expectNativeTokens)
 
+				// Retrieve all failed transactions on the source chain, if any
 				for _, txHash := range apex.GetChainMust(t, chainPair.srcChain).GetIndexer().GetFailedTxs() {
 					sum.Add(sum, txHashTxDataMap[txHash].SendAmountDfm)
 				}
 
 				lock.Lock()
+				// Subtract failed transaction amounts from the original desired amounts on the destination chain
 				desiredAmounts[dstChain][tokenName].Sub(originalDesiredAmounts[dstChain][tokenName], sum)
 				lock.Unlock()
 			}
