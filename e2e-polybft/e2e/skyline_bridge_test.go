@@ -21,6 +21,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const bridgeAddrCnt = 4
+
 // cd e2e-polybft/e2e
 // ONLY_RUN_SKYLINE_BRIDGE=true go test -v -timeout 0 -run ^Test_OnlyRunSkylineBridge$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e
 func Test_OnlyRunSkylineBridge(t *testing.T) {
@@ -45,6 +47,7 @@ func Test_OnlyRunSkylineBridge(t *testing.T) {
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithUserCnt(1),
+		cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -121,6 +124,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 		cardanofw.WithUserCnt(userCnt),
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -565,6 +569,7 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 		cardanofw.WithUserCnt(userCnt),
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -818,6 +823,7 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["maxAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
 		}, nil),
+		cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -891,6 +897,7 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["maxTokenAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
 		}, nil),
+		cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1003,7 +1010,6 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 		lock                                   sync.Mutex
 	)
 
-	//nolint:dupl
 	apex := cardanofw.SetupAndRunSkylineBridge(
 		t, ctx,
 		cardanofw.WithUserCnt(parallelInstances+1),
@@ -1019,9 +1025,12 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 			// retrieve only once for all validators
 			if len(initialUtxosCardano) == 0 {
 				fmt.Print("\nCARDANO: \n")
+
 				initialUtxosCardano, tipDataCardano = getInitialUtxosAndTip(
 					t, ctx, a.CardanoInfo, a.CardanoInfo.MultisigAddr, a.CardanoInfo.FeeAddr)
+
 				fmt.Print("\nPRIME: \n")
+
 				initialUtxosPrime, tipDataPrime = getInitialUtxosAndTip(
 					t, ctx, a.PrimeInfo, a.PrimeInfo.MultisigAddr, a.PrimeInfo.FeeAddr,
 				)
@@ -1153,6 +1162,7 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 			[]string{cardanofw.ChainIDCardano, cardanofw.ChainIDPrime})
 
 		fmt.Print("\nBEFORE: Prime chain")
+
 		for idx, addr := range apex.PrimeInfo.MultisigAddr {
 			multisigUtoxs, err := txProviderPrime.GetUtxos(ctx, addr)
 			require.NoError(t, err)
@@ -1161,6 +1171,7 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 		}
 
 		fmt.Print("\nBEFORE: Cardano chain")
+
 		for idx, addr := range apex.CardanoInfo.MultisigAddr {
 			multisigUtoxs, err := txProviderCardano.GetUtxos(ctx, addr)
 			require.NoError(t, err)
@@ -1182,6 +1193,7 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 		)
 
 		fmt.Print("\nAFTER: Prime chain")
+
 		for idx, addr := range apex.PrimeInfo.MultisigAddr {
 			multisigUtoxs, err := txProviderPrime.GetUtxos(ctx, addr)
 			require.NoError(t, err)
@@ -1190,6 +1202,7 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 		}
 
 		fmt.Print("\nAFTER: Cardano chain")
+
 		for idx, addr := range apex.CardanoInfo.MultisigAddr {
 			multisigUtoxs, err := txProviderCardano.GetUtxos(ctx, addr)
 			require.NoError(t, err)
@@ -1260,12 +1273,12 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 		lock                                   sync.Mutex
 	)
 
-	//nolint:dupl
 	apex := cardanofw.SetupAndRunSkylineBridge(
 		t, ctx,
 		cardanofw.WithUserCnt(parallelInstances+1),
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 		cardanofw.WithCustomConfigHandlers(func(a *cardanofw.ApexSystem, mp map[string]any) {
 			t.Helper()
 
@@ -1627,6 +1640,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithPrimeConfig(primeConfig),
 			cardanofw.WithCardanoConfig(cardanoConfig),
+			cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1720,6 +1734,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithPrimeConfig(primeConfig),
 			cardanofw.WithCardanoConfig(cardanoConfig),
+			cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1813,6 +1828,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithPrimeConfig(primeConfig),
 			cardanofw.WithCardanoConfig(cardanoConfig),
+			cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1886,6 +1902,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithPrimeConfig(primeConfig),
 			cardanofw.WithCardanoConfig(cardanoConfig),
+			cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1992,6 +2009,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithPrimeConfig(primeConfig),
 			cardanofw.WithCardanoConfig(cardanoConfig),
+			cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -2068,6 +2086,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithPrimeConfig(primeConfig),
 			cardanofw.WithCardanoConfig(cardanoConfig),
+			cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -2144,6 +2163,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithPrimeConfig(primeConfig),
 			cardanofw.WithCardanoConfig(cardanoConfig),
+			cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -2200,6 +2220,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithPrimeConfig(primeConfig),
 			cardanofw.WithCardanoConfig(cardanoConfig),
+			cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -2293,6 +2314,7 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 		cardanofw.WithUserCnt(userCnt),
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -2518,6 +2540,7 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 		cardanofw.WithUserCnt(3),
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			primeSettings := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", "prime")
 			primeSettings["nativeTokens"] = nil
@@ -2599,6 +2622,7 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -2734,6 +2758,7 @@ func TestE2E_SkylineBridge_SimultaniousStakingTest(t *testing.T) {
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithBridgingAddrCnt(bridgeAddrCnt),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -2826,7 +2851,6 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	bridgeAddrCnt := 4
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
 	// primeConfig.FundTokenAmount = 1_000_000_000
 	primeConfig.FundAmount = 0
@@ -2875,7 +2899,7 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(4_000_010), addrAmounts[0])
+		require.Equal(t, uint64(4_000_010), addrAmounts[0][wallet.AdaTokenName].Uint64())
 	})
 
 	t.Run("Bridge full amount from single address", func(t *testing.T) {
@@ -2888,7 +2912,7 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(0), addrAmounts[1])
+		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
 	})
 
 	t.Run("Bridge amount from single address with carry over", func(t *testing.T) {
@@ -2901,8 +2925,8 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(1000010), addrAmounts[2])
-		require.Equal(t, uint64(5_000_010), addrAmounts[3])
+		require.Equal(t, uint64(1000010), addrAmounts[2][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(5_000_010), addrAmounts[3][wallet.AdaTokenName].Uint64())
 	})
 
 	t.Run("Bridge full amount from 2 addresses", func(t *testing.T) {
@@ -2915,8 +2939,8 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(0), addrAmounts[0])
-		require.Equal(t, uint64(0), addrAmounts[3])
+		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(0), addrAmounts[3][wallet.AdaTokenName].Uint64())
 	})
 
 	// replenish
@@ -2937,9 +2961,9 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(0), addrAmounts[0])
-		require.Equal(t, uint64(1_000_020), addrAmounts[1])
-		require.Equal(t, uint64(5_000_010), addrAmounts[2])
+		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(1_000_020), addrAmounts[1][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(5_000_010), addrAmounts[2][wallet.AdaTokenName].Uint64())
 	})
 
 	// replenish
@@ -2958,9 +2982,9 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(0), addrAmounts[0])
-		require.Equal(t, uint64(0), addrAmounts[3])
-		require.Equal(t, uint64(2999990), addrAmounts[2])
+		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(0), addrAmounts[3][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(2999990), addrAmounts[2][wallet.AdaTokenName].Uint64())
 	})
 
 	for range bridgeAddrCnt - 1 {
@@ -2980,9 +3004,9 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(0), addrAmounts[0])
-		require.Equal(t, uint64(0), addrAmounts[1])
-		require.Equal(t, uint64(2999990), addrAmounts[2])
-		require.Equal(t, uint64(1000050), addrAmounts[3])
+		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(2999990), addrAmounts[2][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(1000050), addrAmounts[3][wallet.AdaTokenName].Uint64())
 	})
 }

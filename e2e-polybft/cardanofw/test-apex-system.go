@@ -811,10 +811,15 @@ func (a *ApexSystem) GetBridgingAddressesTokenAmounts(
 	}
 
 	balances := make([]map[string]*big.Int, 0)
+
 	for _, addr := range bridingAddresses {
 		addrBalances, err := txProvider.GetAddressBalance(ctx, addr)
 		if err != nil {
 			return nil, err
+		}
+
+		if addrBalances[cardanowallet.AdaTokenName] == nil {
+			addrBalances[cardanowallet.AdaTokenName] = big.NewInt(0)
 		}
 
 		balances = append(balances, addrBalances)

@@ -2216,11 +2216,13 @@ func getInitialUtxosAndTip(
 			"slot":    tipData.Slot,
 		}
 	}
+
 	for _, addr := range multisigAddresses {
 		for _, utxo := range addrUtxos[addr] {
 			initialUtxos = append(initialUtxos, utxoToMap(utxo, addr))
 		}
 	}
+
 	for _, utxo := range feeUtxos {
 		initialUtxos = append(initialUtxos, utxoToMap(utxo, feeAddr))
 	}
