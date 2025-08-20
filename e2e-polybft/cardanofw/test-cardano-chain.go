@@ -343,8 +343,10 @@ func (ec *TestCardanoChain) CreateAddresses(
 			ec.multisigStakeAddr = append(ec.multisigStakeAddr, match[1])
 		}
 
-		if match := reFee.FindStringSubmatch(output); len(match) > 0 {
-			ec.multisigFeeAddr = match[1]
+		if i == 0 {
+			if match := reFee.FindStringSubmatch(output); len(match) > 0 {
+				ec.multisigFeeAddr = match[1]
+			}
 		}
 	}
 

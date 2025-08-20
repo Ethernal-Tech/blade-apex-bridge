@@ -768,6 +768,7 @@ func (a *ApexSystem) DefundHotWallet(
 
 func (a *ApexSystem) UpdateBridgingAddressCount(
 	ctx context.Context, sourceChain ChainID,
+	addressCount int,
 ) error {
 	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
 	if err != nil {
@@ -776,17 +777,12 @@ func (a *ApexSystem) UpdateBridgingAddressCount(
 
 	pk := hex.EncodeToString(pkBytes)
 
-	chain, err := a.getChain(sourceChain)
-	if err != nil {
-		return err
-	}
-
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"bridge-admin", "update-bridging-addrs-count",
 		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
-		"--chain", chain.ChainID(),
+		"--chain", sourceChain,
 		"--key", pk,
-		"--bridging-addresses-count", fmt.Sprintf("%d", a.Config.AddressCount),
+		"--bridging-addresses-count", fmt.Sprintf("%d", addressCount),
 	}, os.Stdout)
 }
 
@@ -794,12 +790,15 @@ func (a *ApexSystem) GetBridgingAddressesTokenAmounts(
 	ctx context.Context, sourceChain ChainID,
 ) ([]map[string]*big.Int, error) {
 	bridingAddresses := []string{}
+
 	switch sourceChain {
 	case ChainIDPrime:
 		bridingAddresses = a.PrimeInfo.MultisigAddr
+
 		break
 	case ChainIDCardano:
 		bridingAddresses = a.CardanoInfo.MultisigAddr
+
 		break
 	case ChainIDVector:
 		bridingAddresses = a.VectorInfo.MultisigAddr

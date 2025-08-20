@@ -43,8 +43,8 @@ type ApexSystemConfig struct {
 	CustomOracleConfigHandler  CustomConfigHandler
 	CustomRelayerConfigHandler CustomConfigHandler
 
-	UserCnt      uint
-	AddressCount int
+	UserCnt                  uint
+	UpdateAddressCountChains []ChainID
 }
 
 type ApexSystemOptions func(*ApexSystemConfig)
@@ -134,9 +134,17 @@ func WithUserCnt(userCnt uint) ApexSystemOptions {
 	}
 }
 
-func WithBridgingAddrCnt(addressCnt int) ApexSystemOptions {
+func WithBridgingAddrCnt(chainID ChainID, addressCnt int) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
-		h.AddressCount = addressCnt
+		h.UpdateAddressCountChains = append(h.UpdateAddressCountChains, chainID)
+		switch chainID {
+		case ChainIDPrime:
+			h.PrimeConfig.BridgingAddressCnt = addressCnt
+
+			break
+		case ChainIDCardano:
+			h.CardanoConfig.BridgingAddressCnt = addressCnt
+		}
 	}
 }
 
@@ -153,8 +161,7 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 		CardanoConfig: NewCardanoChainConfig(false),
 		NexusConfig:   NewNexusChainConfig(false),
 
-		UserCnt:      10,
-		AddressCount: 1,
+		UserCnt: 10,
 	}
 }
 

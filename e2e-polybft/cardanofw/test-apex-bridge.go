@@ -100,10 +100,22 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Contracts have been set up\n")
 
-	if apexSystem.Config.AddressCount > 1 {
-		require.NoError(t, apexSystem.UpdateBridgingAddressCount(ctx, ChainIDPrime))
+	if len(apexSystem.Config.UpdateAddressCountChains) > 0 {
+		addrCount := 1
 
-		fmt.Printf("Bridging address count have been updated to %d\n", apexSystem.Config.AddressCount)
+		for _, chainID := range apexSystem.Config.UpdateAddressCountChains {
+			switch chainID {
+			case ChainIDPrime:
+				addrCount = apexSystem.Config.PrimeConfig.BridgingAddressCnt
+
+				break
+			case ChainIDCardano:
+				addrCount = apexSystem.Config.CardanoConfig.BridgingAddressCnt
+			}
+
+			require.NoError(t, apexSystem.UpdateBridgingAddressCount(ctx, chainID, addrCount))
+			fmt.Printf("Bridging address count of %s have been updated to %d\n", chainID, addrCount)
+		}
 	}
 
 	require.NoError(t, apexSystem.FundWallets(ctx))
