@@ -234,7 +234,11 @@ func ExecuteBridging(
 					lock.RLock()
 					defer lock.RUnlock()
 
-					return bigIntCache.Add(bigIntCache.Set(initialAmountDfm), desiredAmounts[dstChain][tokenName])
+					receivedAmount := bigIntCache.Add(bigIntCache.Set(initialAmountDfm), desiredAmounts[dstChain][tokenName])
+
+					fmt.Printf("TXs on %s for user %d expected amount to receive %s\n", dstChain, idx, receivedAmount)
+
+					return receivedAmount
 				}
 
 				receivedAmount, err := apex.WaitForAmount(
