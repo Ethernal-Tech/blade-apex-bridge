@@ -294,6 +294,18 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 
 	cluster := apex.BridgeCluster
 
+	// execute transfer before
+	e2ehelper.ExecuteBridging(t, ctx, apex, 1,
+		apex.Users[:3],
+		apex.Users[3:3],
+		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
+		map[string][]string{
+			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
+			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
+			cardanofw.ChainIDNexus:  {cardanofw.ChainIDPrime},
+		},
+		big.NewInt(500_000))
+
 	// check multisig amount
 	getMultisigAndFeeAmount := func(chainID cardanofw.ChainID) (uint64, uint64) {
 		apiURL, err := apex.GetBridgingAPI()
@@ -335,23 +347,11 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 		return multisig == primeConfig.FundAmount && fee == primeConfig.FundFeeAmount
 	}))
 
-	primeMultisigAmount, primeFeeAmount := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
-	require.Equal(t, primeMultisigAmount, primeConfig.FundAmount)
-	require.Equal(t, primeFeeAmount, primeConfig.FundFeeAmount)
-
-	t.Logf("multisig, fee prime = %d, %d", primeMultisigAmount, primeFeeAmount)
-
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
 		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
 
 		return multisig == vectorConfig.FundAmount && fee == vectorConfig.FundFeeAmount
 	}))
-
-	vectorMultisigAmount, vectorFeeAmount := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
-	require.Equal(t, vectorMultisigAmount, vectorConfig.FundAmount)
-	require.Equal(t, vectorFeeAmount, vectorConfig.FundFeeAmount)
-
-	t.Logf("multisig, fee vector = %d, %d", vectorMultisigAmount, vectorFeeAmount)
 
 	newValidatorSrv := cluster.Servers[4]
 
@@ -473,44 +473,36 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	require.NoError(t, apex.UpdateConfigs())
 
 	// restart some validators & stop ones not used
-	require.NoError(t, apex.RestartBridges(ctx))
+	require.NoError(t, apex.RestartBridges(ctx, 1, 3))
 
 	// check on new multisig
-
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, _ := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
 
 		t.Log("prime multisig", multisig)
 
-		return multisig == primeConfig.FundAmount
+		return multisig == primeConfig.FundAmount && fee > 0 && fee < primeConfig.FundFeeAmount
 	}))
 
-	primeMultisigAmount, primeFeeAmount = getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
-	require.Equal(t, primeMultisigAmount, primeConfig.FundAmount)
-
-	require.True(t, primeFeeAmount > 0 && primeFeeAmount < primeConfig.FundFeeAmount)
-
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, _ := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
 
 		t.Log("vector multisig", multisig)
 
-		return multisig == vectorConfig.FundAmount
+		return multisig == vectorConfig.FundAmount && fee > 0 && fee < vectorConfig.FundFeeAmount
 	}))
 
-	vectorMultisigAmount, vectorFeeAmount = getMultisigAndFeeAmount(cardanofw.ChainIDVector)
-	require.Equal(t, vectorMultisigAmount, vectorConfig.FundAmount)
-	require.True(t, vectorFeeAmount > 0 && vectorFeeAmount < vectorConfig.FundFeeAmount)
-
-	// send transaction to check
-	sender := apex.Users[0]
-	receiver := apex.Users[1]
-
-	sendAmountDfm := big.NewInt(500_000)
-
-	e2ehelper.ExecuteSingleBridging(t, ctx,
-		apex, sender, receiver, cardanofw.ChainIDPrime,
-		cardanofw.ChainIDVector, sendAmountDfm)
+	// execute transfer after
+	e2ehelper.ExecuteBridging(t, ctx, apex, 1,
+		apex.Users[:3],
+		apex.Users[3:3],
+		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
+		map[string][]string{
+			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
+			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
+			cardanofw.ChainIDNexus:  {cardanofw.ChainIDPrime},
+		},
+		big.NewInt(500_000))
 }
 
 func addressToHex(address []byte) string {
@@ -592,10 +584,6 @@ func checkValidatorActive(t *testing.T, address types.Address,
 	require.True(t, ok)
 
 	require.Equal(t, validatorDataMap["isActive"], isAdded)
-}
-
-func getValidatorsFromBridge() {
-
 }
 
 func executeValidatorChangeProposal(t *testing.T, relayer txrelayer.TxRelayer, proposerAcc *wallet.Account,
