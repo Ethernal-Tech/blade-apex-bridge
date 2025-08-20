@@ -480,6 +480,8 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
 		multisig, _ := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
 
+		t.Log("prime multisig", multisig)
+
 		return multisig == primeConfig.FundAmount
 	}))
 
@@ -490,6 +492,8 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
 		multisig, _ := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+
+		t.Log("vector multisig", multisig)
 
 		return multisig == vectorConfig.FundAmount
 	}))
