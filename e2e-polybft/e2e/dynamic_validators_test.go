@@ -451,7 +451,7 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 		num, err := hex.DecodeUint64(ret)
 		require.NoError(t, err)
 
-		t.Log(ret)
+		t.Log("Validator set change status", num == 1)
 
 		return num == 0
 	}))
@@ -463,23 +463,40 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 
 	t.Logf("Added new validator")
 
-	// create new multisig and fee addresses
-	require.NoError(t, apex.UpdateConfigs(ctx))
-
-	// check on new multisig
-	primeMultisigAmount, primeFeeAmount = getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
-	require.Equal(t, primeMultisigAmount, primeConfig.FundAmount)
-	require.True(t, primeFeeAmount > 0 && primeFeeAmount < primeConfig.FundFeeAmount)
-
-	vectorMultisigAmount, vectorFeeAmount = getMultisigAndFeeAmount(cardanofw.ChainIDVector)
-	require.Equal(t, vectorMultisigAmount, vectorConfig.FundAmount)
-	require.True(t, vectorFeeAmount > 0 && vectorFeeAmount < vectorConfig.FundFeeAmount)
+	// stop one of validators to check if new validator participates in voting
+	require.NoError(t, cluster.Servers[1].Stop())
 
 	// stop removed validator
 	require.NoError(t, removeValidator.Stop())
 
-	// stop one of validators to check if new validator participates in voting
-	require.NoError(t, cluster.Servers[1].Stop())
+	// create new multisig and fee addresses
+	require.NoError(t, apex.UpdateConfigs())
+
+	// restart some validators & stop ones not used
+	require.NoError(t, apex.RestartBridges(ctx))
+
+	// check on new multisig
+
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		multisig, _ := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+
+		return multisig == primeConfig.FundAmount
+	}))
+
+	primeMultisigAmount, primeFeeAmount = getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+	require.Equal(t, primeMultisigAmount, primeConfig.FundAmount)
+
+	require.True(t, primeFeeAmount > 0 && primeFeeAmount < primeConfig.FundFeeAmount)
+
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		multisig, _ := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+
+		return multisig == vectorConfig.FundAmount
+	}))
+
+	vectorMultisigAmount, vectorFeeAmount = getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+	require.Equal(t, vectorMultisigAmount, vectorConfig.FundAmount)
+	require.True(t, vectorFeeAmount > 0 && vectorFeeAmount < vectorConfig.FundFeeAmount)
 
 	// send transaction to check
 	sender := apex.Users[0]
@@ -571,6 +588,10 @@ func checkValidatorActive(t *testing.T, address types.Address,
 	require.True(t, ok)
 
 	require.Equal(t, validatorDataMap["isActive"], isAdded)
+}
+
+func getValidatorsFromBridge() {
+
 }
 
 func executeValidatorChangeProposal(t *testing.T, relayer txrelayer.TxRelayer, proposerAcc *wallet.Account,

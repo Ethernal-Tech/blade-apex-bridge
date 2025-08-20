@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -289,13 +290,34 @@ func (a *ApexSystem) InitContracts(ctx context.Context) error {
 	return nil
 }
 
-func (a *ApexSystem) UpdateConfigs(ctx context.Context) error {
+func (a *ApexSystem) UpdateConfigs() error {
 	if err := a.CreateAddresses(); err != nil {
 		return err
 	}
 
 	for _, chain := range a.chains {
 		chain.PopulateApexSystem(a)
+	}
+
+	return nil
+}
+
+func (a *ApexSystem) RestartBridges(ctx context.Context, validatorsNotToStart ...int) error {
+	for _, validator := range a.validators {
+		if err := validator.Stop(); err != nil {
+			return err
+		}
+	}
+
+	for _, validator := range a.validators {
+		hasAPI := a.Config.APIValidatorID == -1 || validator.ID == a.Config.APIValidatorID
+
+		if !slices.Contains(validatorsNotToStart, validator.ID) {
+
+			if err := validator.Start(ctx, hasAPI); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
