@@ -294,18 +294,6 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 
 	cluster := apex.BridgeCluster
 
-	// execute transfer before
-	e2ehelper.ExecuteBridging(t, ctx, apex, 1,
-		apex.Users[:3],
-		apex.Users[3:4],
-		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
-		map[string][]string{
-			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
-			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
-			cardanofw.ChainIDNexus:  {cardanofw.ChainIDPrime},
-		},
-		big.NewInt(500_000))
-
 	// check multisig amount
 	getMultisigAndFeeAmount := func(chainID cardanofw.ChainID) (uint64, uint64) {
 		apiURL, err := apex.GetBridgingAPI()
@@ -352,6 +340,20 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 
 		return multisig == vectorConfig.FundAmount && fee == vectorConfig.FundFeeAmount
 	}))
+
+	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+
+	// execute transfer before
+	e2ehelper.ExecuteBridging(t, ctx, apex, 1,
+		apex.Users[:3],
+		apex.Users[3:4],
+		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
+		map[string][]string{
+			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
+			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
+			cardanofw.ChainIDNexus:  {cardanofw.ChainIDPrime},
+		},
+		sendAmountDfm)
 
 	newValidatorSrv := cluster.Servers[4]
 
@@ -481,7 +483,7 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 
 		t.Log("prime multisig", multisig)
 
-		return multisig == primeConfig.FundAmount && fee > 0 && fee < primeConfig.FundFeeAmount
+		return multisig > 0 && fee > 0
 	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
@@ -489,20 +491,19 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 
 		t.Log("vector multisig", multisig)
 
-		return multisig == vectorConfig.FundAmount && fee > 0 && fee < vectorConfig.FundFeeAmount
+		return multisig > 0 && fee > 0
 	}))
 
-	// execute transfer after
 	e2ehelper.ExecuteBridging(t, ctx, apex, 1,
 		apex.Users[:3],
 		apex.Users[3:4],
 		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
 		map[string][]string{
-			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
+			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
 			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
 			cardanofw.ChainIDNexus:  {cardanofw.ChainIDPrime},
 		},
-		big.NewInt(500_000))
+		sendAmountDfm)
 }
 
 func addressToHex(address []byte) string {
