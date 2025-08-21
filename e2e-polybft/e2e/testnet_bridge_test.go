@@ -458,11 +458,7 @@ func getUserLovelaceBalances(
 }
 
 func IsVectorEnabled(apex *cardanofw.ApexSystem) bool {
-	if apex.Config.VectorConfig == nil {
-		return false
-	}
-
-	return apex.Config.VectorConfig.IsEnabled
+	return apex.Config.VectorConfig != nil && apex.Config.VectorConfig.IsEnabled
 }
 
 func getEnabledChains(apex *cardanofw.ApexSystem) []string {
