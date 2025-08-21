@@ -27,6 +27,10 @@ type IApexSystem interface {
 		ctx context.Context, user *cardanofw.TestApexUser, dstChain cardanofw.ChainID, srcChain cardanofw.ChainID,
 		expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration, isNativeToken ...bool,
 	) error
+	WaitForAmount(
+		ctx context.Context, user *cardanofw.TestApexUser, dstChain cardanofw.ChainID, srcChain cardanofw.ChainID,
+		cmpHandler func(*big.Int) bool, numRetries int, waitTime time.Duration, isNativeToken ...bool,
+	) (*big.Int, error)
 	SubmitTx(
 		ctx context.Context, sourceChain cardanofw.ChainID, sender *cardanofw.TestApexUser,
 		receiver string, dfmAmount *big.Int, nativeTokenAmounts []cardanowallet.TokenAmount, data []byte,
@@ -37,6 +41,7 @@ type IApexSystem interface {
 	GetTokenNameForChains(dstChain, srcChain cardanofw.ChainID) string
 	GetValidator(t *testing.T, idx int) *cardanofw.TestApexValidator
 	GetBridgeNode(t *testing.T, idx int) *framework.TestServer
+	GetChainMust(t *testing.T, chainID cardanofw.ChainID) cardanofw.ITestApexChain
 }
 
 func getAllDestionationChains(chains []string, chainsDst map[string][]string) (res []string) {
