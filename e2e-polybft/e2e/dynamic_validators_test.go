@@ -345,8 +345,8 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 
 	// execute transfer before
 	e2ehelper.ExecuteBridging(t, ctx, apex, 1,
-		apex.Users[:3],
-		apex.Users[3:4],
+		apex.Users[:1],
+		apex.Users[1:2],
 		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
 		map[string][]string{
 			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
@@ -495,8 +495,8 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	}))
 
 	e2ehelper.ExecuteBridging(t, ctx, apex, 1,
-		apex.Users[:3],
-		apex.Users[3:4],
+		apex.Users[:1],
+		apex.Users[1:2],
 		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
 		map[string][]string{
 			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
