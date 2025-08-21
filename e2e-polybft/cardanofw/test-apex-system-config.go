@@ -133,6 +133,12 @@ func WithNonValidators(count int) ApexSystemOptions {
 	}
 }
 
+func WithValidators(count int) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.BladeValidatorCount = count
+	}
+}
+
 func getDefaultApexSystemConfig() *ApexSystemConfig {
 	return &ApexSystemConfig{
 		APIValidatorID: 1,
