@@ -591,18 +591,18 @@ func (ec *TestCardanoChain) determineMultisigAddressToSendTo(ctx context.Context
 			return "", err
 		}
 
-		addrAmount := uint64(0)
+		amount := uint64(0)
 		for _, utxo := range utxos {
-			addrAmount += utxo.Amount
+			amount += utxo.Amount
 		}
 
-		if addrAmount == 0 {
+		if amount == 0 {
 			fmt.Printf("%s address with index %d chosen for bridging because of 0 amount\n", address, i)
 			return address, nil
 		}
 
 		if i == 0 {
-			minAmount = addrAmount
+			minAmount = amount
 		} else if amount < minAmount {
 			minAmount = amount
 			index = i
