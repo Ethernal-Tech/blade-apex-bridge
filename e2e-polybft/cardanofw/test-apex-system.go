@@ -313,7 +313,6 @@ func (a *ApexSystem) RestartBridges(ctx context.Context, validatorsNotToStart ..
 		hasAPI := a.Config.APIValidatorID == -1 || validator.ID == a.Config.APIValidatorID
 
 		if !slices.Contains(validatorsNotToStart, validator.ID) {
-
 			if err := validator.Start(ctx, hasAPI); err != nil {
 				return err
 			}

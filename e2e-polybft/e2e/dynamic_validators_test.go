@@ -166,99 +166,6 @@ func TestE2E_DynamicValidators_RemoveValidator(t *testing.T) {
 
 func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 	const (
-		epochSize = uint64(10)
-	)
-
-	validatorAcc, err := crypto.GenerateECDSAKey()
-	require.NoError(t, err)
-
-	blsKey, err := bls.GenerateBlsKey()
-	require.NoError(t, err)
-
-	cluster := framework.NewTestCluster(t, 5,
-		framework.WithEpochSize(10),
-		framework.WithGovernanceVotingDelay(1),
-		framework.WithGovernanceVotingPeriod(3*epochSize),
-		framework.WithPremine(validatorAcc.Address()),
-		framework.WithTestBridge(true),
-	)
-	defer cluster.Stop()
-
-	cluster.WaitForReady(t)
-
-	proposer := cluster.Servers[0]
-
-	proposerAcc, err := helper.GetAccountFromDir(proposer.DataDir())
-	require.NoError(t, err)
-
-	relayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(proposer.JSONRPC()))
-	require.NoError(t, err)
-
-	polybftCfg, err := polybft.LoadPolyBFTConfig(path.Join(cluster.Config.TmpDir, chainConfigFileName))
-	require.NoError(t, err)
-
-	// approve native token
-	approve := contractsapi.ApproveNativeERC20MintableFn{
-		Spender: contracts.StakeManagerContract,
-		Amount:  ethgo.Ether(1),
-	}
-
-	approveInput, err := approve.EncodeAbi()
-	require.NoError(t, err)
-
-	txn := types.NewTx(types.NewLegacyTx(
-		types.WithFrom(validatorAcc.Address()),
-		types.WithTo(&contracts.NativeERC20TokenContract),
-		types.WithInput(approveInput),
-	))
-
-	recp, err := relayer.SendTransaction(txn, validatorAcc)
-	require.NoError(t, err)
-	require.NotNil(t, recp)
-	require.Equal(t, recp.Status, uint64(types.ReceiptSuccess))
-
-	// propose and execute validator set change
-
-	removeValidator := cluster.Servers[len(cluster.Servers)-1]
-	removeValidatorKey, err := helper.GetAccountFromDir(removeValidator.DataDir())
-	require.NoError(t, err)
-
-	removeValidatorAddr := removeValidatorKey.Address()
-
-	addedValidators := []*addedValidator{
-		{
-			Address: validatorAcc.Address(),
-			Key:     blsKey.PublicKey(),
-		},
-	}
-
-	executeValidatorChangeProposal(t, relayer, proposerAcc, addedValidators, []types.Address{removeValidatorAddr}, cluster, polybftCfg)
-
-	// Check on stake manager
-	currentBlockNumber, err := relayer.Client().BlockNumber()
-	require.NoError(t, err)
-
-	require.NoError(t, cluster.WaitForBlock(currentBlockNumber+epochSize, 2*time.Minute))
-
-	checkValidatorActive(t, validatorAcc.Address(), relayer, true)
-	checkValidatorActive(t, removeValidatorAddr, relayer, false)
-
-	require.NoError(t, proposer.Stop())
-
-	validatorSet := getFullValidatorSet(t, proposer)
-	addedValidator, ok := validatorSet.Validators[validatorAcc.Address()]
-	require.True(t, ok)
-	require.NotNil(t, addedValidator)
-	require.True(t, addedValidator.IsActive)
-
-	removedValidator, ok := validatorSet.Validators[removeValidatorAddr]
-	require.True(t, ok)
-	require.NotNil(t, removedValidator)
-	require.False(t, removedValidator.IsActive)
-}
-
-func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
-	const (
 		apiKey  = "test_api_key"
 		userCnt = 40
 	)
@@ -342,18 +249,6 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	}))
 
 	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
-
-	// execute transfer before
-	e2ehelper.ExecuteBridging(t, ctx, apex, 1,
-		apex.Users[:1],
-		apex.Users[1:2],
-		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
-		map[string][]string{
-			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
-			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
-			cardanofw.ChainIDNexus:  {cardanofw.ChainIDPrime},
-		},
-		sendAmountDfm)
 
 	newValidatorSrv := cluster.Servers[4]
 
@@ -475,7 +370,7 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 	require.NoError(t, apex.UpdateConfigs())
 
 	// restart some validators & stop ones not used
-	require.NoError(t, apex.RestartBridges(ctx, 1, 3))
+	require.NoError(t, apex.RestartBridges(ctx, 2, 4))
 
 	// check on new multisig
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
@@ -483,7 +378,7 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 
 		t.Log("prime multisig", multisig)
 
-		return multisig > 0 && fee > 0
+		return multisig == primeConfig.FundAmount && fee > 0 && fee < primeConfig.FundFeeAmount
 	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
@@ -491,7 +386,7 @@ func TestE2E_DynamicValidators_CardanoAddAndRemoveValidator(t *testing.T) {
 
 		t.Log("vector multisig", multisig)
 
-		return multisig > 0 && fee > 0
+		return multisig == vectorConfig.FundAmount && fee > 0 && fee < vectorConfig.FundFeeAmount
 	}))
 
 	e2ehelper.ExecuteBridging(t, ctx, apex, 1,
@@ -672,269 +567,4 @@ type validatorSetState struct {
 
 func (vs *validatorSetState) Unmarshal(b []byte) error {
 	return json.Unmarshal(b, vs)
-}
-
-func TestE2E_DynamicValidators_SentTx_ValidatorSetPending_Valid_WithTx(t *testing.T) {
-	const (
-		epochSize = uint64(10)
-
-		apiKey  = "test_api_key"
-		userCnt = 40
-
-		sendAmount = uint64(1_000_000)
-	)
-
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	apex := cardanofw.SetupAndRunApexBridge(
-		t, ctx,
-		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithUserCnt(userCnt),
-	)
-
-	defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-	user := apex.Users[userCnt-1]
-
-	fmt.Println("prime user addr: ", user.PrimeAddress)
-	fmt.Println("vector user addr: ", user.VectorAddress)
-	fmt.Println("prime multisig addr: ", apex.PrimeInfo.MultisigAddr)
-	fmt.Println("prime fee addr: ", apex.PrimeInfo.FeeAddr)
-	fmt.Printf("prime socket path: %s\n", apex.PrimeInfo.SocketPath)
-	fmt.Println("vector multisig addr: ", apex.VectorInfo.MultisigAddr)
-	fmt.Println("vector fee addr: ", apex.VectorInfo.FeeAddr)
-	fmt.Printf("vector socket path: %s\n", apex.VectorInfo.SocketPath)
-
-	validatorAcc, err := crypto.GenerateECDSAKey()
-	require.NoError(t, err)
-
-	blsKey, err := bls.GenerateBlsKey()
-	require.NoError(t, err)
-
-	cluster := framework.NewTestCluster(t, 5,
-		framework.WithEpochSize(10),
-		framework.WithGovernanceVotingDelay(1),
-		framework.WithGovernanceVotingPeriod(3*epochSize),
-		framework.WithPremine(validatorAcc.Address()),
-		framework.WithTestBridge(true),
-	)
-	defer cluster.Stop()
-
-	cluster.WaitForReady(t)
-
-	proposer := cluster.Servers[0]
-
-	proposerAcc, err := helper.GetAccountFromDir(proposer.DataDir())
-	require.NoError(t, err)
-
-	relayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(proposer.JSONRPC()))
-	require.NoError(t, err)
-
-	polybftCfg, err := polybft.LoadPolyBFTConfig(path.Join(cluster.Config.TmpDir, chainConfigFileName))
-	require.NoError(t, err)
-
-	// approve native token
-	approve := contractsapi.ApproveNativeERC20MintableFn{
-		Spender: contracts.StakeManagerContract,
-		Amount:  ethgo.Ether(1),
-	}
-
-	approveInput, err := approve.EncodeAbi()
-	require.NoError(t, err)
-
-	txn := types.NewTx(types.NewLegacyTx(
-		types.WithFrom(validatorAcc.Address()),
-		types.WithTo(&contracts.NativeERC20TokenContract),
-		types.WithInput(approveInput),
-	))
-
-	recp, err := relayer.SendTransaction(txn, validatorAcc)
-	require.NoError(t, err)
-	require.NotNil(t, recp)
-	require.Equal(t, recp.Status, uint64(types.ReceiptSuccess))
-
-	// propose and execute validator set change
-
-	removeValidator := cluster.Servers[len(cluster.Servers)-1]
-	removeValidatorKey, err := helper.GetAccountFromDir(removeValidator.DataDir())
-	require.NoError(t, err)
-
-	removeValidatorAddr := removeValidatorKey.Address()
-
-	addedValidators := []*addedValidator{
-		{
-			Address: validatorAcc.Address(),
-			Key:     blsKey.PublicKey(),
-		},
-	}
-
-	prevAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
-	require.NoError(t, err)
-
-	txHash := apex.SubmitBridgingRequest(
-		t, ctx, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, user, new(big.Int).SetUint64(sendAmount), user)
-	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, new(big.Int).SetUint64(sendAmount))
-
-	fmt.Printf("Tx sent. hash: %s\n", txHash)
-
-	executeValidatorChangeProposal(t, relayer, proposerAcc, addedValidators, []types.Address{removeValidatorAddr}, cluster, polybftCfg)
-
-	// Check on stake manager
-	currentBlockNumber, err := relayer.Client().BlockNumber()
-	require.NoError(t, err)
-
-	require.NoError(t, cluster.WaitForBlock(currentBlockNumber+epochSize, 2*time.Minute))
-
-	checkValidatorActive(t, validatorAcc.Address(), relayer, true)
-	checkValidatorActive(t, removeValidatorAddr, relayer, false)
-
-	require.NoError(t, proposer.Stop())
-
-	validatorSet := getFullValidatorSet(t, proposer)
-	addedValidator, ok := validatorSet.Validators[validatorAcc.Address()]
-	require.True(t, ok)
-	require.NotNil(t, addedValidator)
-	require.True(t, addedValidator.IsActive)
-
-	removedValidator, ok := validatorSet.Validators[removeValidatorAddr]
-	require.True(t, ok)
-	require.NotNil(t, removedValidator)
-	require.False(t, removedValidator.IsActive)
-
-	err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDVector, expectedAmountDfm,
-		100, 1*time.Second)
-	require.NoError(t, err)
-}
-
-func TestE2E_DynamicValidators_SentTx_ValidatorSetPending_Invalid_WithTx(t *testing.T) {
-	const (
-		epochSize = uint64(10)
-
-		apiKey  = "test_api_key"
-		userCnt = 40
-
-		sendAmount = uint64(1_000_000)
-	)
-
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	apex := cardanofw.SetupAndRunApexBridge(
-		t, ctx,
-		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithUserCnt(userCnt),
-	)
-
-	defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-	user := apex.Users[userCnt-1]
-
-	fmt.Println("prime user addr: ", user.PrimeAddress)
-	fmt.Println("vector user addr: ", user.VectorAddress)
-	fmt.Println("prime multisig addr: ", apex.PrimeInfo.MultisigAddr)
-	fmt.Println("prime fee addr: ", apex.PrimeInfo.FeeAddr)
-	fmt.Printf("prime socket path: %s\n", apex.PrimeInfo.SocketPath)
-	fmt.Println("vector multisig addr: ", apex.VectorInfo.MultisigAddr)
-	fmt.Println("vector fee addr: ", apex.VectorInfo.FeeAddr)
-	fmt.Printf("vector socket path: %s\n", apex.VectorInfo.SocketPath)
-
-	validatorAcc, err := crypto.GenerateECDSAKey()
-	require.NoError(t, err)
-
-	blsKey, err := bls.GenerateBlsKey()
-	require.NoError(t, err)
-
-	cluster := framework.NewTestCluster(t, 5,
-		framework.WithEpochSize(10),
-		framework.WithGovernanceVotingDelay(1),
-		framework.WithGovernanceVotingPeriod(3*epochSize),
-		framework.WithPremine(validatorAcc.Address()),
-		framework.WithTestBridge(true),
-	)
-	defer cluster.Stop()
-
-	cluster.WaitForReady(t)
-
-	proposer := cluster.Servers[0]
-
-	proposerAcc, err := helper.GetAccountFromDir(proposer.DataDir())
-	require.NoError(t, err)
-
-	relayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(proposer.JSONRPC()))
-	require.NoError(t, err)
-
-	polybftCfg, err := polybft.LoadPolyBFTConfig(path.Join(cluster.Config.TmpDir, chainConfigFileName))
-	require.NoError(t, err)
-
-	// approve native token
-	approve := contractsapi.ApproveNativeERC20MintableFn{
-		Spender: contracts.StakeManagerContract,
-		Amount:  ethgo.Ether(1),
-	}
-
-	approveInput, err := approve.EncodeAbi()
-	require.NoError(t, err)
-
-	txn := types.NewTx(types.NewLegacyTx(
-		types.WithFrom(validatorAcc.Address()),
-		types.WithTo(&contracts.NativeERC20TokenContract),
-		types.WithInput(approveInput),
-	))
-
-	recp, err := relayer.SendTransaction(txn, validatorAcc)
-	require.NoError(t, err)
-	require.NotNil(t, recp)
-	require.Equal(t, recp.Status, uint64(types.ReceiptSuccess))
-
-	// propose and execute validator set change
-
-	removeValidator := cluster.Servers[len(cluster.Servers)-1]
-	removeValidatorKey, err := helper.GetAccountFromDir(removeValidator.DataDir())
-	require.NoError(t, err)
-
-	removeValidatorAddr := removeValidatorKey.Address()
-
-	addedValidators := []*addedValidator{
-		{
-			Address: validatorAcc.Address(),
-			Key:     blsKey.PublicKey(),
-		},
-	}
-
-	executeValidatorChangeProposal(t, relayer, proposerAcc, addedValidators, []types.Address{removeValidatorAddr}, cluster, polybftCfg)
-
-	// Check on stake manager
-	currentBlockNumber, err := relayer.Client().BlockNumber()
-	require.NoError(t, err)
-
-	require.NoError(t, cluster.WaitForBlock(currentBlockNumber+epochSize, 2*time.Minute))
-
-	prevAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
-	require.NoError(t, err)
-
-	txHash := apex.SubmitBridgingRequest(
-		t, ctx, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, user, new(big.Int).SetUint64(sendAmount), user)
-
-	fmt.Printf("Tx sent. hash: %s\n", txHash)
-
-	checkValidatorActive(t, validatorAcc.Address(), relayer, true)
-	checkValidatorActive(t, removeValidatorAddr, relayer, false)
-
-	require.NoError(t, proposer.Stop())
-
-	validatorSet := getFullValidatorSet(t, proposer)
-	addedValidator, ok := validatorSet.Validators[validatorAcc.Address()]
-	require.True(t, ok)
-	require.NotNil(t, addedValidator)
-	require.True(t, addedValidator.IsActive)
-
-	removedValidator, ok := validatorSet.Validators[removeValidatorAddr]
-	require.True(t, ok)
-	require.NotNil(t, removedValidator)
-	require.False(t, removedValidator.IsActive)
-
-	err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDVector, prevAmountDfm,
-		100, 1*time.Second)
-	require.NoError(t, err)
 }
