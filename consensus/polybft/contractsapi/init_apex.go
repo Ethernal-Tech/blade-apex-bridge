@@ -14,7 +14,6 @@ type ApexBridgeContractsInfo struct {
 	Slots         *contracts.Artifact
 	Validators    *contracts.Artifact
 	Admin         *contracts.Artifact
-	TestBridge    *contracts.Artifact
 }
 
 var ApexBridgeContracts *ApexBridgeContractsInfo
@@ -55,11 +54,6 @@ func initApexContracts() error {
 		return fmt.Errorf("failed to decode apex admin sc: %w", err)
 	}
 
-	testBridge, err := contracts.DecodeArtifact(readTestContractContent("TestBridge.json"))
-	if err != nil {
-		return fmt.Errorf("failed to decoed apex test bridge %w", err)
-	}
-
 	ApexBridgeContracts = &ApexBridgeContractsInfo{
 		Bridge:        bridge,
 		ClaimsHelper:  claimsHelper,
@@ -68,7 +62,6 @@ func initApexContracts() error {
 		Slots:         slots,
 		Validators:    validators,
 		Admin:         admin,
-		TestBridge:    testBridge,
 	}
 
 	return nil

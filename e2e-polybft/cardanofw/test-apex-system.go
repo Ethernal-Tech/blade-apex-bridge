@@ -177,7 +177,6 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 		framework.WithEpochReward(0),
 		framework.WithNativeTokenConfig("Blade:BLADE:18:true"),
 		framework.WithProxyContractsAdmin(bladeProxyAdmin.Address().String()),
-		framework.WithTestBridge(a.Config.TestBridge),
 		framework.WithNonValidators(a.Config.BladeNonValidatorCount),
 	)
 

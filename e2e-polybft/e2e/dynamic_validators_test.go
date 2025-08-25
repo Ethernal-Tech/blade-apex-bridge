@@ -458,7 +458,6 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 		cardanofw.WithAPIValidatorID(-1),
 		cardanofw.WithNonValidators(1),
 		cardanofw.WithNexusEnabled(true),
-		// cardanofw.WithTestBridge(),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())

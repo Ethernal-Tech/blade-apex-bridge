@@ -47,7 +47,7 @@ func GetCommand() *cobra.Command {
 		"chain_name:multisig_verification:fee_verification:multisig_stake_verification:fee_stake_verification",
 	)
 
-	// _ = cmd.MarkFlagRequired("cardano-like-chain")
+	_ = cmd.MarkFlagRequired("cardano-like-chain")
 
 	cmd.Flags().StringVar(
 		&bladeParam,

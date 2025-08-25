@@ -16,11 +16,8 @@ const (
 	ApexConfigNexus       = 2
 )
 
-func getApexContracts(testBridge bool) []*contractInfo {
+func getApexContracts() []*contractInfo {
 	bridgeArtifact := contractsapi.ApexBridgeContracts.Bridge
-	if testBridge {
-		bridgeArtifact = contractsapi.ApexBridgeContracts.TestBridge
-	}
 
 	return []*contractInfo{
 		// Apex contracts
