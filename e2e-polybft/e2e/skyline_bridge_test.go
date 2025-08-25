@@ -1215,6 +1215,47 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 		}
 	})
 
+	t.Run("with redistribution", func(t *testing.T) {
+		ctxChild, cncl := context.WithCancel(ctx)
+		defer cncl()
+
+		timeout := 5 * time.Minute
+		interval := 10 * time.Second
+		deadline := time.Now().Add(timeout)
+
+		getCntConsolidationMap := checkConsolidationBatchCounts(
+			t, ctxChild,
+			apex.BridgeCluster.Servers[0].JSONRPC(),
+			[]string{cardanofw.ChainIDPrime})
+
+		err = apex.RedistributeTokens(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
+		for {
+			addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+			require.NoError(t, err)
+			require.Equal(t, bridgeAddrCnt, len(addrAmounts))
+
+			fmt.Println("Multisig addresses amounts: ", addrAmounts)
+
+			if !isDiffGreaterThanOne(addrAmounts[0][wallet.AdaTokenName], addrAmounts[1][wallet.AdaTokenName]) {
+				fmt.Println("Redistribution done.")
+
+				for _, cnt := range getCntConsolidationMap() {
+					assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
+				}
+
+				break
+			}
+
+			if time.Now().After(deadline) {
+				t.Fatal("Timed out waiting for expected redistribution")
+			}
+
+			time.Sleep(interval)
+		}
+	})
+
 	primeAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
 	require.NoError(t, err)
 	fmt.Println("Prime multisig addresses amounts: ", primeAddrAmounts)
@@ -1222,6 +1263,14 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 	cardanoAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
 	require.NoError(t, err)
 	fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
+}
+
+func isDiffGreaterThanOne(a, b *big.Int) bool {
+	diff := new(big.Int).Sub(a, b)
+	if diff.Sign() < 0 {
+		diff.Neg(diff) // Make it absolute
+	}
+	return diff.Cmp(big.NewInt(1)) > 0
 }
 
 func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(t *testing.T) {
@@ -3216,4 +3265,130 @@ func TestE2E_SkylineBridge_MutltipleAddresses_NativeTokens(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Multisig addresses amounts: ", addrAmounts)
 	})
+}
+
+func TestE2E_SkylineBridge_RedistributeTokens(t *testing.T) {
+	const (
+		apiKey = "test_api_key"
+	)
+
+	bridgeAddCnt := 3
+	bridgingAmount := big.NewInt(10_000_002)
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig.FundTokenAmount = 1_000_000_000
+	primeConfig.BridgingAddressCnt = bridgeAddCnt
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddCnt),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+	fmt.Println("Multisig addresses amounts: ", addrAmounts)
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[1],
+		cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+		bridgingAmount, sendtx.BridgingTypeCurrencyOnSource)
+
+	addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+	fmt.Println("Multisig addresses amounts: ", addrAmounts)
+
+	err = apex.RedistributeTokens(ctx, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[1], apex.Users[0],
+		cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
+		bridgingAmount, sendtx.BridgingTypeNativeTokenOnSource)
+
+	addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+	fmt.Println("Multisig addresses amounts: ", addrAmounts)
+
+	require.Equal(t, bridgeAddCnt, len(addrAmounts))
+	require.False(t, isDiffGreaterThanOne(addrAmounts[1][wallet.AdaTokenName], addrAmounts[2][wallet.AdaTokenName]))
+	require.True(t, addrAmounts[0][wallet.AdaTokenName].Cmp(addrAmounts[1][wallet.AdaTokenName]) < 0)
+}
+
+func TestE2E_SkylineBridge_RedistributeTokensSimultaniously(t *testing.T) {
+	const (
+		apiKey = "test_api_key"
+	)
+
+	bridgeAddCnt := 3
+	bridgingAmount := big.NewInt(10_000_001)
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig.FundTokenAmount = 1_000_000_000
+	primeConfig.BridgingAddressCnt = bridgeAddCnt
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddCnt),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+	fmt.Println("Multisig addresses amounts: ", addrAmounts)
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[1],
+		cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+		bridgingAmount, sendtx.BridgingTypeCurrencyOnSource)
+
+	addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+	fmt.Println("Multisig addresses amounts: ", addrAmounts)
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		for range 3 {
+			err = apex.RedistributeTokens(ctx, cardanofw.ChainIDPrime)
+			require.NoError(t, err)
+			fmt.Println("Token redistributed")
+			time.Sleep(500 * time.Millisecond)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[1], apex.Users[0],
+			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
+			bridgingAmount, sendtx.BridgingTypeNativeTokenOnSource)
+	}()
+
+	wg.Wait()
+
+	addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+	fmt.Println("Multisig addresses amounts: ", addrAmounts)
+
+	require.Equal(t, bridgeAddCnt, len(addrAmounts))
+	require.False(t, isDiffGreaterThanOne(addrAmounts[1][wallet.AdaTokenName], addrAmounts[2][wallet.AdaTokenName]))
 }

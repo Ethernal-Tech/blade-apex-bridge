@@ -905,6 +905,29 @@ func (a *ApexSystem) DeregisterStakeAddress(
 	}, os.Stdout)
 }
 
+func (a *ApexSystem) RedistributeTokens(
+	ctx context.Context, chainID ChainID,
+) error {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	pk := hex.EncodeToString(pkBytes)
+
+	chain, err := a.getChain(chainID)
+	if err != nil {
+		return err
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), []string{
+		"bridge-admin", "redistribute-bridging-addresses-tokens",
+		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--chain", chain.ChainID(),
+		"--key", pk,
+	}, os.Stdout)
+}
+
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
 	receiverAddr string, lovelaceDfmAmount *big.Int, nativeTokenAmounts []cardanowallet.TokenAmount, data []byte,
