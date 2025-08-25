@@ -3197,7 +3197,7 @@ func TestE2E_SkylineBridge_MutltipleAddresses_NativeTokens(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
-	t.Run("Send all native tokens from address", func(t *testing.T) {
+	t.Run("Send all native tokens from address with lovelace", func(t *testing.T) {
 		sendAmountToken := big.NewInt(11159410 - 3_000_000)
 		sendAmountNative := big.NewInt(1_000_000)
 		sendAmounts := []*big.Int{sendAmountNative, sendAmountToken}
