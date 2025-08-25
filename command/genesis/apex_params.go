@@ -17,12 +17,10 @@ const (
 )
 
 func getApexContracts() []*contractInfo {
-	bridgeArtifact := contractsapi.ApexBridgeContracts.Bridge
-
 	return []*contractInfo{
 		// Apex contracts
 		{
-			artifact: bridgeArtifact,
+			artifact: contractsapi.ApexBridgeContracts.Bridge,
 			address:  contracts.BridgeAddr,
 		},
 		{
