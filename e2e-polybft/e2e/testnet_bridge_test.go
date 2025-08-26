@@ -267,6 +267,8 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetTestnetApexBridgeConfig())
 	require.NoError(t, err)
 
+	srcChain := cardanofw.ChainIDPrime
+
 	if IsVectorEnabled(apex) {
 		t.Run("From Prime to Vector sequential and parallel with max receivers", func(t *testing.T) {
 			const (
@@ -297,7 +299,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		PrimeToNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+		DstNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, srcChain, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 
 	t.Run("Prime and Nexus both directions sequential and parallel", func(t *testing.T) {
@@ -309,8 +311,8 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 		receiverUser := apex.Users[parallelInstances]
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		PrimeNexusBothDirectionsSequentialAndParallel(
-			t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+		DstNexusBothDirectionsSequentialAndParallel(
+			t, ctx, apex, srcChain, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 
 	t.Run("From Nexus to Prime sequential and parallel max receivers", func(t *testing.T) {
@@ -321,7 +323,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		NexusToPrimeSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+		SrcNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, srcChain, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 }
 
@@ -335,6 +337,8 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	const (
 		requestStateTimeoutSec = 1500
 	)
+
+	srcChain := cardanofw.ChainIDPrime
 
 	if IsVectorEnabled(apex) {
 		t.Run("Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
@@ -365,31 +369,31 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	t.Run("Prime to Nexus submitter not enough funds", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(500_000))
 
-		PrimeToNexusSubmitterNotEnoughFunds(t, ctx, apex, apex.Users[6], sendAmountDfm)
+		DstNexusSubmitterNotEnoughFunds(t, ctx, apex, srcChain, apex.Users[6], sendAmountDfm)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - sliced off", func(t *testing.T) {
-		PrimeToNexusInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[7])
+		DstNexusInvalidMetadataSlicedOff(t, ctx, apex, srcChain, apex.Users[7])
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - wrong type", func(t *testing.T) {
-		PrimeToNexusInvalidMetadataWrongType(t, ctx, apex, apex.Users[8], requestStateTimeoutSec)
+		DstNexusInvalidMetadataWrongType(t, ctx, apex, srcChain, apex.Users[8], requestStateTimeoutSec)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - invalid destination", func(t *testing.T) {
-		PrimeToNexusInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[9], requestStateTimeoutSec)
+		DstNexusInvalidMetadataInvalidDestination(t, ctx, apex, srcChain, apex.Users[9], requestStateTimeoutSec)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - invalid sender", func(t *testing.T) {
-		PrimeToNexusInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[0], requestStateTimeoutSec)
+		DstNexusInvalidMetadataInvalidSender(t, ctx, apex, srcChain, apex.Users[0], requestStateTimeoutSec)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - empty tx", func(t *testing.T) {
-		PrimeToNexusInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[1], requestStateTimeoutSec)
+		DstNexusInvalidMetadataInvalidTransactions(t, ctx, apex, srcChain, apex.Users[1], requestStateTimeoutSec)
 	})
 
 	t.Run("Nexus to Prime submitter not enough funds", func(t *testing.T) {
-		NexusToPrimeSubmitterNotEnoughFunds(t, ctx, apex)
+		SrcNexusSubmitterNotEnoughFunds(t, ctx, apex, srcChain)
 	})
 }
 
