@@ -25,8 +25,7 @@ func ExecuteSingleBridging(
 	prevAmountDfm, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	require.NoError(t, err)
 
-	txHash := apex.SubmitBridgingRequest(
-		t, ctx, srcChain, dstChain, senderUser, sendAmountDfm, receiverUser)
+	txHash := apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, senderUser, sendAmountDfm, receiverUser)
 	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -84,67 +83,117 @@ func ExecuteBridgingWaitAfterSubmits(
 func ExecuteBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	senderUsers []*cardanofw.TestApexUser, receiverUsers []*cardanofw.TestApexUser,
-	chains []string, chainsDst map[string][]string,
-	sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
+	chains []string, chainsDst map[string][]string, sendAmountDfm *big.Int,
+	options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
 	config := newExecuteBridgingConfig(options...)
 	dstChains := getAllDestionationChains(chains, chainsDst)
 	chainPairs := getAllChainPairs(chains, chainsDst)
-	expectedAmountPerChainDfm := make([]map[string]*big.Int, len(receiverUsers))
+	initialReceiverAmounts := make([]map[string]*big.Int, len(receiverUsers))
 
 	for i, receiverUser := range receiverUsers {
-		expectedAmountPerChainDfm[i] = make(map[string]*big.Int)
+		initialReceiverAmounts[i] = make(map[string]*big.Int)
 
 		for _, dstChain := range dstChains {
 			dfm, err := apex.GetBalance(ctx, receiverUser, dstChain)
 			require.NoError(t, err)
 
-			expectedAmountPerChainDfm[i][dstChain] = dfm
+			initialReceiverAmounts[i][dstChain] = dfm
 		}
 	}
 
-	config.sendTxStrategy(t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender)
-
-	// update expectedAmountPerChainDfm
-	for recieverUserIdx := range receiverUsers {
-		for _, chainPair := range chainPairs {
-			tmp := expectedAmountPerChainDfm[recieverUserIdx][chainPair.dstChain]
-			tmp.Add(tmp, new(big.Int).Mul(sendAmountDfm, big.NewInt(int64(txCountPerSender)*int64(len(senderUsers)))))
-		}
-	}
+	sendTxDatas := config.sendTxStrategy(
+		t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender)
 
 	config.restartValidatorStrategy(t, ctx, apex, config.restartValidatorsConfigs)
 
 	var (
-		wgResults sync.WaitGroup
-		errs      = make([]error, len(receiverUsers)*len(dstChains))
+		wgResults              sync.WaitGroup
+		lock                   sync.RWMutex
+		originalDesiredAmounts = make(map[string]*big.Int, len(dstChains))
+		desiredAmounts         = make(map[string]*big.Int, len(dstChains))
+		closeCh                = make(chan struct{})
+		txHashTxDataMap        = make(map[string]*SubmittedTxData)
+		errs                   = make([]error, len(receiverUsers)*len(dstChains))
 	)
+	// calculate desired amounts per chain
+	for _, txData := range sendTxDatas {
+		if _, exists := originalDesiredAmounts[txData.DstChainID]; !exists {
+			originalDesiredAmounts[txData.DstChainID] = big.NewInt(0)
+		}
+
+		originalDesiredAmounts[txData.DstChainID].Add(originalDesiredAmounts[txData.DstChainID], txData.SendAmountDfm)
+		txHashTxDataMap[txData.TxHash] = txData
+	}
+	// set initial desired amounts
+	for _, chainID := range dstChains {
+		desiredAmounts[chainID] = new(big.Int).Set(originalDesiredAmounts[chainID])
+	}
+	// recalculate desired amounts every N seconds
+	go func() {
+		for {
+			select {
+			case <-time.After(time.Second * 10):
+			case <-closeCh:
+				return
+			}
+
+			for _, chainPair := range chainPairs {
+				sum := new(big.Int)
+
+				// Retrieve all failed transactions on the source chain, if any
+				for _, txHash := range apex.GetChainMust(t, chainPair.srcChain).GetIndexer().GetFailedTxs() {
+					sum.Add(sum, txHashTxDataMap[txHash].SendAmountDfm)
+				}
+
+				lock.Lock()
+				// Subtract failed transaction amounts from the original desired amounts on the destination chain
+				desiredAmounts[chainPair.dstChain].Sub(originalDesiredAmounts[chainPair.dstChain], sum)
+				lock.Unlock()
+			}
+		}
+	}()
 
 	for i, user := range receiverUsers {
 		for j, dstChain := range dstChains {
 			wgResults.Add(1)
 
-			go func(idx int, idxChain int, receiverUser *cardanofw.TestApexUser, dstChain string, expectedAmountDfm *big.Int) {
+			go func(
+				idx int, idxChain int, receiverUser *cardanofw.TestApexUser,
+				dstChain string, initialAmountDfm *big.Int,
+			) {
 				defer wgResults.Done()
 
-				err := apex.WaitForExactAmount(
-					ctx, receiverUser, dstChain, expectedAmountDfm,
+				bigIntCache := new(big.Int)
+
+				getDesiredAmount := func() *big.Int {
+					lock.RLock()
+					defer lock.RUnlock()
+
+					return bigIntCache.Add(bigIntCache.Set(initialAmountDfm), desiredAmounts[dstChain])
+				}
+
+				receivedAmount, err := apex.WaitForAmount(
+					ctx, receiverUser, dstChain, func(currentAmount *big.Int) bool {
+						return currentAmount.Cmp(getDesiredAmount()) == 0
+					},
 					len(receiverUsers)*config.timeoutConfig.bridgingNumRetries,
 					config.timeoutConfig.bridgingRetryWaitTime)
 				if err != nil {
-					errs[idx*len(dstChains)+idxChain] = fmt.Errorf("receiver %d on %s: %w", idx, dstChain, err)
+					errs[idx*len(dstChains)+idxChain] = fmt.Errorf("receiver %d on %s (%s vs %s): %w",
+						idx, dstChain, receivedAmount, getDesiredAmount(), err)
 
 					return
 				}
 
-				fmt.Printf("TXs on %s for user %d expected amount received\n", dstChain, idx)
+				fmt.Printf("TXs on %s for user %d expected amount received %s\n", dstChain, idx, receivedAmount)
 
 				if config.waitForUnexpectedBridges {
 					// nothing else should be bridged for 2 minutes
 					err = apex.WaitForGreaterAmount(
-						ctx, receiverUser, dstChain, expectedAmountDfm, 12, time.Second*10)
+						ctx, receiverUser, dstChain, receivedAmount, 12, time.Second*10)
 					if !errors.Is(err, infracommon.ErrRetryTimeout) {
 						errs[idx*len(dstChains)+idxChain] = fmt.Errorf(
 							"receiver %d on %s should not receive more tokens: %w", idx, dstChain, err)
@@ -154,11 +203,13 @@ func ExecuteBridging(
 
 					fmt.Printf("TXs on %s for user %d finished with success\n", dstChain, idx)
 				}
-			}(i, j, user, dstChain, expectedAmountPerChainDfm[i][dstChain])
+			}(i, j, user, dstChain, initialReceiverAmounts[i][dstChain])
 		}
 	}
 
 	wgResults.Wait()
+
+	close(closeCh)
 
 	require.NoError(t, errors.Join(errs...))
 }

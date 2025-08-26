@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
@@ -23,7 +24,9 @@ func SendTx(ctx context.Context,
 	amount uint64,
 	receiver string,
 	networkType wallet.CardanoNetworkType,
+	networkMagic uint,
 	metadata []byte,
+	txsExecutedComponent e2eindexer.TxsExecutedComponent,
 ) (string, error) {
 	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
 		txBuilder, err := wallet.NewTxBuilder(ResolveCardanoCliBinary(networkType))
@@ -39,7 +42,7 @@ func SendTx(ctx context.Context,
 		}
 
 		txRaw, txHash, err := createTx(
-			ctx, txBuilder, txProvider, caddr.String(), amount, receiver, networkType, metadata)
+			ctx, txBuilder, txProvider, caddr.String(), amount, receiver, networkMagic, metadata)
 		if err != nil {
 			return "", fmt.Errorf("failed to create transaction: %w", err)
 		}
@@ -47,6 +50,10 @@ func SendTx(ctx context.Context,
 		signedTx, err := txBuilder.SignTx(txRaw, []wallet.ITxSigner{senderWallet})
 		if err != nil {
 			return "", fmt.Errorf("failed to sign transaction: %w", err)
+		}
+
+		if txsExecutedComponent != nil {
+			txsExecutedComponent.Add(txHash)
 		}
 
 		if err := txProvider.SubmitTx(ctx, signedTx); err != nil {
@@ -64,7 +71,7 @@ func createTx(
 	senderAddr string,
 	amount uint64,
 	receiverAddr string,
-	networkType wallet.CardanoNetworkType,
+	networkMagic uint,
 	metadata []byte,
 ) ([]byte, string, error) {
 	allUtxos, err := txProvider.GetUtxos(ctx, senderAddr)
@@ -81,7 +88,7 @@ func createTx(
 		return nil, "", err
 	}
 
-	txBuilder.SetTestNetMagic(GetNetworkMagic(networkType))
+	txBuilder.SetTestNetMagic(networkMagic)
 
 	if len(metadata) != 0 {
 		txBuilder.SetMetaData(metadata)
