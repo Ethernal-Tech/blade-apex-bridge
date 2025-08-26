@@ -143,16 +143,24 @@ func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSm
 	dir, err := filepath.Abs(bridgeSmartContractsDirPath)
 	require.NoError(t, err)
 
-	deployedContractAddr, err := apexSystem.DeploySmartContract(
-		dir, "BridgingAddresses", []string{contracts.Bridge.String(), contracts.Claims.String()})
+	bridgingAddressesContractAddr, err := apexSystem.DeploySmartContract(
+		dir, "BridgingAddresses", []string{contracts.Bridge.String(), contracts.Claims.String(), contracts.ApexBridgeAdmin.String()})
 	require.NoError(t, err)
+
+	require.NoError(t, apexSystem.UpgradeSmartContract(&UpgradeSCParams{
+		contractsDir:    dir,
+		contractName:    "Admin",
+		contractAddress: contracts.ApexBridgeAdmin.String(),
+		functionName:    "setBridgingAddrsDependency",
+		functionArgs:    []string{bridgingAddressesContractAddr},
+	}))
 
 	require.NoError(t, apexSystem.UpgradeSmartContract(&UpgradeSCParams{
 		contractsDir:    dir,
 		contractName:    "Bridge",
 		contractAddress: contracts.Bridge.String(),
 		functionName:    "setBridgingAddrsDependencyAndSync",
-		functionArgs:    []string{deployedContractAddr},
+		functionArgs:    []string{bridgingAddressesContractAddr},
 	}))
 
 	require.NoError(t, apexSystem.UpgradeSmartContract(&UpgradeSCParams{
@@ -160,7 +168,7 @@ func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSm
 		contractName:    "Claims",
 		contractAddress: contracts.Claims.String(),
 		functionName:    "setBridgingAddrsDependencyAndSync",
-		functionArgs:    []string{deployedContractAddr},
+		functionArgs:    []string{bridgingAddressesContractAddr},
 		gasLimit:        7_000_000,
 	}))
 }

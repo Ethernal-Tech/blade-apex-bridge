@@ -3228,6 +3228,7 @@ func TestE2E_SkylineBridge_MutltipleAddresses_NativeTokens(t *testing.T) {
 	})
 }
 
+// go test -timeout 0 -run ^TestE2E_SkylineBridge_RedistributeTokens$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
 func TestE2E_SkylineBridge_RedistributeTokens(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
@@ -3283,6 +3284,7 @@ func TestE2E_SkylineBridge_RedistributeTokens(t *testing.T) {
 	require.True(t, addrAmounts[0][wallet.AdaTokenName].Cmp(addrAmounts[1][wallet.AdaTokenName]) < 0)
 }
 
+// go test -timeout 0 -run ^TestE2E_SkylineBridge_RedistributeTokensSimultaniously$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
 func TestE2E_SkylineBridge_RedistributeTokensSimultaniously(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
