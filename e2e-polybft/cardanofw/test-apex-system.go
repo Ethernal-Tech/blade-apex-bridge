@@ -307,7 +307,9 @@ func (a *ApexSystem) UpdateConfigs() error {
 	}
 
 	for _, chain := range a.chains {
-		chain.PopulateApexSystem(a)
+		if err := chain.PopulateApexSystem(a); err != nil {
+			return err
+		}
 	}
 
 	return nil
