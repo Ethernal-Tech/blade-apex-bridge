@@ -2624,9 +2624,6 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 
 // go test -timeout 0 -run ^TestE2E_SkylineBridge_SimpleStakingTest$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
 func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
-	// TODO: Will fail on CI because code for this is not merged
-	// to this branch, remove before merge!
-	t.Skip()
 
 	const apiKey = "test_api_key"
 
@@ -2764,9 +2761,6 @@ func TestE2E_SkylineBridge_SimpleStakingTest(t *testing.T) {
 
 // go test -timeout 0 -run ^TestE2E_SkylineBridge_SimultaniousStakingTest$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
 func TestE2E_SkylineBridge_SimultaniousStakingTest(t *testing.T) {
-	// TODO: Will fail on CI because code for this is not merged
-	// to this branch, remove before merge!
-	t.Skip()
 
 	const apiKey = "test_api_key"
 
