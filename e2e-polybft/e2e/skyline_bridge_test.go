@@ -1219,40 +1219,15 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 		ctxChild, cncl := context.WithCancel(ctx)
 		defer cncl()
 
-		timeout := 5 * time.Minute
-		interval := 10 * time.Second
-		deadline := time.Now().Add(timeout)
-
 		getCntConsolidationMap := checkConsolidationBatchCounts(
 			t, ctxChild,
 			apex.BridgeCluster.Servers[0].JSONRPC(),
 			[]string{cardanofw.ChainIDPrime})
 
-		err = apex.RedistributeTokens(ctx, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
+		e2ehelper.ExecuteTokenRedistribution(t, ctx, apex, cardanofw.ChainIDPrime, 50, 5*time.Minute)
 
-		for {
-			addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-			require.NoError(t, err)
-			require.Equal(t, bridgeAddrCnt, len(addrAmounts))
-
-			fmt.Println("Multisig addresses amounts: ", addrAmounts)
-
-			if !isDiffGreaterThanOne(addrAmounts[0][wallet.AdaTokenName], addrAmounts[1][wallet.AdaTokenName]) {
-				fmt.Println("Redistribution done.")
-
-				for _, cnt := range getCntConsolidationMap() {
-					assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
-				}
-
-				break
-			}
-
-			if time.Now().After(deadline) {
-				t.Fatal("Timed out waiting for expected redistribution")
-			}
-
-			time.Sleep(interval)
+		for _, cnt := range getCntConsolidationMap() {
+			assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
 		}
 	})
 
@@ -1263,14 +1238,6 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 	cardanoAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
 	require.NoError(t, err)
 	fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
-}
-
-func isDiffGreaterThanOne(a, b *big.Int) bool {
-	diff := new(big.Int).Sub(a, b)
-	if diff.Sign() < 0 {
-		diff.Neg(diff) // Make it absolute
-	}
-	return diff.Cmp(big.NewInt(1)) > 0
 }
 
 func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(t *testing.T) {
@@ -3274,6 +3241,7 @@ func TestE2E_SkylineBridge_RedistributeTokens(t *testing.T) {
 
 	bridgeAddCnt := 3
 	bridgingAmount := big.NewInt(10_000_002)
+
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
@@ -3292,21 +3260,20 @@ func TestE2E_SkylineBridge_RedistributeTokens(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-	require.NoError(t, err)
-	fmt.Println("Multisig addresses amounts: ", addrAmounts)
-
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.Users[0], apex.Users[1],
 		cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
 		bridgingAmount, sendtx.BridgingTypeCurrencyOnSource)
 
+	addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+	fmt.Println("Multisig addresses amounts after the initial bridging: ", addrAmounts)
+
+	e2ehelper.ExecuteTokenRedistribution(t, ctx, apex, cardanofw.ChainIDPrime, 30, 2*time.Minute)
+
 	addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
 	require.NoError(t, err)
-	fmt.Println("Multisig addresses amounts: ", addrAmounts)
-
-	err = apex.RedistributeTokens(ctx, cardanofw.ChainIDPrime)
-	require.NoError(t, err)
+	fmt.Println("Multisig addresses amounts after redistribution: ", addrAmounts)
 
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.Users[1], apex.Users[0],
@@ -3318,7 +3285,7 @@ func TestE2E_SkylineBridge_RedistributeTokens(t *testing.T) {
 	fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
 	require.Equal(t, bridgeAddCnt, len(addrAmounts))
-	require.False(t, isDiffGreaterThanOne(addrAmounts[1][wallet.AdaTokenName], addrAmounts[2][wallet.AdaTokenName]))
+	require.False(t, e2ehelper.IsDiffGreaterThanOne(addrAmounts[1][wallet.AdaTokenName], addrAmounts[2][wallet.AdaTokenName]))
 	require.True(t, addrAmounts[0][wallet.AdaTokenName].Cmp(addrAmounts[1][wallet.AdaTokenName]) < 0)
 }
 
@@ -3329,6 +3296,7 @@ func TestE2E_SkylineBridge_RedistributeTokensSimultaniously(t *testing.T) {
 
 	bridgeAddCnt := 3
 	bridgingAmount := big.NewInt(10_000_001)
+
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
@@ -3347,18 +3315,14 @@ func TestE2E_SkylineBridge_RedistributeTokensSimultaniously(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-	require.NoError(t, err)
-	fmt.Println("Multisig addresses amounts: ", addrAmounts)
-
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.Users[0], apex.Users[1],
 		cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
 		bridgingAmount, sendtx.BridgingTypeCurrencyOnSource)
 
-	addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+	addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
 	require.NoError(t, err)
-	fmt.Println("Multisig addresses amounts: ", addrAmounts)
+	fmt.Println("Multisig addresses amounts after the initial bridging: ", addrAmounts)
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)
@@ -3369,7 +3333,6 @@ func TestE2E_SkylineBridge_RedistributeTokensSimultaniously(t *testing.T) {
 		for range 3 {
 			err = apex.RedistributeTokens(ctx, cardanofw.ChainIDPrime)
 			require.NoError(t, err)
-			fmt.Println("Token redistributed")
 			time.Sleep(500 * time.Millisecond)
 		}
 	}()
@@ -3390,5 +3353,5 @@ func TestE2E_SkylineBridge_RedistributeTokensSimultaniously(t *testing.T) {
 	fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
 	require.Equal(t, bridgeAddCnt, len(addrAmounts))
-	require.False(t, isDiffGreaterThanOne(addrAmounts[1][wallet.AdaTokenName], addrAmounts[2][wallet.AdaTokenName]))
+	require.False(t, e2ehelper.IsDiffGreaterThanOne(addrAmounts[1][wallet.AdaTokenName], addrAmounts[2][wallet.AdaTokenName]))
 }

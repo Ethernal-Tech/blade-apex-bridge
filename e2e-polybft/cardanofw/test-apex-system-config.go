@@ -137,6 +137,7 @@ func WithUserCnt(userCnt uint) ApexSystemOptions {
 func WithBridgingAddrCnt(chainID ChainID, addressCnt int) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.UpdateAddressCountChains = append(h.UpdateAddressCountChains, chainID)
+
 		switch chainID {
 		case ChainIDPrime:
 			h.PrimeConfig.BridgingAddressCnt = addressCnt

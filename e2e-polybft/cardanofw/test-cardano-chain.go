@@ -598,6 +598,7 @@ func (ec *TestCardanoChain) determineMultisigAddressToSendTo(ctx context.Context
 
 		if amount == 0 {
 			fmt.Printf("%s address with index %d chosen for bridging because of 0 amount\n", address, i)
+
 			return address, nil
 		}
 
@@ -610,6 +611,7 @@ func (ec *TestCardanoChain) determineMultisigAddressToSendTo(ctx context.Context
 	}
 
 	fmt.Printf("%s address with index %d chosen for bridging\n", ec.multisigAddr[index], index)
+
 	return ec.multisigAddr[index], nil
 }
 

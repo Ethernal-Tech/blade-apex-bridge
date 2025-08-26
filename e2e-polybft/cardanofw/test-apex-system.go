@@ -745,6 +745,28 @@ func (a *ApexSystem) WaitForAmount(
 	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
 }
 
+func (a *ApexSystem) WaitForRedistribution(
+	ctx context.Context, chainID ChainID, cmpHandler func(*big.Int, *big.Int) bool, numRetries int, waitTime time.Duration,
+) error {
+	_, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*big.Int, error) {
+		addrAmounts, err := a.GetBridgingAddressesTokenAmounts(ctx, chainID)
+		if err != nil {
+			return nil, err
+		}
+
+		firstAddrAmount := addrAmounts[0][cardanowallet.AdaTokenName]
+		for i := 1; i < len(addrAmounts); i++ {
+			if cmpHandler(firstAddrAmount, addrAmounts[i][cardanowallet.AdaTokenName]) {
+				return nil, infracommon.ErrRetryTryAgain
+			}
+		}
+
+		return nil, nil
+	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
+
+	return err
+}
+
 func (a *ApexSystem) DefundHotWallet(
 	chain ChainID, defundReceiverAddress string, defundDfm *big.Int, defundNativeTokenAmount *big.Int,
 ) error {

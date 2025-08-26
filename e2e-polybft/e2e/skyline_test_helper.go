@@ -284,7 +284,10 @@ func createMetadata(
 
 	chain := apex.GetChainMust(t, srcChain)
 
-	feeAmount, err := chain.GetBridgingFee(ctx, dstChain, receivers, bridgingFee, operationFee, apex.GetChainMust(t, srcChain).GetHotWalletAddress())
+	feeAmount, err := chain.GetBridgingFee(
+		ctx, dstChain, receivers, bridgingFee, operationFee,
+		apex.GetChainMust(t, srcChain).GetHotWalletAddress(),
+	)
 	require.NoError(t, err)
 
 	metadata, err := chain.CreateMetadata(sender.GetAddress(srcChain), dstChain, receivers, feeAmount, operationFee)
