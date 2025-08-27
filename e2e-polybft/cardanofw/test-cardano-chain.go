@@ -49,6 +49,7 @@ type TestCardanoChainConfig struct {
 	MinBridgingFee              uint64
 	MinOperationFee             uint64
 	BridgeAddrHasStake          bool
+	BridgingAddressCnt          int
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -69,6 +70,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		MinBridgingFee:              defaultMinBridgingFeeAmount,
 		MinOperationFee:             uint64(0),
 		BridgeAddrHasStake:          true,
+		BridgingAddressCnt:          1,
 	}
 }
 
@@ -107,6 +109,7 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		FundTokenAmount:             defaultNativeTokenAmount,
 		MinBridgingFee:              defaultMinBridgingFeeAmount,
 		MinOperationFee:             DefaultMinOperationFee,
+		BridgingAddressCnt:          1,
 	}
 }
 
@@ -149,8 +152,8 @@ type TestCardanoChain struct {
 	ogmiosURL         string
 	blockfrostURL     string
 	blockfrostAPIKey  string
-	multisigAddr      string
-	multisigStakeAddr string
+	multisigAddr      []string
+	multisigStakeAddr []string
 	multisigFeeAddr   string
 	txSender          *sendtx.TxSender
 }
@@ -170,7 +173,7 @@ func (ec *TestCardanoChain) GetBridgingStakeAddressInfo(
 
 	stakeBridgingAddrInfo, err := infracommon.ExecuteWithRetry(ctx,
 		func(ctx context.Context) (infrawallet.QueryStakeAddressInfo, error) {
-			addrInfo, err := txProvider.GetStakeAddressInfo(ctx, ec.multisigStakeAddr)
+			addrInfo, err := txProvider.GetStakeAddressInfo(ctx, ec.multisigStakeAddr[indx])
 			if err != nil && !expectError {
 				return infrawallet.QueryStakeAddressInfo{}, infracommon.ErrRetryTryAgain
 			}
@@ -308,38 +311,43 @@ func (ec *TestCardanoChain) CreateAddresses(
 		return err
 	}
 
-	args := []string{
-		"create-address",
-		"--network-id", fmt.Sprint(ec.config.NetworkType),
-		"--testnet-magic", fmt.Sprint(GetNetworkMagic(ec.config.NetworkType, ec.ChainID())),
-		"--bridge-url", bridgeURL,
-		"--bridge-addr", contracts.Bridge.String(),
-		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
-		"--chain", ec.ChainID(),
-	}
+	for i := range ec.config.BridgingAddressCnt {
+		args := []string{
+			"create-address",
+			"--network-id", fmt.Sprint(ec.config.NetworkType),
+			"--testnet-magic", fmt.Sprint(GetNetworkMagic(ec.config.NetworkType, ec.ChainID())),
+			"--addr-index", fmt.Sprint(i),
+			"--bridge-url", bridgeURL,
+			"--bridge-addr", contracts.Bridge.String(),
+			"--bridge-key", hex.EncodeToString(bridgeAdminPk),
+			"--chain", ec.ChainID(),
+		}
 
-	var outb bytes.Buffer
+		var outb bytes.Buffer
 
-	err = RunCommand(ResolveApexBridgeBinary(), args, io.MultiWriter(os.Stdout, &outb))
-	if err != nil {
-		return err
-	}
+		err = RunCommand(ResolveApexBridgeBinary(), args, io.MultiWriter(os.Stdout, &outb))
+		if err != nil {
+			return err
+		}
 
-	output := outb.String()
-	reMultisig := regexp.MustCompile(`Multisig Address\s*=\s*([^\s]+)`)
-	reFee := regexp.MustCompile(`Fee Payer Address\s*=\s*([^\s]+)`)
-	reMultisigStake := regexp.MustCompile(`Multisig Stake Address\s*=\s*([^\s]+)`)
+		output := outb.String()
+		reMultisig := regexp.MustCompile(`Multisig Address\s*=\s*([^\s]+)`)
+		reFee := regexp.MustCompile(`Fee Payer Address\s*=\s*([^\s]+)`)
+		reMultisigStake := regexp.MustCompile(`Multisig Stake Address\s*=\s*([^\s]+)`)
 
-	if match := reMultisig.FindStringSubmatch(output); len(match) > 0 {
-		ec.multisigAddr = match[1]
-	}
+		if match := reMultisig.FindStringSubmatch(output); len(match) > 0 {
+			ec.multisigAddr = append(ec.multisigAddr, match[1])
+		}
 
-	if match := reMultisigStake.FindStringSubmatch(output); len(match) > 0 {
-		ec.multisigStakeAddr = match[1]
-	}
+		if match := reMultisigStake.FindStringSubmatch(output); len(match) > 0 {
+			ec.multisigStakeAddr = append(ec.multisigStakeAddr, match[1])
+		}
 
-	if match := reFee.FindStringSubmatch(output); len(match) > 0 {
-		ec.multisigFeeAddr = match[1]
+		if i == 0 {
+			if match := reFee.FindStringSubmatch(output); len(match) > 0 {
+				ec.multisigFeeAddr = match[1]
+			}
+		}
 	}
 
 	return nil
@@ -485,9 +493,10 @@ func (ec *TestCardanoChain) GetBridgingFee(
 	receivers []sendtx.BridgingTxReceiver,
 	bridgingFee uint64,
 	operationFee uint64,
+	multiSigAddr string,
 ) (uint64, error) {
 	return ec.txSender.GetBridgingFee(
-		ctx, ec.ChainID(), dstChainID, receivers, bridgingFee, operationFee)
+		ctx, ec.ChainID(), dstChainID, receivers, multiSigAddr, bridgingFee, operationFee)
 }
 
 func (ec *TestCardanoChain) CreateMetadata(
@@ -535,12 +544,19 @@ func (ec *TestCardanoChain) BridgingRequest(
 		bridgingType = bridgingTypes[0]
 	}
 
+	totalAmnt := uint64(0)
 	for receiverAddress, receiverAmount := range receiversMap {
+		totalAmnt += receiverAmount.Uint64()
 		receivers = append(receivers, sendtx.BridgingTxReceiver{
 			Addr:         receiverAddress,
 			Amount:       DfmToChainNativeTokenAmount(srcChainID, receiverAmount).Uint64(),
 			BridgingType: bridgingType,
 		})
+	}
+
+	multisigAddr, err := ec.determineMultisigAddressToSendTo(ctx, totalAmnt)
+	if err != nil {
+		return "", err
 	}
 
 	txInfo, _, err := ec.txSender.CreateBridgingTx(
@@ -549,6 +565,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		dstChainID,
 		walletAddr.String(),
 		receivers,
+		multisigAddr,
 		feeAmount.Uint64(),
 		operationFee,
 	)
@@ -556,7 +573,46 @@ func (ec *TestCardanoChain) BridgingRequest(
 		return "", err
 	}
 
-	return ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, ec.multisigAddr, wallet)
+	return ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, multisigAddr, wallet)
+}
+
+func (ec *TestCardanoChain) determineMultisigAddressToSendTo(ctx context.Context, amount uint64) (string, error) {
+	txProvider, err := ec.GetTxProvider()
+	if err != nil {
+		return "", err
+	}
+
+	minAmount := uint64(0)
+	index := 0
+
+	for i, address := range ec.multisigAddr {
+		utxos, err := txProvider.GetUtxos(ctx, address)
+		if err != nil {
+			return "", err
+		}
+
+		amount := uint64(0)
+		for _, utxo := range utxos {
+			amount += utxo.Amount
+		}
+
+		if amount == 0 {
+			fmt.Printf("%s address with index %d chosen for bridging because of 0 amount\n", address, i)
+
+			return address, nil
+		}
+
+		if i == 0 {
+			minAmount = amount
+		} else if amount < minAmount {
+			minAmount = amount
+			index = i
+		}
+	}
+
+	fmt.Printf("%s address with index %d chosen for bridging\n", ec.multisigAddr[index], index)
+
+	return ec.multisigAddr[index], nil
 }
 
 func (ec *TestCardanoChain) SendTx(
@@ -601,7 +657,7 @@ func (ec *TestCardanoChain) SendTx(
 }
 
 func (ec *TestCardanoChain) GetHotWalletAddress() string {
-	return ec.multisigAddr
+	return ec.multisigAddr[0]
 }
 
 func (ec *TestCardanoChain) GetAdminPrivateKey() (string, error) {
