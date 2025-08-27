@@ -364,6 +364,7 @@ func (ec *TestEVMChain) GetBridgingFee(
 	_ []sendtx.BridgingTxReceiver,
 	bridgingFee uint64,
 	_ uint64,
+	_ string,
 ) (uint64, error) {
 	return bridgingFee, nil
 }

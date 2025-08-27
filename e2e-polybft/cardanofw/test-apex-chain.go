@@ -50,6 +50,7 @@ type ITestApexChain interface {
 		receivers []sendtx.BridgingTxReceiver,
 		bridgingFee uint64,
 		operationFee uint64,
+		multiSigAddr string,
 	) (uint64, error)
 	CreateMetadata(
 		senderAddr string,
@@ -176,6 +177,7 @@ func (td *TestApexChainDummy) GetBridgingFee(
 	receivers []sendtx.BridgingTxReceiver,
 	bridgingFee uint64,
 	operationFee uint64,
+	multiSigAddr string,
 ) (uint64, error) {
 	return 0, nil
 }

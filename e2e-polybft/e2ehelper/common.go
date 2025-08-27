@@ -31,6 +31,13 @@ type IApexSystem interface {
 		ctx context.Context, sourceChain cardanofw.ChainID, sender *cardanofw.TestApexUser,
 		receiver string, dfmAmount *big.Int, nativeTokenAmounts []cardanowallet.TokenAmount, data []byte,
 	) (string, error)
+	RedistributeTokens(
+		ctx context.Context, chainID cardanofw.ChainID,
+	) error
+	WaitForRedistribution(
+		ctx context.Context, chainID cardanofw.ChainID, cmpHandler func(*big.Int, *big.Int) bool,
+		numRetries int, waitTime time.Duration,
+	) error
 	GetBalance(
 		ctx context.Context, user *cardanofw.TestApexUser, chainID cardanofw.ChainID,
 	) (map[string]*big.Int, error)
