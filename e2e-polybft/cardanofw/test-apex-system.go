@@ -849,67 +849,6 @@ func (a *ApexSystem) GetBridgingAddressesTokenAmounts(
 	return balances, nil
 }
 
-func (a *ApexSystem) UpdateBridgingAddressCount(
-	ctx context.Context, sourceChain ChainID,
-	addressCount int,
-) error {
-	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
-	if err != nil {
-		return err
-	}
-
-	pk := hex.EncodeToString(pkBytes)
-
-	return RunCommand(ResolveApexBridgeBinary(), []string{
-		"bridge-admin", "update-bridging-addrs-count",
-		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
-		"--chain", sourceChain,
-		"--key", pk,
-		"--bridging-addresses-count", fmt.Sprintf("%d", addressCount),
-	}, os.Stdout)
-}
-
-func (a *ApexSystem) GetBridgingAddressesTokenAmounts(
-	ctx context.Context, sourceChain ChainID,
-) ([]map[string]*big.Int, error) {
-	bridingAddresses := []string{}
-
-	switch sourceChain {
-	case ChainIDPrime:
-		bridingAddresses = a.PrimeInfo.MultisigAddr
-
-		break
-	case ChainIDCardano:
-		bridingAddresses = a.CardanoInfo.MultisigAddr
-
-		break
-	case ChainIDVector:
-		bridingAddresses = a.VectorInfo.MultisigAddr
-	}
-
-	txProvider, err := a.getChain(sourceChain)
-	if err != nil {
-		return nil, err
-	}
-
-	balances := make([]map[string]*big.Int, 0)
-
-	for _, addr := range bridingAddresses {
-		addrBalances, err := txProvider.GetAddressBalance(ctx, addr)
-		if err != nil {
-			return nil, err
-		}
-
-		if addrBalances[cardanowallet.AdaTokenName] == nil {
-			addrBalances[cardanowallet.AdaTokenName] = big.NewInt(0)
-		}
-
-		balances = append(balances, addrBalances)
-	}
-
-	return balances, nil
-}
-
 func (a *ApexSystem) DelegateStakeAddress(
 	ctx context.Context, sourceChain ChainID,
 	bridgeAddressIndex int8, stakePoolID string,
@@ -934,8 +873,13 @@ func (a *ApexSystem) DelegateStakeAddress(
 		"--key", pk,
 		"--stake-pool", stakePoolID,
 		"--bridge-address-index", fmt.Sprintf("%d", bridgeAddressIndex),
-		"--do-registration",
-	}, os.Stdout)
+	}
+
+	if doRegister {
+		cmnd = append(cmnd, "--do-register")
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), cmnd, os.Stdout)
 }
 
 func (a *ApexSystem) RedelegateStakeAddress(
