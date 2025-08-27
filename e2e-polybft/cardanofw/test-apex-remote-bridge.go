@@ -191,7 +191,7 @@ func SetupRemoteApexBridge(
 ) (*ApexSystem, error) {
 	t.Helper()
 
-	vectorEnabled := remoteConfig.VectorInfo.MultisigAddr != ""
+	vectorEnabled := len(remoteConfig.VectorInfo.MultisigAddr) > 0
 
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig:  NewRemotePrimeChainConfig(0, 0),
