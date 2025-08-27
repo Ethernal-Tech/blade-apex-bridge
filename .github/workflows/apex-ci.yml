@@ -204,7 +204,7 @@ jobs:
       inputs.e2e_apex_test || 
       github.event_name == 'pull_request'
     with:
-      apex_bridge_ref: feat/refund
+      apex_bridge_ref: feat/merge-main-into-refund
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       e2e_apex_big_test: ${{ inputs.e2e_apex_big_test || 'false' }}
       e2e_apex_skip_redundant_tests: false
@@ -278,7 +278,7 @@ jobs:
       inputs.e2e_refund_test ||
       (github.event_name == 'pull_request' && github.base_ref == 'feat/refund')
     with:
-      apex_bridge_ref: feat/refund
+      apex_bridge_ref: feat/merge-main-into-refund
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       e2e_apex_skip_redundant_tests: false
     secrets:
