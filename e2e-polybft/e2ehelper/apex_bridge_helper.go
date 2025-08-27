@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
@@ -40,6 +41,18 @@ func ExecuteSingleBridging(
 	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, srcChain, expectedAmount,
 		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, expectNativeTokens)
 
+	require.NoError(t, err)
+}
+
+func ExecuteTokenRedistribution(
+	t *testing.T, ctx context.Context, apex IApexSystem, chainID string, numRetries int, waitTime time.Duration,
+) {
+	t.Helper()
+
+	err := apex.RedistributeTokens(ctx, chainID)
+	require.NoError(t, err)
+
+	err = apex.WaitForRedistribution(ctx, chainID, IsDiffGreaterThanOne, numRetries, waitTime)
 	require.NoError(t, err)
 }
 
@@ -158,6 +171,15 @@ func ExecuteBridging(
 	err = waitForAmounts(
 		ctx, apex, config, chainPairs, receiverUsers, expectedAmountsPerRecv, expectNativeTokens)
 	require.NoError(t, err)
+}
+
+func IsDiffGreaterThanOne(a, b *big.Int) bool {
+	diff := new(big.Int).Sub(a, b)
+	if diff.Sign() < 0 {
+		diff.Neg(diff) // Make it absolute
+	}
+
+	return diff.Cmp(big.NewInt(1)) > 0
 }
 
 func waitForAmounts(

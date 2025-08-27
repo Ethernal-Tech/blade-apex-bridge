@@ -28,7 +28,7 @@ type CardanoChainInfo struct {
 	OgmiosURL        string
 	BlockfrostURL    string
 	BlockfrostAPIKey string
-	MultisigAddr     string
+	MultisigAddr     []string
 	FeeAddr          string
 	SocketPath       string
 
@@ -330,9 +330,9 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 func (a *ApexSystem) InitTxSendChainConfiguration() {
 	txSenderChainConfigs := map[string]sendtx.ChainConfig{
 		ChainIDPrime: {
-			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
-			TxProvider:            cardanowallet.NewTxProviderOgmios(a.PrimeInfo.OgmiosURL),
-			MultiSigAddr:          a.PrimeInfo.MultisigAddr,
+			CardanoCliBinary: ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
+			TxProvider:       cardanowallet.NewTxProviderOgmios(a.PrimeInfo.OgmiosURL),
+			//MultiSigAddr:          a.PrimeInfo.MultisigAddr,
 			TestNetMagic:          GetNetworkMagic(a.Config.PrimeConfig.NetworkType, a.Config.PrimeConfig.ChainType),
 			TTLSlotNumberInc:      ttlSlotNumberInc,
 			MinUtxoValue:          MinUTxODefaultValue,
@@ -345,9 +345,9 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 
 	if a.Config.VectorConfig != nil && a.Config.VectorConfig.IsEnabled {
 		txSenderChainConfigs[ChainIDVector] = sendtx.ChainConfig{
-			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.VectorConfig.NetworkType),
-			TxProvider:            cardanowallet.NewTxProviderOgmios(a.VectorInfo.OgmiosURL),
-			MultiSigAddr:          a.VectorInfo.MultisigAddr,
+			CardanoCliBinary: ResolveCardanoCliBinary(a.Config.VectorConfig.NetworkType),
+			TxProvider:       cardanowallet.NewTxProviderOgmios(a.VectorInfo.OgmiosURL),
+			//MultiSigAddr:          a.VectorInfo.MultisigAddr,
 			TestNetMagic:          GetNetworkMagic(a.Config.VectorConfig.NetworkType, a.Config.VectorConfig.ChainType),
 			TTLSlotNumberInc:      ttlSlotNumberInc,
 			MinUtxoValue:          MinUTxODefaultValue,
@@ -359,9 +359,9 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 
 	if a.Config.CardanoConfig != nil && a.Config.CardanoConfig.IsEnabled {
 		txSenderChainConfigs[ChainIDCardano] = sendtx.ChainConfig{
-			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.CardanoConfig.NetworkType),
-			TxProvider:            cardanowallet.NewTxProviderOgmios(a.CardanoInfo.OgmiosURL),
-			MultiSigAddr:          a.CardanoInfo.MultisigAddr,
+			CardanoCliBinary: ResolveCardanoCliBinary(a.Config.CardanoConfig.NetworkType),
+			TxProvider:       cardanowallet.NewTxProviderOgmios(a.CardanoInfo.OgmiosURL),
+			//MultiSigAddr:          a.CardanoInfo.MultisigAddr,
 			TestNetMagic:          GetNetworkMagic(a.Config.CardanoConfig.NetworkType, a.Config.CardanoConfig.ChainType),
 			TTLSlotNumberInc:      ttlSlotNumberInc,
 			MinUtxoValue:          MinUTxODefaultValue,
@@ -745,6 +745,28 @@ func (a *ApexSystem) WaitForAmount(
 	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
 }
 
+func (a *ApexSystem) WaitForRedistribution(
+	ctx context.Context, chainID ChainID, cmpHandler func(*big.Int, *big.Int) bool, numRetries int, waitTime time.Duration,
+) error {
+	_, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*big.Int, error) {
+		addrAmounts, err := a.GetBridgingAddressesTokenAmounts(ctx, chainID)
+		if err != nil {
+			return nil, err
+		}
+
+		firstAddrAmount := addrAmounts[0][cardanowallet.AdaTokenName]
+		for i := 1; i < len(addrAmounts); i++ {
+			if cmpHandler(firstAddrAmount, addrAmounts[i][cardanowallet.AdaTokenName]) {
+				return nil, infracommon.ErrRetryTryAgain
+			}
+		}
+
+		return nil, nil
+	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
+
+	return err
+}
+
 func (a *ApexSystem) DefundHotWallet(
 	chain ChainID, defundReceiverAddress string, defundDfm *big.Int, defundNativeTokenAmount *big.Int,
 ) error {
@@ -764,6 +786,67 @@ func (a *ApexSystem) DefundHotWallet(
 		"--key", pk,
 		"--addr", defundReceiverAddress,
 	}, os.Stdout)
+}
+
+func (a *ApexSystem) UpdateBridgingAddressCount(
+	ctx context.Context, sourceChain ChainID,
+	addressCount int,
+) error {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	pk := hex.EncodeToString(pkBytes)
+
+	return RunCommand(ResolveApexBridgeBinary(), []string{
+		"bridge-admin", "update-bridging-addrs-count",
+		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--chain", sourceChain,
+		"--key", pk,
+		"--bridging-addresses-count", fmt.Sprintf("%d", addressCount),
+	}, os.Stdout)
+}
+
+func (a *ApexSystem) GetBridgingAddressesTokenAmounts(
+	ctx context.Context, sourceChain ChainID,
+) ([]map[string]*big.Int, error) {
+	bridingAddresses := []string{}
+
+	switch sourceChain {
+	case ChainIDPrime:
+		bridingAddresses = a.PrimeInfo.MultisigAddr
+
+		break
+	case ChainIDCardano:
+		bridingAddresses = a.CardanoInfo.MultisigAddr
+
+		break
+	case ChainIDVector:
+		bridingAddresses = a.VectorInfo.MultisigAddr
+	}
+
+	txProvider, err := a.getChain(sourceChain)
+	if err != nil {
+		return nil, err
+	}
+
+	balances := make([]map[string]*big.Int, 0)
+
+	for _, addr := range bridingAddresses {
+		addrBalances, err := txProvider.GetAddressBalance(ctx, addr)
+		if err != nil {
+			return nil, err
+		}
+
+		if addrBalances[cardanowallet.AdaTokenName] == nil {
+			addrBalances[cardanowallet.AdaTokenName] = big.NewInt(0)
+		}
+
+		balances = append(balances, addrBalances)
+	}
+
+	return balances, nil
 }
 
 func (a *ApexSystem) RegisterAndDelegateStakeAddress(
@@ -841,6 +924,29 @@ func (a *ApexSystem) DeregisterStakeAddress(
 		"--chain", chain.ChainID(),
 		"--key", pk,
 		"--bridge-address-index", fmt.Sprintf("%d", bridgeAddressIndex),
+	}, os.Stdout)
+}
+
+func (a *ApexSystem) RedistributeTokens(
+	ctx context.Context, chainID ChainID,
+) error {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	pk := hex.EncodeToString(pkBytes)
+
+	chain, err := a.getChain(chainID)
+	if err != nil {
+		return err
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), []string{
+		"bridge-admin", "redistribute-bridging-addresses-tokens",
+		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--chain", chain.ChainID(),
+		"--key", pk,
 	}, os.Stdout)
 }
 
