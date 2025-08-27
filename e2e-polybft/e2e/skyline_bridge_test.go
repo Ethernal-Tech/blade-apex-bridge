@@ -2768,7 +2768,6 @@ func TestE2E_SkylineBridge_StakeAddressOperationsTest(t *testing.T) {
 
 // go test -timeout 0 -run ^TestE2E_SkylineBridge_SimultaniousStakingTest$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
 func TestE2E_SkylineBridge_SimultaniousStakingTest(t *testing.T) {
-
 	const apiKey = "test_api_key"
 
 	ctx, cncl := context.WithCancel(context.Background())

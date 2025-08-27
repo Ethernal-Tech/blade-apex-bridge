@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BRANCH=multiple-bridging-addresses
+BRANCH=feat/skyline
 
 # build Apex-bridge smartcontracts
 cd ./apex-bridge-smartcontracts

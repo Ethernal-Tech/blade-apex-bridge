@@ -144,7 +144,8 @@ func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSm
 	require.NoError(t, err)
 
 	bridgingAddressesContractAddr, err := apexSystem.DeploySmartContract(
-		dir, "BridgingAddresses", []string{contracts.Bridge.String(), contracts.Claims.String(), contracts.ApexBridgeAdmin.String()})
+		dir, "BridgingAddresses", []string{contracts.Bridge.String(),
+			contracts.Claims.String(), contracts.ApexBridgeAdmin.String()})
 	require.NoError(t, err)
 
 	require.NoError(t, apexSystem.UpgradeSmartContract(&UpgradeSCParams{

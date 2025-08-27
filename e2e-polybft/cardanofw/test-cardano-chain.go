@@ -554,7 +554,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		})
 	}
 
-	multisigAddr, err := ec.determineMultisigAddressToSendTo(ctx, totalAmnt)
+	multisigAddr, err := ec.determineMultisigAddressToSendTo(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -576,7 +576,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 	return ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, multisigAddr, wallet)
 }
 
-func (ec *TestCardanoChain) determineMultisigAddressToSendTo(ctx context.Context, amount uint64) (string, error) {
+func (ec *TestCardanoChain) determineMultisigAddressToSendTo(ctx context.Context) (string, error) {
 	txProvider, err := ec.GetTxProvider()
 	if err != nil {
 		return "", err
