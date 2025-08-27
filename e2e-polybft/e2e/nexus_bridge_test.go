@@ -449,6 +449,10 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("Both directions sequential and parallel", func(t *testing.T) {
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
 		const (
 			sequentialInstances = 5
 			parallelInstances   = 6

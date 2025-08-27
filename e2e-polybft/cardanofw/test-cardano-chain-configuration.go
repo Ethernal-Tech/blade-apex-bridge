@@ -11,7 +11,7 @@ func noChanges(mp map[string]interface{}) {}
 
 func getShelleyGenesis(networkMagic uint) func(mp map[string]interface{}) {
 	switch networkMagic {
-	case wallet.PrimeTestNetProtocolMagic:
+	case wallet.PrimeTestNetProtocolMagic, wallet.TestNetProtocolMagic:
 		return testPrimeShelleyGenesis
 	case wallet.VectorTestNetProtocolMagic:
 		return testVectorShelleyGenesis

@@ -84,6 +84,7 @@ type RestartValidatorsConfig struct {
 	ExecutableOption ExecutableType
 }
 
+// returns map chainID -> receiverIdx -> txHash
 type SendTxStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,

@@ -660,6 +660,8 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
 	primeConfig.PremineAmount = 500_000_000
 	vectorConfig.PremineAmount = 500_000_000
+	primeConfig.UseIndexer = true
+	vectorConfig.UseIndexer = true
 
 	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,

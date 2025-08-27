@@ -234,6 +234,8 @@ func SetupRemoteApexBridge(
 		return nil, err
 	}
 
+	enabledChains = append(enabledChains, nexusChain)
+
 	apexSystem := &ApexSystem{
 		Config:       apexConfig,
 		FunderUser:   usersData.Funder,
