@@ -11,6 +11,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
+	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/ethgo"
@@ -86,6 +87,16 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 
 	chains := getEnabledChains(apex)
 
+	chainInfo := map[string]struct {
+		info        *cardanofw.CardanoChainInfo
+		networkType cardanowallet.CardanoNetworkType
+	}{
+		cardanofw.ChainIDPrime:  {info: &apex.PrimeInfo, networkType: apex.Config.PrimeConfig.NetworkType},
+		cardanofw.ChainIDVector: {info: &apex.VectorInfo, networkType: apex.Config.VectorConfig.NetworkType},
+	}
+
+	protParamsCached := map[string][]byte{}
+
 	for _, user := range apex.Users {
 		for _, chain := range chains {
 			addr := user.GetAddress(chain)
@@ -99,7 +110,35 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 				change = new(big.Int).SetUint64(cardanofw.PotentialFee)
 				balanceAtleast = new(big.Int).Set(change)
 			} else {
-				change = new(big.Int).SetUint64(cardanofw.MinUTxODefaultValue + cardanofw.PotentialFee)
+				txProvider, err := chainInfo[chain].info.GetTxProvider()
+				require.NoError(t, err)
+
+				if _, exist := protParamsCached[chain]; !exist {
+					protParamsCached[chain], err = infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
+						return txProvider.GetProtocolParameters(ctx)
+					})
+					require.NoError(t, err)
+				}
+
+				utxos, err := txProvider.GetUtxos(ctx, addr)
+				require.NoError(t, err)
+
+				balance := cardanowallet.GetUtxosSum(utxos)
+
+				tokens, err := cardanowallet.GetTokensFromSumMap(balance)
+				require.NoError(t, err)
+
+				txBuilder, err := cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary(chainInfo[chain].networkType))
+				require.NoError(t, err)
+				defer txBuilder.Dispose()
+
+				minUtxo, err := txBuilder.SetProtocolParameters(protParamsCached[chain]).CalculateMinUtxo(cardanowallet.TxOutput{
+					Addr:   addr,
+					Tokens: tokens,
+				})
+				require.NoError(t, err)
+
+				change = new(big.Int).SetUint64(max(minUtxo, cardanofw.MinUTxODefaultValue) + cardanofw.PotentialFee)
 				balanceAtleast = big.NewInt(0).Add(new(big.Int).SetUint64(cardanofw.MinUTxODefaultValue), change)
 			}
 

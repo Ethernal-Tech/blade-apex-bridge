@@ -166,12 +166,9 @@ func ExecuteBridging(
 		if _, exists := originalDesiredAmounts[txData.DstChainID][tokenName]; !exists {
 			originalDesiredAmounts[txData.DstChainID][tokenName] = big.NewInt(0)
 		}
-		// update expectedAmountPerChainDfm
-		incrementPerReceiver := new(big.Int).Mul(
-			sendAmountDfm, big.NewInt(int64(txCountPerSender)*int64(len(senderUsers))))
 
 		originalDesiredAmounts[txData.DstChainID][tokenName].Add(
-			originalDesiredAmounts[txData.DstChainID][tokenName], incrementPerReceiver)
+			originalDesiredAmounts[txData.DstChainID][tokenName], txData.SendAmountDfm)
 
 		txHashTxDataMap[txData.TxHash] = txData
 	}
@@ -193,17 +190,18 @@ func ExecuteBridging(
 			}
 
 			for _, chainPair := range chainPairs {
-				dstChain := chainPair.dstChain
 				sum := new(big.Int)
 
-				tokenName := getTokenNameForChains(apex, dstChain, chainPair.srcChain, expectNativeTokens)
+				tokenName := getTokenNameForChains(apex, chainPair.dstChain, chainPair.srcChain, expectNativeTokens)
 
+				// Retrieve all failed transactions on the source chain, if any
 				for _, txHash := range apex.GetChainMust(t, chainPair.srcChain).GetIndexer().GetFailedTxs() {
 					sum.Add(sum, txHashTxDataMap[txHash].SendAmountDfm)
 				}
 
 				lock.Lock()
-				desiredAmounts[dstChain][tokenName].Sub(originalDesiredAmounts[dstChain][tokenName], sum)
+				// Subtract failed transaction amounts from the original desired amounts on the destination chain
+				desiredAmounts[chainPair.dstChain][tokenName].Sub(originalDesiredAmounts[chainPair.dstChain][tokenName], sum)
 				lock.Unlock()
 			}
 		}

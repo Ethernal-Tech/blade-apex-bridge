@@ -32,7 +32,7 @@ jobs:
         id: blade_apex_bridge_ref_input_check
         run: |
           if [[ "${{ inputs.blade_apex_bridge_ref }}" == "" ]]; then
-            echo "blade_apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
+            echo "blade_apex_bridge_ref=feat/skyline_refund" >> $GITHUB_OUTPUT
           else
             echo "blade_apex_bridge_ref=${{ inputs.blade_apex_bridge_ref }}" >> $GITHUB_OUTPUT
           fi
