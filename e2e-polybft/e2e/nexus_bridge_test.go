@@ -161,7 +161,7 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 			const instances = 2
 
 			e2ehelper.ExecuteBridgingWaitAfterSubmits(
-				t, ctx, apex, instances, user, srcChain, cardanofw.ChainIDVector, sendAmountDfm)
+				t, ctx, apex, instances, user, srcChain, dstChain, sendAmountDfm)
 		})
 
 		t.Run("Parallel", func(t *testing.T) {
@@ -202,7 +202,7 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 			)
 
 			SrcNexusSequentialAndParallelWithMaxReceivers(
-				t, ctx, apex, srcChain, sequentialInstances, parallelInstances, sendAmountDfm)
+				t, ctx, apex, dstChain, sequentialInstances, parallelInstances, sendAmountDfm)
 		})
 
 		t.Run("Sequential and parallel, one node goes off in the middle", func(t *testing.T) {
