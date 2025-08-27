@@ -140,15 +140,17 @@ func ExecuteBridging(
 				return
 			}
 
-			for _, chainID := range dstChains {
+			for _, chainPair := range chainPairs {
 				sum := new(big.Int)
 
-				for _, txHash := range apex.GetChainMust(t, chainID).GetIndexer().GetFailedTxs() {
+				// Retrieve all failed transactions on the source chain, if any
+				for _, txHash := range apex.GetChainMust(t, chainPair.srcChain).GetIndexer().GetFailedTxs() {
 					sum.Add(sum, txHashTxDataMap[txHash].SendAmountDfm)
 				}
 
 				lock.Lock()
-				desiredAmounts[chainID].Sub(originalDesiredAmounts[chainID], sum)
+				// Subtract failed transaction amounts from the original desired amounts on the destination chain
+				desiredAmounts[chainPair.dstChain].Sub(originalDesiredAmounts[chainPair.dstChain], sum)
 				lock.Unlock()
 			}
 		}
@@ -170,7 +172,11 @@ func ExecuteBridging(
 					lock.RLock()
 					defer lock.RUnlock()
 
-					return bigIntCache.Add(bigIntCache.Set(initialAmountDfm), desiredAmounts[dstChain])
+					receivedAmount := bigIntCache.Add(bigIntCache.Set(initialAmountDfm), desiredAmounts[dstChain])
+
+					fmt.Printf("TXs on %s for user %d expected amount to receive %s\n", dstChain, idx, receivedAmount)
+
+					return receivedAmount
 				}
 
 				receivedAmount, err := apex.WaitForAmount(
