@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
@@ -80,7 +81,7 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 			FeeAddr:        "vector_test1wtr7nnz8xg2hmudtfgp9u77uwttkuwef6g26dl6zppmwmsqqnmjc7",
 		},
 		NexusInfo: EVMChainInfo{
-			GatewayAddress: types.StringToAddress("0x00A4436E859532fcc10D2477dcB6441b6C182c3D"),
+			GatewayAddress: types.StringToAddress("0x43Bca3122Efa14C68F9d385e3b4Da8847eca32Ba"),
 			JSONRPCAddr:    "https://rpc.nexus.testnet.apexfusion.org",
 		},
 		BridgingAPIs: []string{
@@ -190,9 +191,11 @@ func SetupRemoteApexBridge(
 ) (*ApexSystem, error) {
 	t.Helper()
 
+	vectorEnabled := remoteConfig.VectorInfo.MultisigAddr != ""
+
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig:  NewRemotePrimeChainConfig(0, 0),
-		VectorConfig: NewRemoteVectorChainConfig(true),
+		VectorConfig: NewRemoteVectorChainConfig(vectorEnabled),
 		NexusConfig:  NewRemoteNexusChainConfig(true),
 		APIKey:       remoteConfig.BridgingAPIKey,
 	}
@@ -208,22 +211,34 @@ func SetupRemoteApexBridge(
 		ogmiosURL:        remoteConfig.PrimeInfo.OgmiosURL,
 		blockfrostURL:    remoteConfig.PrimeInfo.BlockfrostURL,
 		blockfrostAPIKey: remoteConfig.PrimeInfo.BlockfrostAPIKey,
+		indexer:          e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 
-	vectorChain := &TestCardanoChain{
-		config:           apexConfig.VectorConfig,
-		multisigAddr:     remoteConfig.VectorInfo.MultisigAddr,
-		multisigFeeAddr:  remoteConfig.VectorInfo.FeeAddr,
-		ogmiosURL:        remoteConfig.VectorInfo.OgmiosURL,
-		blockfrostURL:    remoteConfig.VectorInfo.BlockfrostURL,
-		blockfrostAPIKey: remoteConfig.VectorInfo.BlockfrostAPIKey,
+	enabledChains := []ITestApexChain{primeChain}
+
+	var vectorChain *TestCardanoChain
+	if vectorEnabled {
+		vectorChain = &TestCardanoChain{
+			config:           apexConfig.VectorConfig,
+			multisigAddr:     remoteConfig.VectorInfo.MultisigAddr,
+			multisigFeeAddr:  remoteConfig.VectorInfo.FeeAddr,
+			ogmiosURL:        remoteConfig.VectorInfo.OgmiosURL,
+			blockfrostURL:    remoteConfig.VectorInfo.BlockfrostURL,
+			blockfrostAPIKey: remoteConfig.VectorInfo.BlockfrostAPIKey,
+			indexer:          e2eindexer.NewTxsExecutedComponentDummy(),
+		}
+
+		enabledChains = append(enabledChains, vectorChain)
 	}
 
 	nexusChain := &TestEVMChain{
 		config:      apexConfig.NexusConfig,
 		gatewayAddr: remoteConfig.NexusInfo.GatewayAddress,
 		jsonRPCAddr: remoteConfig.NexusInfo.JSONRPCAddr,
+		indexer:     e2eindexer.NewTxsExecutedComponentDummy(),
 	}
+
+	enabledChains = append(enabledChains, nexusChain)
 
 	usersData, err := GetTestnetApexUsers(
 		NewApexNetworkTypes(apexConfig.PrimeConfig, apexConfig.VectorConfig, nil, apexConfig.NexusConfig))
@@ -231,11 +246,13 @@ func SetupRemoteApexBridge(
 		return nil, err
 	}
 
+	enabledChains = append(enabledChains, nexusChain)
+
 	apexSystem := &ApexSystem{
 		Config:       apexConfig,
 		FunderUser:   usersData.Funder,
 		Users:        usersData.Users,
-		chains:       []ITestApexChain{primeChain, vectorChain, nexusChain},
+		chains:       enabledChains,
 		bridgingAPIs: remoteConfig.BridgingAPIs,
 		PrimeInfo:    remoteConfig.PrimeInfo,
 		VectorInfo:   remoteConfig.VectorInfo,

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/polygon-edge/crypto"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
@@ -24,7 +25,7 @@ type ITestApexChain interface {
 	RegisterChain(validator *TestApexValidator) error
 	InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error
 	GetGenerateConfigsParams(indx int) []string
-	PopulateApexSystem(t *testing.T, apexSystem *ApexSystem)
+	PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error
 	UpdateTxSendChainConfiguration(configs map[string]sendtx.ChainConfig)
 	ChainID() string
 	GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error)
@@ -60,6 +61,7 @@ type ITestApexChain interface {
 		operationFee uint64,
 	) ([]byte, error)
 	GetServerMust(t *testing.T, indx int) ITestApexChainServer
+	GetIndexer() e2eindexer.TxsExecutedComponent
 	GetExistingStakePools(t *testing.T, ctx context.Context) []string
 	GetBridgingStakeAddressInfo(
 		t *testing.T,
@@ -71,6 +73,7 @@ type ITestApexChain interface {
 
 type TestApexChainDummy struct {
 	configParams []string
+	indexer      e2eindexer.TxsExecutedComponent
 }
 
 // GetBridgingStakeAddressInfo implements ITestApexChain.
@@ -92,6 +95,7 @@ func (td *TestApexChainDummy) GetExistingStakePools(t *testing.T, ctx context.Co
 func NewTestApexChainDummy(configParams []string) *TestApexChainDummy {
 	return &TestApexChainDummy{
 		configParams: configParams,
+		indexer:      e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 }
 
@@ -135,8 +139,10 @@ func (td *TestApexChainDummy) InitContracts(ctx context.Context, bridgeAdmin *cr
 	return nil
 }
 
-func (*TestApexChainDummy) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) {
+func (*TestApexChainDummy) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error {
 	t.Helper()
+
+	return nil
 }
 
 func (td *TestApexChainDummy) UpdateTxSendChainConfiguration(_ map[string]sendtx.ChainConfig) {
@@ -197,6 +203,10 @@ func (td *TestApexChainDummy) GetServerMust(t *testing.T, indx int) ITestApexCha
 	t.Fail()
 
 	return nil
+}
+
+func (td *TestApexChainDummy) GetIndexer() e2eindexer.TxsExecutedComponent {
+	return td.indexer
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)
