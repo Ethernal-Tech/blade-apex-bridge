@@ -169,7 +169,17 @@ func (a *ApexSystem) StopAll() error {
 		go func(idx int, chain ITestApexChain) {
 			defer wg.Done()
 
-			errs[idx] = chain.Stop()
+			var err1, err2 error
+
+			if err := chain.GetIndexer().Close(); err != nil {
+				err1 = fmt.Errorf("failed to close chain indexer %d: %w", idx, err)
+			}
+
+			if err := chain.Stop(); err != nil {
+				err2 = fmt.Errorf("failed to stop chain %d: %w", idx, err)
+			}
+
+			errs[idx] = errors.Join(err1, err2)
 		}(i, chain)
 	}
 
@@ -280,7 +290,9 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 
 	// after contracts have been initialized populate all the needed things into apex object
 	for _, chain := range a.chains {
-		chain.PopulateApexSystem(t, a)
+		if err := chain.PopulateApexSystem(t, a); err != nil {
+			return err
+		}
 	}
 
 	if a.IsSkyline {
@@ -906,13 +918,21 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	return txHash
 }
 
-func (a *ApexSystem) GetChainMust(t *testing.T, chainID string) ITestApexChain {
+func (a *ApexSystem) GetChainMust(t *testing.T, chainID ChainID) ITestApexChain {
 	t.Helper()
 
 	chain, err := a.getChain(chainID)
 	require.NoError(t, err)
 
 	return chain
+}
+
+func (a *ApexSystem) ResetIndexers() {
+	_ = a.execForEachChain(func(chain ITestApexChain) error {
+		chain.GetIndexer().ResetData()
+
+		return nil
+	})
 }
 
 func (a *ApexSystem) execForEachChain(handler func(chain ITestApexChain) error) error {

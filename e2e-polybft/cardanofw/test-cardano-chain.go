@@ -17,9 +17,13 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
+	"github.com/Ethernal-Tech/cardano-infrastructure/indexer"
+	"github.com/Ethernal-Tech/cardano-infrastructure/indexer/gouroboros"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,6 +39,8 @@ type TestCardanoChainConfig struct {
 	NetworkType                 infrawallet.CardanoNetworkType
 	NetworkMagic                uint
 	NodesCount                  int
+	IndexerStartBlockHash       indexer.Hash
+	IndexerStartSlot            uint64
 	InitialHotWalletAmount      *big.Int
 	InitialHotWalletTokenAmount *big.Int
 	ChainType                   ChainID
@@ -50,6 +56,7 @@ type TestCardanoChainConfig struct {
 	MinBridgingFee              uint64
 	MinOperationFee             uint64
 	BridgeAddrHasStake          bool
+	UseIndexer                  bool
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -160,6 +167,7 @@ type TestCardanoChain struct {
 	multisigStakeAddr string
 	multisigFeeAddr   string
 	txSender          *sendtx.TxSender
+	indexer           e2eindexer.TxsExecutedComponent
 }
 
 // GetBridgingStakeAddressInfo implements ITestApexChain.
@@ -230,7 +238,8 @@ func NewTestCardanoChain(config *TestCardanoChainConfig) ITestApexChain {
 	}
 
 	return &TestCardanoChain{
-		config: config,
+		config:  config,
+		indexer: e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 }
 
@@ -429,29 +438,28 @@ func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string)
 	return result
 }
 
-func (ec *TestCardanoChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) {
+func (ec *TestCardanoChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error {
 	t.Helper()
-
-	genesisWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
-	require.NoError(t, err)
-
-	chainInfo := CardanoChainInfo{
-		NetworkAddress: ec.cluster.Servers[0].NetworkAddress(),
-		OgmiosURL:      ec.ogmiosURL,
-		MultisigAddr:   ec.multisigAddr,
-		FeeAddr:        ec.multisigFeeAddr,
-		SocketPath:     ec.cluster.OgmiosServer.SocketPath(),
-		GenesisWallet:  genesisWallet,
-	}
 
 	switch ec.ChainID() {
 	case ChainIDPrime:
-		apexSystem.PrimeInfo = chainInfo
+		apexSystem.PrimeInfo = ec.getChainInfo(t)
 	case ChainIDVector:
-		apexSystem.VectorInfo = chainInfo
+		apexSystem.VectorInfo = ec.getChainInfo(t)
 	case ChainIDCardano:
-		apexSystem.CardanoInfo = chainInfo
+		apexSystem.CardanoInfo = ec.getChainInfo(t)
 	}
+
+	if ec.config.UseIndexer {
+		indexer, err := ec.createIndexer()
+		if err != nil {
+			return err
+		}
+
+		ec.indexer = indexer
+	}
+
+	return nil
 }
 
 func (ec *TestCardanoChain) UpdateTxSendChainConfiguration(configs map[string]sendtx.ChainConfig) {
@@ -597,6 +605,10 @@ func (ec *TestCardanoChain) SendTx(
 		return "", err
 	}
 
+	if ec.indexer != nil {
+		ec.indexer.Add(txInfo.TxHash)
+	}
+
 	_, err = ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, receiverAddr, wallet)
 	if err != nil {
 		return "", fmt.Errorf("failed to send tx %s to receiver %s: %w", txInfo.TxHash, receiverAddr, err)
@@ -616,6 +628,52 @@ func (ec *TestCardanoChain) GetAdminPrivateKey() (string, error) {
 	}
 
 	return hex.EncodeToString(genesisWallet.SigningKey), nil
+}
+
+func (ec *TestCardanoChain) GetIndexer() e2eindexer.TxsExecutedComponent {
+	return ec.indexer
+}
+
+func (ec *TestCardanoChain) createIndexer() (e2eindexer.TxsExecutedComponent, error) {
+	const (
+		indexerRestartDelay   = time.Second * 5
+		indexerKeepAlive      = true
+		indexerSyncStartTries = 1_000_000_000
+	)
+
+	return e2eindexer.NewTxsExecutedComponentCardano(
+		&gouroboros.BlockSyncerConfig{
+			NetworkMagic: uint32(ec.config.NetworkMagic),
+			NodeAddress: strings.TrimPrefix(strings.TrimPrefix(
+				ec.cluster.Servers[0].NetworkAddress(), "http://"), "https://"),
+			RestartOnError: true, // always try to restart on non-fatal errors
+			RestartDelay:   indexerRestartDelay,
+			KeepAlive:      indexerKeepAlive,
+			SyncStartTries: indexerSyncStartTries,
+		}, indexer.BlockPoint{
+			BlockSlot: ec.config.IndexerStartSlot,
+			BlockHash: ec.config.IndexerStartBlockHash,
+		}, hclog.New(&hclog.LoggerOptions{
+			Name:   fmt.Sprintf("indexer_%d", ec.config.ID),
+			Output: os.Stdout,
+			Level:  hclog.Warn,
+		}))
+}
+
+func (ec *TestCardanoChain) getChainInfo(t *testing.T) CardanoChainInfo {
+	t.Helper()
+
+	genesisWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
+	require.NoError(t, err)
+
+	return CardanoChainInfo{
+		NetworkAddress: ec.cluster.Servers[0].NetworkAddress(),
+		OgmiosURL:      ec.ogmiosURL,
+		MultisigAddr:   ec.multisigAddr,
+		FeeAddr:        ec.multisigFeeAddr,
+		SocketPath:     ec.cluster.OgmiosServer.SocketPath(),
+		GenesisWallet:  genesisWallet,
+	}
 }
 
 func (ec *TestCardanoChain) submitTx(
