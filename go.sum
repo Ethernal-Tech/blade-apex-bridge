@@ -65,6 +65,8 @@ github.com/Ethernal-Tech/bn256 v0.0.0-20240711150404-47c82e53dd19 h1:a96KsZz67W/
 github.com/Ethernal-Tech/bn256 v0.0.0-20240711150404-47c82e53dd19/go.mod h1:ikj6EuZ/ISPyR1DYKnqoE5F2geyI3KzVllndxg7vFs8=
 github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20250805112855-e8f618092a36 h1:Bc4XOQ+cv/JohLZrd7ExNmX7lxGfHCnzgGHSobTq50Q=
 github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20250805112855-e8f618092a36/go.mod h1:v0z3aaYeuDhLfmO/s+1lq1WBPnLQyHIAjpPiEiecMeU=
+github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20250828084325-98d3c5f87c97 h1:czlRUgSx4Ce9eHPmteN9Fek1RwVS/QLrOYgffewrWK8=
+github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20250828084325-98d3c5f87c97/go.mod h1:v0z3aaYeuDhLfmO/s+1lq1WBPnLQyHIAjpPiEiecMeU=
 github.com/Ethernal-Tech/ethgo v0.0.0-20240801172627-47215d9e504c h1:SLZer+L7G+O2VvxD3q/0r3hIpG4Orm0C5uQKSJ98CO4=
 github.com/Ethernal-Tech/ethgo v0.0.0-20240801172627-47215d9e504c/go.mod h1:YEpLAT6sQiFZIkbkRmfDklN9zb+v8O4l8DFGobuiGDY=
 github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04 h1:DGIOHe3qAeU+mrRLNJ83mJWyH1t5SqN8XvTrwBUAXK4=
@@ -1296,6 +1298,8 @@ gopkg.in/inf.v0 v0.9.1/go.mod h1:cWUDdTG/fYaXco+Dcufb5Vnc6Gp2YChqWtbxRZE0mXw=
 gopkg.in/ini.v1 v1.56.0/go.mod h1:pNLf8WUiyNEtQjuu5G5vTm06TEv9tsIgeAvK8hOrP4k=
 gopkg.in/ini.v1 v1.67.0 h1:Dgnx+6+nfE+IfzjUEISNeydPJh9AXNNsWbGP9KzCsOA=
 gopkg.in/ini.v1 v1.67.0/go.mod h1:pNLf8WUiyNEtQjuu5G5vTm06TEv9tsIgeAvK8hOrP4k=
+gopkg.in/natefinch/lumberjack.v2 v2.2.1 h1:bBRl1b0OH9s/DuPhuXpNl+VtCaJXFZ5/uEFST95x9zc=
+gopkg.in/natefinch/lumberjack.v2 v2.2.1/go.mod h1:YD8tP3GAjkrDg1eZH7EGmyESg/lsYskCTPBJVb9jqSc=
 gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce h1:+JknDZhAj8YMt7GC73Ei8pv4MzjDUNPHgQWJdtMAaDU=
 gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce/go.mod h1:5AcXVHNjg+BDxry382+8OKon8SEWiKktQR07RKPsv1c=
 gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 h1:uRGJdciOHaEIrze2W8Q3AKkepLTh2hOroT7a+7czfdQ=

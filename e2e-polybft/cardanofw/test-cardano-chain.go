@@ -512,7 +512,15 @@ func (ec *TestCardanoChain) GetBridgingFee(
 	multiSigAddr string,
 ) (uint64, error) {
 	return ec.txSender.GetBridgingFee(
-		ctx, ec.ChainID(), dstChainID, receivers, multiSigAddr, bridgingFee, operationFee)
+		ctx,
+		sendtx.BridgingTxInput{
+			SrcChainID:      ec.ChainID(),
+			DstChainID:      dstChainID,
+			Receivers:       receivers,
+			BridgingAddress: multiSigAddr,
+			BridgingFee:     bridgingFee,
+			OperationFee:    operationFee,
+		})
 }
 
 func (ec *TestCardanoChain) CreateMetadata(
@@ -577,14 +585,15 @@ func (ec *TestCardanoChain) BridgingRequest(
 
 	txInfo, _, err := ec.txSender.CreateBridgingTx(
 		ctx,
-		srcChainID,
-		dstChainID,
-		walletAddr.String(),
-		receivers,
-		multisigAddr,
-		feeAmount.Uint64(),
-		operationFee,
-	)
+		sendtx.BridgingTxInput{
+			SrcChainID:      srcChainID,
+			DstChainID:      dstChainID,
+			SenderAddr:      walletAddr.String(),
+			Receivers:       receivers,
+			BridgingAddress: multisigAddr,
+			BridgingFee:     feeAmount.Uint64(),
+			OperationFee:    operationFee,
+		})
 	if err != nil {
 		return "", err
 	}

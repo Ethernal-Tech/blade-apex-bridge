@@ -7,7 +7,7 @@ require (
 	github.com/0xPolygon/go-ibft v0.4.1-0.20240621090555-e81a63ff50d7
 	github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20240628125004-67308570b6e2
 	github.com/Ethernal-Tech/bn256 v0.0.0-20240711150404-47c82e53dd19
-	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20250805112855-e8f618092a36
+	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20250828084325-98d3c5f87c97
 	github.com/Ethernal-Tech/ethgo v0.0.0-20240801172627-47215d9e504c
 	github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.10
@@ -74,6 +74,7 @@ require (
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/utxorpc/go-codegen v0.11.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )
 
 require (
