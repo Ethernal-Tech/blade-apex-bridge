@@ -101,6 +101,7 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		FundFeeUTxOCount:            1,
 		MinBridgingFee:              defaultMinBridgingFeeAmount,
 		MinOperationFee:             uint64(0),
+		BridgingAddressCnt:          1,
 	}
 }
 
