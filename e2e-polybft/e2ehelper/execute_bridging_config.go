@@ -10,8 +10,15 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
+
+type SubmittedTxData struct {
+	SrcChainID, DstChainID cardanofw.ChainID
+	TxHash                 string
+	SendAmountDfm          *big.Int
+}
 
 type TimeoutConfig struct {
 	bridgingRetryWaitTime          time.Duration
@@ -77,10 +84,11 @@ type RestartValidatorsConfig struct {
 	ExecutableOption ExecutableType
 }
 
+// returns map chainID -> receiverIdx -> txHash
 type SendTxStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-	bridgingType sendtx.BridgingType)
+	bridgingType sendtx.BridgingType) []*SubmittedTxData
 
 type RestartValidatorStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig)
@@ -91,6 +99,7 @@ type executeBridgingConfig struct {
 	sendTxStrategy           SendTxStrategyFn
 	restartValidatorStrategy RestartValidatorStrategyFn
 	timeoutConfig            TimeoutConfig
+	logger                   hclog.Logger
 }
 
 func newExecuteBridgingConfig(opts ...ExecuteBridgingOption) *executeBridgingConfig {
@@ -98,6 +107,7 @@ func newExecuteBridgingConfig(opts ...ExecuteBridgingOption) *executeBridgingCon
 		sendTxStrategy:           defaultSendTxStrategy,
 		restartValidatorStrategy: defaultRestartValidatorStrategy,
 		timeoutConfig:            NewTimeoutConfig(),
+		logger:                   hclog.NewNullLogger(),
 	}
 
 	for _, x := range opts {
@@ -112,6 +122,12 @@ type ExecuteBridgingOption func(config *executeBridgingConfig)
 func WithWaitForUnexpectedBridges(waitForUnexpectedBridges bool) ExecuteBridgingOption {
 	return func(config *executeBridgingConfig) {
 		config.waitForUnexpectedBridges = waitForUnexpectedBridges
+	}
+}
+
+func WithLogger(logger hclog.Logger) ExecuteBridgingOption {
+	return func(cfg *executeBridgingConfig) {
+		cfg.logger = logger
 	}
 }
 
@@ -137,10 +153,14 @@ var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-		bridgingType sendtx.BridgingType) {
+		bridgingType sendtx.BridgingType) []*SubmittedTxData {
 		t.Helper()
 
-		var wg sync.WaitGroup
+		var (
+			wg              sync.WaitGroup
+			mu              sync.Mutex
+			submittedTxData []*SubmittedTxData
+		)
 
 		for i, sender := range senders {
 			for srcChain, dstChains := range chainsDst {
@@ -157,6 +177,15 @@ var (
 
 							fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
 								idx+1, j+1, srcChain, dstChain, txHash)
+
+							mu.Lock()
+							submittedTxData = append(submittedTxData, &SubmittedTxData{
+								SrcChainID:    srcChain,
+								DstChainID:    dstChain,
+								TxHash:        txHash,
+								SendAmountDfm: sendAmountDfm,
+							})
+							mu.Unlock()
 						}
 					}
 				}(i, sender, srcChain, dstChains)
@@ -164,7 +193,10 @@ var (
 		}
 
 		wg.Wait()
+
+		return submittedTxData
 	}
+
 	defaultRestartValidatorStrategy RestartValidatorStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig) {
 		t.Helper()

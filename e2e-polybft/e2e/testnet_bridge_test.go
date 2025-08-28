@@ -11,6 +11,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
+	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/ethgo"
@@ -18,7 +19,6 @@ import (
 )
 
 var (
-	chains        = []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus}
 	timeoutConfig = e2ehelper.NewTimeoutConfig(
 		e2ehelper.WithBridgingNumRetries(defaultDstNumRetries),
 		e2ehelper.WithBridgingRetryWaitTime(defaultDstWaitTime),
@@ -30,6 +30,11 @@ const (
 	defaultDstNumRetries = 120
 	defaultDstWaitTime   = 30 * time.Second
 )
+
+type BridgingRequest struct {
+	src  string
+	dest string
+}
 
 // This is called manually when needed. It is not called on every run.
 func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
@@ -50,10 +55,12 @@ func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 
 	sendAmountDfm := cardanofw.ApexToDfm(new(big.Int).SetUint64(apexAmountToBridge))
 
-	fmt.Printf("bridging %v apex to vector\n", apexAmountToBridge)
+	if IsVectorEnabled(apex) {
+		fmt.Printf("bridging %v apex to vector\n", apexAmountToBridge)
 
-	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm, sendtx.BridgingTypeNormal, bridgingOpts...)
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm, sendtx.BridgingTypeNormal, bridgingOpts...)
+	}
 
 	fmt.Printf("bridging %v apex to nexus\n", apexAmountToBridge)
 	e2ehelper.ExecuteSingleBridging(
@@ -78,6 +85,18 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 
 	fmt.Printf("defunding the wallets\n")
 
+	chains := getEnabledChains(apex)
+
+	chainInfo := map[string]struct {
+		info        *cardanofw.CardanoChainInfo
+		networkType cardanowallet.CardanoNetworkType
+	}{
+		cardanofw.ChainIDPrime:  {info: &apex.PrimeInfo, networkType: apex.Config.PrimeConfig.NetworkType},
+		cardanofw.ChainIDVector: {info: &apex.VectorInfo, networkType: apex.Config.VectorConfig.NetworkType},
+	}
+
+	protParamsCached := map[string][]byte{}
+
 	for _, user := range apex.Users {
 		for _, chain := range chains {
 			addr := user.GetAddress(chain)
@@ -91,7 +110,35 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 				change = new(big.Int).SetUint64(cardanofw.PotentialFee)
 				balanceAtleast = new(big.Int).Set(change)
 			} else {
-				change = new(big.Int).SetUint64(cardanofw.MinUTxODefaultValue + cardanofw.PotentialFee)
+				txProvider, err := chainInfo[chain].info.GetTxProvider()
+				require.NoError(t, err)
+
+				if _, exist := protParamsCached[chain]; !exist {
+					protParamsCached[chain], err = infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
+						return txProvider.GetProtocolParameters(ctx)
+					})
+					require.NoError(t, err)
+				}
+
+				utxos, err := txProvider.GetUtxos(ctx, addr)
+				require.NoError(t, err)
+
+				balance := cardanowallet.GetUtxosSum(utxos)
+
+				tokens, err := cardanowallet.GetTokensFromSumMap(balance)
+				require.NoError(t, err)
+
+				txBuilder, err := cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary(chainInfo[chain].networkType))
+				require.NoError(t, err)
+				defer txBuilder.Dispose()
+
+				minUtxo, err := txBuilder.SetProtocolParameters(protParamsCached[chain]).CalculateMinUtxo(cardanowallet.TxOutput{
+					Addr:   addr,
+					Tokens: tokens,
+				})
+				require.NoError(t, err)
+
+				change = new(big.Int).SetUint64(max(minUtxo, cardanofw.MinUTxODefaultValue) + cardanofw.PotentialFee)
 				balanceAtleast = big.NewInt(0).Add(new(big.Int).SetUint64(cardanofw.MinUTxODefaultValue), change)
 			}
 
@@ -149,6 +196,8 @@ func Test_E2E_TestnetFund(t *testing.T) {
 
 	fmt.Printf("funding the wallets\n")
 
+	chains := getEnabledChains(apex)
+
 	for _, user := range apex.Users {
 		fmt.Printf("-----------------------------\n")
 
@@ -200,15 +249,7 @@ func Test_E2E_SanityCheck(t *testing.T) {
 	var (
 		user             = apex.Users[0]
 		sendAmount       = cardanofw.ApexToDfm(big.NewInt(1))
-		bridgingRequests = []struct {
-			src  string
-			dest string
-		}{
-			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDVector},
-			{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDPrime},
-			{src: cardanofw.ChainIDNexus, dest: cardanofw.ChainIDPrime},
-			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDNexus},
-		}
+		bridgingRequests = getEnabledDirections(apex)
 	)
 
 	for _, dir := range bridgingRequests {
@@ -226,25 +267,27 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetTestnetApexBridgeConfig())
 	require.NoError(t, err)
 
-	t.Run("From Prime to Vector sequential and parallel with max receivers", func(t *testing.T) {
-		const (
-			sequentialInstances = 3
-			parallelInstances   = 10
-		)
+	if IsVectorEnabled(apex) {
+		t.Run("From Prime to Vector sequential and parallel with max receivers", func(t *testing.T) {
+			const (
+				sequentialInstances = 3
+				parallelInstances   = 10
+			)
 
-		PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, bridgingOpts...)
-	})
+			PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, bridgingOpts...)
+		})
 
-	t.Run("Prime and Vector both directions sequential and parallel", func(t *testing.T) {
-		const (
-			sequentialInstances = 3
-			parallelInstances   = 6
-		)
+		t.Run("Prime and Vector both directions sequential and parallel", func(t *testing.T) {
+			const (
+				sequentialInstances = 3
+				parallelInstances   = 6
+			)
 
-		receiverUser := apex.Users[parallelInstances]
+			receiverUser := apex.Users[parallelInstances]
 
-		PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, bridgingOpts...)
-	})
+			PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, bridgingOpts...)
+		})
+	}
 
 	t.Run("From Prime to Nexus sequential and parallel with max receivers", func(t *testing.T) {
 		const (
@@ -297,77 +340,75 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 		operationFee = uint64(0)
 	)
 
+	feeAmount := uint64(1_100_000)
+
 	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, bridgingFee,
 		operationFee, "")
 	bridgingType := sendtx.BridgingTypeNormal
 
-	t.Run("1. Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendLovelaceAmount(
-			t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, retryDelaySec, bridgingType, true)
-	})
+	if IsVectorEnabled(apex) {
+		t.Run("1. Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
+			executeInvalidMismatchSendLovelaceAmount(
+				t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, retryDelaySec, bridgingType, true)
+		})
 
-	t.Run("2. Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[1])
-	})
+		t.Run("2. Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
+			PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[1])
+		})
 
-	t.Run("3. Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
-		executeInvalidMetadataType(
-			t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, retryDelaySec, bridgingType, true)
-	})
+		t.Run("3. Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
+			executeInvalidMetadataType(
+				t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, retryDelaySec, bridgingType, true)
+		})
 
-	t.Run("4. Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestination(
-			t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryDelaySec, bridgingType, true)
-	})
+		t.Run("4. Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
+			executeInvalidDestination(
+				t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryDelaySec, bridgingType, true)
+		})
 
-	t.Run("5. Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
-		executeInvalidMetadataInvalidSender(
-			t, ctx, apex, primeTestConfig, apex.Users[4], requestStateTimeoutSec, retryDelaySec, bridgingType)
-	})
+		t.Run("5. Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
+			executeInvalidMetadataInvalidSender(
+				t, ctx, apex, primeTestConfig, apex.Users[4], requestStateTimeoutSec, retryDelaySec, bridgingType)
+		})
 
-	t.Run("6. Prime to Vector submitted invalid metadata - empty receivers", func(t *testing.T) {
-		executeInvalidEmptyReceivers(
-			t, ctx, apex, primeTestConfig, apex.Users[5], requestStateTimeoutSec, retryDelaySec, bridgingType, false)
-	})
+		t.Run("6. Prime to Vector submitted invalid metadata - empty receivers", func(t *testing.T) {
+			executeInvalidEmptyReceivers(
+				t, ctx, apex, primeTestConfig, apex.Users[5], requestStateTimeoutSec, retryDelaySec, bridgingType, false)
+		})
+	}
 
 	t.Run("Prime to Nexus submitter not enough funds", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(500_000))
-		feeAmount := uint64(1_100_000)
 
 		PrimeToNexusSubmitterNotEnoughFunds(t, ctx, apex, apex.Users[6], sendAmountDfm, feeAmount)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - sliced off", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
-		feeAmount := uint64(1_100_000)
 
 		PrimeToNexusInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[7], sendAmountDfm, feeAmount)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - wrong type", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
-		feeAmount := uint64(1_100_000)
 
 		PrimeToNexusInvalidMetadataWrongType(t, ctx, apex, apex.Users[8], requestStateTimeoutSec, sendAmountDfm, feeAmount)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - invalid destination", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
-		feeAmount := uint64(1_100_000)
 
 		PrimeToNexusInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[9], requestStateTimeoutSec, sendAmountDfm, feeAmount)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - invalid sender", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
-		feeAmount := uint64(1_100_000)
 
 		PrimeToNexusInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[0], requestStateTimeoutSec, sendAmountDfm, feeAmount)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - empty tx", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
-		feeAmount := uint64(1_100_000)
 
 		PrimeToNexusInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[1], requestStateTimeoutSec, sendAmountDfm, feeAmount)
 	})
@@ -395,6 +436,8 @@ func printUserBalances(apex *cardanofw.ApexSystem, users []*cardanofw.TestApexUs
 		fmt.Printf("=============================\n")
 		fmt.Printf("user: %d\n", i)
 
+		chains := getEnabledChains(apex)
+
 		for _, chain := range chains {
 			var (
 				addr       = user.GetAddress(chain)
@@ -416,6 +459,7 @@ func getUserLovelaceBalances(
 	ctx context.Context, apex *cardanofw.ApexSystem,
 	users []*cardanofw.TestApexUser,
 ) map[string]*big.Int {
+	chains := getEnabledChains(apex)
 	balances, _ := cardanofw.GetUsersBalances(ctx, apex, chains, users)
 	result := make(map[string]*big.Int, len(balances))
 
@@ -424,4 +468,37 @@ func getUserLovelaceBalances(
 	}
 
 	return result
+}
+
+func IsVectorEnabled(apex *cardanofw.ApexSystem) bool {
+	return apex.Config.VectorConfig != nil && apex.Config.VectorConfig.IsEnabled
+}
+
+func getEnabledChains(apex *cardanofw.ApexSystem) []string {
+	chains := []string{
+		cardanofw.ChainIDPrime,
+		cardanofw.ChainIDNexus,
+	}
+
+	if IsVectorEnabled(apex) {
+		chains = append(chains, cardanofw.ChainIDVector)
+	}
+
+	return chains
+}
+
+func getEnabledDirections(apex *cardanofw.ApexSystem) []BridgingRequest {
+	directions := []BridgingRequest{
+		{src: cardanofw.ChainIDNexus, dest: cardanofw.ChainIDPrime},
+		{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDNexus},
+	}
+
+	if IsVectorEnabled(apex) {
+		directions = append(directions, []BridgingRequest{
+			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDVector},
+			{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDPrime},
+		}...)
+	}
+
+	return directions
 }

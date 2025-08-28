@@ -117,6 +117,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
 	primeConfig.FundTokenAmount = 1_000_000_000
 	cardanoConfig.FundTokenAmount = 1_000_000_000
+	primeConfig.UseIndexer = true
+	cardanoConfig.UseIndexer = true
 
 	apex := cardanofw.SetupAndRunSkylineBridge(
 		t, ctx,
@@ -154,6 +156,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			t.Skip()
 		}
 
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
 		sendAmountDfm := big.NewInt(1_500_000)
 
 		e2ehelper.ExecuteSingleBridging(
@@ -165,6 +171,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
 			t.Skip()
 		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
 
 		sendAmountDfm := big.NewInt(1_500_000)
 
@@ -188,6 +198,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			t.Skip()
 		}
 
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
 		sendAmountDfm := big.NewInt(1_500_000)
 
 		e2ehelper.ExecuteSingleBridging(
@@ -199,6 +213,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
 			t.Skip()
 		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
 
 		sendAmountDfm := big.NewInt(1_500_000)
 
@@ -223,6 +241,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
+
+				t.Cleanup(func() {
+					apex.ResetIndexers()
+				})
 
 				sendAmountDfm := big.NewInt(5_000_000)
 				minterUser := apex.Users[userCnt-2]
@@ -253,12 +275,17 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 		}
 	}
 
+	//nolint:dupl
 	for idx, cfg := range testConfigs {
 		for _, txType := range transactionTypes {
 			t.Run(fmt.Sprintf("2.%d %s -> %s - wait for each submit - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txType), func(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
+
+				t.Cleanup(func() {
+					apex.ResetIndexers()
+				})
 
 				const (
 					sendAmount = uint64(1_000_000)
@@ -282,12 +309,17 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 		}
 	}
 
+	//nolint:dupl
 	for idx, cfg := range testConfigs {
 		for _, txType := range transactionTypes {
 			t.Run(fmt.Sprintf("3.%d %s -> %s - one by one - %s", idx+1, cfg.srcChainID, cfg.dstChainID, txType), func(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
+
+				t.Cleanup(func() {
+					apex.ResetIndexers()
+				})
 
 				const (
 					sendAmount = uint64(1_000_000)
@@ -317,6 +349,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
+
+				t.Cleanup(func() {
+					apex.ResetIndexers()
+				})
 
 				const (
 					sendAmount = uint64(1_000_000)
@@ -350,6 +386,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				if cardanofw.ShouldSkipE2RRedundantTests() {
 					t.Skip()
 				}
+
+				t.Cleanup(func() {
+					apex.ResetIndexers()
+				})
 
 				const (
 					sendAmount          = uint64(1_000_000)
@@ -390,6 +430,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				t.Skip()
 			}
 
+			t.Cleanup(func() {
+				apex.ResetIndexers()
+			})
+
 			const (
 				sendAmount = uint64(1_000_000)
 				instances  = 5
@@ -426,6 +470,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 	for _, txType := range transactionTypes {
 		t.Run(fmt.Sprintf("7.%d Both directions sequential and parallel - %s", idx, txType), func(t *testing.T) {
+			t.Cleanup(func() {
+				apex.ResetIndexers()
+			})
+
 			const (
 				sendAmount          = uint64(1_000_000)
 				sequentialInstances = 5
@@ -471,6 +519,13 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				validatorStoppingIdx = 1
 			)
 
+			t.Cleanup(func() {
+				apex.ResetIndexers()
+
+				_ = apex.GetValidator(t, validatorStoppingIdx).Stop() // make sure it was stopped
+				require.NoError(t, apex.GetValidator(t, validatorStoppingIdx).Start(ctx, false))
+			})
+
 			for _, cfg := range testConfigs {
 				for _, sender := range apex.Users[:parallelInstances] {
 					_, err := cardanofw.FundUserWithToken(
@@ -514,6 +569,13 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				validatorStoppingIdx2 = 2
 				sendAmount            = uint64(1_000_000)
 			)
+
+			t.Cleanup(func() {
+				apex.ResetIndexers()
+
+				_ = apex.GetValidator(t, validatorStoppingIdx2).Stop() // make sure it was stopped
+				require.NoError(t, apex.GetValidator(t, validatorStoppingIdx2).Start(ctx, false))
+			})
 
 			for _, cfg := range testConfigs {
 				for _, sender := range apex.Users[:parallelInstances] {
