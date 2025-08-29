@@ -2125,9 +2125,8 @@ func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
 }
 
 func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
+	// the test isn't applicable since signedbatch.isconsolidation is always false
+	t.Skip()
 
 	const (
 		fundUtxoCount                 = 8
