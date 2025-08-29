@@ -585,7 +585,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		})
 	}
 
-	multisigAddr, err := ec.determineMultisigAddressToSendTo(ctx)
+	multisigAddr, err := ec.GetAddressToBridgeTo(ctx, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
 	if err != nil {
 		return "", err
 	}
@@ -608,10 +608,16 @@ func (ec *TestCardanoChain) BridgingRequest(
 	return ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, multisigAddr, wallet)
 }
 
-func (ec *TestCardanoChain) determineMultisigAddressToSendTo(ctx context.Context) (string, error) {
+func (ec *TestCardanoChain) GetAddressToBridgeTo(ctx context.Context, containsNativeTokens bool) (string, error) {
 	txProvider, err := ec.GetTxProvider()
 	if err != nil {
 		return "", err
+	}
+
+	if containsNativeTokens {
+		fmt.Println("address with index 0 chosen for native tokens bridging")
+
+		return ec.multisigAddr[0], nil
 	}
 
 	minAmount := uint64(0)
