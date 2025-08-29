@@ -91,12 +91,7 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Chains have been registered\n")
 
-	require.NoError(t, apexSystem.CreateAddresses())
-
-	fmt.Printf("Multisig addresses have been created\n")
-
 	require.NoError(t, apexSystem.InitContracts(ctx))
-	require.NoError(t, apexSystem.FinishConfiguring(t))
 
 	fmt.Printf("Contracts have been set up\n")
 
@@ -117,6 +112,14 @@ func SetupAndRunApexBridge(
 			fmt.Printf("Bridging address count of %s have been updated to %d\n", chainID, addrCount)
 		}
 	}
+
+	require.NoError(t, apexSystem.CreateAddresses())
+
+	fmt.Printf("Multisig addresses have been created\n")
+
+	require.NoError(t, apexSystem.FinishConfiguring(t))
+
+	fmt.Printf("Configuration has been set up\n")
 
 	require.NoError(t, apexSystem.FundWallets(ctx))
 

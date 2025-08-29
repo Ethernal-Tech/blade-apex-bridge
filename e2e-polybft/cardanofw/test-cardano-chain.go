@@ -329,44 +329,50 @@ func (ec *TestCardanoChain) CreateAddresses(
 		return err
 	}
 
-	for i := range ec.config.BridgingAddressCnt {
-		args := []string{
-			"create-address",
-			"--network-id", fmt.Sprint(ec.config.NetworkType),
-			"--testnet-magic", fmt.Sprint(ec.config.NetworkMagic),
-			"--addr-index", fmt.Sprint(i),
-			"--bridge-url", bridgeURL,
-			"--bridge-addr", contracts.Bridge.String(),
-			"--bridge-key", hex.EncodeToString(bridgeAdminPk),
-			"--chain", ec.ChainID(),
-		}
+	args := []string{
+		"create-addresses",
+		"--network-id", fmt.Sprint(ec.config.NetworkType),
+		"--testnet-magic", fmt.Sprint(ec.config.NetworkMagic),
+		"--bridge-url", bridgeURL,
+		"--bridge-addr", contracts.Bridge.String(),
+		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
+		"--chain", ec.ChainID(),
+	}
 
-		var outb bytes.Buffer
+	var outb bytes.Buffer
 
-		err = RunCommand(ResolveApexBridgeBinary(), args, io.MultiWriter(os.Stdout, &outb))
-		if err != nil {
-			return err
-		}
+	err = RunCommand(ResolveApexBridgeBinary(), args, io.MultiWriter(os.Stdout, &outb))
+	if err != nil {
+		return err
+	}
 
-		output := outb.String()
-		reMultisig := regexp.MustCompile(`Multisig Address\s*=\s*([^\s]+)`)
-		reFee := regexp.MustCompile(`Fee Payer Address\s*=\s*([^\s]+)`)
-		reMultisigStake := regexp.MustCompile(`Multisig Stake Address\s*=\s*([^\s]+)`)
+	output := outb.String()
 
-		if match := reMultisig.FindStringSubmatch(output); len(match) > 0 {
-			ec.multisigAddr = append(ec.multisigAddr, match[1])
-		}
+	// Regular expressions for parsing the output
+	reMultisig := regexp.MustCompile(`Multisig Address\s*=\s*([^\s]+)`)
+	reFee := regexp.MustCompile(`Fee Payer Address\s*=\s*([^\s]+)`)
+	reMultisigStake := regexp.MustCompile(`Multisig Stake Address\s*=\s*([^\s]+)`)
 
-		if match := reMultisigStake.FindStringSubmatch(output); len(match) > 0 {
-			ec.multisigStakeAddr = append(ec.multisigStakeAddr, match[1])
-		}
+	// Find all matches
+	multisigMatches := reMultisig.FindAllStringSubmatch(output, -1)
+	feeMatches := reFee.FindAllStringSubmatch(output, -1)
+	stakeMatches := reMultisigStake.FindAllStringSubmatch(output, -1)
 
-		if i == 0 {
-			if match := reFee.FindStringSubmatch(output); len(match) > 0 {
-				ec.multisigFeeAddr = match[1]
-			}
+	count := len(multisigMatches)
+
+	if count == 0 || len(feeMatches) == 0 {
+		return fmt.Errorf("no multisig or fee addresses found in output")
+	}
+
+	for i := range count {
+		ec.multisigAddr = append(ec.multisigAddr, multisigMatches[i][1])
+
+		if i < len(stakeMatches) {
+			ec.multisigStakeAddr = append(ec.multisigStakeAddr, stakeMatches[i][1])
 		}
 	}
+
+	ec.multisigFeeAddr = feeMatches[0][1]
 
 	return nil
 }
