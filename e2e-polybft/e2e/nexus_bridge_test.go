@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -112,25 +111,12 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	directions := map[string][]string{}
-
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithVectorEnabled(true),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(userCnt),
-		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			tempDirs := setting["directions"].(map[string]interface{})
-
-			for src, dirs := range tempDirs {
-				directions[src] = make([]string, len(dirs.([]interface{})))
-				for i, d := range dirs.([]interface{}) {
-					directions[src][i] = d.(string)
-				}
-			}
-		}, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -139,94 +125,89 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 	user := apex.Users[userCnt-1]
 	srcChain := cardanofw.ChainIDNexus
 
-	dstChains := directions[srcChain]
-	for _, dstChain := range dstChains {
-		fmt.Printf("Testing bridging from %s to %s\n", srcChain, dstChain)
+	t.Run("One by one - wait for other side", func(t *testing.T) {
+		const instances = 5
 
-		t.Run("One by one - wait for other side", func(t *testing.T) {
-			const instances = 5
+		e2ehelper.ExecuteBridgingOneByOneWaitOnOtherSide(
+			t, ctx, apex, instances, user, srcChain, cardanofw.ChainIDPrime, sendAmountDfm)
+	})
 
-			e2ehelper.ExecuteBridgingOneByOneWaitOnOtherSide(
-				t, ctx, apex, instances, user, srcChain, dstChain, sendAmountDfm)
-		})
+	t.Run("One by one - don't wait", func(t *testing.T) {
+		const instances = 5
 
-		t.Run("One by one - don't wait", func(t *testing.T) {
-			const instances = 5
+		e2ehelper.ExecuteBridgingWaitAfterSubmits(
+			t, ctx, apex, instances, user, srcChain, cardanofw.ChainIDVector, sendAmountDfm)
+	})
 
-			e2ehelper.ExecuteBridgingWaitAfterSubmits(
-				t, ctx, apex, instances, user, srcChain, dstChain, sendAmountDfm)
-		})
+	t.Run("One by one - don't wait", func(t *testing.T) {
+		const instances = 2
 
-		t.Run("One by one - don't wait", func(t *testing.T) {
-			const instances = 2
+		e2ehelper.ExecuteBridgingWaitAfterSubmits(
+			t, ctx, apex, instances, user, srcChain, cardanofw.ChainIDPrime, sendAmountDfm)
+	})
 
-			e2ehelper.ExecuteBridgingWaitAfterSubmits(
-				t, ctx, apex, instances, user, srcChain, dstChain, sendAmountDfm)
-		})
+	t.Run("Parallel", func(t *testing.T) {
+		const instances = 5
 
-		t.Run("Parallel", func(t *testing.T) {
-			const instances = 5
+		e2ehelper.ExecuteBridging(
+			t, ctx, apex, 1,
+			apex.Users[:instances],
+			[]*cardanofw.TestApexUser{user},
+			[]string{srcChain},
+			map[string][]string{
+				srcChain: {cardanofw.ChainIDVector},
+			},
+			sendAmountDfm)
+	})
 
-			e2ehelper.ExecuteBridging(
-				t, ctx, apex, 1,
-				apex.Users[:instances],
-				[]*cardanofw.TestApexUser{user},
-				[]string{srcChain},
-				map[string][]string{
-					srcChain: {dstChain},
-				},
-				sendAmountDfm)
-		})
+	t.Run("Sequential and parallel", func(t *testing.T) {
+		const (
+			instances         = 5
+			parallelInstances = 6
+		)
 
-		t.Run("Sequential and parallel", func(t *testing.T) {
-			const (
-				instances         = 5
-				parallelInstances = 10
-			)
+		e2ehelper.ExecuteBridging(
+			t, ctx, apex, instances,
+			apex.Users[:parallelInstances],
+			[]*cardanofw.TestApexUser{user},
+			[]string{srcChain},
+			map[string][]string{
+				srcChain: {cardanofw.ChainIDPrime},
+			},
+			sendAmountDfm)
+	})
 
-			e2ehelper.ExecuteBridging(
-				t, ctx, apex, instances,
-				apex.Users[:parallelInstances],
-				[]*cardanofw.TestApexUser{user},
-				[]string{srcChain},
-				map[string][]string{
-					srcChain: {dstChain},
-				},
-				sendAmountDfm)
-		})
+	t.Run("Sequential and parallel multiple receivers", func(t *testing.T) {
+		const (
+			sequentialInstances = 5
+			parallelInstances   = 6
+		)
 
-		t.Run("Sequential and parallel multiple receivers", func(t *testing.T) {
-			const (
-				sequentialInstances = 5
-				parallelInstances   = 10
-			)
+		SrcNexusSequentialAndParallelWithMaxReceivers(
+			t, ctx, apex, cardanofw.ChainIDVector, sequentialInstances, parallelInstances, sendAmountDfm)
+	})
 
-			SrcNexusSequentialAndParallelWithMaxReceivers(
-				t, ctx, apex, dstChain, sequentialInstances, parallelInstances, sendAmountDfm)
-		})
+	t.Run("Sequential and parallel, one node goes off in the middle", func(t *testing.T) {
+		const (
+			instances            = 5
+			parallelInstances    = 6
+			stopAfter            = time.Second * 60
+			validatorStoppingIdx = 1
+		)
 
-		t.Run("Sequential and parallel, one node goes off in the middle", func(t *testing.T) {
-			const (
-				instances            = 5
-				parallelInstances    = 10
-				stopAfter            = time.Second * 60
-				validatorStoppingIdx = 1
-			)
-
-			e2ehelper.ExecuteBridging(
-				t, ctx, apex, instances,
-				apex.Users[:parallelInstances],
-				apex.Users[len(apex.Users)-1:],
-				[]string{srcChain},
-				map[string][]string{
-					srcChain: {dstChain},
-				},
-				sendAmountDfm,
-				e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
-					{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
-				}))
-		})
-	}
+		e2ehelper.ExecuteBridging(
+			t, ctx, apex, instances,
+			apex.Users[:parallelInstances],
+			apex.Users[len(apex.Users)-1:],
+			[]string{srcChain},
+			map[string][]string{
+				srcChain: {cardanofw.ChainIDPrime},
+			},
+			sendAmountDfm,
+			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
+				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
+			}))
+	})
 }
 
 func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios(t *testing.T) {
@@ -235,12 +216,8 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios(t *testing.T) {
 		userCnt = 1
 	)
 
-	var lock sync.Mutex
-
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
-
-	directions := map[string][]string{}
 
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,
@@ -248,26 +225,12 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios(t *testing.T) {
 		cardanofw.WithVectorEnabled(true),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(userCnt),
-		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-			lock.Lock()
-			defer lock.Unlock()
-
-			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			tempDirs := setting["directions"].(map[string]interface{})
-
-			for src, dirs := range tempDirs {
-				directions[src] = make([]string, len(dirs.([]interface{})))
-				for i, d := range dirs.([]interface{}) {
-					directions[src][i] = d.(string)
-				}
-			}
-		}, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
 	srcChain := cardanofw.ChainIDNexus
-	dstChains := directions[srcChain]
+	dstChains := []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector}
 
 	user := apex.Users[userCnt-1]
 	fee := cardanofw.DfmToChainNativeTokenAmount(srcChain, new(big.Int).SetUint64(uint64(1_100_000)))
@@ -379,237 +342,232 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 	user := apex.Users[userCnt-1]
 	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-	srcChains := []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector}
+	t.Run("From Prime to Nexus one by one - wait for other side", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
 
-	for _, srcChain := range srcChains {
-		fmt.Printf("Testing bridging from %s to %s\n", srcChain, cardanofw.ChainIDNexus)
-
-		t.Run("From Prime to Nexus one by one - wait for other side", func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
-
-			t.Cleanup(func() {
-				apex.ResetIndexers()
-			})
-
-			const instances = 5
-
-			e2ehelper.ExecuteBridgingOneByOneWaitOnOtherSide(
-				t, ctx, apex, instances, user, srcChain, cardanofw.ChainIDNexus, sendAmountDfm)
+		t.Cleanup(func() {
+			apex.ResetIndexers()
 		})
 
-		t.Run("From Prime to Nexus one by one - don't wait for other side", func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
+		const instances = 5
 
-			t.Cleanup(func() {
-				apex.ResetIndexers()
-			})
+		e2ehelper.ExecuteBridgingOneByOneWaitOnOtherSide(
+			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm)
+	})
 
-			const instances = 5
+	t.Run("From Vector to Nexus one by one - don't wait for other side", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
 
-			e2ehelper.ExecuteBridgingWaitAfterSubmits(
-				t, ctx, apex, instances, user, srcChain, cardanofw.ChainIDNexus, sendAmountDfm)
+		t.Cleanup(func() {
+			apex.ResetIndexers()
 		})
 
-		t.Run("From Prime to Nexus parallel", func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
+		const instances = 5
 
-			t.Cleanup(func() {
-				apex.ResetIndexers()
-			})
+		e2ehelper.ExecuteBridgingWaitAfterSubmits(
+			t, ctx, apex, instances, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, sendAmountDfm)
+	})
 
-			const instances = 5
+	t.Run("From Prime to Nexus parallel", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
 
-			e2ehelper.ExecuteBridging(
-				t, ctx, apex, 1,
-				apex.Users[:instances],
-				[]*cardanofw.TestApexUser{user},
-				[]string{srcChain},
-				map[string][]string{
-					srcChain: {cardanofw.ChainIDNexus},
-				},
-				sendAmountDfm)
+		t.Cleanup(func() {
+			apex.ResetIndexers()
 		})
 
-		t.Run("From Prime to Nexus sequential and parallel", func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
+		const instances = 5
 
-			t.Cleanup(func() {
-				apex.ResetIndexers()
-			})
+		e2ehelper.ExecuteBridging(
+			t, ctx, apex, 1,
+			apex.Users[:instances],
+			[]*cardanofw.TestApexUser{user},
+			[]string{cardanofw.ChainIDPrime},
+			map[string][]string{
+				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
+			},
+			sendAmountDfm)
+	})
 
-			const (
-				sequentialInstances = 5
-				parallelInstances   = 10
-			)
+	t.Run("From Vector to Nexus sequential and parallel", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
 
-			e2ehelper.ExecuteBridging(
-				t, ctx, apex,
-				sequentialInstances,
-				apex.Users[:parallelInstances],
-				[]*cardanofw.TestApexUser{user},
-				[]string{srcChain},
-				map[string][]string{
-					srcChain: {cardanofw.ChainIDNexus},
-				},
-				sendAmountDfm)
+		t.Cleanup(func() {
+			apex.ResetIndexers()
 		})
 
-		t.Run("From Prime to Nexus sequential and parallel with max receivers", func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
+		const (
+			sequentialInstances = 5
+			parallelInstances   = 10
+		)
 
-			t.Cleanup(func() {
-				apex.ResetIndexers()
-			})
+		e2ehelper.ExecuteBridging(
+			t, ctx, apex,
+			sequentialInstances,
+			apex.Users[:parallelInstances],
+			[]*cardanofw.TestApexUser{user},
+			[]string{cardanofw.ChainIDVector},
+			map[string][]string{
+				cardanofw.ChainIDVector: {cardanofw.ChainIDNexus},
+			},
+			sendAmountDfm)
+	})
 
-			const (
-				sequentialInstances = 5
-				parallelInstances   = 10
-			)
+	t.Run("From Prime to Nexus sequential and parallel with max receivers", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
 
-			DstNexusSequentialAndParallelWithMaxReceivers(
-				t, ctx, apex, srcChain, sequentialInstances, parallelInstances, sendAmountDfm)
+		t.Cleanup(func() {
+			apex.ResetIndexers()
 		})
 
-		t.Run("From Prime to Nexus sequential and parallel - one node goes off in the midle", func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
+		const (
+			sequentialInstances = 5
+			parallelInstances   = 10
+		)
 
-			t.Cleanup(func() {
-				apex.ResetIndexers()
-			})
+		DstNexusSequentialAndParallelWithMaxReceivers(
+			t, ctx, apex, cardanofw.ChainIDPrime, sequentialInstances, parallelInstances, sendAmountDfm)
+	})
 
-			const (
-				sequentialInstances  = 5
-				parallelInstances    = 6
-				stopAfter            = time.Second * 60
-				validatorStoppingIdx = 1
-			)
+	t.Run("From Vector to Nexus sequential and parallel - one node goes off in the midle", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
 
-			e2ehelper.ExecuteBridging(
-				t, ctx, apex,
-				sequentialInstances,
-				apex.Users[:parallelInstances],
-				[]*cardanofw.TestApexUser{user},
-				[]string{srcChain},
-				map[string][]string{
-					srcChain: {cardanofw.ChainIDNexus},
-				},
-				sendAmountDfm,
-				e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
-					{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
-				}))
+		t.Cleanup(func() {
+			apex.ResetIndexers()
 		})
 
-		t.Run("Both directions sequential", func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
+		const (
+			sequentialInstances  = 5
+			parallelInstances    = 6
+			stopAfter            = time.Second * 60
+			validatorStoppingIdx = 1
+		)
 
-			t.Cleanup(func() {
-				apex.ResetIndexers()
-			})
+		e2ehelper.ExecuteBridging(
+			t, ctx, apex,
+			sequentialInstances,
+			apex.Users[:parallelInstances],
+			[]*cardanofw.TestApexUser{user},
+			[]string{cardanofw.ChainIDVector},
+			map[string][]string{
+				cardanofw.ChainIDVector: {cardanofw.ChainIDNexus},
+			},
+			sendAmountDfm,
+			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
+				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
+			}))
+	})
 
-			const instances = 5
+	t.Run("Both directions sequential", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
 
-			e2ehelper.ExecuteBridging(
-				t, ctx, apex,
-				instances,
-				apex.Users[:1],
-				[]*cardanofw.TestApexUser{user},
-				[]string{srcChain, cardanofw.ChainIDNexus},
-				map[string][]string{
-					srcChain:               {cardanofw.ChainIDNexus},
-					cardanofw.ChainIDNexus: {srcChain},
-				},
-				sendAmountDfm)
+		t.Cleanup(func() {
+			apex.ResetIndexers()
 		})
 
-		t.Run("Both directions sequential and parallel", func(t *testing.T) {
-			t.Cleanup(func() {
-				apex.ResetIndexers()
-			})
+		const instances = 3
 
-			const (
-				sequentialInstances = 5
-				parallelInstances   = 6
-			)
+		e2ehelper.ExecuteBridging(
+			t, ctx, apex,
+			instances,
+			apex.Users[:1],
+			[]*cardanofw.TestApexUser{user},
+			[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
+			map[string][]string{
+				cardanofw.ChainIDPrime:  {cardanofw.ChainIDNexus},
+				cardanofw.ChainIDNexus:  {cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
+				cardanofw.ChainIDVector: {cardanofw.ChainIDNexus},
+			},
+			sendAmountDfm)
+	})
 
-			DstNexusBothDirectionsSequentialAndParallel(
-				t, ctx, apex, srcChain, user, sequentialInstances, parallelInstances, sendAmountDfm)
+	t.Run("Both directions sequential and parallel", func(t *testing.T) {
+		t.Cleanup(func() {
+			apex.ResetIndexers()
 		})
 
-		t.Run("Both directions sequential and parallel - one node goes off in the midle", func(t *testing.T) {
-			t.Cleanup(func() {
-				apex.ResetIndexers()
-			})
+		const (
+			sequentialInstances = 4
+			parallelInstances   = 5
+		)
 
-			const (
-				sequentialInstances  = 5
-				parallelInstances    = 6
-				stopAfter            = time.Second * 60
-				validatorStoppingIdx = 1
-			)
+		DstNexusBothDirectionsSequentialAndParallel(
+			t, ctx, apex, cardanofw.ChainIDVector, user, sequentialInstances, parallelInstances, sendAmountDfm)
+	})
 
-			e2ehelper.ExecuteBridging(
-				t, ctx, apex,
-				sequentialInstances,
-				apex.Users[:parallelInstances],
-				[]*cardanofw.TestApexUser{user},
-				[]string{srcChain, cardanofw.ChainIDNexus},
-				map[string][]string{
-					srcChain:               {cardanofw.ChainIDNexus},
-					cardanofw.ChainIDNexus: {srcChain},
-				},
-				sendAmountDfm,
-				e2ehelper.WithWaitForUnexpectedBridges(true),
-				e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
-					{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
-				}))
+	t.Run("Both directions sequential and parallel - one node goes off in the midle", func(t *testing.T) {
+		t.Cleanup(func() {
+			apex.ResetIndexers()
 		})
 
-		t.Run("Both directions sequential and parallel - two nodes go off in the middle and then one comes back", func(t *testing.T) {
-			t.Cleanup(func() {
-				apex.ResetIndexers()
-			})
+		const (
+			sequentialInstances  = 5
+			parallelInstances    = 6
+			stopAfter            = time.Second * 60
+			validatorStoppingIdx = 1
+		)
 
-			const (
-				sequentialInstances   = 5
-				parallelInstances     = 10
-				stopAfter             = time.Second * 60
-				startAgainAfter       = time.Second * 120
-				validatorStoppingIdx1 = 1
-				validatorStoppingIdx2 = 2
-			)
+		e2ehelper.ExecuteBridging(
+			t, ctx, apex,
+			sequentialInstances,
+			apex.Users[:parallelInstances],
+			[]*cardanofw.TestApexUser{user},
+			[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDNexus},
+			map[string][]string{
+				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
+				cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
+			},
+			sendAmountDfm,
+			e2ehelper.WithWaitForUnexpectedBridges(true),
+			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
+				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
+			}))
+	})
 
-			e2ehelper.ExecuteBridging(
-				t, ctx, apex,
-				sequentialInstances,
-				apex.Users[:parallelInstances],
-				[]*cardanofw.TestApexUser{user},
-				[]string{srcChain, cardanofw.ChainIDNexus},
-				map[string][]string{
-					srcChain:               {cardanofw.ChainIDNexus},
-					cardanofw.ChainIDNexus: {srcChain},
-				},
-				sendAmountDfm,
-				e2ehelper.WithWaitForUnexpectedBridges(true),
-				e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
-					{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx1, validatorStoppingIdx2}},
-					{WaitTime: startAgainAfter, StartIndxs: []int{validatorStoppingIdx1}},
-				}))
+	t.Run("Both directions sequential and parallel - two nodes go off in the middle and then one comes back", func(t *testing.T) {
+		t.Cleanup(func() {
+			apex.ResetIndexers()
 		})
-	}
+
+		const (
+			sequentialInstances   = 5
+			parallelInstances     = 10
+			stopAfter             = time.Second * 60
+			startAgainAfter       = time.Second * 120
+			validatorStoppingIdx1 = 1
+			validatorStoppingIdx2 = 2
+		)
+
+		e2ehelper.ExecuteBridging(
+			t, ctx, apex,
+			sequentialInstances,
+			apex.Users[:parallelInstances],
+			[]*cardanofw.TestApexUser{user},
+			[]string{cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
+			map[string][]string{
+				cardanofw.ChainIDVector: {cardanofw.ChainIDNexus},
+				cardanofw.ChainIDNexus:  {cardanofw.ChainIDVector},
+			},
+			sendAmountDfm,
+			e2ehelper.WithWaitForUnexpectedBridges(true),
+			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
+				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx1, validatorStoppingIdx2}},
+				{WaitTime: startAgainAfter, StartIndxs: []int{validatorStoppingIdx1}},
+			}))
+	})
 }
 
 func TestE2E_ApexBridgeWithNexus_DstN_InvalidScenarios(t *testing.T) {
@@ -643,36 +601,31 @@ func TestE2E_ApexBridgeWithNexus_DstN_InvalidScenarios(t *testing.T) {
 
 	user := apex.Users[userCnt-1]
 
-	srcChains := []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector}
+	t.Run("Submitter not enough funds", func(t *testing.T) {
+		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(100))
 
-	for _, srcChain := range srcChains {
-		fmt.Printf("Testing bridging from %s to %s\n", srcChain, cardanofw.ChainIDNexus)
-		t.Run("Submitter not enough funds", func(t *testing.T) {
-			sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(100))
+		DstNexusSubmitterNotEnoughFunds(t, ctx, apex, cardanofw.ChainIDPrime, user, sendAmountDfm)
+	})
 
-			DstNexusSubmitterNotEnoughFunds(t, ctx, apex, srcChain, user, sendAmountDfm)
-		})
+	t.Run("Submitted invalid metadata - sliced off", func(t *testing.T) {
+		DstNexusInvalidMetadataSlicedOff(t, ctx, apex, cardanofw.ChainIDVector, user)
+	})
 
-		t.Run("Submitted invalid metadata - sliced off", func(t *testing.T) {
-			DstNexusInvalidMetadataSlicedOff(t, ctx, apex, srcChain, user)
-		})
+	t.Run("Submitted invalid metadata - wrong type", func(t *testing.T) {
+		DstNexusInvalidMetadataWrongType(t, ctx, apex, cardanofw.ChainIDPrime, user, cardanofw.DefaultRequestStateTimeoutSec)
+	})
 
-		t.Run("Submitted invalid metadata - wrong type", func(t *testing.T) {
-			DstNexusInvalidMetadataWrongType(t, ctx, apex, srcChain, user, cardanofw.DefaultRequestStateTimeoutSec)
-		})
+	t.Run("Submitted invalid metadata - invalid destination", func(t *testing.T) {
+		DstNexusInvalidMetadataInvalidDestination(t, ctx, apex, cardanofw.ChainIDVector, user, 0)
+	})
 
-		t.Run("Submitted invalid metadata - invalid destination", func(t *testing.T) {
-			DstNexusInvalidMetadataInvalidDestination(t, ctx, apex, srcChain, user, 0)
-		})
+	t.Run("Submitted invalid metadata - invalid sender", func(t *testing.T) {
+		DstNexusInvalidMetadataInvalidSender(t, ctx, apex, cardanofw.ChainIDPrime, user, 0)
+	})
 
-		t.Run("Submitted invalid metadata - invalid sender", func(t *testing.T) {
-			DstNexusInvalidMetadataInvalidSender(t, ctx, apex, srcChain, user, 0)
-		})
-
-		t.Run("Submitted invalid metadata - empty tx", func(t *testing.T) {
-			DstNexusInvalidMetadataInvalidTransactions(t, ctx, apex, srcChain, user, 0)
-		})
-	}
+	t.Run("Submitted invalid metadata - empty tx", func(t *testing.T) {
+		DstNexusInvalidMetadataInvalidTransactions(t, ctx, apex, cardanofw.ChainIDVector, user, 0)
+	})
 }
 
 func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
@@ -683,413 +636,420 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-	srcChains := []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector}
+	t.Run("Test insufficient gas price dynamicTx=true", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
 
-	for _, srcChain := range srcChains {
-		fmt.Printf("Testing bridging from %s to %s\n", srcChain, cardanofw.ChainIDNexus)
+		srcChain := cardanofw.ChainIDPrime
 
-		t.Run("Test insufficient gas price dynamicTx=true", func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
 
-			ctx, cncl := context.WithCancel(context.Background())
-			defer cncl()
+		var (
+			failedToExecute int
+			timeout         bool
+		)
 
-			var (
-				failedToExecute int
-				timeout         bool
-			)
+		apex := cardanofw.SetupAndRunApexBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithVectorEnabled(false),
+			cardanofw.WithNexusEnabled(true),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
+				block["gasFeeCap"] = uint64(10)
+				block["gasTipCap"] = uint64(11)
+			}),
+		)
 
-			apex := cardanofw.SetupAndRunApexBridge(
-				t, ctx,
-				cardanofw.WithAPIKey(apiKey),
-				cardanofw.WithVectorEnabled(true),
-				cardanofw.WithNexusEnabled(true),
-				cardanofw.WithUserCnt(userCnt),
-				cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-					block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
-					block["gasFeeCap"] = uint64(10)
-					block["gasTipCap"] = uint64(11)
-				}),
-			)
+		user := apex.Users[userCnt-1]
 
-			user := apex.Users[userCnt-1]
+		txHash := apex.SubmitBridgingRequest(
+			t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
 
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+		// Check relay failed
+		failedToExecute, timeout = cardanofw.WaitForBatchState(
+			ctx, apex, srcChain, txHash, apiKey, true, false, cardanofw.BatchStateExecuted)
+
+		require.Equal(t, failedToExecute, 1)
+		require.False(t, timeout)
+
+		// Restart relayer after config fix
+		require.NoError(t, apex.StopRelayer())
+
+		err := cardanofw.UpdateJSONFile(
+			apex.GetValidator(t, 0).GetRelayerConfig(),
+			apex.GetValidator(t, 0).GetRelayerConfig(),
+			func(mp map[string]interface{}) {
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
+				block["gasFeeCap"] = uint64(0)
+				block["gasTipCap"] = uint64(0)
+			},
+			false,
+		)
+		require.NoError(t, err)
+
+		err = apex.StartRelayer(ctx)
+		require.NoError(t, err)
+
+		failedToExecute, timeout = cardanofw.WaitForBatchState(
+			ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
+
+		require.LessOrEqual(t, failedToExecute, 1)
+		require.False(t, timeout)
+	})
+
+	t.Run("Test insufficient gas price dynamicTx=false", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		var (
+			failedToExecute int
+			timeout         bool
+		)
+
+		srcChain := cardanofw.ChainIDVector
+
+		apex := cardanofw.SetupAndRunApexBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithVectorEnabled(true),
+			cardanofw.WithNexusEnabled(true),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
+				block["gasPrice"] = uint64(10)
+				block["dynamicTx"] = bool(false)
+			}),
+		)
+
+		user := apex.Users[userCnt-1]
+
+		txHash := apex.SubmitBridgingRequest(
+			t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
+
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+		// Check relay failed
+		failedToExecute, timeout = cardanofw.WaitForBatchState(
+			ctx, apex, srcChain, txHash, apiKey, true, false, cardanofw.BatchStateExecuted)
+
+		require.Equal(t, failedToExecute, 1)
+		require.False(t, timeout)
+
+		// Restart relayer after config fix
+		require.NoError(t, apex.StopRelayer())
+
+		err := cardanofw.UpdateJSONFile(
+			apex.GetValidator(t, 0).GetRelayerConfig(),
+			apex.GetValidator(t, 0).GetRelayerConfig(),
+			func(mp map[string]interface{}) {
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
+				block["gasPrice"] = uint64(0)
+			},
+			false,
+		)
+		require.NoError(t, err)
+
+		err = apex.StartRelayer(ctx)
+		require.NoError(t, err)
+
+		failedToExecute, timeout = cardanofw.WaitForBatchState(
+			ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
+
+		require.LessOrEqual(t, failedToExecute, 1)
+		require.False(t, timeout)
+	})
+
+	t.Run("Test small fee", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		var (
+			failedToExecute int
+			timeout         bool
+		)
+
+		srcChain := cardanofw.ChainIDPrime
+
+		apex := cardanofw.SetupAndRunApexBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithVectorEnabled(false),
+			cardanofw.WithNexusEnabled(true),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(10)
+			}),
+		)
+
+		user := apex.Users[userCnt-1]
+
+		txHash := apex.SubmitBridgingRequest(
+			t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
+
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+		// Check relay failed
+		failedToExecute, timeout = cardanofw.WaitForBatchState(ctx,
+			apex, srcChain, txHash, apiKey, true, false, cardanofw.BatchStateExecuted)
+
+		require.Equal(t, failedToExecute, 1)
+		require.False(t, timeout)
+
+		// Restart relayer after config fix
+		require.NoError(t, apex.StopRelayer())
+
+		err := cardanofw.UpdateJSONFile(
+			apex.GetValidator(t, 0).GetRelayerConfig(),
+			apex.GetValidator(t, 0).GetRelayerConfig(),
+			func(mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(0)
+			},
+			false,
+		)
+		require.NoError(t, err)
+
+		err = apex.StartRelayer(ctx)
+		require.NoError(t, err)
+
+		failedToExecute, timeout = cardanofw.WaitForBatchState(ctx,
+			apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
+
+		require.LessOrEqual(t, failedToExecute, 1)
+		require.False(t, timeout)
+	})
+
+	//nolint:dupl
+	t.Run("Test failed batch", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		var (
+			failedToExecute int
+			timeout         bool
+		)
+
+		srcChain := cardanofw.ChainIDPrime
+
+		apex := cardanofw.SetupAndRunApexBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithVectorEnabled(true),
+			cardanofw.WithNexusEnabled(true),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(1)
+			}, nil),
+		)
+
+		defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+		user := apex.Users[userCnt-1]
+
+		prevBalanceDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		require.NoError(t, err)
+
+		fmt.Printf("Dfm before Tx %d\n", prevBalanceDfm)
+
+		expectedAmount := new(big.Int).Set(sendAmountDfm)
+		expectedAmount = expectedAmount.Add(expectedAmount, prevBalanceDfm)
+
+		txHash := apex.SubmitBridgingRequest(
+			t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
+
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+		// Check batch failed
+		failedToExecute, timeout = cardanofw.WaitForBatchState(
+			ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
+
+		require.Equal(t, failedToExecute, 1)
+		require.False(t, timeout)
+
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmount, 3, time.Second*10)
+		require.NoError(t, err)
+	})
+
+	//nolint:dupl
+	t.Run("Test failed batch 5 times in a row", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		var (
+			failedToExecute int
+			timeout         bool
+		)
+
+		srcChain := cardanofw.ChainIDPrime
+
+		apex := cardanofw.SetupAndRunApexBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithVectorEnabled(false),
+			cardanofw.WithNexusEnabled(true),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(2)
+			}, nil),
+		)
+
+		defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+		user := apex.Users[userCnt-1]
+
+		prevBalanceDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		require.NoError(t, err)
+
+		fmt.Printf("DFM Amount before Tx %d\n", prevBalanceDfm)
+
+		expectedAmount := new(big.Int).Set(sendAmountDfm)
+		expectedAmount = expectedAmount.Add(expectedAmount, prevBalanceDfm)
+
+		txHash := apex.SubmitBridgingRequest(
+			t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
+
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+		// Check batch failed
+		failedToExecute, timeout = cardanofw.WaitForBatchState(
+			ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
+
+		require.Equal(t, failedToExecute, 5)
+		require.False(t, timeout)
+
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmount, 3, time.Second*10)
+		require.NoError(t, err)
+	})
+
+	t.Run("Test multiple failed batches in a row", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		instances := 5
+		failedToExecute := make([]int, instances)
+		timeout := make([]bool, instances)
+		srcChain := cardanofw.ChainIDPrime
+
+		apex := cardanofw.SetupAndRunApexBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithVectorEnabled(true),
+			cardanofw.WithNexusEnabled(true),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(3)
+			}, nil),
+		)
+
+		defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+		user := apex.Users[userCnt-1]
+
+		prevBalanceDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		require.NoError(t, err)
+
+		fmt.Printf("DFM Amount before Tx %d\n", prevBalanceDfm)
+
+		ethExpectedBalance := big.NewInt(int64(instances))
+		ethExpectedBalance.Mul(ethExpectedBalance, sendAmountDfm)
+		ethExpectedBalance.Add(ethExpectedBalance, prevBalanceDfm)
+
+		for i := 0; i < instances; i++ {
 			txHash := apex.SubmitBridgingRequest(
 				t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
 
-			fmt.Printf("Tx sent. hash: %s\n", txHash)
+			fmt.Printf("Tx %v sent. hash: %s\n", i, txHash)
 
-			// Check relay failed
-			failedToExecute, timeout = cardanofw.WaitForBatchState(
-				ctx, apex, srcChain, txHash, apiKey, true, false, cardanofw.BatchStateExecuted)
-
-			require.Equal(t, failedToExecute, 1)
-			require.False(t, timeout)
-
-			// Restart relayer after config fix
-			require.NoError(t, apex.StopRelayer())
-
-			err := cardanofw.UpdateJSONFile(
-				apex.GetValidator(t, 0).GetRelayerConfig(),
-				apex.GetValidator(t, 0).GetRelayerConfig(),
-				func(mp map[string]interface{}) {
-					block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
-					block["gasFeeCap"] = uint64(0)
-					block["gasTipCap"] = uint64(0)
-				},
-				false,
-			)
-			require.NoError(t, err)
-
-			err = apex.StartRelayer(ctx)
-			require.NoError(t, err)
-
-			failedToExecute, timeout = cardanofw.WaitForBatchState(
+			failedToExecute[i], timeout[i] = cardanofw.WaitForBatchState(
 				ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
+		}
 
-			require.LessOrEqual(t, failedToExecute, 1)
-			require.False(t, timeout)
-		})
+		for i := 0; i < instances; i++ {
+			require.Equal(t, failedToExecute[i], 1)
+			require.False(t, timeout[i])
+		}
 
-		t.Run("Test insufficient gas price dynamicTx=false", func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, ethExpectedBalance, 20, time.Second*10)
+		require.NoError(t, err)
+	})
 
-			ctx, cncl := context.WithCancel(context.Background())
-			defer cncl()
+	t.Run("Test failed batches at random", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
 
-			var (
-				failedToExecute int
-				timeout         bool
-			)
+		instances := 5
+		failedToExecute := make([]int, instances)
+		timeout := make([]bool, instances)
 
-			apex := cardanofw.SetupAndRunApexBridge(
-				t, ctx,
-				cardanofw.WithAPIKey(apiKey),
-				cardanofw.WithVectorEnabled(true),
-				cardanofw.WithNexusEnabled(true),
-				cardanofw.WithUserCnt(userCnt),
-				cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-					block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
-					block["gasPrice"] = uint64(10)
-					block["dynamicTx"] = bool(false)
-				}),
-			)
+		srcChain := cardanofw.ChainIDPrime
 
-			user := apex.Users[userCnt-1]
+		apex := cardanofw.SetupAndRunApexBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithVectorEnabled(false),
+			cardanofw.WithNexusEnabled(true),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(4)
+			}, nil),
+		)
 
+		defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+		user := apex.Users[userCnt-1]
+
+		prevBalanceDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+		require.NoError(t, err)
+
+		fmt.Printf("DFM Amount before Tx %d\n", prevBalanceDfm)
+
+		ethExpectedBalance := big.NewInt(int64(instances))
+		ethExpectedBalance.Mul(ethExpectedBalance, sendAmountDfm)
+		ethExpectedBalance.Add(ethExpectedBalance, prevBalanceDfm)
+
+		for i := 0; i < instances; i++ {
 			txHash := apex.SubmitBridgingRequest(
 				t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
 
-			fmt.Printf("Tx sent. hash: %s\n", txHash)
-
-			// Check relay failed
-			failedToExecute, timeout = cardanofw.WaitForBatchState(
-				ctx, apex, srcChain, txHash, apiKey, true, false, cardanofw.BatchStateExecuted)
-
-			require.Equal(t, failedToExecute, 1)
-			require.False(t, timeout)
-
-			// Restart relayer after config fix
-			require.NoError(t, apex.StopRelayer())
-
-			err := cardanofw.UpdateJSONFile(
-				apex.GetValidator(t, 0).GetRelayerConfig(),
-				apex.GetValidator(t, 0).GetRelayerConfig(),
-				func(mp map[string]interface{}) {
-					block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
-					block["gasPrice"] = uint64(0)
-				},
-				false,
-			)
-			require.NoError(t, err)
-
-			err = apex.StartRelayer(ctx)
-			require.NoError(t, err)
-
-			failedToExecute, timeout = cardanofw.WaitForBatchState(
-				ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
-
-			require.LessOrEqual(t, failedToExecute, 1)
-			require.False(t, timeout)
-		})
-
-		t.Run("Test small fee", func(t *testing.T) {
-			ctx, cncl := context.WithCancel(context.Background())
-			defer cncl()
-
-			var (
-				failedToExecute int
-				timeout         bool
-			)
-
-			apex := cardanofw.SetupAndRunApexBridge(
-				t, ctx,
-				cardanofw.WithAPIKey(apiKey),
-				cardanofw.WithVectorEnabled(true),
-				cardanofw.WithNexusEnabled(true),
-				cardanofw.WithUserCnt(userCnt),
-				cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-					cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(10)
-				}),
-			)
-
-			user := apex.Users[userCnt-1]
-
-			txHash := apex.SubmitBridgingRequest(
-				t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
-
-			fmt.Printf("Tx sent. hash: %s\n", txHash)
-
-			// Check relay failed
-			failedToExecute, timeout = cardanofw.WaitForBatchState(ctx,
-				apex, srcChain, txHash, apiKey, true, false, cardanofw.BatchStateExecuted)
-
-			require.Equal(t, failedToExecute, 1)
-			require.False(t, timeout)
-
-			// Restart relayer after config fix
-			require.NoError(t, apex.StopRelayer())
-
-			err := cardanofw.UpdateJSONFile(
-				apex.GetValidator(t, 0).GetRelayerConfig(),
-				apex.GetValidator(t, 0).GetRelayerConfig(),
-				func(mp map[string]interface{}) {
-					cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(0)
-				},
-				false,
-			)
-			require.NoError(t, err)
-
-			err = apex.StartRelayer(ctx)
-			require.NoError(t, err)
-
-			failedToExecute, timeout = cardanofw.WaitForBatchState(ctx,
-				apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
-
-			require.LessOrEqual(t, failedToExecute, 1)
-			require.False(t, timeout)
-		})
-
-		//nolint:dupl
-		t.Run("Test failed batch", func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
-
-			ctx, cncl := context.WithCancel(context.Background())
-			defer cncl()
-
-			var (
-				failedToExecute int
-				timeout         bool
-			)
-
-			apex := cardanofw.SetupAndRunApexBridge(
-				t, ctx,
-				cardanofw.WithAPIKey(apiKey),
-				cardanofw.WithVectorEnabled(true),
-				cardanofw.WithNexusEnabled(true),
-				cardanofw.WithUserCnt(userCnt),
-				cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-					cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(1)
-				}, nil),
-			)
-
-			defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-			user := apex.Users[userCnt-1]
-
-			prevBalanceDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
-			require.NoError(t, err)
-
-			fmt.Printf("Dfm before Tx %d\n", prevBalanceDfm)
-
-			expectedAmount := new(big.Int).Set(sendAmountDfm)
-			expectedAmount = expectedAmount.Add(expectedAmount, prevBalanceDfm)
-
-			txHash := apex.SubmitBridgingRequest(
-				t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
-
-			fmt.Printf("Tx sent. hash: %s\n", txHash)
+			fmt.Printf("Tx %v sent. hash: %s\n", i, txHash)
 
 			// Check batch failed
-			failedToExecute, timeout = cardanofw.WaitForBatchState(
+			failedToExecute[i], timeout[i] = cardanofw.WaitForBatchState(
 				ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
+		}
 
-			require.Equal(t, failedToExecute, 1)
-			require.False(t, timeout)
-
-			err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmount, 3, time.Second*10)
-			require.NoError(t, err)
-		})
-
-		//nolint:dupl
-		t.Run("Test failed batch 5 times in a row", func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
+		for i := 0; i < instances; i++ {
+			if i%2 == 0 {
+				require.Equal(t, 1, failedToExecute[i])
 			}
 
-			ctx, cncl := context.WithCancel(context.Background())
-			defer cncl()
+			require.False(t, timeout[i])
+		}
 
-			var (
-				failedToExecute int
-				timeout         bool
-			)
-
-			apex := cardanofw.SetupAndRunApexBridge(
-				t, ctx,
-				cardanofw.WithAPIKey(apiKey),
-				cardanofw.WithVectorEnabled(true),
-				cardanofw.WithNexusEnabled(true),
-				cardanofw.WithUserCnt(userCnt),
-				cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-					cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(2)
-				}, nil),
-			)
-
-			defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-			user := apex.Users[userCnt-1]
-
-			prevBalanceDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
-			require.NoError(t, err)
-
-			fmt.Printf("DFM Amount before Tx %d\n", prevBalanceDfm)
-
-			expectedAmount := new(big.Int).Set(sendAmountDfm)
-			expectedAmount = expectedAmount.Add(expectedAmount, prevBalanceDfm)
-
-			txHash := apex.SubmitBridgingRequest(
-				t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
-
-			fmt.Printf("Tx sent. hash: %s\n", txHash)
-
-			// Check batch failed
-			failedToExecute, timeout = cardanofw.WaitForBatchState(
-				ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
-
-			require.Equal(t, failedToExecute, 5)
-			require.False(t, timeout)
-
-			err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmount, 3, time.Second*10)
-			require.NoError(t, err)
-		})
-
-		t.Run("Test multiple failed batches in a row", func(t *testing.T) {
-			if cardanofw.ShouldSkipE2RRedundantTests() {
-				t.Skip()
-			}
-
-			ctx, cncl := context.WithCancel(context.Background())
-			defer cncl()
-
-			instances := 5
-			failedToExecute := make([]int, instances)
-			timeout := make([]bool, instances)
-
-			apex := cardanofw.SetupAndRunApexBridge(
-				t, ctx,
-				cardanofw.WithAPIKey(apiKey),
-				cardanofw.WithVectorEnabled(true),
-				cardanofw.WithNexusEnabled(true),
-				cardanofw.WithUserCnt(userCnt),
-				cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-					cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(3)
-				}, nil),
-			)
-
-			defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-			user := apex.Users[userCnt-1]
-
-			prevBalanceDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
-			require.NoError(t, err)
-
-			fmt.Printf("DFM Amount before Tx %d\n", prevBalanceDfm)
-
-			ethExpectedBalance := big.NewInt(int64(instances))
-			ethExpectedBalance.Mul(ethExpectedBalance, sendAmountDfm)
-			ethExpectedBalance.Add(ethExpectedBalance, prevBalanceDfm)
-
-			for i := 0; i < instances; i++ {
-				txHash := apex.SubmitBridgingRequest(
-					t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
-
-				fmt.Printf("Tx %v sent. hash: %s\n", i, txHash)
-
-				failedToExecute[i], timeout[i] = cardanofw.WaitForBatchState(
-					ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
-			}
-
-			for i := 0; i < instances; i++ {
-				require.Equal(t, failedToExecute[i], 1)
-				require.False(t, timeout[i])
-			}
-
-			err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, ethExpectedBalance, 20, time.Second*10)
-			require.NoError(t, err)
-		})
-
-		t.Run("Test failed batches at random", func(t *testing.T) {
-			ctx, cncl := context.WithCancel(context.Background())
-			defer cncl()
-
-			instances := 5
-			failedToExecute := make([]int, instances)
-			timeout := make([]bool, instances)
-
-			apex := cardanofw.SetupAndRunApexBridge(
-				t, ctx,
-				cardanofw.WithAPIKey(apiKey),
-				cardanofw.WithVectorEnabled(true),
-				cardanofw.WithNexusEnabled(true),
-				cardanofw.WithUserCnt(userCnt),
-				cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-					cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(4)
-				}, nil),
-			)
-
-			defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-			user := apex.Users[userCnt-1]
-
-			prevBalanceDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
-			require.NoError(t, err)
-
-			fmt.Printf("DFM Amount before Tx %d\n", prevBalanceDfm)
-
-			ethExpectedBalance := big.NewInt(int64(instances))
-			ethExpectedBalance.Mul(ethExpectedBalance, sendAmountDfm)
-			ethExpectedBalance.Add(ethExpectedBalance, prevBalanceDfm)
-
-			for i := 0; i < instances; i++ {
-				txHash := apex.SubmitBridgingRequest(
-					t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
-
-				fmt.Printf("Tx %v sent. hash: %s\n", i, txHash)
-
-				// Check batch failed
-				failedToExecute[i], timeout[i] = cardanofw.WaitForBatchState(
-					ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
-			}
-
-			for i := 0; i < instances; i++ {
-				if i%2 == 0 {
-					require.Equal(t, 1, failedToExecute[i])
-				}
-
-				require.False(t, timeout[i])
-			}
-
-			err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, ethExpectedBalance, 3, time.Second*10)
-			require.NoError(t, err)
-		})
-	}
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, ethExpectedBalance, 3, time.Second*10)
+		require.NoError(t, err)
+	})
 }
 
 func TestE2E_NexusFundAmount(t *testing.T) {
@@ -1378,7 +1338,12 @@ func DstNexusInvalidMetadataInvalidDestination(
 	t.Helper()
 
 	dstChain := cardanofw.ChainIDNexus
+
 	receiverAddr := apex.PrimeInfo.MultisigAddr
+	if srcChain == cardanofw.ChainIDVector {
+		receiverAddr = apex.VectorInfo.MultisigAddr
+	}
+
 	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 	feeAmount := uint64(1_100_000)
 
@@ -1422,7 +1387,12 @@ func DstNexusInvalidMetadataInvalidSender(
 	t.Helper()
 
 	dstChain := cardanofw.ChainIDNexus
+
 	receiverAddr := apex.PrimeInfo.MultisigAddr
+	if srcChain == cardanofw.ChainIDVector {
+		receiverAddr = apex.VectorInfo.MultisigAddr
+	}
+
 	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 	feeAmount := uint64(1_100_000)
 
@@ -1466,7 +1436,12 @@ func DstNexusInvalidMetadataInvalidTransactions(
 	t.Helper()
 
 	dstChain := cardanofw.ChainIDNexus
+
 	receiverAddr := apex.PrimeInfo.MultisigAddr
+	if srcChain == cardanofw.ChainIDVector {
+		receiverAddr = apex.VectorInfo.MultisigAddr
+	}
+
 	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 	feeAmount := uint64(1_100_000)
 
