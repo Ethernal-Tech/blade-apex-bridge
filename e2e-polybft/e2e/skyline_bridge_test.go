@@ -2751,183 +2751,147 @@ func TestE2E_SkylineBridge_StakeAddressOperationsTest(t *testing.T) {
 	stakePools := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetExistingStakePools(t, ctx)
 	require.NotEmpty(t, stakePools)
 
-	// Redelegation before register and delegate should fail:
-	err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[1], false)
-	require.Error(t, err)
+	t.Run("redeleg before reg and del should fail", func(t *testing.T) {
+		err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[1], false)
+		require.Error(t, err)
+	})
 
-	// 2. Register and delegate bridging address
-	err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
-	require.NoError(t, err)
-
-	// 3. Check if the registration and delegation was successful
-	addrInfo, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, false)
-	require.NoError(t, err)
-	require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
-	fmt.Println("Bridging address staked successfully")
-
-	executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
-		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
-
-	// Registering already registered address should fail:
-	err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
-	require.Error(t, err)
-
-	// Test redelegation:
-	err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[1], false)
-	require.NoError(t, err)
-
-	previousStakePool := stakePools[0]
-
-	for range 60 {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(time.Second):
-		}
-
-		addrInfo, err = apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, false)
+	t.Run("reg and del should pass", func(t *testing.T) {
+		err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
 		require.NoError(t, err)
 
-		if addrInfo.StakeDelegation != previousStakePool {
-			fmt.Println("Bridging address redelegated successfully")
+		addrInfo, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, false)
+		require.NoError(t, err)
+		require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
 
-			break
-		}
-	}
+		executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
+			[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
+	})
 
-	require.Equal(t, stakePools[1], addrInfo.StakeDelegation)
+	t.Run("reg and del again should fail", func(t *testing.T) {
+		// Registering already registered address should fail:
+		err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
+		require.Error(t, err)
+	})
 
-	executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
-		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
+	t.Run("redeleg should pass", func(t *testing.T) {
+		err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[1], false)
+		require.NoError(t, err)
 
-	// Test address deregistration:
-	err = apex.DeregisterStakeAddress(ctx, cardanofw.ChainIDPrime, 0)
-	require.NoError(t, err)
+		previousStakePool := stakePools[0]
 
-	for range 60 {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(time.Second):
-		}
-
-		addrInfo, err = apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, true)
-
-		if err != nil {
-			require.ErrorContains(t, err, "stake address is not registered yet")
-			fmt.Println("Bridging address deregistered successfully")
-
-			break
-		}
-	}
-
-	require.Error(t, err)
-	require.Equal(t, addrInfo, wallet.QueryStakeAddressInfo{})
-
-	executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
-		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
-}
-
-// go test -timeout 0 -run ^TestE2E_SkylineBridge_SimultaniousStakingTest$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
-func TestE2E_SkylineBridge_SimultaniousStakingTest(t *testing.T) {
-	const apiKey = "test_api_key"
-
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-	primeConfig.FundTokenAmount = 1_000_000_000
-	cardanoConfig.FundTokenAmount = 1_000_000_000
-
-	apex := cardanofw.SetupAndRunSkylineBridge(
-		t, ctx,
-		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithCardanoConfig(cardanoConfig),
-		cardanofw.WithPrimeConfig(primeConfig),
-		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
-	)
-
-	defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-	_, err := cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDPrime,
-		apex.GetCardanoInfo(cardanofw.ChainIDPrime).GenesisWallet, apex.Users[1],
-		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(2_000_000), uint64(100_000_000))
-	require.NoError(t, err)
-
-	_, err = cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDCardano,
-		apex.GetCardanoInfo(cardanofw.ChainIDCardano).GenesisWallet, apex.Users[1],
-		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(2_000_000), uint64(100_000_000))
-	require.NoError(t, err)
-
-	sendAmountDfm := big.NewInt(1_500_000)
-
-	executeBridging := func(
-		srcChainID, dstChainID cardanofw.ChainID, sendAmountDfm *big.Int,
-		senders, receivers []*cardanofw.TestApexUser, doRegDeleg bool,
-	) {
-		wg := sync.WaitGroup{}
-		wg.Add(5)
-
-		bridgingTypes := []sendtx.BridgingType{
-			sendtx.BridgingTypeCurrencyOnSource,
-			sendtx.BridgingTypeNativeTokenOnSource,
-			sendtx.BridgingTypeCurrencyOnSource,
-			sendtx.BridgingTypeCurrencyOnSource,
-		}
-
-		for i := range bridgingTypes {
-			go func(idx int) {
-				defer wg.Done()
-				e2ehelper.ExecuteSingleBridging(
-					t, ctx, apex, senders[idx], receivers[idx], srcChainID, dstChainID, sendAmountDfm, bridgingTypes[idx])
-			}(i)
-		}
-
-		go func() {
-			defer wg.Done()
-
-			if !doRegDeleg {
+		for range 60 {
+			select {
+			case <-ctx.Done():
 				return
+			case <-time.After(time.Second):
 			}
 
-			// 1. Check existing stake pools in the system
-			stakePools := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetExistingStakePools(t, ctx)
-			require.NotEmpty(t, stakePools)
-
-			// 2. Register and delegate bridging address
-			err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
-			require.NoError(t, err)
-
-			// 3. Check if the registration and delegation was successful
 			addrInfo, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, false)
 			require.NoError(t, err)
-			require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
-			fmt.Println("Bridging address staked successfully")
-		}()
 
-		wg.Wait()
-	}
+			if addrInfo.StakeDelegation != previousStakePool {
+				require.Equal(t, stakePools[1], addrInfo.StakeDelegation)
 
-	doRegDelegValues := []bool{false, true, false}
+				break
+			}
+		}
 
-	for _, doRegDeleg := range doRegDelegValues {
-		executeBridging(
-			cardanofw.ChainIDCardano,
-			cardanofw.ChainIDPrime,
-			sendAmountDfm,
-			[]*cardanofw.TestApexUser{
-				apex.Users[0], apex.Users[1], apex.Users[2], apex.Users[3],
-			},
-			[]*cardanofw.TestApexUser{
-				apex.Users[4], apex.Users[5], apex.Users[6], apex.Users[7],
-			},
-			doRegDeleg,
-		)
-	}
+		executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
+			[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
+	})
+
+	t.Run("dereg should pass", func(t *testing.T) {
+		err = apex.DeregisterStakeAddress(ctx, cardanofw.ChainIDPrime, 0)
+		require.NoError(t, err)
+
+		for range 60 {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Second):
+			}
+
+			addrInfo, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, true)
+
+			if err != nil {
+				require.ErrorContains(t, err, "stake address is not registered yet")
+				require.Error(t, err)
+				require.Equal(t, addrInfo, wallet.QueryStakeAddressInfo{})
+
+				break
+			}
+		}
+
+		executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
+			[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
+	})
+
+	t.Run("simultaneous test", func(t *testing.T) {
+		executeBridging := func(
+			srcChainID, dstChainID cardanofw.ChainID, sendAmountDfm *big.Int,
+			senders, receivers []*cardanofw.TestApexUser, doRegDeleg bool,
+		) {
+			wg := sync.WaitGroup{}
+			wg.Add(5)
+
+			bridgingTypes := []sendtx.BridgingType{
+				sendtx.BridgingTypeCurrencyOnSource,
+				sendtx.BridgingTypeNativeTokenOnSource,
+				sendtx.BridgingTypeCurrencyOnSource,
+				sendtx.BridgingTypeCurrencyOnSource,
+			}
+
+			for i := range bridgingTypes {
+				go func(idx int) {
+					defer wg.Done()
+					e2ehelper.ExecuteSingleBridging(
+						t, ctx, apex, senders[idx], receivers[idx], srcChainID, dstChainID, sendAmountDfm, bridgingTypes[idx])
+				}(i)
+			}
+
+			go func() {
+				defer wg.Done()
+
+				if !doRegDeleg {
+					return
+				}
+
+				// 1. Check existing stake pools in the system
+				stakePools := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetExistingStakePools(t, ctx)
+				require.NotEmpty(t, stakePools)
+
+				// 2. Register and delegate bridging address
+				err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
+				require.NoError(t, err)
+
+				// 3. Check if the registration and delegation was successful
+				addrInfo, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, false)
+				require.NoError(t, err)
+				require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
+				fmt.Println("Bridging address staked successfully")
+			}()
+
+			wg.Wait()
+		}
+
+		doRegDelegValues := []bool{false, true, false}
+
+		for _, doRegDeleg := range doRegDelegValues {
+			executeBridging(
+				cardanofw.ChainIDCardano,
+				cardanofw.ChainIDPrime,
+				sendAmountDfm,
+				[]*cardanofw.TestApexUser{
+					apex.Users[0], apex.Users[1], apex.Users[2], apex.Users[3],
+				},
+				[]*cardanofw.TestApexUser{
+					apex.Users[4], apex.Users[5], apex.Users[6], apex.Users[7],
+				},
+				doRegDeleg,
+			)
+		}
+	})
 }
 
 // go test -timeout 0 -run ^TestE2E_SkylineBridge_MutltipleAddresses$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
@@ -2937,8 +2901,10 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	// Combined configuration for both currency and native token tests
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
 	primeConfig.FundAmount = 0
+	primeConfig.FundTokenAmount = 0
 	cardanoConfig.FundTokenAmount = 1_000_000_000
 	primeConfig.BridgingAddressCnt = bridgeAddrCnt
 	bridgingAmount := big.NewInt(1_000_000)
@@ -2955,196 +2921,14 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 
 	fmt.Println("multisig addresses: ", apex.PrimeInfo.MultisigAddr)
 
-	// Prepare
-	_, err := cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDCardano,
-		apex.GetCardanoInfo(cardanofw.ChainIDCardano).GenesisWallet, apex.Users[1],
-		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(2_000_000), uint64(100_000_000))
-	require.NoError(t, err)
-
-	for range bridgeAddrCnt {
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[1],
-			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
-			big.NewInt(0).Mul(bridgingAmount, big.NewInt(5)), sendtx.BridgingTypeCurrencyOnSource)
-	}
-
-	addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-	require.NoError(t, err)
-	fmt.Println("Multisig addresses amounts: ", addrAmounts)
-
-	t.Run("Bridge partial amount from single address", func(t *testing.T) {
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[1], apex.Users[0],
-			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			big.NewInt(0).Mul(bridgingAmount, big.NewInt(1)), sendtx.BridgingTypeNativeTokenOnSource)
-
-		addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
-		fmt.Println("Multisig addresses amounts: ", addrAmounts)
-
-		require.Equal(t, uint64(4_000_010), addrAmounts[0][wallet.AdaTokenName].Uint64())
-	})
-
-	t.Run("Bridge full amount from single address", func(t *testing.T) {
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[1], apex.Users[0],
-			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			big.NewInt(5_000_010), sendtx.BridgingTypeNativeTokenOnSource)
-
-		addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
-		fmt.Println("Multisig addresses amounts: ", addrAmounts)
-
-		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
-	})
-
-	t.Run("Bridge amount from single address with carry over", func(t *testing.T) {
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[1], apex.Users[0],
-			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			big.NewInt(5_000_000), sendtx.BridgingTypeNativeTokenOnSource)
-
-		addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
-		fmt.Println("Multisig addresses amounts: ", addrAmounts)
-
-		require.Equal(t, uint64(1000010), addrAmounts[2][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(5_000_010), addrAmounts[3][wallet.AdaTokenName].Uint64())
-	})
-
-	t.Run("Bridge full amount from 2 addresses", func(t *testing.T) {
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[1], apex.Users[0],
-			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			big.NewInt(9_000_030), sendtx.BridgingTypeNativeTokenOnSource)
-
-		addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
-		fmt.Println("Multisig addresses amounts: ", addrAmounts)
-
-		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(0), addrAmounts[3][wallet.AdaTokenName].Uint64())
-	})
-
-	// replenish
-	for range bridgeAddrCnt {
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[1],
-			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
-			big.NewInt(0).Mul(bridgingAmount, big.NewInt(5)), sendtx.BridgingTypeCurrencyOnSource)
-	}
-
-	t.Run("Bridge full amount from 2 addresses with carry over", func(t *testing.T) {
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[1], apex.Users[0],
-			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			big.NewInt(11_000_000), sendtx.BridgingTypeNativeTokenOnSource)
-
-		addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
-		fmt.Println("Multisig addresses amounts: ", addrAmounts)
-
-		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(1_000_020), addrAmounts[1][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(5_000_010), addrAmounts[2][wallet.AdaTokenName].Uint64())
-	})
-
-	// replenish
-	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.Users[0], apex.Users[1],
-		cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
-		big.NewInt(0).Mul(bridgingAmount, big.NewInt(5)), sendtx.BridgingTypeCurrencyOnSource)
-
-	t.Run("Bridge full amount from 2 + partial from 1", func(t *testing.T) {
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[1], apex.Users[0],
-			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			big.NewInt(6000010+6000030+1000000), sendtx.BridgingTypeNativeTokenOnSource)
-
-		addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
-		fmt.Println("Multisig addresses amounts: ", addrAmounts)
-
-		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(0), addrAmounts[3][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(2999990), addrAmounts[2][wallet.AdaTokenName].Uint64())
-	})
-
-	for range bridgeAddrCnt - 1 {
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[1],
-			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
-			big.NewInt(0).Mul(bridgingAmount, big.NewInt(5)), sendtx.BridgingTypeCurrencyOnSource)
-	}
-
-	t.Run("Bridge full amount from 2 + carry over from 1", func(t *testing.T) {
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[1], apex.Users[0],
-			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			big.NewInt(17_000_000), sendtx.BridgingTypeNativeTokenOnSource)
-
-		addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
-		fmt.Println("Multisig addresses amounts: ", addrAmounts)
-
-		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(2999990), addrAmounts[2][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(1000050), addrAmounts[3][wallet.AdaTokenName].Uint64())
-	})
-
-	t.Run("Test carry over", func(t *testing.T) {
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[1], apex.Users[0],
-			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			big.NewInt(1999900), sendtx.BridgingTypeNativeTokenOnSource)
-
-		addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
-		fmt.Println("Multisig addresses amounts: ", addrAmounts)
-
-		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(0), addrAmounts[2][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(1000140), addrAmounts[3][wallet.AdaTokenName].Uint64())
-	})
-}
-
-// go test -timeout 0 -run ^TestE2E_SkylineBridge_MutltipleAddresses_NativeTokens$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
-func TestE2E_SkylineBridge_MutltipleAddresses_NativeTokens(t *testing.T) {
-	const apiKey = "test_api_key"
-
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-	primeConfig.FundAmount = 10_000_000
-	primeConfig.FundTokenAmount = 10_000_000
-
-	cardanoConfig.FundTokenAmount = 1_000_000_000
-	primeConfig.BridgingAddressCnt = bridgeAddrCnt
-
-	apex := cardanofw.SetupAndRunSkylineBridge(
-		t, ctx,
-		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithCardanoConfig(cardanoConfig),
-		cardanofw.WithPrimeConfig(primeConfig),
-		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
-	)
-
-	defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-	fmt.Println("multisig addresses: ", apex.PrimeInfo.MultisigAddr)
-
+	// Helper function for parallel bridging (from native tokens test)
 	executeBridging := func(
 		srcChainID, dstChainID cardanofw.ChainID, sendAmounts []*big.Int,
 		senders, receivers []*cardanofw.TestApexUser,
 		bridgingTypes []sendtx.BridgingType,
 	) {
 		wg := sync.WaitGroup{}
-		wg.Add(2)
+		wg.Add(len(bridgingTypes))
 
 		for i := range bridgingTypes {
 			go func(idx int) {
@@ -3160,44 +2944,232 @@ func TestE2E_SkylineBridge_MutltipleAddresses_NativeTokens(t *testing.T) {
 		wg.Wait()
 	}
 
-	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.Users[0], apex.Users[1],
-		cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
-		big.NewInt(5_000_000-1_000_010), sendtx.BridgingTypeCurrencyOnSource)
+	// === CURRENCY BRIDGING TESTS ===
+	t.Run("Currency Bridging - Setup and Initial Funding", func(t *testing.T) {
+		// Prepare for currency tests
+		_, err := cardanofw.FundUserWithToken(
+			ctx, apex, cardanofw.ChainIDCardano,
+			apex.GetCardanoInfo(cardanofw.ChainIDCardano).GenesisWallet, apex.Users[1],
+			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+			uint64(2_000_000), uint64(100_000_000))
+		require.NoError(t, err)
 
-	_, err := cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDCardano,
-		apex.GetCardanoInfo(cardanofw.ChainIDCardano).GenesisWallet, apex.Users[0],
-		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(2_000_000), uint64(100_000_000))
-	require.NoError(t, err)
+		// Initial funding for currency tests
+		for range bridgeAddrCnt {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, apex.Users[0], apex.Users[1],
+				cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+				big.NewInt(0).Mul(bridgingAmount, big.NewInt(5)), sendtx.BridgingTypeCurrencyOnSource)
+		}
 
-	_, err = cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDCardano,
-		apex.GetCardanoInfo(cardanofw.ChainIDCardano).GenesisWallet, apex.Users[1],
-		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(2_000_000), uint64(100_000_000))
-	require.NoError(t, err)
+		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Currency tests - Initial multisig addresses amounts: ", addrAmounts)
+	})
 
-	_, err = cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDPrime,
-		apex.GetCardanoInfo(cardanofw.ChainIDPrime).GenesisWallet, apex.Users[2],
-		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(2_000_000), uint64(100_000_000))
-	require.NoError(t, err)
+	t.Run("Currency Bridging - Bridge partial amount from single address", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[1], apex.Users[0],
+			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
+			big.NewInt(0).Mul(bridgingAmount, big.NewInt(1)), sendtx.BridgingTypeNativeTokenOnSource)
 
-	_, err = cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDPrime,
-		apex.GetCardanoInfo(cardanofw.ChainIDPrime).GenesisWallet, apex.Users[3],
-		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(2_000_000), uint64(100_000_000))
-	require.NoError(t, err)
+		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
 
-	addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-	require.NoError(t, err)
-	fmt.Println("Multisig addresses amounts: ", addrAmounts)
+		require.Equal(t, uint64(4_000_010), addrAmounts[0][wallet.AdaTokenName].Uint64())
+	})
 
-	t.Run("Bridge partial amount native and currency from single address", func(t *testing.T) {
+	t.Run("Currency Bridging - Bridge full amount from single address", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[1], apex.Users[0],
+			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
+			big.NewInt(5_000_010), sendtx.BridgingTypeNativeTokenOnSource)
+
+		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
+
+		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
+	})
+
+	t.Run("Currency Bridging - Bridge amount from single address with carry over", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[1], apex.Users[0],
+			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
+			big.NewInt(5_000_000), sendtx.BridgingTypeNativeTokenOnSource)
+
+		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
+
+		require.Equal(t, uint64(1000010), addrAmounts[2][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(5_000_010), addrAmounts[3][wallet.AdaTokenName].Uint64())
+	})
+
+	t.Run("Currency Bridging - Bridge full amount from 2 addresses", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[1], apex.Users[0],
+			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
+			big.NewInt(9_000_030), sendtx.BridgingTypeNativeTokenOnSource)
+
+		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
+
+		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(0), addrAmounts[3][wallet.AdaTokenName].Uint64())
+	})
+
+	t.Run("Currency Bridging - Replenish for remaining tests", func(t *testing.T) {
+		// replenish
+		for range bridgeAddrCnt {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, apex.Users[0], apex.Users[1],
+				cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+				big.NewInt(0).Mul(bridgingAmount, big.NewInt(5)), sendtx.BridgingTypeCurrencyOnSource)
+		}
+	})
+
+	t.Run("Currency Bridging - Bridge full amount from 2 addresses with carry over", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[1], apex.Users[0],
+			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
+			big.NewInt(11_000_000), sendtx.BridgingTypeNativeTokenOnSource)
+
+		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
+
+		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(1_000_020), addrAmounts[1][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(5_000_010), addrAmounts[2][wallet.AdaTokenName].Uint64())
+	})
+
+	t.Run("Currency Bridging - Replenish for final tests", func(t *testing.T) {
+		// replenish
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[1],
+			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+			big.NewInt(0).Mul(bridgingAmount, big.NewInt(5)), sendtx.BridgingTypeCurrencyOnSource)
+	})
+
+	t.Run("Currency Bridging - Bridge full amount from 2 + partial from 1", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[1], apex.Users[0],
+			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
+			big.NewInt(6000010+6000030+1000000), sendtx.BridgingTypeNativeTokenOnSource)
+
+		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
+
+		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(0), addrAmounts[3][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(2999990), addrAmounts[2][wallet.AdaTokenName].Uint64())
+	})
+
+	t.Run("Currency Bridging - Final replenish", func(t *testing.T) {
+		for range bridgeAddrCnt - 1 {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, apex.Users[0], apex.Users[1],
+				cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+				big.NewInt(0).Mul(bridgingAmount, big.NewInt(5)), sendtx.BridgingTypeCurrencyOnSource)
+		}
+	})
+
+	t.Run("Currency Bridging - Bridge full amount from 2 + carry over from 1", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[1], apex.Users[0],
+			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
+			big.NewInt(17_000_000), sendtx.BridgingTypeNativeTokenOnSource)
+
+		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
+
+		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(2999990), addrAmounts[2][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(1000050), addrAmounts[3][wallet.AdaTokenName].Uint64())
+	})
+
+	t.Run("Currency Bridging - Test carry over", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[1], apex.Users[0],
+			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
+			big.NewInt(1999900), sendtx.BridgingTypeNativeTokenOnSource)
+
+		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
+
+		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(0), addrAmounts[2][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(1000140), addrAmounts[3][wallet.AdaTokenName].Uint64())
+	})
+
+	// === NATIVE TOKEN BRIDGING TESTS ===
+	t.Run("Native Token Bridging - Setup and Initial Funding", func(t *testing.T) {
+		// Initial setup for native token tests
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[1],
+			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+			big.NewInt(5_000_000-1_000_010), sendtx.BridgingTypeCurrencyOnSource)
+
+		// Fund users for native token tests
+		_, err := cardanofw.FundUserWithToken(
+			ctx, apex, cardanofw.ChainIDCardano,
+			apex.GetCardanoInfo(cardanofw.ChainIDCardano).GenesisWallet, apex.Users[0],
+			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+			uint64(2_000_000), uint64(100_000_000))
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, apex, cardanofw.ChainIDCardano,
+			apex.GetCardanoInfo(cardanofw.ChainIDCardano).GenesisWallet, apex.Users[1],
+			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+			uint64(2_000_000), uint64(100_000_000))
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, apex, cardanofw.ChainIDPrime,
+			apex.GetCardanoInfo(cardanofw.ChainIDPrime).GenesisWallet, apex.Users[2],
+			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+			uint64(2_000_000), uint64(100_000_000))
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, apex, cardanofw.ChainIDPrime,
+			apex.GetCardanoInfo(cardanofw.ChainIDPrime).GenesisWallet, apex.Users[3],
+			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+			uint64(2_000_000), uint64(100_000_000))
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUserWithToken(
+			ctx, apex, cardanofw.ChainIDPrime,
+			apex.GetCardanoInfo(cardanofw.ChainIDPrime).GenesisWallet, apex.Users[4],
+			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+			uint64(10_000_000), uint64(10_000_000))
+		require.NoError(t, err)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[4], apex.Users[4],
+			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+			big.NewInt(10_000_000), sendtx.BridgingTypeNativeTokenOnSource)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[4], apex.Users[4],
+			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+			big.NewInt(10_000_000), sendtx.BridgingTypeCurrencyOnSource)
+
+		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Native token tests - Initial multisig addresses amounts: ", addrAmounts)
+	})
+
+	t.Run("Native Token Bridging - Bridge partial amount native and currency from single address", func(t *testing.T) {
 		sendAmountToken := big.NewInt(1_000_000)
 		sendAmountNative := big.NewInt(1_000_000)
 		sendAmounts := []*big.Int{sendAmountNative, sendAmountToken}
@@ -3214,10 +3186,10 @@ func TestE2E_SkylineBridge_MutltipleAddresses_NativeTokens(t *testing.T) {
 
 		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
-		fmt.Println("Multisig addresses amounts: ", addrAmounts)
+		fmt.Println("Native token tests - Multisig addresses amounts: ", addrAmounts)
 	})
 
-	t.Run("Target full amount from address with native tokens", func(t *testing.T) {
+	t.Run("Native Token Bridging - Target full amount from address with native tokens", func(t *testing.T) {
 		sendAmountToken := big.NewInt(5961290 - 3_000_000)
 		sendAmountNative := big.NewInt(1_000_000)
 		sendAmounts := []*big.Int{sendAmountNative, sendAmountToken}
@@ -3234,10 +3206,10 @@ func TestE2E_SkylineBridge_MutltipleAddresses_NativeTokens(t *testing.T) {
 
 		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
-		fmt.Println("Multisig addresses amounts: ", addrAmounts)
+		fmt.Println("Native token tests - Multisig addresses amounts: ", addrAmounts)
 	})
 
-	t.Run("Send all native tokens from address", func(t *testing.T) {
+	t.Run("Native Token Bridging - Send all native tokens from address", func(t *testing.T) {
 		sendAmountToken := big.NewInt(0)
 		sendAmountNative := big.NewInt(8_000_000)
 		sendAmounts := []*big.Int{sendAmountNative, sendAmountToken}
@@ -3254,28 +3226,30 @@ func TestE2E_SkylineBridge_MutltipleAddresses_NativeTokens(t *testing.T) {
 
 		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
-		fmt.Println("Multisig addresses amounts: ", addrAmounts)
+		fmt.Println("Native token tests - Multisig addresses amounts: ", addrAmounts)
 	})
 
-	sendAmountToken := big.NewInt(1_000_000)
-	sendAmountNative := big.NewInt(8_000_000)
-	sendAmounts := []*big.Int{sendAmountNative, sendAmountToken}
-	bridgingTypes := []sendtx.BridgingType{
-		sendtx.BridgingTypeCurrencyOnSource,
-		sendtx.BridgingTypeNativeTokenOnSource,
-	}
+	t.Run("Native Token Bridging - Setup for reverse direction", func(t *testing.T) {
+		sendAmountToken := big.NewInt(1_000_000)
+		sendAmountNative := big.NewInt(8_000_000)
+		sendAmounts := []*big.Int{sendAmountNative, sendAmountToken}
+		bridgingTypes := []sendtx.BridgingType{
+			sendtx.BridgingTypeCurrencyOnSource,
+			sendtx.BridgingTypeNativeTokenOnSource,
+		}
 
-	executeBridging(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmounts,
-		[]*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]},
-		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]},
-		bridgingTypes,
-	)
+		executeBridging(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmounts,
+			[]*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]},
+			[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]},
+			bridgingTypes,
+		)
 
-	addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-	require.NoError(t, err)
-	fmt.Println("Multisig addresses amounts: ", addrAmounts)
+		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Native token tests - Multisig addresses amounts: ", addrAmounts)
+	})
 
-	t.Run("Send all native tokens from address with lovelace", func(t *testing.T) {
+	t.Run("Native Token Bridging - Send all native tokens from address with lovelace", func(t *testing.T) {
 		sendAmountToken := big.NewInt(11159410 - 3_000_000)
 		sendAmountNative := big.NewInt(1_000_000)
 		sendAmounts := []*big.Int{sendAmountNative, sendAmountToken}
@@ -3292,7 +3266,7 @@ func TestE2E_SkylineBridge_MutltipleAddresses_NativeTokens(t *testing.T) {
 
 		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
-		fmt.Println("Multisig addresses amounts: ", addrAmounts)
+		fmt.Println("Native token tests - Multisig addresses amounts: ", addrAmounts)
 	})
 }
 
@@ -3350,72 +3324,46 @@ func TestE2E_SkylineBridge_RedistributeTokens(t *testing.T) {
 	require.Equal(t, bridgeAddCnt, len(addrAmounts))
 	require.False(t, e2ehelper.IsDiffGreaterThanOne(addrAmounts[1][wallet.AdaTokenName], addrAmounts[2][wallet.AdaTokenName]))
 	require.True(t, addrAmounts[0][wallet.AdaTokenName].Cmp(addrAmounts[1][wallet.AdaTokenName]) < 0)
-}
 
-// go test -timeout 0 -run ^TestE2E_SkylineBridge_RedistributeTokensSimultaniously$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
-func TestE2E_SkylineBridge_RedistributeTokensSimultaniously(t *testing.T) {
-	const (
-		apiKey = "test_api_key"
-	)
-
-	bridgeAddCnt := 3
-	bridgingAmount := big.NewInt(10_000_001)
-
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-	primeConfig.FundTokenAmount = 1_000_000_000
-	primeConfig.BridgingAddressCnt = bridgeAddCnt
-	cardanoConfig.FundTokenAmount = 1_000_000_000
-
-	apex := cardanofw.SetupAndRunSkylineBridge(
-		t, ctx,
-		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithCardanoConfig(cardanoConfig),
-		cardanofw.WithPrimeConfig(primeConfig),
-		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddCnt),
-	)
-
-	defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.Users[0], apex.Users[1],
-		cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
-		bridgingAmount, sendtx.BridgingTypeCurrencyOnSource)
-
-	addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-	require.NoError(t, err)
-	fmt.Println("Multisig addresses amounts after the initial bridging: ", addrAmounts)
-
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
-
-		for range 3 {
-			err = apex.RedistributeTokens(ctx, cardanofw.ChainIDPrime)
-			require.NoError(t, err)
-			time.Sleep(500 * time.Millisecond)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-
+	t.Run("simultaneous test", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[1], apex.Users[0],
-			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			bridgingAmount, sendtx.BridgingTypeNativeTokenOnSource)
-	}()
+			t, ctx, apex, apex.Users[0], apex.Users[1],
+			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+			bridgingAmount, sendtx.BridgingTypeCurrencyOnSource)
 
-	wg.Wait()
+		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Multisig addresses amounts after the initial bridging: ", addrAmounts)
 
-	addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
-	require.NoError(t, err)
-	fmt.Println("Multisig addresses amounts: ", addrAmounts)
+		wg := sync.WaitGroup{}
+		wg.Add(2)
 
-	require.Equal(t, bridgeAddCnt, len(addrAmounts))
-	require.False(t, e2ehelper.IsDiffGreaterThanOne(addrAmounts[1][wallet.AdaTokenName], addrAmounts[2][wallet.AdaTokenName]))
+		go func() {
+			defer wg.Done()
+
+			for range 3 {
+				err = apex.RedistributeTokens(ctx, cardanofw.ChainIDPrime)
+				require.NoError(t, err)
+				time.Sleep(500 * time.Millisecond)
+			}
+		}()
+
+		go func() {
+			defer wg.Done()
+
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, apex.Users[1], apex.Users[0],
+				cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
+				bridgingAmount, sendtx.BridgingTypeNativeTokenOnSource)
+		}()
+
+		wg.Wait()
+
+		addrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Multisig addresses amounts: ", addrAmounts)
+
+		require.Equal(t, bridgeAddCnt, len(addrAmounts))
+		require.False(t, e2ehelper.IsDiffGreaterThanOne(addrAmounts[1][wallet.AdaTokenName], addrAmounts[2][wallet.AdaTokenName]))
+	})
 }
