@@ -37,9 +37,9 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 		cardanofw.WithUserCnt(1),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			tempDirs := setting["directions"].(map[string]interface{})
+			allowedDirections := setting["allowedDirections"].(map[string]interface{})
 
-			for src, dirs := range tempDirs {
+			for src, dirs := range allowedDirections {
 				directions[src] = make([]string, len(dirs.([]interface{})))
 				for i, d := range dirs.([]interface{}) {
 					directions[src][i] = d.(string)
