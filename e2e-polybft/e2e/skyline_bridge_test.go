@@ -1028,9 +1028,9 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 
 	const (
 		bridgeAddrCnt                 = 4
-		fundUtxoCount                 = 9
+		fundUtxoCount                 = 13
 		maxFeeUtxoCount               = 1
-		maxUtxoCount                  = 3
+		maxUtxoCount                  = 5
 		minimumExpectedConsolidations = 1
 
 		sequentialInstances = 3
@@ -1150,14 +1150,23 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
 
+	var (
+		lastBatchIDs           map[string]uint64 = map[string]uint64{cardanofw.ChainIDPrime: 0, cardanofw.ChainIDCardano: 0}
+		getCntConsolidationMap func() map[string]int
+	)
+
 	t.Run("with tokens", func(t *testing.T) {
 		ctxChild, cncl := context.WithCancel(ctx)
 		defer cncl()
 
-		getCntConsolidationMap := checkConsolidationBatchCounts(
+		getCntConsolidationMap, lastBatchIDs = checkConsolidationBatchCounts(
 			t, ctxChild,
 			apex.BridgeCluster.Servers[0].JSONRPC(),
-			[]string{cardanofw.ChainIDCardano})
+			[]string{cardanofw.ChainIDCardano},
+			lastBatchIDs,
+		)
+
+		fmt.Println("lastBatchIDs", lastBatchIDs)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctxChild, apex, apex.Users[0], apex.Users[0],
@@ -1182,10 +1191,14 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 		ctxChild, cncl := context.WithCancel(ctx)
 		defer cncl()
 
-		getCntConsolidationMap := checkConsolidationBatchCounts(
+		getCntConsolidationMap, lastBatchIDs = checkConsolidationBatchCounts(
 			t, ctxChild,
 			apex.BridgeCluster.Servers[0].JSONRPC(),
-			[]string{cardanofw.ChainIDPrime})
+			[]string{cardanofw.ChainIDPrime},
+			lastBatchIDs,
+		)
+
+		fmt.Println("lastBatchIDs", lastBatchIDs)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctxChild, apex, apex.Users[0], apex.Users[0],
@@ -1218,10 +1231,14 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 		// when we send currency, this amount of native tokens will be released from multisig address
 		sendAmountCurrency := minValue*sendMinValueFactor + sendMinValueIncrement
 
-		getCntConsolidationMap := checkConsolidationBatchCounts(
+		getCntConsolidationMap, lastBatchIDs = checkConsolidationBatchCounts(
 			t, ctxChild,
 			apex.BridgeCluster.Servers[0].JSONRPC(),
-			[]string{cardanofw.ChainIDCardano, cardanofw.ChainIDPrime})
+			[]string{cardanofw.ChainIDCardano, cardanofw.ChainIDPrime},
+			lastBatchIDs,
+		)
+
+		fmt.Println("lastBatchIDs", lastBatchIDs)
 
 		fmt.Print("\nBEFORE: Prime chain")
 
@@ -1254,37 +1271,31 @@ func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 		)
 
-		fmt.Print("\nAFTER: Prime chain")
-
-		for idx, addr := range apex.PrimeInfo.MultisigAddr {
-			multisigUtoxs, err := txProviderPrime.GetUtxos(ctx, addr)
-			require.NoError(t, err)
-
-			fmt.Printf("\n\tmultisig addr: %s[%d]: %v\n", addr, idx, multisigUtoxs)
-		}
-
-		fmt.Print("\nAFTER: Cardano chain")
-
-		for idx, addr := range apex.CardanoInfo.MultisigAddr {
-			multisigUtoxs, err := txProviderCardano.GetUtxos(ctx, addr)
-			require.NoError(t, err)
-
-			fmt.Printf("\n\tmultisig addr: %s[%d]: %v\n", addr, idx, multisigUtoxs)
-		}
-
 		for _, cnt := range getCntConsolidationMap() {
 			assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
 		}
+
+		primeAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+		fmt.Println("Prime multisig addresses amounts: ", primeAddrAmounts)
+
+		cardanoAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
+		require.NoError(t, err)
+		fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
 	})
 
 	t.Run("with redistribution", func(t *testing.T) {
 		ctxChild, cncl := context.WithCancel(ctx)
 		defer cncl()
 
-		getCntConsolidationMap := checkConsolidationBatchCounts(
+		getCntConsolidationMap, lastBatchIDs = checkConsolidationBatchCounts(
 			t, ctxChild,
 			apex.BridgeCluster.Servers[0].JSONRPC(),
-			[]string{cardanofw.ChainIDPrime})
+			[]string{cardanofw.ChainIDPrime},
+			lastBatchIDs,
+		)
+
+		fmt.Println("lastBatchIDs", lastBatchIDs)
 
 		e2ehelper.ExecuteTokenRedistribution(t, ctx, apex, cardanofw.ChainIDPrime, 50, 5*time.Minute)
 
@@ -1419,6 +1430,7 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 	var (
 		utxosCardanoTokenSum1 uint64
 		utxosCardanoTokenSum2 uint64
+		lastBatchIDs          map[string]uint64 = map[string]uint64{"prime": 0, "cardano": 0}
 	)
 
 	t.Run("with currency from prime to cardano", func(t *testing.T) {
@@ -1434,10 +1446,16 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 		tokenName := apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime)
 		utxosCardanoTokenSum1 = utxosCardanoSum[tokenName]
 
-		getCntConsolidationMap := checkConsolidationBatchCounts(
+		getCntConsolidationMap, lastBatchIDsRet := checkConsolidationBatchCounts(
 			t, ctxChild,
 			apex.BridgeCluster.Servers[0].JSONRPC(),
-			[]string{cardanofw.ChainIDCardano})
+			[]string{cardanofw.ChainIDCardano},
+			lastBatchIDs,
+		)
+
+		for chain, id := range lastBatchIDsRet {
+			lastBatchIDs[chain] = id
+		}
 
 		e2ehelper.ExecuteBridging(
 			t, ctxChild, apex, sequentialInstances,
@@ -1460,10 +1478,16 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 		ctxChild, cncl := context.WithCancel(ctx)
 		defer cncl()
 
-		getCntConsolidationMap := checkConsolidationBatchCounts(
+		getCntConsolidationMap, lastBatchIDsRet := checkConsolidationBatchCounts(
 			t, ctxChild,
 			apex.BridgeCluster.Servers[0].JSONRPC(),
-			[]string{cardanofw.ChainIDPrime})
+			[]string{cardanofw.ChainIDPrime},
+			lastBatchIDs,
+		)
+
+		for chain, id := range lastBatchIDsRet {
+			lastBatchIDs[chain] = id
+		}
 
 		e2ehelper.ExecuteBridging(
 			t, ctxChild, apex, sequentialInstances,

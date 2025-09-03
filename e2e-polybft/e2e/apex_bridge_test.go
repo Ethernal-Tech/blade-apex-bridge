@@ -1891,10 +1891,12 @@ func TestE2E_ApexBridge_UTxOConsolidationWithBothDirections(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	getCntConsolidationMap := checkConsolidationBatchCounts(
+	getCntConsolidationMap, _ := checkConsolidationBatchCounts(
 		t, ctx,
 		apex.BridgeCluster.Servers[0].JSONRPC(),
-		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector})
+		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
+		map[string]uint64{cardanofw.ChainIDPrime: 0, cardanofw.ChainIDVector: 0},
+	)
 
 	e2ehelper.ExecuteBridging(
 		t, ctx, apex, sequentialInstances,
@@ -2301,7 +2303,8 @@ func getInitialUtxosAndTip(
 
 func checkConsolidationBatchCounts(
 	t *testing.T, ctx context.Context, bridgeJSONRPC *jsonrpc.EthClient, chainIDs []string,
-) func() map[string]int {
+	lastBatchIDs map[string]uint64,
+) (func() map[string]int, map[string]uint64) {
 	t.Helper()
 
 	const pullTimeBatchInfo = time.Second * 10
@@ -2318,7 +2321,7 @@ func checkConsolidationBatchCounts(
 
 	for _, chainID := range chainIDs {
 		go func(chainID string) {
-			var lastBatchID uint64
+			var lastBatchID = lastBatchIDs[chainID]
 
 			for {
 				select {
@@ -2341,8 +2344,9 @@ func checkConsolidationBatchCounts(
 					id := batchInfo["id"].(uint64)
 					batchType := batchInfo["batchType"].(uint8)
 
-					if lastBatchID != id {
+					if lastBatchID <= id {
 						lastBatchID = id
+						lastBatchIDs[chainID] = id
 
 						if batchType == uint8(cardanofw.BatchTypeConsolidation) {
 							lock.Lock()
@@ -2367,5 +2371,5 @@ func checkConsolidationBatchCounts(
 		}
 
 		return res
-	}
+	}, lastBatchIDs
 }
