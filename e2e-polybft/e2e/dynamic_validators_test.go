@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"path"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -25,7 +24,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/bbolt"
 
 	secretsCardano "github.com/Ethernal-Tech/cardano-infrastructure/secrets"
 	secretsHelper "github.com/Ethernal-Tech/cardano-infrastructure/secrets/helper"
@@ -446,8 +444,10 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
 	primeConfig.BridgeAddrHasStake = true
 	primeConfig.PremineAmount = 500_000_000
+	primeConfig.FundUTxOCount = 80
 	vectorConfig.BridgeAddrHasStake = true
 	vectorConfig.PremineAmount = 500_000_000
+	vectorConfig.FundUTxOCount = 80
 
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,
@@ -583,6 +583,9 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 		)
 	}
 
+	// wait some time until funding is processed and last observed slot updated on Bridge SC
+	<-time.After(10 * time.Second)
+
 	executeValidatorChangeProposal(t, relayer, proposerAcc, []*addedValidator{
 		{
 			Address: newValidatorAcc.Address(),
@@ -685,32 +688,6 @@ func getMultisigAndFeeFromDataDir(t *testing.T, dataDir, chain string) (keys car
 	require.NoError(t, json.Unmarshal(secret, &keys))
 
 	return keys
-}
-
-func getFullValidatorSet(t *testing.T, proposer *framework.TestServer) *validatorSetState {
-	t.Helper()
-
-	db, err := bbolt.Open(filepath.Join(proposer.DataDir(), "consensus", "polybft", "consensusState.db"), 0444, nil)
-	require.NoError(t, err)
-
-	var (
-		fullValidatorSet validatorSetState
-		// bucket to store full validator set
-		validatorSetBucket = []byte("fullValidatorSetBucket")
-		// key of the full validator set in bucket
-		fullValidatorSetKey = []byte("fullValidatorSet")
-	)
-
-	require.NoError(t, db.View(func(tx *bbolt.Tx) error {
-		raw := tx.Bucket(validatorSetBucket).Get(fullValidatorSetKey)
-		if raw == nil {
-			return fmt.Errorf("no validator set")
-		}
-
-		return fullValidatorSet.Unmarshal(raw)
-	}))
-
-	return &fullValidatorSet
 }
 
 func checkValidatorActive(t *testing.T, address types.Address,
