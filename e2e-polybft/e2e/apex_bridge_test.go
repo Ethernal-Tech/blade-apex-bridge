@@ -2346,10 +2346,10 @@ func checkConsolidationBatchCounts(
 
 					if lastBatchID <= id {
 						lastBatchID = id
-						lastBatchIDs[chainID] = id
 
 						if batchType == uint8(cardanofw.BatchTypeConsolidation) {
 							lock.Lock()
+							lastBatchIDs[chainID] = id
 							consolidationCntMap[chainID]++
 							lock.Unlock()
 						}
