@@ -1241,7 +1241,12 @@ func DstNexusSubmitterNotEnoughFunds(
 	t.Helper()
 
 	dstChain := cardanofw.ChainIDNexus
+
 	receiverAddr := apex.PrimeInfo.MultisigAddr
+	if srcChain == cardanofw.ChainIDVector {
+		receiverAddr = apex.VectorInfo.MultisigAddr
+	}
+
 	feeAmount := uint64(1_100_000)
 
 	receivers := map[string]uint64{
@@ -1292,7 +1297,12 @@ func DstNexusInvalidMetadataWrongType(
 	t.Helper()
 
 	dstChain := cardanofw.ChainIDNexus
+
 	receiverAddr := apex.PrimeInfo.MultisigAddr
+	if srcChain == cardanofw.ChainIDVector {
+		receiverAddr = apex.VectorInfo.MultisigAddr
+	}
+
 	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 	feeAmount := uint64(1_100_000)
 
@@ -1321,7 +1331,7 @@ func DstNexusInvalidMetadataWrongType(
 	bridgingRequestMetadata, err := json.Marshal(metadata)
 	require.NoError(t, err)
 
-	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, srcChain)
 	require.NoError(t, err)
 
 	txHash, err := apex.SubmitTx(
@@ -1333,7 +1343,7 @@ func DstNexusInvalidMetadataWrongType(
 
 	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 
-	err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, lowerBoundaryDfm, beforeSendingAmountDfm,
+	err = apex.WaitForAmountInRange(ctx, user, srcChain, lowerBoundaryDfm, beforeSendingAmountDfm,
 		50, time.Second*30)
 	require.NoError(t, err)
 }
@@ -1379,7 +1389,7 @@ func DstNexusInvalidMetadataInvalidDestination(
 	bridgingRequestMetadata, err := json.Marshal(metadata)
 	require.NoError(t, err)
 
-	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, srcChain)
 	require.NoError(t, err)
 
 	txHash, err := apex.SubmitTx(
@@ -1391,7 +1401,7 @@ func DstNexusInvalidMetadataInvalidDestination(
 
 	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 
-	err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, lowerBoundaryDfm, beforeSendingAmountDfm,
+	err = apex.WaitForAmountInRange(ctx, user, srcChain, lowerBoundaryDfm, beforeSendingAmountDfm,
 		50, time.Second*30)
 	require.NoError(t, err)
 }
@@ -1474,7 +1484,7 @@ func DstNexusInvalidMetadataInvalidTransactions(
 	bridgingRequestMetadata, err := json.Marshal(metadata)
 	require.NoError(t, err)
 
-	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, srcChain)
 	require.NoError(t, err)
 
 	txHash, err := apex.SubmitTx(
@@ -1486,7 +1496,7 @@ func DstNexusInvalidMetadataInvalidTransactions(
 
 	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 
-	err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, lowerBoundaryDfm, beforeSendingAmountDfm,
+	err = apex.WaitForAmountInRange(ctx, user, srcChain, lowerBoundaryDfm, beforeSendingAmountDfm,
 		50, time.Second*30)
 	require.NoError(t, err)
 }
