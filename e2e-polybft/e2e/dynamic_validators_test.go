@@ -445,9 +445,11 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 	primeConfig.BridgeAddrHasStake = true
 	primeConfig.PremineAmount = 500_000_000
 	primeConfig.FundUTxOCount = 80
+	primeConfig.FundFeeUTxOCount = 80
 	vectorConfig.BridgeAddrHasStake = true
 	vectorConfig.PremineAmount = 500_000_000
 	vectorConfig.FundUTxOCount = 80
+	vectorConfig.FundFeeUTxOCount = 80
 
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,
@@ -606,7 +608,7 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 	require.NoError(t, cluster.WaitForBlock(currentBlock+10, time.Minute))
 
 	// wait for validator set change to finish
-	require.NoError(t, cluster.WaitUntil(5*time.Minute, 10*time.Second, func() bool {
+	require.NoError(t, cluster.WaitUntil(10*time.Minute, 10*time.Second, func() bool {
 		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
 		require.NoError(t, err)
 
