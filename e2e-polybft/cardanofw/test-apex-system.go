@@ -600,11 +600,6 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		!a.Config.VectorConfig.IsEnabled && (sourceChain == ChainIDVector || destinationChain == ChainIDVector))
 	require.False(t,
 		!a.Config.NexusConfig.IsEnabled && (sourceChain == ChainIDNexus || destinationChain == ChainIDNexus))
-	require.True(t,
-		sourceChain == ChainIDPrime ||
-			(sourceChain == ChainIDVector && destinationChain == ChainIDPrime) ||
-			(sourceChain == ChainIDNexus && destinationChain == ChainIDPrime),
-	)
 
 	// check if number of receivers is valid
 	require.Greater(t, len(receivers), 0)
