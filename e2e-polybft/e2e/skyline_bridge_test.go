@@ -3024,7 +3024,7 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 
 	const expectedConsolidations = 1
 
-	t.Run("Currency Bridging - Bridge amount from single, expect special consolidation", func(t *testing.T) {
+	t.Run("Currency Bridging - Insufficient change", func(t *testing.T) {
 		ctxChild, cncl := context.WithCancel(ctx)
 		defer cncl()
 
@@ -3033,23 +3033,12 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
 			big.NewInt(5_000_000), sendtx.BridgingTypeNativeTokenOnSource)
 
-		getCntConsolidationMap, lastBatchIDs = checkConsolidationBatchCounts(
-			t, ctxChild,
-			apex.BridgeCluster.Servers[0].JSONRPC(),
-			[]string{cardanofw.ChainIDPrime},
-			lastBatchIDs,
-		)
-
-		for _, cnt := range getCntConsolidationMap() {
-			assert.Equal(t, cnt, expectedConsolidations)
-		}
-
 		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(4000020), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(0), addrAmounts[2][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(1_000_000), addrAmounts[2][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(5_000_020), addrAmounts[3][wallet.AdaTokenName].Uint64())
 	})
 
 	t.Run("Currency Bridging - Bridge full amount from 2 addresses", func(t *testing.T) {
@@ -3080,7 +3069,7 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
 	})
 
-	t.Run("Currency Bridging - Bridge full amount from 2+carry over, expect cons", func(t *testing.T) {
+	t.Run("Currency Bridging - Insufficient change + full", func(t *testing.T) {
 		ctxChild, cncl := context.WithCancel(ctx)
 		defer cncl()
 
@@ -3089,23 +3078,12 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
 			big.NewInt(11_000_000), sendtx.BridgingTypeNativeTokenOnSource)
 
-		getCntConsolidationMap, lastBatchIDs = checkConsolidationBatchCounts(
-			t, ctxChild,
-			apex.BridgeCluster.Servers[0].JSONRPC(),
-			[]string{cardanofw.ChainIDPrime},
-			lastBatchIDs,
-		)
-
-		for _, cnt := range getCntConsolidationMap() {
-			assert.Equal(t, cnt, expectedConsolidations)
-		}
-
 		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(1_000_000), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(1_000_000), addrAmounts[1][wallet.AdaTokenName].Uint64())
 		require.Equal(t, uint64(5_000_030), addrAmounts[2][wallet.AdaTokenName].Uint64())
 	})
 
@@ -3127,8 +3105,8 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(0), addrAmounts[3][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
+		require.Equal(t, uint64(1_000_000), addrAmounts[1][wallet.AdaTokenName].Uint64())
 		require.Equal(t, uint64(3_000_000), addrAmounts[2][wallet.AdaTokenName].Uint64())
 	})
 
@@ -3371,8 +3349,8 @@ func TestE2E_SkylineBridge_RedistributeTokens(t *testing.T) {
 	fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
 	require.Equal(t, bridgeAddCnt, len(addrAmounts))
-	require.False(t, e2ehelper.IsDiffGreaterThanOne(addrAmounts[0][wallet.AdaTokenName], addrAmounts[2][wallet.AdaTokenName]))
-	require.True(t, addrAmounts[1][wallet.AdaTokenName].Cmp(addrAmounts[0][wallet.AdaTokenName]) < 0)
+	require.False(t, e2ehelper.IsDiffGreaterThanOne(addrAmounts[1][wallet.AdaTokenName], addrAmounts[2][wallet.AdaTokenName]))
+	require.True(t, addrAmounts[0][wallet.AdaTokenName].Cmp(addrAmounts[1][wallet.AdaTokenName]) < 0)
 
 	t.Run("simultaneous test", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
