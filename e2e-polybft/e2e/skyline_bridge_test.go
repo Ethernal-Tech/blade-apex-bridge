@@ -3385,6 +3385,6 @@ func TestE2E_SkylineBridge_RedistributeTokens(t *testing.T) {
 		fmt.Println("Multisig addresses amounts: ", addrAmounts)
 
 		require.Equal(t, bridgeAddCnt, len(addrAmounts))
-		require.False(t, e2ehelper.IsDiffGreaterThanOne(addrAmounts[0][wallet.AdaTokenName], addrAmounts[2][wallet.AdaTokenName]))
+		require.False(t, e2ehelper.IsDiffGreaterThanOne(addrAmounts[1][wallet.AdaTokenName], addrAmounts[2][wallet.AdaTokenName]))
 	})
 }
