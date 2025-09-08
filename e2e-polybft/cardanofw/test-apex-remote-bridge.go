@@ -286,6 +286,7 @@ func SetupSkylineRemoteBridge(
 		ogmiosURL:        remoteConfig.PrimeInfo.OgmiosURL,
 		blockfrostURL:    remoteConfig.PrimeInfo.BlockfrostURL,
 		blockfrostAPIKey: remoteConfig.PrimeInfo.BlockfrostAPIKey,
+		indexer:          e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 
 	cardanoChain := &TestCardanoChain{
@@ -295,6 +296,7 @@ func SetupSkylineRemoteBridge(
 		ogmiosURL:        remoteConfig.CardanoInfo.OgmiosURL,
 		blockfrostURL:    remoteConfig.CardanoInfo.BlockfrostURL,
 		blockfrostAPIKey: remoteConfig.CardanoInfo.BlockfrostAPIKey,
+		indexer:          e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 
 	usersData, err := GetTestnetApexUsers(

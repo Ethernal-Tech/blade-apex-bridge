@@ -605,6 +605,10 @@ func (ec *TestCardanoChain) BridgingRequest(
 		return "", err
 	}
 
+	if ec.indexer != nil {
+		ec.indexer.Add(txInfo.TxHash)
+	}
+
 	return ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, multisigAddr, wallet)
 }
 
