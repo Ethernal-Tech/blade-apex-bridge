@@ -3025,9 +3025,6 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 	const expectedConsolidations = 1
 
 	t.Run("Currency Bridging - Insufficient change", func(t *testing.T) {
-		ctxChild, cncl := context.WithCancel(ctx)
-		defer cncl()
-
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, apex.Users[1], apex.Users[0],
 			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
@@ -3070,9 +3067,6 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 	})
 
 	t.Run("Currency Bridging - Insufficient change + full", func(t *testing.T) {
-		ctxChild, cncl := context.WithCancel(ctx)
-		defer cncl()
-
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, apex.Users[1], apex.Users[0],
 			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
