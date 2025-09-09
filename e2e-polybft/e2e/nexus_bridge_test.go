@@ -1247,8 +1247,8 @@ func DstNexusSubmitterNotEnoughFunds(
 	t.Helper()
 
 	dstChain := cardanofw.ChainIDNexus
-
 	receiverAddr := apex.PrimeInfo.MultisigAddr
+
 	if srcChain == cardanofw.ChainIDVector {
 		receiverAddr = apex.VectorInfo.MultisigAddr
 	}
@@ -1303,8 +1303,8 @@ func DstNexusInvalidMetadataWrongType(
 	t.Helper()
 
 	dstChain := cardanofw.ChainIDNexus
-
 	receiverAddr := apex.PrimeInfo.MultisigAddr
+
 	if srcChain == cardanofw.ChainIDVector {
 		receiverAddr = apex.VectorInfo.MultisigAddr
 	}
