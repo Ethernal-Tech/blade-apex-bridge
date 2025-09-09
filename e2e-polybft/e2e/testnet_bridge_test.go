@@ -267,8 +267,6 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 	apex, err := cardanofw.SetupRemoteApexBridge(t, cardanofw.GetTestnetApexBridgeConfig())
 	require.NoError(t, err)
 
-	srcChain := cardanofw.ChainIDPrime
-
 	if IsVectorEnabled(apex) {
 		t.Run("From Prime to Vector sequential and parallel with max receivers", func(t *testing.T) {
 			const (
@@ -289,6 +287,19 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 			PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, bridgingOpts...)
 		})
+
+		t.Run("Vector and Nexus both directions sequential and parallel", func(t *testing.T) {
+			const (
+				sequentialInstances = 3
+				parallelInstances   = 6
+			)
+
+			receiverUser := apex.Users[parallelInstances]
+			sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+
+			DstNexusBothDirectionsSequentialAndParallel(
+				t, ctx, apex, cardanofw.ChainIDVector, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+		})
 	}
 
 	t.Run("From Prime to Nexus sequential and parallel with max receivers", func(t *testing.T) {
@@ -299,7 +310,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		DstNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, srcChain, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+		DstNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, cardanofw.ChainIDPrime, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 
 	t.Run("Prime and Nexus both directions sequential and parallel", func(t *testing.T) {
@@ -312,7 +323,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
 		DstNexusBothDirectionsSequentialAndParallel(
-			t, ctx, apex, srcChain, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+			t, ctx, apex, cardanofw.ChainIDPrime, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 
 	t.Run("From Nexus to Prime sequential and parallel max receivers", func(t *testing.T) {
@@ -323,7 +334,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		SrcNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, srcChain, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+		SrcNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, cardanofw.ChainIDPrime, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 }
 
