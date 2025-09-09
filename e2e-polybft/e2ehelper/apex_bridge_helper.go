@@ -112,7 +112,6 @@ func ExecuteBridging(
 	t.Helper()
 
 	var (
-		err        error
 		config     = newExecuteBridgingConfig(options...)
 		chainPairs = getAllChainPairs(chains, chainsDst)
 		// per each receiver -> per each chain -> per each token
@@ -123,17 +122,14 @@ func ExecuteBridging(
 	// calculate receivers initial balances
 	for i, receiverUser := range receiverUsers {
 		initialAmountsPerRecv[i] = map[string]map[string]*big.Int{}
-		balancePerChain := map[string]map[string]*big.Int{}
 
 		for _, pair := range chainPairs {
-			balance, exists := balancePerChain[pair.dstChain]
-			if !exists {
-				balance, err = apex.GetBalance(ctx, receiverUser, pair.dstChain)
-				require.NoError(t, err)
-
-				balancePerChain[pair.dstChain] = balance
+			if initialAmountsPerRecv[i][pair.dstChain] == nil {
 				initialAmountsPerRecv[i][pair.dstChain] = map[string]*big.Int{}
 			}
+
+			balance, err := apex.GetBalance(ctx, receiverUser, pair.dstChain)
+			require.NoError(t, err)
 
 			tokenName := getTokenNameForChains(apex, pair.dstChain, pair.srcChain, expectNativeTokens)
 			initialAmountsPerRecv[i][pair.dstChain][tokenName] = cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
