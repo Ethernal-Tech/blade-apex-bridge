@@ -1021,7 +1021,7 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 	wg.Wait()
 }
 
-func TestE2E_SkylineBridge_UTxOConsolidation(t *testing.T) {
+func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
 	}
@@ -2708,8 +2708,8 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 	wg.Wait()
 }
 
-// go test -timeout 0 -run ^TestE2E_SkylineBridge_StakeAddressOperationsTest$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
-func TestE2E_SkylineBridge_StakeAddressOperationsTest(t *testing.T) {
+// go test -timeout 0 -run ^TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
+func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 	const apiKey = "test_api_key"
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -2918,8 +2918,8 @@ func TestE2E_SkylineBridge_StakeAddressOperationsTest(t *testing.T) {
 	})
 }
 
-// go test -timeout 0 -run ^TestE2E_SkylineBridge_MutltipleAddresses$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
-func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
+// go test -timeout 0 -run ^TestE2E_SkylineBridgeMBA_MutltipleAddresses$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
+func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 	const apiKey = "test_api_key"
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -3291,8 +3291,8 @@ func TestE2E_SkylineBridge_MutltipleAddresses(t *testing.T) {
 	})
 }
 
-// go test -timeout 0 -run ^TestE2E_SkylineBridge_RedistributeTokens$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
-func TestE2E_SkylineBridge_RedistributeTokens(t *testing.T) {
+// go test -timeout 0 -run ^TestE2E_SkylineBridgeMBA_RedistributeTokens$ github.com/0xPolygon/polygon-edge/e2e-polybft/e2e -v
+func TestE2E_SkylineBridgeMBA_RedistributeTokens(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
 	)

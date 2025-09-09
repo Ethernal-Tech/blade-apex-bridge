@@ -41,6 +41,10 @@ on: # yamllint disable-line rule:truthy
         description: E2E ApexBridge Big Tests
         type: boolean
         default: false
+      e2e_skyline_mba_test:
+        description: E2E Skyline MBA Tests
+        type: boolean
+        default: true
       e2e_apex_skip_redundant_tests:
         description: E2E ApexBridge Skip Redundant Tests
         type: boolean
@@ -73,6 +77,10 @@ on: # yamllint disable-line rule:truthy
         required: true
       e2e_refund_skyline_bridge_test:
         description: E2E Refund-Skyline Bridge Tests
+        type: boolean
+        required: true
+      e2e_skyline_mba_test:
+        description: E2E Skyline MBA Tests
         type: boolean
         required: true
       e2e_apex_big_test:
@@ -113,6 +121,9 @@ on: # yamllint disable-line rule:truthy
       e2e_refund_skyline_bridge_test:
         description: E2E Refund-Skyline Bridge Tests output
         value: ${{ jobs.e2e_refund_skyline_bridge_test.outputs.workflow_output }}
+      e2e_skyline_mba_test:
+        description: E2E Skyline MBA Tests output
+        value: ${{ jobs.e2e_skyline_mba_test.outputs.workflow_output }}
     secrets:
       PERSONAL_ACCESS_TOKEN:
         required: true
@@ -262,6 +273,30 @@ jobs:
   e2e_skyline_test_push:
     name: E2E Skyline Tests (push on feat/skyline branch)
     uses: ./.github/workflows/e2e-skyline-test.yml
+    needs: build_blade
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/skyline')
+    with:
+      apex_bridge_ref: feat/skyline
+      blade_apex_bridge_ref: feat/skyline
+      e2e_apex_skip_redundant_tests: false
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_skyline_mba_test:
+    name: E2E Skyline MBA Tests
+    uses: ./.github/workflows/e2e-skyline-mba-test.yml
+    needs: [inputs_check, build_blade]
+    if: |
+      inputs.e2e_skyline_mba_test ||
+      github.event_name == 'pull_request'
+    with:
+      apex_bridge_ref: multiple-bridging-addresses
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
+      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_skyline_mba_test_push:
+    name: E2E Skyline MBA Tests (push on feat/skyline branch)
+    uses: ./.github/workflows/e2e-skyline-mba-test.yml
     needs: build_blade
     if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/skyline')
     with:
