@@ -90,13 +90,13 @@ test-e2e-apex-bridge: check-go
 test-e2e-skyline-bridge: check-go
 	go build -o artifacts/blade .
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
-	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "SkylineBridge"
+	go test -v -timeout=7h ./e2e-polybft/e2e/... -run 'SkylineBridge_'
 
 .PHONY: test-e2e-skyline-bridge-mba
 test-e2e-skyline-bridge-mba: check-go
 	go build -o artifacts/blade .
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
-	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "SkylineBridgeMBA"
+	go test -v -timeout=7h ./e2e-polybft/e2e/... -run 'SkylineBridgeMBA_'
 
 .PHONY: fund-testnet-e2e-apex-bridge
 fund-testnet-e2e-apex-bridge: check-go
