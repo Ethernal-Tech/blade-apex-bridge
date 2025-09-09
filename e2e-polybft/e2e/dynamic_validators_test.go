@@ -130,38 +130,6 @@ func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 	newValidatorAcc, err := helper.GetAccountFromDir(newValidatorSrv.DataDir())
 	require.NoError(t, err)
 
-	// send some blade for transactions
-	recp, err := relayer.SendTransaction(types.NewTx(
-		types.NewLegacyTx(
-			types.WithFrom(proposerAcc.Address()),
-			types.WithTo(newValidatorAcc.Address().Ptr()),
-			types.WithValue(ethgo.Ether(1)),
-		),
-	), proposerAcc.Ecdsa)
-	require.NoError(t, err)
-	require.NotNil(t, recp)
-	require.Equal(t, recp.Status, uint64(types.ReceiptSuccess))
-
-	// approve stake token
-	approve := contractsapi.ApproveNativeERC20MintableFn{
-		Spender: contracts.StakeManagerContract,
-		Amount:  ethgo.Ether(1),
-	}
-
-	approveInput, err := approve.EncodeAbi()
-	require.NoError(t, err)
-
-	recp, err = relayer.SendTransaction(types.NewTx(types.NewLegacyTx(
-		types.WithFrom(newValidatorAcc.Address()),
-		types.WithTo(&polybftCfg.StakeTokenAddr),
-		types.WithInput(approveInput),
-	)), newValidatorAcc.Ecdsa)
-	require.NoError(t, err)
-	require.NotNil(t, recp)
-	require.Equal(t, recp.Status, uint64(types.ReceiptSuccess))
-
-	t.Log("Approved")
-
 	// generate for non validator
 	apex.GenerateForNonValidator(t, ctx, 4)
 
@@ -533,38 +501,6 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 	newValidatorAcc, err := helper.GetAccountFromDir(newValidatorSrv.DataDir())
 	require.NoError(t, err)
 
-	// send some blade for transactions
-	recp, err := relayer.SendTransaction(types.NewTx(
-		types.NewLegacyTx(
-			types.WithFrom(proposerAcc.Address()),
-			types.WithTo(newValidatorAcc.Address().Ptr()),
-			types.WithValue(ethgo.Ether(1)),
-		),
-	), proposerAcc.Ecdsa)
-	require.NoError(t, err)
-	require.NotNil(t, recp)
-	require.Equal(t, recp.Status, uint64(types.ReceiptSuccess))
-
-	// approve stake token
-	approve := contractsapi.ApproveNativeERC20MintableFn{
-		Spender: contracts.StakeManagerContract,
-		Amount:  ethgo.Ether(1),
-	}
-
-	approveInput, err := approve.EncodeAbi()
-	require.NoError(t, err)
-
-	recp, err = relayer.SendTransaction(types.NewTx(types.NewLegacyTx(
-		types.WithFrom(newValidatorAcc.Address()),
-		types.WithTo(&polybftCfg.StakeTokenAddr),
-		types.WithInput(approveInput),
-	)), newValidatorAcc.Ecdsa)
-	require.NoError(t, err)
-	require.NotNil(t, recp)
-	require.Equal(t, recp.Status, uint64(types.ReceiptSuccess))
-
-	t.Log("Approved")
-
 	removeValidator := cluster.Servers[3]
 	removeValidatorKey, err := helper.GetAccountFromDir(removeValidator.DataDir())
 	require.NoError(t, err)
@@ -586,7 +522,7 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 	}
 
 	// wait some time until funding is processed and last observed slot updated on Bridge SC
-	<-time.After(25 * time.Second)
+	<-time.After(time.Minute)
 
 	executeValidatorChangeProposal(t, relayer, proposerAcc, []*addedValidator{
 		{
@@ -826,6 +762,206 @@ func TestE2E_DynamicValidators_OneFeeUtxo(t *testing.T) {
 
 	require.Zero(t, multisig)
 	require.Zero(t, fee)
+}
+
+// The test stops 1 blade before VSU and 2nd during VSU, then starts the 1st one. After VSU is done
+// we start the 2nd one and checking if bridge continues with batching with 2nd one Blade included in
+// consensus. It is expected to continue working, unlike the 1st one becase apex bridge missed signal for
+// VSU start (because Blade was stopped) and therefore 1st stopped node will miss new multisig utxos
+// received through Cardano blocks sync. The 2nd one Blade was up when VSU started so it received the start
+// signal for VSU and it was able to receive all new multisig utxos through the sync during VSU because apex
+// bridge was up all the time. It is expected old multisig utxos to be deleted entirely from all nodes.
+func TestE2E_DynamicValidators_StopBladesDuringVSU(t *testing.T) {
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 40
+	)
+
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig.BridgeAddrHasStake = true
+	primeConfig.PremineAmount = 500_000_000
+	primeConfig.FundUTxOCount = 80
+	primeConfig.FundFeeUTxOCount = 80
+	vectorConfig.BridgeAddrHasStake = true
+	vectorConfig.PremineAmount = 500_000_000
+	vectorConfig.FundUTxOCount = 80
+	vectorConfig.FundFeeUTxOCount = 80
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithAPIValidatorID(-1),
+		cardanofw.WithValidators(5),
+		cardanofw.WithNexusEnabled(true),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	t.Log("Cluster started")
+
+	cluster := apex.BridgeCluster
+
+	// check multisig amount
+	getMultisigAndFeeAmount := func(chainID cardanofw.ChainID) (uint64, uint64) {
+		apiURL, err := apex.GetBridgingAPI()
+		require.NoError(t, err)
+
+		requestURL := fmt.Sprintf("%s/api/OracleState/Get?chainId=%s", apiURL, chainID)
+		currentState, err := cardanofw.GetOracleState(ctx, requestURL, apiKey)
+
+		if err != nil || currentState == nil {
+			return 0, 0
+		}
+
+		var multisigAddr, feeAddr string
+
+		switch chainID {
+		case cardanofw.ChainIDPrime:
+			multisigAddr, feeAddr = apex.PrimeInfo.MultisigAddr, apex.PrimeInfo.FeeAddr
+		case cardanofw.ChainIDVector:
+			multisigAddr, feeAddr = apex.VectorInfo.MultisigAddr, apex.VectorInfo.FeeAddr
+		}
+
+		sumMultiSig, sumFee := uint64(0), uint64(0)
+
+		for _, utxo := range currentState.Utxos {
+			switch utxo.Address {
+			case multisigAddr:
+				sumMultiSig += utxo.Amount
+			case feeAddr:
+				sumFee += utxo.Amount
+			}
+		}
+
+		return sumMultiSig, sumFee
+	}
+
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+
+		return multisig == primeConfig.FundAmount && fee == primeConfig.FundFeeAmount
+	}))
+
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+
+		return multisig == vectorConfig.FundAmount && fee == vectorConfig.FundFeeAmount
+	}))
+
+	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+
+	proposer := cluster.Servers[0]
+
+	proposerAcc, err := helper.GetAccountFromDir(proposer.DataDir())
+	require.NoError(t, err)
+
+	relayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(proposer.JSONRPC()))
+	require.NoError(t, err)
+
+	polybftCfg, err := polybft.LoadPolyBFTConfig(path.Join(cluster.Config.TmpDir, chainConfigFileName))
+	require.NoError(t, err)
+
+	removeValidator := cluster.Servers[4]
+	removeValidatorKey, err := helper.GetAccountFromDir(removeValidator.DataDir())
+	require.NoError(t, err)
+
+	// wait some time until funding is processed and last observed slot updated on Bridge SC
+	<-time.After(time.Minute)
+
+	executeValidatorChangeProposal(t, relayer, proposerAcc, nil,
+		[]types.Address{removeValidatorKey.Address()}, cluster, polybftCfg)
+
+	t.Log("Executed validator set change")
+
+	// Stop the 1st Blade
+	require.NoError(t, removeValidator.Stop())
+
+	// wait until at least 1 batch is executed
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+
+		return multisig < primeConfig.FundAmount && fee < primeConfig.FundFeeAmount
+	}))
+
+	// Stop the 2nd Blade
+	require.NoError(t, cluster.Servers[3].Stop())
+
+	// wait some time and start the 1st Blade
+	<-time.After(10 * time.Second)
+	require.NoError(t, removeValidator.Start())
+
+	// wait for validator set change to finish
+	require.NoError(t, cluster.WaitUntil(10*time.Minute, 10*time.Second, func() bool {
+		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
+		require.NoError(t, err)
+
+		ret, err := relayer.Call(types.ZeroAddress, contracts.Bridge, input)
+		require.NoError(t, err)
+
+		num, err := hex.DecodeUint64(ret)
+		require.NoError(t, err)
+
+		t.Log("Validator set change status", num == 1)
+
+		return num == 0
+	}))
+
+	t.Log("Finished VSC")
+
+	checkValidatorActive(t, removeValidatorKey.Address(), relayer, false)
+
+	t.Logf("Removed validator")
+
+	// stop removed validator and one more
+	require.NoError(t, removeValidator.Stop())
+	require.NoError(t, cluster.Servers[2].Stop())
+
+	// Start the 2nd Blade, now we have 0, 1 and 3 working
+	require.NoError(t, cluster.Servers[3].Start())
+
+	// create new multisig and fee addresses
+	require.NoError(t, apex.UpdateConfigs())
+
+	// restart needed bridges & stop ones not used
+	require.NoError(t, apex.RestartBridges(ctx, 3, 5))
+
+	// check on new multisig
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+
+		t.Log("prime multisig", multisig)
+
+		return multisig == primeConfig.FundAmount && fee > 0 && fee < primeConfig.FundFeeAmount
+	}))
+
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+
+		t.Log("vector multisig", multisig)
+
+		return multisig == vectorConfig.FundAmount && fee > 0 && fee < vectorConfig.FundFeeAmount
+	}))
+
+	e2ehelper.ExecuteBridging(t, ctx, apex, 1,
+		apex.Users[:1],
+		apex.Users[1:2],
+		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
+		map[string][]string{
+			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
+			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
+			cardanofw.ChainIDNexus:  {cardanofw.ChainIDPrime},
+		},
+		sendAmountDfm)
 }
 
 func addressToHex(address []byte) string {
