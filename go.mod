@@ -74,7 +74,6 @@ require (
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/utxorpc/go-codegen v0.11.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )
 
 require (

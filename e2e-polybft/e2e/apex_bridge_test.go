@@ -2008,7 +2008,7 @@ func submitInvalidSendAmountTransaction(
 		}, feeAmount.Uint64(), operationFee)
 	require.NoError(t, err)
 
-	_, err = apex.SubmitTx(ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddress(),
+	_, err = apex.SubmitTx(ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddresses()[0],
 		new(big.Int).Add(sendAmount, feeAmount), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 }

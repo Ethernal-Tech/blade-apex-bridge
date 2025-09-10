@@ -408,7 +408,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		for _, amounts := range SplitAmountsNTimes(tokenAmounts, ec.config.FundUTxOCount) {
 			token, err := FundAddressWithToken(
 				ctx, ec,
-				minterWallet, ec.GetHotWalletAddress(),
+				minterWallet, ec.GetHotWalletAddresses()[0],
 				DefaultTokenName, DefaultTokenMintAmount,
 				amounts[0].Uint64(), amounts[1].Uint64())
 			if err != nil {
@@ -575,9 +575,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		bridgingType = bridgingTypes[0]
 	}
 
-	totalAmnt := uint64(0)
 	for receiverAddress, receiverAmount := range receiversMap {
-		totalAmnt += receiverAmount.Uint64()
 		receivers = append(receivers, sendtx.BridgingTxReceiver{
 			Addr:         receiverAddress,
 			Amount:       DfmToChainNativeTokenAmount(srcChainID, receiverAmount).Uint64(),
@@ -585,7 +583,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		})
 	}
 
-	multisigAddr, err := ec.GetAddressToBridgeTo(ctx, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+	multisigAddr, err := ec.GetAddressToBridgeTo(ctx, bridgingType)
 	if err != nil {
 		return "", err
 	}
@@ -612,13 +610,16 @@ func (ec *TestCardanoChain) BridgingRequest(
 	return ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, multisigAddr, wallet)
 }
 
-func (ec *TestCardanoChain) GetAddressToBridgeTo(ctx context.Context, containsNativeTokens bool) (string, error) {
+func (ec *TestCardanoChain) GetAddressToBridgeTo(
+	ctx context.Context,
+	bridgingType sendtx.BridgingType,
+) (string, error) {
 	txProvider, err := ec.GetTxProvider()
 	if err != nil {
 		return "", err
 	}
 
-	if containsNativeTokens {
+	if bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
 		fmt.Println("address with index 0 chosen for native tokens bridging")
 
 		return ec.multisigAddr[0], nil
@@ -702,8 +703,8 @@ func (ec *TestCardanoChain) SendTx(
 	return txInfo.TxHash, nil
 }
 
-func (ec *TestCardanoChain) GetHotWalletAddress() string {
-	return ec.multisigAddr[0]
+func (ec *TestCardanoChain) GetHotWalletAddresses() []string {
+	return ec.multisigAddr
 }
 
 func (ec *TestCardanoChain) GetAdminPrivateKey() (string, error) {

@@ -411,7 +411,7 @@ func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, dfm
 	}
 
 	_, err = chain.SendTx(
-		ctx, pk, chain.GetHotWalletAddress(), DfmToChainNativeTokenAmount(chainID, dfmAmount), nil, nil)
+		ctx, pk, chain.GetHotWalletAddresses()[0], DfmToChainNativeTokenAmount(chainID, dfmAmount), nil, nil)
 
 	return err
 }
@@ -825,12 +825,8 @@ func (a *ApexSystem) GetBridgingAddressesTokenAmounts(
 	switch sourceChain {
 	case ChainIDPrime:
 		bridingAddresses = a.PrimeInfo.MultisigAddr
-
-		break
 	case ChainIDCardano:
 		bridingAddresses = a.CardanoInfo.MultisigAddr
-
-		break
 	case ChainIDVector:
 		bridingAddresses = a.VectorInfo.MultisigAddr
 	}
@@ -840,7 +836,7 @@ func (a *ApexSystem) GetBridgingAddressesTokenAmounts(
 		return nil, err
 	}
 
-	balances := make([]map[string]*big.Int, 0)
+	balances := make([]map[string]*big.Int, 0, len(bridingAddresses))
 
 	for _, addr := range bridingAddresses {
 		addrBalances, err := txProvider.GetAddressBalance(ctx, addr)
@@ -1064,6 +1060,29 @@ func (a *ApexSystem) ResetIndexers() {
 
 		return nil
 	})
+}
+
+func (a *ApexSystem) UpdateBridgingAddressCounts(ctx context.Context) error {
+	if len(a.Config.UpdateAddressCountChains) > 0 {
+		addrCount := 1
+
+		for _, chainID := range a.Config.UpdateAddressCountChains {
+			switch chainID {
+			case ChainIDPrime:
+				addrCount = a.Config.PrimeConfig.BridgingAddressCnt
+			case ChainIDCardano:
+				addrCount = a.Config.CardanoConfig.BridgingAddressCnt
+			}
+
+			if err := a.UpdateBridgingAddressCount(ctx, chainID, addrCount); err != nil {
+				return fmt.Errorf("update bridging address count failed for chain %s: %w", chainID, err)
+			}
+
+			fmt.Printf("Bridging address count of %s have been updated to %d\n", chainID, addrCount)
+		}
+	}
+
+	return nil
 }
 
 func (a *ApexSystem) execForEachChain(handler func(chain ITestApexChain) error) error {

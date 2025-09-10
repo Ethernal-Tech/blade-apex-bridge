@@ -440,8 +440,8 @@ func (ec *TestEVMChain) SendTx(
 	return rec.TransactionHash.String(), nil
 }
 
-func (ec *TestEVMChain) GetHotWalletAddress() string {
-	return ec.gatewayAddr.String()
+func (ec *TestEVMChain) GetHotWalletAddresses() []string {
+	return []string{ec.gatewayAddr.String()}
 }
 
 func (ec *TestEVMChain) GetAdminPrivateKey() (string, error) {
@@ -490,4 +490,8 @@ func (ec *TestEVMChain) sendTx(
 	}
 
 	return receipt, nil
+}
+
+func (ec *TestEVMChain) GetAddressToBridgeTo(ctx context.Context, bridgingType sendtx.BridgingType) (string, error) {
+	return ec.gatewayAddr.String(), nil
 }

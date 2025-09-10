@@ -42,7 +42,7 @@ type ITestApexChain interface {
 		ctx context.Context, privateKey string, receiver string,
 		amount *big.Int, nativeTokenAmounts []infrawallet.TokenAmount, data []byte,
 	) (string, error)
-	GetHotWalletAddress() string
+	GetHotWalletAddresses() []string
 	GetAdminPrivateKey() (string, error)
 	// on skyline, txSender will in some cases correct the bridging fee based on the calculated min utxo
 	GetBridgingFee(
@@ -69,6 +69,7 @@ type ITestApexChain interface {
 		indx uint8,
 		expectError bool,
 	) (infrawallet.QueryStakeAddressInfo, error)
+	GetAddressToBridgeTo(ctx context.Context, bridgingType sendtx.BridgingType) (string, error)
 }
 
 type TestApexChainDummy struct {
@@ -169,8 +170,8 @@ func (td *TestApexChainDummy) Stop() error {
 	return nil
 }
 
-func (td *TestApexChainDummy) GetHotWalletAddress() string {
-	return ""
+func (td *TestApexChainDummy) GetHotWalletAddresses() []string {
+	return nil
 }
 
 func (td *TestApexChainDummy) GetAdminPrivateKey() (string, error) {
@@ -207,6 +208,13 @@ func (td *TestApexChainDummy) GetServerMust(t *testing.T, indx int) ITestApexCha
 
 func (td *TestApexChainDummy) GetIndexer() e2eindexer.TxsExecutedComponent {
 	return td.indexer
+}
+
+func (td *TestApexChainDummy) GetAddressToBridgeTo(
+	ctx context.Context,
+	bridgingType sendtx.BridgingType,
+) (string, error) {
+	return "", nil
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)

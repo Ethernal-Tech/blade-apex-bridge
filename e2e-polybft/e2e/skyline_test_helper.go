@@ -48,12 +48,21 @@ func executeInvalidMismatchSendLovelaceAmount(
 
 	sendAmount := uint64(1_000_000)
 	user := apex.Users[len(apex.Users)-1]
-	receivers := createReceivers(apex, 1, dstChain, sendAmount*10, sendtx.BridgingTypeCurrencyOnSource)
+	bridgingType := sendtx.BridgingTypeCurrencyOnSource
+	receivers := createReceivers(apex, 1, dstChain, sendAmount*10, bridgingType)
 
-	metadata, feeAmount := createMetadata(t, ctx, apex, srcChain, dstChain, bridgingFee, operationFee, user, receivers)
+	multisigAddr, err := apex.GetChainMust(t, srcChain).GetAddressToBridgeTo(
+		ctx, bridgingType,
+	)
+	require.NoError(t, err)
+
+	metadata, feeAmount := createMetadata(
+		t, ctx, apex, srcChain, dstChain, multisigAddr,
+		bridgingFee, operationFee, user, receivers,
+	)
 
 	txHash, err := apex.SubmitTx(
-		ctx, srcChain, user, apex.GetCardanoInfo(srcChain).MultisigAddr[0],
+		ctx, srcChain, user, multisigAddr,
 		new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 	require.NoError(t, err)
 
@@ -70,13 +79,22 @@ func executeInvalidMetadataType(
 
 	sendAmount := uint64(1_000_000)
 	user := apex.Users[len(apex.Users)-1]
-	receivers := createReceivers(apex, 1, dstChain, sendAmount, sendtx.BridgingTypeCurrencyOnSource)
+	bridgingType := sendtx.BridgingTypeCurrencyOnSource
+	receivers := createReceivers(apex, 1, dstChain, sendAmount, bridgingType)
 
-	metadata, feeAmount := createMetadata(t, ctx, apex, srcChain, dstChain, bridgingFee, operationFee, user, receivers)
+	multisigAddr, err := apex.GetChainMust(t, srcChain).GetAddressToBridgeTo(
+		ctx, bridgingType,
+	)
+	require.NoError(t, err)
+
+	metadata, feeAmount := createMetadata(
+		t, ctx, apex, srcChain, dstChain, multisigAddr,
+		bridgingFee, operationFee, user, receivers,
+	)
 	metadata = bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
 
 	txHash, err := apex.SubmitTx(
-		ctx, srcChain, user, apex.GetCardanoInfo(srcChain).MultisigAddr[0],
+		ctx, srcChain, user, multisigAddr,
 		new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 	require.NoError(t, err)
 
@@ -94,10 +112,16 @@ func executeInvalidMetadataSender(
 
 	sendAmount := uint64(1_000_000)
 	user := apex.Users[0]
-	receivers := createReceivers(apex, 1, dstChain, sendAmount, sendtx.BridgingTypeCurrencyOnSource)
+	bridgingType := sendtx.BridgingTypeCurrencyOnSource
+	receivers := createReceivers(apex, 1, dstChain, sendAmount, bridgingType)
+
+	multisigAddr, err := apex.GetChainMust(t, srcChain).GetAddressToBridgeTo(
+		ctx, bridgingType,
+	)
+	require.NoError(t, err)
 
 	feeAmount, err := apex.GetChainMust(t, srcChain).GetBridgingFee(
-		ctx, dstChain, receivers, bridgingFee, operationFee, apex.GetChainMust(t, srcChain).GetHotWalletAddress())
+		ctx, dstChain, receivers, bridgingFee, operationFee, multisigAddr)
 	require.NoError(t, err)
 
 	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
@@ -124,14 +148,23 @@ func executeInvalidBridgingFee(
 
 	sendAmount := uint64(1_000_000)
 	user := apex.Users[len(apex.Users)-1]
-	receivers := createReceivers(apex, 1, dstChain, sendAmount, sendtx.BridgingTypeCurrencyOnSource)
+	bridgingType := sendtx.BridgingTypeCurrencyOnSource
+	receivers := createReceivers(apex, 1, dstChain, sendAmount, bridgingType)
 
-	metadata, feeAmount := createMetadata(t, ctx, apex, srcChain, dstChain, bridgingFee, operationFee, user, receivers)
+	multisigAddr, err := apex.GetChainMust(t, srcChain).GetAddressToBridgeTo(
+		ctx, bridgingType,
+	)
+	require.NoError(t, err)
+
+	metadata, feeAmount := createMetadata(
+		t, ctx, apex, srcChain, dstChain, multisigAddr,
+		bridgingFee, operationFee, user, receivers,
+	)
 	bytesToReplace := []byte(strconv.FormatUint(bridgingFee, 10))
 	metadata = bytes.Replace(metadata, bytesToReplace, []byte("1"), 1)
 
 	txHash, err := apex.SubmitTx(
-		ctx, srcChain, user, apex.GetCardanoInfo(srcChain).MultisigAddr[0],
+		ctx, srcChain, user, multisigAddr,
 		new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 	require.NoError(t, err)
 
@@ -150,10 +183,16 @@ func executeInvalidEmptyReceivers(
 	user := apex.Users[len(apex.Users)-1]
 	receivers := []sendtx.BridgingTxReceiver{}
 
-	metadata, feeAmount := createMetadata(t, ctx, apex, srcChain, dstChain, bridgingFee, operationFee, user, receivers)
+	multisigAddr, err := apex.GetChainMust(t, srcChain).GetAddressToBridgeTo(ctx, sendtx.BridgingTypeCurrencyOnSource)
+	require.NoError(t, err)
+
+	metadata, feeAmount := createMetadata(
+		t, ctx, apex, srcChain, dstChain, multisigAddr,
+		bridgingFee, operationFee, user, receivers,
+	)
 
 	txHash, err := apex.SubmitTx(
-		ctx, srcChain, user, apex.GetCardanoInfo(srcChain).MultisigAddr[0],
+		ctx, srcChain, user, multisigAddr,
 		new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 	require.NoError(t, err)
 
@@ -170,14 +209,23 @@ func executeInvalidDestination(
 
 	sendAmount := uint64(1_000_000)
 	user := apex.Users[len(apex.Users)-1]
-	receivers := createReceivers(apex, 0, dstChain, sendAmount, sendtx.BridgingTypeCurrencyOnSource)
+	bridgingType := sendtx.BridgingTypeCurrencyOnSource
+	receivers := createReceivers(apex, 0, dstChain, sendAmount, bridgingType)
 
-	metadata, feeAmount := createMetadata(t, ctx, apex, srcChain, dstChain, bridgingFee, operationFee, user, receivers)
+	multisigAddr, err := apex.GetChainMust(t, srcChain).GetAddressToBridgeTo(
+		ctx, bridgingType,
+	)
+	require.NoError(t, err)
+
+	metadata, feeAmount := createMetadata(
+		t, ctx, apex, srcChain, dstChain, multisigAddr,
+		bridgingFee, operationFee, user, receivers,
+	)
 	metadata = bytes.Replace(
 		metadata, fmt.Appendf([]byte("\"%s\""), dstChain), []byte("\"unknown\""), 1)
 
 	txHash, err := apex.SubmitTx(
-		ctx, srcChain, user, apex.GetCardanoInfo(srcChain).MultisigAddr[0],
+		ctx, srcChain, user, multisigAddr,
 		new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 	require.NoError(t, err)
 
@@ -193,19 +241,28 @@ func executeInvalidFeeReceiverAddr(
 	t.Helper()
 
 	user := apex.Users[len(apex.Users)-1]
+	bridgingType := sendtx.BridgingTypeNativeTokenOnSource
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:         apex.GetCardanoInfo(dstChain).FeeAddr,
 			Amount:       bridgingFee,
-			BridgingType: sendtx.BridgingTypeNativeTokenOnSource,
+			BridgingType: bridgingType,
 		},
 	}
 
-	metadata, feeAmount := createMetadata(t, ctx, apex, srcChain, dstChain, bridgingFee, operationFee, user, receivers)
+	multisigAddr, err := apex.GetChainMust(t, srcChain).GetAddressToBridgeTo(
+		ctx, bridgingType,
+	)
+	require.NoError(t, err)
+
+	metadata, feeAmount := createMetadata(
+		t, ctx, apex, srcChain, dstChain, multisigAddr,
+		bridgingFee, operationFee, user, receivers,
+	)
 
 	txHash, err := apex.SubmitTx(
-		ctx, srcChain, user, apex.GetCardanoInfo(srcChain).MultisigAddr[0],
+		ctx, srcChain, user, multisigAddr,
 		new(big.Int).SetUint64(feeAmount+operationFee), nil, metadata)
 
 	require.NoError(t, err)
@@ -223,21 +280,30 @@ func executeInvalidMismatchSendNativeTokenAmount(
 ) {
 	t.Helper()
 
+	bridgingType := sendtx.BridgingTypeNativeTokenOnSource
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:         user.GetAddress(dstChain),
 			Amount:       nativeTokenAmount.Amount,
-			BridgingType: sendtx.BridgingTypeNativeTokenOnSource,
+			BridgingType: bridgingType,
 		},
 	}
 
-	metadata, feeAmount := createMetadata(t, ctx, apex, srcChain, dstChain, bridgingFee, operationFee, user, receivers)
+	multisigAddr, err := apex.GetChainMust(t, srcChain).GetAddressToBridgeTo(
+		ctx, bridgingType,
+	)
+	require.NoError(t, err)
+
+	metadata, feeAmount := createMetadata(
+		t, ctx, apex, srcChain, dstChain, multisigAddr,
+		bridgingFee, operationFee, user, receivers,
+	)
 
 	bridgingRequestMetadata := bytes.Replace(metadata,
 		[]byte(fmt.Sprintf("%d", nativeTokenAmount.Amount)), []byte(fmt.Sprintf("%d", nativeTokenAmount.Amount+1)), 1)
 
 	txHash, err := apex.SubmitTx(ctx, srcChain,
-		user, apex.GetCardanoInfo(srcChain).MultisigAddr[0],
+		user, multisigAddr,
 		new(big.Int).SetUint64(feeAmount+operationFee), []wallet.TokenAmount{nativeTokenAmount}, bridgingRequestMetadata,
 	)
 	require.NoError(t, err)
@@ -255,18 +321,27 @@ func executeInvalidSendUnknownToken(
 ) {
 	t.Helper()
 
+	bridgingType := sendtx.BridgingTypeCurrencyOnSource
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:         user.GetAddress(dstChain),
 			Amount:       lovelaceAmount,
-			BridgingType: sendtx.BridgingTypeCurrencyOnSource,
+			BridgingType: bridgingType,
 		},
 	}
 
-	metadata, feeAmount := createMetadata(t, ctx, apex, srcChain, dstChain, bridgingFee, operationFee, user, receivers)
+	multisigAddr, err := apex.GetChainMust(t, srcChain).GetAddressToBridgeTo(
+		ctx, bridgingType,
+	)
+	require.NoError(t, err)
+
+	metadata, feeAmount := createMetadata(
+		t, ctx, apex, srcChain, dstChain, multisigAddr,
+		bridgingFee, operationFee, user, receivers,
+	)
 
 	txHash, err := apex.SubmitTx(ctx, srcChain,
-		user, apex.GetCardanoInfo(srcChain).MultisigAddr[0],
+		user, multisigAddr,
 		new(big.Int).SetUint64(lovelaceAmount+feeAmount+operationFee), []wallet.TokenAmount{nativeTokenAmount}, metadata)
 	require.NoError(t, err)
 
@@ -277,7 +352,8 @@ func executeInvalidSendUnknownToken(
 
 func createMetadata(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	srcChain, dstChain cardanofw.ChainID, bridgingFee, operationFee uint64,
+	srcChain, dstChain cardanofw.ChainID, multisigAddr string,
+	bridgingFee, operationFee uint64,
 	sender *cardanofw.TestApexUser, receivers []sendtx.BridgingTxReceiver,
 ) ([]byte, uint64) {
 	t.Helper()
@@ -285,8 +361,8 @@ func createMetadata(
 	chain := apex.GetChainMust(t, srcChain)
 
 	feeAmount, err := chain.GetBridgingFee(
-		ctx, dstChain, receivers, bridgingFee, operationFee,
-		apex.GetChainMust(t, srcChain).GetHotWalletAddress(),
+		ctx, dstChain, receivers, bridgingFee,
+		operationFee, multisigAddr,
 	)
 	require.NoError(t, err)
 

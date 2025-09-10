@@ -135,10 +135,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 	fmt.Println("prime user addr: ", user.PrimeAddress)
 	fmt.Println("cardano user addr: ", user.CardanoAddress)
-	fmt.Println("prime multisig addr: ", apex.PrimeInfo.MultisigAddr[0])
+	fmt.Println("prime multisig addr: ", apex.PrimeInfo.MultisigAddr)
 	fmt.Println("prime fee addr: ", apex.PrimeInfo.FeeAddr)
 	fmt.Printf("prime socket path: %s\n", apex.PrimeInfo.SocketPath)
-	fmt.Println("cardano multisig addr: ", apex.CardanoInfo.MultisigAddr[0])
+	fmt.Println("cardano multisig addr: ", apex.CardanoInfo.MultisigAddr)
 	fmt.Println("cardano fee addr: ", apex.CardanoInfo.FeeAddr)
 	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
 
@@ -639,10 +639,10 @@ func TestE2E_SkylineBridge_InvalidScenarios(t *testing.T) {
 	user := apex.Users[userCnt-1]
 	fmt.Println("prime user addr: ", user.PrimeAddress)
 	fmt.Println("cardano user addr: ", user.CardanoAddress)
-	fmt.Println("prime multisig addr: ", apex.PrimeInfo.MultisigAddr[0])
+	fmt.Println("prime multisig addr: ", apex.PrimeInfo.MultisigAddr)
 	fmt.Println("prime fee addr: ", apex.PrimeInfo.FeeAddr)
 	fmt.Printf("prime socket path: %s\n", apex.PrimeInfo.SocketPath)
-	fmt.Println("cardano multisig addr: ", apex.CardanoInfo.MultisigAddr[0])
+	fmt.Println("cardano multisig addr: ", apex.CardanoInfo.MultisigAddr)
 	fmt.Println("cardano fee addr: ", apex.CardanoInfo.FeeAddr)
 	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
 
@@ -2610,7 +2610,7 @@ func sendInvalidSendAmountTransaction(
 	require.NoError(t, err)
 
 	_, err = apex.SubmitTx(
-		ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddress(),
+		ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddresses()[0],
 		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount+operationFee)), nil, metadata)
 	require.NoError(t, err)
 }
