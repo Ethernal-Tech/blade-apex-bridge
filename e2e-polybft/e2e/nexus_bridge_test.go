@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,6 +30,8 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 
 	directions := map[string][]string{}
 
+	var directionsMutex sync.Mutex
+
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
@@ -38,6 +41,9 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			allowedDirections := setting["allowedDirections"].(map[string]interface{})
+
+			directionsMutex.Lock()
+			defer directionsMutex.Unlock()
 
 			for src, dirs := range allowedDirections {
 				directions[src] = make([]string, len(dirs.([]interface{})))
@@ -1241,8 +1247,8 @@ func DstNexusSubmitterNotEnoughFunds(
 	t.Helper()
 
 	dstChain := cardanofw.ChainIDNexus
-
 	receiverAddr := apex.PrimeInfo.MultisigAddr
+
 	if srcChain == cardanofw.ChainIDVector {
 		receiverAddr = apex.VectorInfo.MultisigAddr
 	}
@@ -1297,8 +1303,8 @@ func DstNexusInvalidMetadataWrongType(
 	t.Helper()
 
 	dstChain := cardanofw.ChainIDNexus
-
 	receiverAddr := apex.PrimeInfo.MultisigAddr
+
 	if srcChain == cardanofw.ChainIDVector {
 		receiverAddr = apex.VectorInfo.MultisigAddr
 	}
