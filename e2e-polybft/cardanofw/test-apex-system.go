@@ -849,10 +849,6 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		(sourceChain == ChainIDCardano || destinationChain == ChainIDCardano))
 	require.False(t, (a.Config.NexusConfig == nil || !a.Config.NexusConfig.IsEnabled) &&
 		(sourceChain == ChainIDNexus || destinationChain == ChainIDNexus))
-	require.True(t,
-		(sourceChain == ChainIDPrime || destinationChain != ChainIDPrime) ||
-			(sourceChain == ChainIDCardano && destinationChain == ChainIDPrime),
-	)
 
 	// check if number of receivers is valid
 	require.Greater(t, len(receivers), 0)
