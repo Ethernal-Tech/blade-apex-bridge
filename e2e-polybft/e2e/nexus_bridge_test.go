@@ -104,6 +104,25 @@ func TestE2E_ApexBridgeWithNexus(t *testing.T) {
 
 		require.True(t, relayerBalanceAfter[cardanowallet.AdaTokenName].Cmp(relayerBalanceBefore[cardanowallet.AdaTokenName]) == 1)
 	})
+
+	t.Run("From Vector to Nexus", func(t *testing.T) {
+		srcChain, dstChain := cardanofw.ChainIDVector, cardanofw.ChainIDNexus
+
+		relayerBalanceBefore, err := apex.GetChainMust(t, dstChain).GetAddressBalance(
+			ctx, apex.NexusInfo.RelayerAddress.String())
+		require.NoError(t, err)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, sendtx.BridgingTypeNormal)
+
+		relayerBalanceAfter, err := apex.GetChainMust(t, dstChain).GetAddressBalance(
+			ctx, apex.NexusInfo.RelayerAddress.String())
+		require.NoError(t, err)
+
+		fmt.Printf("Relayer balance before: %s, after: %s\n", relayerBalanceBefore[cardanowallet.AdaTokenName].String(), relayerBalanceAfter[cardanowallet.AdaTokenName].String())
+
+		require.True(t, relayerBalanceAfter[cardanowallet.AdaTokenName].Cmp(relayerBalanceBefore[cardanowallet.AdaTokenName]) == 1)
+	})
 }
 
 func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
