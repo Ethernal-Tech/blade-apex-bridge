@@ -44,7 +44,7 @@ on: # yamllint disable-line rule:truthy
       e2e_skyline_mba_test:
         description: E2E Skyline MBA Tests
         type: boolean
-        default: true
+        default: false
       e2e_apex_skip_redundant_tests:
         description: E2E ApexBridge Skip Redundant Tests
         type: boolean
