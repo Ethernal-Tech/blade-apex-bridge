@@ -263,7 +263,7 @@ jobs:
     needs: [inputs_check, build_blade]
     if: |
       inputs.e2e_skyline_test ||
-      (github.event_name == 'pull_request' && (github.base_ref == 'feat/skyline' || github.base_ref == 'multiple-bridging-addresses'))
+      (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline')
     with:
       apex_bridge_ref: multiple-bridging-addresses
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
@@ -287,7 +287,7 @@ jobs:
     needs: [inputs_check, build_blade]
     if: |
       inputs.e2e_skyline_mba_test ||
-      github.event_name == 'pull_request'
+      (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline')
     with:
       apex_bridge_ref: multiple-bridging-addresses
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
