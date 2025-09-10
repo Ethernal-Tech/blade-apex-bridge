@@ -44,6 +44,27 @@ func ExecuteSingleBridging(
 	require.NoError(t, err)
 }
 
+func ExecuteTokenRedistribution(
+	t *testing.T, ctx context.Context, apex IApexSystem, chainID string, numRetries int, waitTime time.Duration,
+) {
+	t.Helper()
+
+	err := apex.RedistributeTokens(ctx, chainID)
+	require.NoError(t, err)
+
+	err = apex.WaitForRedistribution(ctx, chainID, IsDiffGreaterThanOne, numRetries, waitTime)
+	require.NoError(t, err)
+}
+
+func IsDiffGreaterThanOne(a, b *big.Int) bool {
+	diff := new(big.Int).Sub(a, b)
+	if diff.Sign() < 0 {
+		diff.Neg(diff) // Make it absolute
+	}
+
+	return diff.Cmp(big.NewInt(1)) > 0
+}
+
 func ExecuteBridgingOneByOneWaitOnOtherSide(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	receiverUser *cardanofw.TestApexUser, srcChain, dstChain string, sendAmount *big.Int, bridgingType sendtx.BridgingType,

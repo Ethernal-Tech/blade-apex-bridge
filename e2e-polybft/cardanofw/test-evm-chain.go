@@ -95,8 +95,8 @@ type TestEVMChain struct {
 
 // GetBridgingStakeAddressInfo implements ITestApexChain.
 func (ec *TestEVMChain) GetBridgingStakeAddressInfo(
-	t *testing.T, ctx context.Context, indx uint8,
-) infrawallet.QueryStakeAddressInfo {
+	t *testing.T, ctx context.Context, indx uint8, expectError bool,
+) (infrawallet.QueryStakeAddressInfo, error) {
 	t.Helper()
 
 	panic("unimplemented") //nolint:gocritic
@@ -369,6 +369,7 @@ func (ec *TestEVMChain) GetBridgingFee(
 	_ []sendtx.BridgingTxReceiver,
 	bridgingFee uint64,
 	_ uint64,
+	_ string,
 ) (uint64, error) {
 	return bridgingFee, nil
 }
@@ -439,8 +440,8 @@ func (ec *TestEVMChain) SendTx(
 	return rec.TransactionHash.String(), nil
 }
 
-func (ec *TestEVMChain) GetHotWalletAddress() string {
-	return ec.gatewayAddr.String()
+func (ec *TestEVMChain) GetHotWalletAddresses() []string {
+	return []string{ec.gatewayAddr.String()}
 }
 
 func (ec *TestEVMChain) GetAdminPrivateKey() (string, error) {
@@ -489,4 +490,8 @@ func (ec *TestEVMChain) sendTx(
 	}
 
 	return receipt, nil
+}
+
+func (ec *TestEVMChain) GetAddressToBridgeTo(ctx context.Context, bridgingType sendtx.BridgingType) (string, error) {
+	return ec.gatewayAddr.String(), nil
 }

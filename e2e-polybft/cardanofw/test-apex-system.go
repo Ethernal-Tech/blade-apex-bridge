@@ -1,12 +1,14 @@
 package cardanofw
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -26,7 +28,7 @@ type CardanoChainInfo struct {
 	OgmiosURL        string
 	BlockfrostURL    string
 	BlockfrostAPIKey string
-	MultisigAddr     string
+	MultisigAddr     []string
 	FeeAddr          string
 	SocketPath       string
 
@@ -78,6 +80,15 @@ type ApexSystem struct {
 	Users      []*TestApexUser
 
 	IsSkyline bool
+}
+
+type UpgradeSCParams struct {
+	contractsDir    string
+	contractName    string
+	contractAddress string
+	functionName    string
+	functionArgs    []string
+	gasLimit        uint64
 }
 
 func NewApexSystem(
@@ -333,7 +344,6 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 		ChainIDPrime: {
 			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
 			TxProvider:            cardanowallet.NewTxProviderOgmios(a.PrimeInfo.OgmiosURL),
-			MultiSigAddr:          a.PrimeInfo.MultisigAddr,
 			TestNetMagic:          a.Config.PrimeConfig.NetworkMagic,
 			TTLSlotNumberInc:      ttlSlotNumberInc,
 			MinUtxoValue:          MinUTxODefaultValue,
@@ -348,7 +358,6 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 		txSenderChainConfigs[ChainIDVector] = sendtx.ChainConfig{
 			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.VectorConfig.NetworkType),
 			TxProvider:            cardanowallet.NewTxProviderOgmios(a.VectorInfo.OgmiosURL),
-			MultiSigAddr:          a.VectorInfo.MultisigAddr,
 			TestNetMagic:          a.Config.VectorConfig.NetworkMagic,
 			TTLSlotNumberInc:      ttlSlotNumberInc,
 			MinUtxoValue:          MinUTxODefaultValue,
@@ -362,7 +371,6 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 		txSenderChainConfigs[ChainIDCardano] = sendtx.ChainConfig{
 			CardanoCliBinary:      ResolveCardanoCliBinary(a.Config.CardanoConfig.NetworkType),
 			TxProvider:            cardanowallet.NewTxProviderOgmios(a.CardanoInfo.OgmiosURL),
-			MultiSigAddr:          a.CardanoInfo.MultisigAddr,
 			TestNetMagic:          a.Config.CardanoConfig.NetworkMagic,
 			TTLSlotNumberInc:      ttlSlotNumberInc,
 			MinUtxoValue:          MinUTxODefaultValue,
@@ -403,7 +411,7 @@ func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, dfm
 	}
 
 	_, err = chain.SendTx(
-		ctx, pk, chain.GetHotWalletAddress(), DfmToChainNativeTokenAmount(chainID, dfmAmount), nil, nil)
+		ctx, pk, chain.GetHotWalletAddresses()[0], DfmToChainNativeTokenAmount(chainID, dfmAmount), nil, nil)
 
 	return err
 }
@@ -746,6 +754,28 @@ func (a *ApexSystem) WaitForAmount(
 	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
 }
 
+func (a *ApexSystem) WaitForRedistribution(
+	ctx context.Context, chainID ChainID, cmpHandler func(*big.Int, *big.Int) bool, numRetries int, waitTime time.Duration,
+) error {
+	_, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*big.Int, error) {
+		addrAmounts, err := a.GetBridgingAddressesTokenAmounts(ctx, chainID)
+		if err != nil {
+			return nil, err
+		}
+
+		firstAddrAmount := addrAmounts[0][cardanowallet.AdaTokenName]
+		for i := 1; i < len(addrAmounts); i++ {
+			if cmpHandler(firstAddrAmount, addrAmounts[i][cardanowallet.AdaTokenName]) {
+				return nil, infracommon.ErrRetryTryAgain
+			}
+		}
+
+		return nil, nil
+	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
+
+	return err
+}
+
 func (a *ApexSystem) DefundHotWallet(
 	chain ChainID, defundReceiverAddress string, defundDfm *big.Int, defundNativeTokenAmount *big.Int,
 ) error {
@@ -767,9 +797,99 @@ func (a *ApexSystem) DefundHotWallet(
 	}, os.Stdout)
 }
 
-func (a *ApexSystem) RegisterAndDelegateStakeAddress(
+func (a *ApexSystem) UpdateBridgingAddressCount(
+	ctx context.Context, sourceChain ChainID,
+	addressCount int,
+) error {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	pk := hex.EncodeToString(pkBytes)
+
+	return RunCommand(ResolveApexBridgeBinary(), []string{
+		"bridge-admin", "update-bridging-addrs-count",
+		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--chain", sourceChain,
+		"--key", pk,
+		"--bridging-addresses-count", fmt.Sprintf("%d", addressCount),
+	}, os.Stdout)
+}
+
+func (a *ApexSystem) GetBridgingAddressesTokenAmounts(
+	ctx context.Context, sourceChain ChainID,
+) ([]map[string]*big.Int, error) {
+	bridingAddresses := []string{}
+
+	switch sourceChain {
+	case ChainIDPrime:
+		bridingAddresses = a.PrimeInfo.MultisigAddr
+	case ChainIDCardano:
+		bridingAddresses = a.CardanoInfo.MultisigAddr
+	case ChainIDVector:
+		bridingAddresses = a.VectorInfo.MultisigAddr
+	}
+
+	txProvider, err := a.getChain(sourceChain)
+	if err != nil {
+		return nil, err
+	}
+
+	balances := make([]map[string]*big.Int, 0, len(bridingAddresses))
+
+	for _, addr := range bridingAddresses {
+		addrBalances, err := txProvider.GetAddressBalance(ctx, addr)
+		if err != nil {
+			return nil, err
+		}
+
+		if addrBalances[cardanowallet.AdaTokenName] == nil {
+			addrBalances[cardanowallet.AdaTokenName] = big.NewInt(0)
+		}
+
+		balances = append(balances, addrBalances)
+	}
+
+	return balances, nil
+}
+
+func (a *ApexSystem) DelegateStakeAddress(
 	ctx context.Context, sourceChain ChainID,
 	bridgeAddressIndex int8, stakePoolID string,
+	doRegister bool,
+) error {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	pk := hex.EncodeToString(pkBytes)
+
+	chain, err := a.getChain(sourceChain)
+	if err != nil {
+		return err
+	}
+
+	cmnd := []string{
+		"bridge-admin", "delegate-address-to-stake-pool",
+		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--chain", chain.ChainID(),
+		"--key", pk,
+		"--stake-pool", stakePoolID,
+		"--bridge-address-index", fmt.Sprintf("%d", bridgeAddressIndex),
+	}
+
+	if doRegister {
+		cmnd = append(cmnd, "--do-registration")
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), cmnd, os.Stdout)
+}
+
+func (a *ApexSystem) DeregisterStakeAddress(
+	ctx context.Context, sourceChain ChainID,
+	bridgeAddressIndex int8,
 ) error {
 	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
 	if err != nil {
@@ -784,12 +904,34 @@ func (a *ApexSystem) RegisterAndDelegateStakeAddress(
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), []string{
-		"bridge-admin", "delegate-address-to-stake-pool",
+		"bridge-admin", "deregister-stake-address",
 		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
 		"--chain", chain.ChainID(),
 		"--key", pk,
-		"--stake-pool", stakePoolID,
 		"--bridge-address-index", fmt.Sprintf("%d", bridgeAddressIndex),
+	}, os.Stdout)
+}
+
+func (a *ApexSystem) RedistributeTokens(
+	ctx context.Context, chainID ChainID,
+) error {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	pk := hex.EncodeToString(pkBytes)
+
+	chain, err := a.getChain(chainID)
+	if err != nil {
+		return err
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), []string{
+		"bridge-admin", "redistribute-bridging-addresses-tokens",
+		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--chain", chain.ChainID(),
+		"--key", pk,
 	}, os.Stdout)
 }
 
@@ -920,6 +1062,29 @@ func (a *ApexSystem) ResetIndexers() {
 	})
 }
 
+func (a *ApexSystem) UpdateBridgingAddressCounts(ctx context.Context) error {
+	if len(a.Config.UpdateAddressCountChains) > 0 {
+		addrCount := 1
+
+		for _, chainID := range a.Config.UpdateAddressCountChains {
+			switch chainID {
+			case ChainIDPrime:
+				addrCount = a.Config.PrimeConfig.BridgingAddressCnt
+			case ChainIDCardano:
+				addrCount = a.Config.CardanoConfig.BridgingAddressCnt
+			}
+
+			if err := a.UpdateBridgingAddressCount(ctx, chainID, addrCount); err != nil {
+				return fmt.Errorf("update bridging address count failed for chain %s: %w", chainID, err)
+			}
+
+			fmt.Printf("Bridging address count of %s have been updated to %d\n", chainID, addrCount)
+		}
+	}
+
+	return nil
+}
+
 func (a *ApexSystem) execForEachChain(handler func(chain ITestApexChain) error) error {
 	errs := make([]error, len(a.chains))
 	wg := &sync.WaitGroup{}
@@ -983,4 +1148,72 @@ func (a *ApexSystem) GetCardanoInfo(chainID string) CardanoChainInfo {
 	default:
 		return CardanoChainInfo{}
 	}
+}
+
+func (a *ApexSystem) DeploySmartContract(
+	contractsDir, contractName string, addressesOfDependencies []string,
+) (string, error) {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return "", err
+	}
+
+	var stdoutBuf bytes.Buffer
+
+	err = RunCommand(ResolveApexBridgeBinary(), []string{
+		"deploy-evm", "deploy-contract",
+		"--contract-dir", contractsDir,
+		"--contract-name", contractName,
+		"--dependencies", strings.Join(addressesOfDependencies, ";"),
+		"--key", hex.EncodeToString(pkBytes),
+		"--url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--owner", a.GetBridgeAdmin().Address().String(),
+		"--upgrade-admin", a.GetBridgeProxyAdmin().Address().String(),
+	}, &stdoutBuf)
+
+	output := stdoutBuf.String()
+	fmt.Println(output)
+
+	if err != nil {
+		return "", fmt.Errorf("deploy contract command failed: %w", err)
+	}
+
+	re := regexp.MustCompile(`(?i)Proxy Address\s*=\s*(0x[0-9a-fA-F]{40})`)
+
+	if match := re.FindStringSubmatch(output); len(match) >= 2 {
+		return match[1], nil
+	}
+
+	return "", fmt.Errorf("proxy address not found")
+}
+
+func (a *ApexSystem) UpgradeSmartContract(upgradeParams *UpgradeSCParams) error {
+	pkBytes, err := a.GetBridgeProxyAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	parts := []string{upgradeParams.contractName, upgradeParams.contractAddress}
+
+	if upgradeParams.functionName != "" {
+		parts = append(parts, upgradeParams.functionName)
+	}
+
+	if len(upgradeParams.functionArgs) > 0 {
+		parts = append(parts, strings.Join(upgradeParams.functionArgs, ";"))
+	}
+
+	cmnd := []string{
+		"deploy-evm", "upgrade",
+		"--dir", upgradeParams.contractsDir,
+		"--key", hex.EncodeToString(pkBytes),
+		"--url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--contract", strings.Join(parts, ":"),
+	}
+
+	if upgradeParams.gasLimit > 0 {
+		cmnd = append(cmnd, "--gas-limit", fmt.Sprintf("%d", upgradeParams.gasLimit))
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), cmnd, os.Stdout)
 }

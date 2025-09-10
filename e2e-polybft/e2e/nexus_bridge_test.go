@@ -1234,7 +1234,7 @@ func PrimeToNexusSubmitterNotEnoughFunds(
 	t.Helper()
 
 	srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDNexus
-	receiverAddr := apex.PrimeInfo.MultisigAddr
+	receiverAddr := apex.PrimeInfo.MultisigAddr[0]
 
 	operationFee := uint64(0)
 
@@ -1265,7 +1265,7 @@ func PrimeToNexusInvalidMetadataSlicedOff(
 	t.Helper()
 
 	srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDNexus
-	receiverAddr := apex.PrimeInfo.MultisigAddr
+	receiverAddr := apex.PrimeInfo.MultisigAddr[0]
 
 	operationFee := uint64(0)
 
@@ -1297,7 +1297,7 @@ func PrimeToNexusInvalidMetadataWrongType(
 	t.Helper()
 
 	srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDNexus
-	receiverAddr := apex.PrimeInfo.MultisigAddr
+	receiverAddr := apex.PrimeInfo.MultisigAddr[0]
 
 	operationFee := uint64(0)
 
@@ -1332,7 +1332,7 @@ func PrimeToNexusInvalidMetadataInvalidDestination(
 	t.Helper()
 
 	srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDNexus
-	receiverAddr := apex.PrimeInfo.MultisigAddr
+	receiverAddr := apex.PrimeInfo.MultisigAddr[0]
 
 	operationFee := uint64(0)
 
@@ -1366,7 +1366,7 @@ func PrimeToNexusInvalidMetadataInvalidSender(
 	t.Helper()
 
 	srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDNexus
-	receiverAddr := apex.PrimeInfo.MultisigAddr
+	receiverAddr := apex.PrimeInfo.MultisigAddr[0]
 
 	operationFee := uint64(0)
 
@@ -1401,7 +1401,7 @@ func PrimeToNexusInvalidMetadataInvalidTransactions(
 	t.Helper()
 
 	srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDNexus
-	receiverAddr := apex.PrimeInfo.MultisigAddr
+	receiverAddr := apex.PrimeInfo.MultisigAddr[0]
 
 	operationFee := uint64(0)
 
