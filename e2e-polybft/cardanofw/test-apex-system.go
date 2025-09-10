@@ -851,8 +851,6 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		(sourceChain == ChainIDNexus || destinationChain == ChainIDNexus))
 	require.True(t,
 		(sourceChain == ChainIDPrime || destinationChain != ChainIDPrime) ||
-			(sourceChain == ChainIDVector && destinationChain == ChainIDPrime) ||
-			(sourceChain == ChainIDNexus && destinationChain == ChainIDPrime) ||
 			(sourceChain == ChainIDCardano && destinationChain == ChainIDPrime),
 	)
 

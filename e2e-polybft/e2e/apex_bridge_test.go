@@ -1906,7 +1906,11 @@ func TestE2E_ApexBridge_UTxOConsolidationWithBothDirections(t *testing.T) {
 			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
 		}, sendtx.BridgingTypeNormal,
 		new(big.Int).SetUint64(sendAmount),
-		e2ehelper.WithWaitForUnexpectedBridges(true))
+		e2ehelper.WithWaitForUnexpectedBridges(true),
+		e2ehelper.WithTimeoutConfig(e2ehelper.NewTimeoutConfig(
+			e2ehelper.WithBridgingNumRetries(200),
+			e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
+		)))
 
 	for _, cnt := range getCntConsolidationMap() {
 		assert.GreaterOrEqual(t, cnt, minimumExpectedConsolidations)
