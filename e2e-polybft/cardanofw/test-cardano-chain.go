@@ -619,9 +619,7 @@ func (ec *TestCardanoChain) GetAddressToBridgeTo(
 		return "", err
 	}
 
-	if bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
-		fmt.Println("address with index 0 chosen for native tokens bridging")
-
+	if len(ec.multisigAddr) == 1 || bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
 		return ec.multisigAddr[0], nil
 	}
 

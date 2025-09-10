@@ -131,7 +131,7 @@ func executeInvalidMetadataSender(
 	metadata = bytes.Replace(metadata, []byte("[\"dummy\"]"), []byte("\"\""), 1)
 
 	txHash, err := apex.SubmitTx(
-		ctx, srcChain, user, apex.GetCardanoInfo(srcChain).MultisigAddr[0],
+		ctx, srcChain, user, multisigAddr,
 		new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 	require.NoError(t, err)
 
