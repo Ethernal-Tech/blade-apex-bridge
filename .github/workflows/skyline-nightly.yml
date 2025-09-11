@@ -17,6 +17,7 @@ jobs:
       e2e_skyline_test: true
       e2e_refund_test: false
       e2e_refund_skyline_bridge_test: false
+      e2e_skyline_mba_test: true
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
       e2e_apex_big_test: ${{ vars.RUN_E2E_BIG_TESTS }}
@@ -36,5 +37,6 @@ jobs:
       unit_test_output: ${{ needs.skyline_ci.outputs.unit_test }}
       e2e_apex_test_output: ${{ needs.skyline_ci.outputs.e2e_apex_test }}
       e2e_skyline_test_output: ${{ needs.skyline_ci.outputs.e2e_skyline_test }}
+      e2e_skyline_mba_test_output: ${{ needs.skyline_ci.outputs.e2e_skyline_mba_test }}
     secrets:
       APEX_SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}

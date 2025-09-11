@@ -77,6 +77,7 @@ jobs:
         uses: actions/checkout@v4.1.1
         with:
           ref: ${{ inputs.blade_apex_bridge_ref }}
+          submodules: recursive
       - name: Check certificate key permissions
         run: ls -l /etc/ssl/private/localhost.key
       - name: Run Fund
