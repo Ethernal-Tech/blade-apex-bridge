@@ -322,10 +322,10 @@ func (a *ApexSystem) RestartBridges(ctx context.Context, validatorsNotToStart ..
 		}
 	}
 
-	for _, validator := range a.validators {
+	for i, validator := range a.validators {
 		hasAPI := a.Config.APIValidatorID == -1 || validator.ID == a.Config.APIValidatorID
 
-		if !slices.Contains(validatorsNotToStart, validator.ID) {
+		if !slices.Contains(validatorsNotToStart, i) {
 			if err := validator.Start(ctx, hasAPI); err != nil {
 				return err
 			}
