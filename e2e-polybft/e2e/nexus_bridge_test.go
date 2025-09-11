@@ -1348,7 +1348,7 @@ func DstNexusSubmitterNotEnoughFunds(
 	t.Helper()
 
 	dstChain := cardanofw.ChainIDNexus
-	receiverAddr := apex.PrimeInfo.MultisigAddr
+	receiverAddr := apex.PrimeInfo.MultisigAddr[0]
 
 	operationFee := uint64(0)
 
@@ -1379,7 +1379,7 @@ func DstNexusInvalidMetadataSlicedOff(
 	t.Helper()
 
 	dstChain := cardanofw.ChainIDNexus
-	receiverAddr := apex.PrimeInfo.MultisigAddr
+	receiverAddr := apex.PrimeInfo.MultisigAddr[0]
 
 	operationFee := uint64(0)
 
@@ -1411,7 +1411,7 @@ func DstNexusInvalidMetadataWrongType(
 	t.Helper()
 
 	dstChain := cardanofw.ChainIDNexus
-	receiverAddr := apex.PrimeInfo.MultisigAddr
+	receiverAddr := apex.PrimeInfo.MultisigAddr[0]
 
 	operationFee := uint64(0)
 
@@ -1447,9 +1447,9 @@ func DstNexusInvalidMetadataInvalidDestination(
 
 	dstChain := cardanofw.ChainIDNexus
 
-	receiverAddr := apex.PrimeInfo.MultisigAddr
+	receiverAddr := apex.PrimeInfo.MultisigAddr[0]
 	if srcChain == cardanofw.ChainIDVector {
-		receiverAddr = apex.VectorInfo.MultisigAddr
+		receiverAddr = apex.VectorInfo.MultisigAddr[0]
 	}
 
 	operationFee := uint64(0)
@@ -1485,9 +1485,9 @@ func DstNexusInvalidMetadataInvalidSender(
 
 	dstChain := cardanofw.ChainIDNexus
 
-	receiverAddr := apex.PrimeInfo.MultisigAddr
+	receiverAddr := apex.PrimeInfo.MultisigAddr[0]
 	if srcChain == cardanofw.ChainIDVector {
-		receiverAddr = apex.VectorInfo.MultisigAddr
+		receiverAddr = apex.VectorInfo.MultisigAddr[0]
 	}
 
 	operationFee := uint64(0)
@@ -1524,9 +1524,9 @@ func DstNexusInvalidMetadataInvalidTransactions(
 
 	dstChain := cardanofw.ChainIDNexus
 
-	receiverAddr := apex.PrimeInfo.MultisigAddr
+	receiverAddr := apex.PrimeInfo.MultisigAddr[0]
 	if srcChain == cardanofw.ChainIDVector {
-		receiverAddr = apex.VectorInfo.MultisigAddr
+		receiverAddr = apex.VectorInfo.MultisigAddr[0]
 	}
 
 	operationFee := uint64(0)
