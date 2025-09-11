@@ -71,7 +71,7 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 		VectorInfo: CardanoChainInfo{
 			NetworkAddress: "vector-node-001.testnet.ethernal.work:5521",
 			OgmiosURL:      "http://vector-node-001.testnet.ethernal.work:1732",
-			MultisigAddr:   "addr1w8nv7cp7revdt70yuc96z4ke9pasa70grc5clhyf7q70f4spev3dn",
+			MultisigAddr:   []string{"addr1w8nv7cp7revdt70yuc96z4ke9pasa70grc5clhyf7q70f4spev3dn"},
 			FeeAddr:        "addr1w8r7nnz8xg2hmudtfgp9u77uwttkuwef6g26dl6zppmwmsqknwcek",
 		},
 		NexusInfo: EVMChainInfo{
