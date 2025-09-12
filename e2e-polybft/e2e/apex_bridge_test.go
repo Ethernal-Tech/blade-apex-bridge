@@ -1768,7 +1768,7 @@ func sendWithoutWaitInvalidMetadataWrongType(
 	}
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, originChainID, destinationChainID, feeAmount,
-		0, sender, receivers)
+		0, sender, receivers, sendtx.BridgingTypeNormal)
 	metadata = bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
 
 	multisigAddress, err := apex.GetChainMust(t, originChainID).GetAddressToBridgeTo(ctx, sendtx.BridgingTypeNormal)

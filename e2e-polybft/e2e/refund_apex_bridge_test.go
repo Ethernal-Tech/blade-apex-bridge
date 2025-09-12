@@ -78,7 +78,9 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 		beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
+		chain := apex.GetChainMust(t, cardanofw.ChainIDPrime)
+
+		metadata, err := chain.CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
@@ -89,9 +91,12 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 			}, feeAmount, operationFee)
 		require.NoError(t, err)
 
+		multisigAddr, err := chain.GetAddressToBridgeTo(ctx, sendtx.BridgingTypeNormal)
+		require.NoError(t, err)
+
 		txHash, err := apex.SubmitTx(
 			ctx, cardanofw.ChainIDPrime, user,
-			apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
+			multisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 		require.NoError(t, err)
 
 		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[infrawallet.AdaTokenName], new(big.Int).SetUint64(sendAmount+feeAmount))
@@ -144,7 +149,9 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 		beforeSendingAmountDfm, err := apex.GetBalance(ctx, brSubmitterUser, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
+		chain := apex.GetChainMust(t, cardanofw.ChainIDPrime)
+
+		metadata, err := chain.CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
@@ -154,7 +161,10 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 			}, feeAmount, operationFee)
 		require.NoError(t, err)
 
-		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr,
+		multisigAddr, err := chain.GetAddressToBridgeTo(ctx, sendtx.BridgingTypeNormal)
+		require.NoError(t, err)
+
+		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, multisigAddr,
 			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata)
 		require.NoError(t, err)
 

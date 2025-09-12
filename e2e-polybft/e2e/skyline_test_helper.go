@@ -24,7 +24,7 @@ func executeInvalidBridgingFee(
 	receivers := createReceivers(apex, 1, config.dstChainID, defaultLovelaceAmount, bridgingType)
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee,
-		config.operationFee, user, receivers)
+		config.operationFee, user, receivers, bridgingType)
 	bytesToReplace := []byte(strconv.FormatUint(config.bridgingFee, 10))
 	metadata = bytes.Replace(metadata, bytesToReplace, []byte("1"), 1)
 
@@ -60,7 +60,7 @@ func executeInvalidFeeReceiverAddr(
 	}
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee,
-		config.operationFee, user, receivers)
+		config.operationFee, user, receivers, bridgingType)
 
 	sentAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
 
@@ -97,6 +97,7 @@ func executeInvalidMetadataSender(
 
 	sendAmount := uint64(1_000_000)
 	user := apex.Users[0]
+
 	bridgingType := sendtx.BridgingTypeCurrencyOnSource
 	receivers := createReceivers(apex, 1, dstChain, sendAmount, bridgingType)
 
@@ -180,7 +181,6 @@ func executeInvalidMismatchSendNativeTokenAmount(
 	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
 ) {
 	t.Helper()
-
 	bridgingType := sendtx.BridgingTypeNativeTokenOnSource
 
 	receivers := []sendtx.BridgingTxReceiver{
@@ -192,7 +192,7 @@ func executeInvalidMismatchSendNativeTokenAmount(
 	}
 
 	metadata, feeAmount := createMetadata(
-		t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee, config.operationFee, user, receivers)
+		t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee, config.operationFee, user, receivers, bridgingType)
 
 	bridgingRequestMetadata := bytes.Replace(metadata,
 		[]byte(fmt.Sprintf("%d", nativeTokenAmount.Amount)), []byte(fmt.Sprintf("%d", nativeTokenAmount.Amount+1)), 1)
@@ -219,7 +219,6 @@ func executeInvalidSendUnknownToken(
 	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
 ) {
 	t.Helper()
-
 	bridgingType := sendtx.BridgingTypeCurrencyOnSource
 
 	receivers := []sendtx.BridgingTxReceiver{

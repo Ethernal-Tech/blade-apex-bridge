@@ -44,6 +44,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 			tryCountLimitsSettings["maxBatchTryCount"] = 1
 			tryCountLimitsSettings["maxSubmitTryCount"] = 2
 		}, nil),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -264,6 +265,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["maxAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
 		}, nil),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -351,6 +353,7 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["maxTokenAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
 		}, nil),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -457,6 +460,7 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 			primeSettings := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", "prime")
 			primeSettings["nativeTokens"] = nil
 		}, nil),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
