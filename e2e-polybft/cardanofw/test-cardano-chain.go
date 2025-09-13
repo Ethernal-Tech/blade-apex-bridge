@@ -141,8 +141,8 @@ func NewRemoteVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:    isEnabled,
 		ID:           1,
-		NetworkType:  infrawallet.TestNetNetwork,
-		NetworkMagic: infrawallet.VectorTestNetProtocolMagic,
+		NetworkType:  infrawallet.MainNetNetwork,
+		NetworkMagic: infrawallet.MainNetProtocolMagic,
 		ChainType:    ChainIDVector,
 	}
 }
