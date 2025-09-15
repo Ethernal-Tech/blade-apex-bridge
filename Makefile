@@ -86,6 +86,12 @@ test-e2e-apex-bridge: check-go
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
 	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "ApexBridge"
 
+.PHONY: test-e2e-refund-apex-bridge
+test-e2e-refund-apex-bridge: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "ApexRefund"
+
 .PHONY: fund-testnet-e2e-apex-bridge
 fund-testnet-e2e-apex-bridge: check-go
 	go build -o artifacts/blade .
@@ -172,6 +178,7 @@ help:
 	@printf "  %-35s - %s\n" "compile-blade-contracts" "Compile blade contracts"
 	@printf "  %-35s - %s\n" "generate-smart-contract-bindings" "Generate smart contract bindings"
 	@printf "  %-35s - %s\n" "test-e2e-apex-bridge" "Run end-to-end tests for Apex Bridge"
+	@printf "  %-35s - %s\n" "test-e2e-refund-apex-bridge" "Run end-to-end Refund tests for Apex Bridge"
 	@printf "  %-35s - %s\n" "fund-testnet-e2e-apex-bridge" "Fund wallets for end-to-end tests for Apex Bridge Testnet"
 	@printf "  %-35s - %s\n" "defund-testnet-e2e-apex-bridge" "Defund wallets for end-to-end tests for Apex Bridge Testnet"
 	@printf "  %-35s - %s\n" "testnet-e2e-apex-bridge-print-balances" "Print balances of wallets for end-to-end tests for Apex Bridge Testnet"
