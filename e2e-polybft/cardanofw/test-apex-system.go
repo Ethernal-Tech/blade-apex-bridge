@@ -82,13 +82,17 @@ type ApexSystem struct {
 	IsSkyline bool
 }
 
-type UpgradeSCParams struct {
-	contractsDir    string
+type ContractParams struct {
 	contractName    string
 	contractAddress string
 	functionName    string
 	functionArgs    []string
-	gasLimit        uint64
+}
+
+type UpgradeSCParams struct {
+	contractsDir   string
+	contractParams []ContractParams
+	gasLimit       uint64
 }
 
 func NewApexSystem(
@@ -1193,22 +1197,25 @@ func (a *ApexSystem) UpgradeSmartContract(upgradeParams *UpgradeSCParams) error 
 		return err
 	}
 
-	parts := []string{upgradeParams.contractName, upgradeParams.contractAddress}
-
-	if upgradeParams.functionName != "" {
-		parts = append(parts, upgradeParams.functionName)
-	}
-
-	if len(upgradeParams.functionArgs) > 0 {
-		parts = append(parts, strings.Join(upgradeParams.functionArgs, ";"))
-	}
-
 	cmnd := []string{
 		"deploy-evm", "upgrade",
 		"--dir", upgradeParams.contractsDir,
 		"--key", hex.EncodeToString(pkBytes),
 		"--url", a.GetBridgeDefaultJSONRPCAddr(),
-		"--contract", strings.Join(parts, ":"),
+	}
+
+	for _, contactParams := range upgradeParams.contractParams {
+		parts := []string{contactParams.contractName, contactParams.contractAddress}
+
+		if contactParams.functionName != "" {
+			parts = append(parts, contactParams.functionName)
+		}
+
+		if len(contactParams.functionArgs) > 0 {
+			parts = append(parts, strings.Join(contactParams.functionArgs, ";"))
+		}
+
+		cmnd = append(cmnd, "--contract", strings.Join(parts, ":"))
 	}
 
 	if upgradeParams.gasLimit > 0 {
