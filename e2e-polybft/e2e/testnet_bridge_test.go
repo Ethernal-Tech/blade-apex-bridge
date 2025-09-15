@@ -353,7 +353,7 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 
 	if IsVectorEnabled(apex) {
 		t.Run("Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
-			PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, apex.Users[0], requestStateTimeoutSec)
+			PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, apex.Users[0], requestStateTimeoutSec, true)
 		})
 
 		t.Run("Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
@@ -361,11 +361,11 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 		})
 
 		t.Run("Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
-			PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, apex.Users[2], requestStateTimeoutSec)
+			PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, apex.Users[2], requestStateTimeoutSec, true)
 		})
 
 		t.Run("Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
-			PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[3], requestStateTimeoutSec)
+			PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[3], requestStateTimeoutSec, true)
 		})
 
 		t.Run("Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
@@ -373,7 +373,7 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 		})
 
 		t.Run("Prime to Vector submitted invalid metadata - empty tx", func(t *testing.T) {
-			PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[5], requestStateTimeoutSec)
+			PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[5], requestStateTimeoutSec, true)
 		})
 	}
 
@@ -494,11 +494,7 @@ func getUserBalances(
 }
 
 func IsVectorEnabled(apex *cardanofw.ApexSystem) bool {
-	if apex.Config.VectorConfig == nil {
-		return false
-	}
-
-	return apex.Config.VectorConfig.IsEnabled
+	return apex.Config.VectorConfig != nil && apex.Config.VectorConfig.IsEnabled
 }
 
 func getEnabledChains(apex *cardanofw.ApexSystem) []string {

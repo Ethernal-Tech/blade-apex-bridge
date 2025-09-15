@@ -1248,6 +1248,11 @@ func DstNexusSubmitterNotEnoughFunds(
 
 	dstChain := cardanofw.ChainIDNexus
 	receiverAddr := apex.PrimeInfo.MultisigAddr
+
+	if srcChain == cardanofw.ChainIDVector {
+		receiverAddr = apex.VectorInfo.MultisigAddr
+	}
+
 	feeAmount := uint64(1_100_000)
 
 	receivers := map[string]uint64{
@@ -1299,6 +1304,11 @@ func DstNexusInvalidMetadataWrongType(
 
 	dstChain := cardanofw.ChainIDNexus
 	receiverAddr := apex.PrimeInfo.MultisigAddr
+
+	if srcChain == cardanofw.ChainIDVector {
+		receiverAddr = apex.VectorInfo.MultisigAddr
+	}
+
 	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 	feeAmount := uint64(1_100_000)
 
@@ -1327,14 +1337,21 @@ func DstNexusInvalidMetadataWrongType(
 	bridgingRequestMetadata, err := json.Marshal(metadata)
 	require.NoError(t, err)
 
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, srcChain)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
 		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	_, err = cardanofw.WaitForRequestStates(ctx, apex, srcChain, txHash, apex.Config.APIKey, nil, requestStateTimeoutSec)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "timeout")
+	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)))
+
+	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
+
+	err = apex.WaitForAmountInRange(ctx, user, srcChain, lowerBoundaryDfm, beforeSendingAmountDfm,
+		50, time.Second*30)
+	require.NoError(t, err)
 }
 
 func DstNexusInvalidMetadataInvalidDestination(
@@ -1378,12 +1395,21 @@ func DstNexusInvalidMetadataInvalidDestination(
 	bridgingRequestMetadata, err := json.Marshal(metadata)
 	require.NoError(t, err)
 
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, srcChain)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
 		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
+	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)))
+
+	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
+
+	err = apex.WaitForAmountInRange(ctx, user, srcChain, lowerBoundaryDfm, beforeSendingAmountDfm,
+		50, time.Second*30)
+	require.NoError(t, err)
 }
 
 func DstNexusInvalidMetadataInvalidSender(
@@ -1464,12 +1490,21 @@ func DstNexusInvalidMetadataInvalidTransactions(
 	bridgingRequestMetadata, err := json.Marshal(metadata)
 	require.NoError(t, err)
 
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, srcChain)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
 		sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
+	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)))
+
+	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
+
+	err = apex.WaitForAmountInRange(ctx, user, srcChain, lowerBoundaryDfm, beforeSendingAmountDfm,
+		50, time.Second*30)
+	require.NoError(t, err)
 }
 
 func SrcNexusSubmitterNotEnoughFunds(
