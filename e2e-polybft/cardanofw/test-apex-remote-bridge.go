@@ -110,8 +110,8 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 			},
 		},
 		CardanoInfo: CardanoChainInfo{
-			NetworkAddress: "http://preview-services-skyline.testnet.ethernal.work:5521",
-			OgmiosURL:      "http://preview-services-skyline.testnet.ethernal.work:1733",
+			NetworkAddress: "preview-node.onprem.ethernal.work:5561",
+			OgmiosURL:      "https://preview-ogmios.onprem.ethernal.work",
 			MultisigAddr:   []string{"addr_test1xp3g6ayyt3e0m9w3jtxr84mf877nhqh4snt2g7ww43yf6lx4w8kmdszpx27e3wpawvkcqcrhrl9ra09stpe8ahtznzesm8x8rk"}, //nolint:lll
 			FeeAddr:        "addr_test1xz429ta7d8akqvk6rtkavja8kshy4m3dplm2sgx60rp0fk3pmuk902u7lh609tzz54f32s49s5uf6sphu2zer00a2k4qkq40f9",           //nolint:lll
 			NativeTokens: []sendtx.TokenExchangeConfig{
