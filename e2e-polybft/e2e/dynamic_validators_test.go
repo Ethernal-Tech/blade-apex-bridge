@@ -967,7 +967,7 @@ func TestE2E_DynamicValidators_StopBladesDuringVSU(t *testing.T) {
 // The test stops 1 apex bridge before VSU and 2nd during VSU, then starts the 1st one. After VSU is done
 // we start the 2nd one and checking if bridge continues with batching with 2nd one apex bridge included in
 // consensus. It is expected to continue working and that new multisig utxos are transferred entirely to all nodes.
-func TestE2E_DynamicValidators_StopApexBridgesDuringVSU(t *testing.T) {
+func TestE2E_DynamicValidators_StopApxBridgesDuringVSU(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 40
