@@ -996,11 +996,9 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	require.False(t, (a.Config.NexusConfig == nil || !a.Config.NexusConfig.IsEnabled) &&
 		(sourceChain == ChainIDNexus || destinationChain == ChainIDNexus))
 	require.True(t,
-		(sourceChain == ChainIDPrime || destinationChain != ChainIDPrime) ||
-			(sourceChain == ChainIDVector && destinationChain == ChainIDPrime) ||
-			(sourceChain == ChainIDNexus && destinationChain == ChainIDPrime) ||
-			(sourceChain == ChainIDCardano && destinationChain == ChainIDPrime),
-	)
+		(sourceChain != ChainIDCardano && destinationChain != ChainIDCardano) ||
+			(sourceChain == ChainIDCardano && destinationChain == ChainIDPrime) ||
+			(sourceChain == ChainIDPrime && destinationChain == ChainIDCardano))
 
 	// check if number of receivers is valid
 	require.Greater(t, len(receivers), 0)
@@ -1034,8 +1032,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
 			ctx, destinationChain, privateKey, receiversMap, feeAmount, operationFee, bridgingType)
 		if err != nil {
-			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") ||
-				strings.Contains(err.Error(), infracommon.ErrRetryTimeout.Error()) {
+			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
 				return "", infracommon.ErrRetryTryAgain
 			}
 
