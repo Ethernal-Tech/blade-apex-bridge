@@ -8,7 +8,6 @@ on: # yamllint disable-line rule:truthy
     branches:
       - develop
       - feat/skyline
-      - feat/refund
       - feat/skyline_refund
   pull_request:
   workflow_dispatch:
@@ -32,7 +31,7 @@ on: # yamllint disable-line rule:truthy
       e2e_refund_test:
         description: E2E Refund Tests
         type: boolean
-        default: false
+        default: true
       e2e_refund_skyline_bridge_test:
         description: E2E Refund-Skyline Bridge Tests
         type: boolean
@@ -152,8 +151,6 @@ jobs:
             if [[ "${{ github.event_name }}" == "pull_request" ]]; then
               if [[ "${{ github.base_ref }}" == "feat/skyline" ]]; then
                 echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
-              elif [[ "${{ github.base_ref }}" == "feat/refund" ]]; then
-                echo "apex_bridge_ref=feat/refund" >> $GITHUB_OUTPUT
               elif [[ "${{ github.base_ref }}" == "feat/skyline_refund" ]]; then
                 echo "apex_bridge_ref=feat/skyline_refund" >> $GITHUB_OUTPUT
               else
@@ -162,8 +159,6 @@ jobs:
             else
               if [[ "${{ github.ref }}" == "refs/heads/feat/skyline" ]]; then
                 echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
-              elif [[ "${{ github.ref }}" == "refs/heads/feat/refund" ]]; then
-                echo "apex_bridge_ref=feat/refund" >> $GITHUB_OUTPUT
               elif [[ "${{ github.ref }}" == "refs/heads/feat/skyline_refund" ]]; then
                 echo "apex_bridge_ref=feat/skyline_refund" >> $GITHUB_OUTPUT
               else
@@ -194,7 +189,7 @@ jobs:
     if: |
       inputs.lint || 
       github.event_name == 'pull_request' || 
-      (github.event_name == 'push' && (github.ref == 'refs/heads/feat/refund' || github.ref == 'refs/heads/feat/skyline' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feat/skyline_refund'))
+      (github.event_name == 'push' && (github.ref == 'refs/heads/feat/skyline' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feat/skyline_refund'))
     with:
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
   unit_test:
@@ -204,7 +199,7 @@ jobs:
     if: |
       inputs.unit_test || 
       github.event_name == 'pull_request' || 
-      (github.event_name == 'push' && (github.ref == 'refs/heads/feat/refund' || github.ref == 'refs/heads/feat/skyline' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feat/skyline_refund'))
+      (github.event_name == 'push' && (github.ref == 'refs/heads/feat/skyline' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feat/skyline_refund'))
     with:
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
   e2e_apex_test:
@@ -241,18 +236,6 @@ jobs:
     with:
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
-      e2e_apex_big_test: false
-      e2e_apex_skip_redundant_tests: false
-    secrets:
-      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-  e2e_apex_test_push_refund:
-    name: E2E ApexBridge Tests (push on feat/refund branch)
-    uses: ./.github/workflows/e2e-apex-test.yml
-    needs: build_blade
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/refund')
-    with:
-      apex_bridge_ref: feat/refund
-      blade_apex_bridge_ref: feat/refund
       e2e_apex_big_test: false
       e2e_apex_skip_redundant_tests: false
     secrets:
@@ -319,13 +302,13 @@ jobs:
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_refund_test_push:
-    name: E2E Refund Tests (push on feat/refund branch)
+    name: E2E Refund Tests (push on develop branch)
     uses: ./.github/workflows/e2e-refund-test.yml
     needs: build_blade
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/refund')
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/develop')
     with:
-      apex_bridge_ref: feat/refund
-      blade_apex_bridge_ref: feat/refund
+      apex_bridge_ref: main
+      blade_apex_bridge_ref: develop
       e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
