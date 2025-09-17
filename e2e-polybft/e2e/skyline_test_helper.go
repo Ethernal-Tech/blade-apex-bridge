@@ -181,6 +181,7 @@ func executeInvalidMismatchSendNativeTokenAmount(
 	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
 ) {
 	t.Helper()
+
 	bridgingType := sendtx.BridgingTypeNativeTokenOnSource
 
 	receivers := []sendtx.BridgingTxReceiver{
@@ -219,6 +220,7 @@ func executeInvalidSendUnknownToken(
 	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
 ) {
 	t.Helper()
+
 	bridgingType := sendtx.BridgingTypeCurrencyOnSource
 
 	receivers := []sendtx.BridgingTxReceiver{
