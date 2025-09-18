@@ -57,6 +57,7 @@ type TestCardanoChainConfig struct {
 	MinOperationFee             uint64
 	BridgeAddrHasStake          bool
 	BridgingAddressCnt          int
+	RewardBridgingAddressCnt    int
 	UseIndexer                  bool
 }
 
@@ -80,6 +81,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		MinOperationFee:             uint64(0),
 		BridgeAddrHasStake:          true,
 		BridgingAddressCnt:          1,
+		RewardBridgingAddressCnt:    0,
 	}
 }
 
@@ -102,6 +104,7 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		MinBridgingFee:              defaultMinBridgingFeeAmount,
 		MinOperationFee:             uint64(0),
 		BridgingAddressCnt:          1,
+		RewardBridgingAddressCnt:    0,
 	}
 }
 
@@ -122,6 +125,7 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		MinBridgingFee:              defaultMinBridgingFeeAmount,
 		MinOperationFee:             DefaultMinOperationFee,
 		BridgingAddressCnt:          1,
+		RewardBridgingAddressCnt:    0,
 	}
 }
 
@@ -162,16 +166,18 @@ func NewRemoteCardanoChainConfig(
 }
 
 type TestCardanoChain struct {
-	config            *TestCardanoChainConfig
-	cluster           *TestCardanoCluster
-	ogmiosURL         string
-	blockfrostURL     string
-	blockfrostAPIKey  string
-	multisigAddr      []string
-	multisigStakeAddr []string
-	multisigFeeAddr   string
-	txSender          *sendtx.TxSender
-	indexer           e2eindexer.TxsExecutedComponent
+	config                  *TestCardanoChainConfig
+	cluster                 *TestCardanoCluster
+	ogmiosURL               string
+	blockfrostURL           string
+	blockfrostAPIKey        string
+	multisigAddr            []string
+	multisigStakeAddr       []string
+	rewardMultisigAddr      []string
+	rewardMultisigStakeAddr []string
+	multisigFeeAddr         string
+	txSender                *sendtx.TxSender
+	indexer                 e2eindexer.TxsExecutedComponent
 }
 
 // GetBridgingStakeAddressInfo implements ITestApexChain.
@@ -350,13 +356,21 @@ func (ec *TestCardanoChain) CreateAddresses(
 
 	// Regular expressions for parsing the output
 	reMultisig := regexp.MustCompile(`Multisig Address\s*=\s*([^\s]+)`)
-	reFee := regexp.MustCompile(`Fee Payer Address\s*=\s*([^\s]+)`)
 	reMultisigStake := regexp.MustCompile(`Multisig Stake Address\s*=\s*([^\s]+)`)
+
+	reFee := regexp.MustCompile(`Fee Payer Address\s*=\s*([^\s]+)`)
+
+	reRewardMultisig := regexp.MustCompile(`Reward Multisig Address\s*=\s*([^\s]+)`)
+	reRewardMultisigStake := regexp.MustCompile(`Reward Multisig Stake Address\s*=\s*([^\s]+)`)
 
 	// Find all matches
 	multisigMatches := reMultisig.FindAllStringSubmatch(output, -1)
-	feeMatches := reFee.FindAllStringSubmatch(output, -1)
 	stakeMatches := reMultisigStake.FindAllStringSubmatch(output, -1)
+
+	feeMatches := reFee.FindAllStringSubmatch(output, -1)
+
+	rewardMultisigMatches := reRewardMultisig.FindAllStringSubmatch(output, -1)
+	rewardStakeMatches := reRewardMultisigStake.FindAllStringSubmatch(output, -1)
 
 	count := len(multisigMatches)
 
@@ -373,6 +387,14 @@ func (ec *TestCardanoChain) CreateAddresses(
 	}
 
 	ec.multisigFeeAddr = feeMatches[0][1]
+
+	for i := range rewardMultisigMatches {
+		ec.rewardMultisigAddr = append(ec.rewardMultisigAddr, rewardMultisigMatches[i][1])
+
+		if i < len(rewardStakeMatches) {
+			ec.rewardMultisigStakeAddr = append(ec.rewardMultisigStakeAddr, rewardStakeMatches[i][1])
+		}
+	}
 
 	return nil
 }

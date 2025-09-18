@@ -803,7 +803,7 @@ func (a *ApexSystem) DefundHotWallet(
 
 func (a *ApexSystem) UpdateBridgingAddressCount(
 	ctx context.Context, sourceChain ChainID,
-	addressCount int,
+	addressCount int, rewardAddressCount int,
 ) error {
 	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
 	if err != nil {
@@ -818,6 +818,7 @@ func (a *ApexSystem) UpdateBridgingAddressCount(
 		"--chain", sourceChain,
 		"--key", pk,
 		"--bridging-addresses-count", fmt.Sprintf("%d", addressCount),
+		"--stake-bridging-addresses-count", fmt.Sprintf("%d", rewardAddressCount),
 	}, os.Stdout)
 }
 
@@ -1066,16 +1067,19 @@ func (a *ApexSystem) ResetIndexers() {
 func (a *ApexSystem) UpdateBridgingAddressCounts(ctx context.Context) error {
 	if len(a.Config.UpdateAddressCountChains) > 0 {
 		addrCount := 1
+		rewardAddrCount := 0
 
 		for _, chainID := range a.Config.UpdateAddressCountChains {
 			switch chainID {
 			case ChainIDPrime:
 				addrCount = a.Config.PrimeConfig.BridgingAddressCnt
+				rewardAddrCount = a.Config.PrimeConfig.RewardBridgingAddressCnt
 			case ChainIDCardano:
 				addrCount = a.Config.CardanoConfig.BridgingAddressCnt
+				rewardAddrCount = a.Config.CardanoConfig.RewardBridgingAddressCnt
 			}
 
-			if err := a.UpdateBridgingAddressCount(ctx, chainID, addrCount); err != nil {
+			if err := a.UpdateBridgingAddressCount(ctx, chainID, addrCount, rewardAddrCount); err != nil {
 				return fmt.Errorf("update bridging address count failed for chain %s: %w", chainID, err)
 			}
 

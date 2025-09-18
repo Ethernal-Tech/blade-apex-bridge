@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BRANCH=feat/skyline
+BRANCH=AD_842-staking-with-user-rewards
 
 # build Apex-bridge smartcontracts
 cd ./apex-bridge-smartcontracts
