@@ -145,7 +145,10 @@ func ExecuteBridging(
 
 				// Retrieve all failed transactions on the source chain, if any
 				for _, txHash := range apex.GetChainMust(t, chainPair.srcChain).GetIndexer().GetFailedTxs() {
-					sum.Add(sum, txHashTxDataMap[txHash].SendAmountDfm)
+					// check whether failed transaction is one of these sent from the users (ignore funding transaction rollbacks)
+					if _, exists := txHashTxDataMap[txHash]; exists {
+						sum.Add(sum, txHashTxDataMap[txHash].SendAmountDfm)
+					}
 				}
 
 				lock.Lock()
