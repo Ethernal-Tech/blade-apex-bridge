@@ -92,6 +92,12 @@ test-e2e-refund-apex-bridge: check-go
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
 	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "ApexRefund"
 
+.PHONY: test-e2e-dynamic-validators-apex-bridge
+test-e2e-dynamic-validators-apex-bridge: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=4h ./e2e-polybft/e2e/... -run "TestE2E_DynamicValidators"
+
 .PHONY: fund-testnet-e2e-apex-bridge
 fund-testnet-e2e-apex-bridge: check-go
 	go build -o artifacts/blade .
