@@ -856,11 +856,8 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 		fmt.Println("Native token tests - Multisig addresses amounts: ", addrAmounts)
 	})
 
-	t.Run("Native Token Bridging - Send all native tokens from addr0, triggers spec cons", func(t *testing.T) {
-		ctxChild, cncl := context.WithCancel(ctx)
-		defer cncl()
-
-		sendAmountToken := big.NewInt(0)
+	t.Run("Native Token Bridging - Send all native and curr tokens", func(t *testing.T) {
+		sendAmountToken := big.NewInt(1043410)
 		sendAmountNative := big.NewInt(8_000_000)
 		sendAmounts := []*big.Int{sendAmountNative, sendAmountToken}
 		bridgingTypes := []sendtx.BridgingType{
@@ -873,17 +870,6 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 			[]*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]},
 			bridgingTypes,
 		)
-
-		getCntConsolidationMap, lastBatchIDs = checkConsolidationBatchCounts(
-			t, ctxChild,
-			apex.BridgeCluster.Servers[0].JSONRPC(),
-			[]string{cardanofw.ChainIDPrime},
-			lastBatchIDs,
-		)
-
-		for _, cnt := range getCntConsolidationMap() {
-			assert.Equal(t, cnt, expectedConsolidations)
-		}
 
 		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
 		require.NoError(t, err)

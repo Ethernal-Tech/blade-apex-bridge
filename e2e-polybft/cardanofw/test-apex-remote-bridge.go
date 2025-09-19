@@ -68,6 +68,12 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 			MultisigAddr:   []string{"addr_test1wr44r7qudqwrpsgfs3m4t47x7xmw55dk4k96faak0w4aeqqxxwlvt"},
 			FeeAddr:        "addr_test1wzct9v2gj9j9rmwx6atkjhcesglf3zcpz6c4y99u3nvg9ksfjj3zd",
 		},
+		VectorInfo: CardanoChainInfo{
+			NetworkAddress: "vector-node-001.testnet.ethernal.work:5521",
+			OgmiosURL:      "http://vector-node-001.testnet.ethernal.work:1732",
+			MultisigAddr:   []string{"addr1w8nv7cp7revdt70yuc96z4ke9pasa70grc5clhyf7q70f4spev3dn"},
+			FeeAddr:        "addr1w8r7nnz8xg2hmudtfgp9u77uwttkuwef6g26dl6zppmwmsqknwcek",
+		},
 		NexusInfo: EVMChainInfo{
 			GatewayAddress: types.StringToAddress("0x43Bca3122Efa14C68F9d385e3b4Da8847eca32Ba"),
 			JSONRPCAddr:    "https://rpc.nexus.testnet.apexfusion.org",
@@ -88,8 +94,13 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 		PrimeInfo: CardanoChainInfo{
 			NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
 			OgmiosURL:      "http://ogmios.prime.testnet.apexfusion.org:1337",
-			MultisigAddr:   []string{"addr_test1xzg90aa683qrmp7nplcpvjrh33wj0l77wmuzl9fyeljzjwnu8600uw5fkfran3y3knsvvaleyf0u73xdn5gytsqmu9gqjjclpu"}, //nolint:lll
-			FeeAddr:        "addr_test1xr06xce9aq6atg0hwuucxe7eu5g6nx8mmnvw2d2e848cz4y93epqj6zxan4pykvt4ux34uzwcwnts4akrfrus070ntss82juq8",           //nolint:lll
+			MultisigAddr: []string{
+				"addr_test1xzg90aa683qrmp7nplcpvjrh33wj0l77wmuzl9fyeljzjwnu8600uw5fkfran3y3knsvvaleyf0u73xdn5gytsqmu9gqjjclpu",
+				"addr_test1xr7qm59ynky87nc984an30mvs4mwgc00sndm5l0kn87qx7vze83rmtk58nqqpnfu0jhrey5c5h76w4p88k8p67zvnpns5u600w",
+				"addr_test1xqh969hh9fhrr2jcjarf9trsudrng20sa37p09e44dkmv8zgen9tyu67v5lzm65kmad43p2yterufm4ga90l38hdw6aqwftw97",
+				"addr_test1xp4vckvhx0y6tlrkapcpyryyjlk5yhw0n3pwd9jqv4t6t0hhsap3pamhjvarygggn5rxsn96yauc40w4y0cezm6dk62s6qlcfy",
+			},
+			FeeAddr: "addr_test1xr06xce9aq6atg0hwuucxe7eu5g6nx8mmnvw2d2e848cz4y93epqj6zxan4pykvt4ux34uzwcwnts4akrfrus070ntss82juq8", //nolint:lll
 			NativeTokens: []sendtx.TokenExchangeConfig{
 				{
 					DstChainID: ChainIDCardano,
@@ -99,8 +110,8 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 			},
 		},
 		CardanoInfo: CardanoChainInfo{
-			NetworkAddress: "http://preview-services-skyline.testnet.ethernal.work:5521",
-			OgmiosURL:      "http://preview-services-skyline.testnet.ethernal.work:1733",
+			NetworkAddress: "preview-node.onprem.ethernal.work:5561",
+			OgmiosURL:      "https://preview-ogmios.onprem.ethernal.work",
 			MultisigAddr:   []string{"addr_test1xp3g6ayyt3e0m9w3jtxr84mf877nhqh4snt2g7ww43yf6lx4w8kmdszpx27e3wpawvkcqcrhrl9ra09stpe8ahtznzesm8x8rk"}, //nolint:lll
 			FeeAddr:        "addr_test1xz429ta7d8akqvk6rtkavja8kshy4m3dplm2sgx60rp0fk3pmuk902u7lh609tzz54f32s49s5uf6sphu2zer00a2k4qkq40f9",           //nolint:lll
 			NativeTokens: []sendtx.TokenExchangeConfig{

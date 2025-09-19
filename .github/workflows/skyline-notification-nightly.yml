@@ -31,6 +31,10 @@ on: # yamllint disable-line rule:truthy
         description: E2E Skyline Tests output
         type: string
         required: true
+      e2e_skyline_mba_test_output:
+        description: E2E Skyline MBA Tests output
+        type: string
+        required: true
     secrets:
       APEX_SLACK_WEBHOOK_URL:
         required: true
@@ -80,7 +84,7 @@ jobs:
                         "type": "plain_text",
                         "text": "Workflow Run"
                       },
-                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.unit_test_output == '' && inputs.e2e_apex_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
+                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.unit_test_output == '' && inputs.e2e_apex_test_output == '' && inputs.e2e_skyline_test_output == '' && inputs.e2e_skyline_mba_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
                       "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                     }
                   ]
@@ -123,6 +127,10 @@ jobs:
                     {
                       "type": "mrkdwn",
                       "text": "${{ inputs.e2e_skyline_test_output == '' && env.succeed_job || env.failed_job }} *E2E Skyline Tests*"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "${{ inputs.e2e_skyline_mba_test_output == '' && env.succeed_job || env.failed_job }} *E2E Skyline MBA Tests*"
                     }
                   ]
                 }
