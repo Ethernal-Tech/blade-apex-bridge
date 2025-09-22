@@ -356,7 +356,11 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 		return nil, err
 	}
 
-	utxos, err := txProvider.GetUtxos(ctx, addr)
+	utxos, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]infrawallet.Utxo, error) {
+			return txProvider.GetUtxos(ctx, addr)
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
