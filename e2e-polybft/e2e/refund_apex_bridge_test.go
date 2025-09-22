@@ -10,7 +10,6 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
-	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -199,11 +198,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 				testUser := apex.Users[idx]
 
-				beforeSendingAmountDfm, err := infracommon.ExecuteWithRetry(
-					ctx, func(ctx context.Context) (*big.Int, error) {
-						return apex.GetBalance(ctx, testUser, cardanofw.ChainIDPrime)
-					},
-				)
+				beforeSendingAmountDfm, err := apex.GetBalance(ctx, testUser, cardanofw.ChainIDPrime)
 				require.NoError(t, err)
 
 				lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
