@@ -1,12 +1,8 @@
 ---
-name: Refund Notification - Nightly Skyline
+name: Dynamic Validators Notification - Nightly Tests
 on: # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      environment:
-        description: The environment to run against
-        type: string
-        required: true
       blade_apex_bridge_ref:
         description: The branch/commit from the Blade Apex Bridge
         type: string
@@ -23,20 +19,8 @@ on: # yamllint disable-line rule:truthy
         description: Unit Tests output
         type: string
         required: true
-      e2e_apex_test_output:
-        description: E2E ApexBridge Tests output
-        type: string
-        required: true
-      e2e_skyline_test_output:
-        description: E2E Skyline Tests output
-        type: string
-        required: true
-      e2e_refund_test_output:
-        description: E2E Refund Tests output
-        type: string
-        required: true
-      e2e_refund_skyline_bridge_test_output:
-        description: E2E Refund Skyline Bridge Tests output
+      e2e_dynamic_validators_test_output:
+        description: E2E Dynamic Validators Tests output
         type: string
         required: true
     secrets:
@@ -47,7 +31,6 @@ jobs:
   notification:
     name: Notification
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.1.1
@@ -76,7 +59,7 @@ jobs:
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "Skyline Refund Nightly Local Tests"
+                    "text": "Dynamic Validators Nightly Tests"
                   }
                 },
                 {
@@ -88,7 +71,7 @@ jobs:
                         "type": "plain_text",
                         "text": "Workflow Run"
                       },
-                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.unit_test_output == '' && inputs.e2e_apex_test_output == '' && inputs.e2e_skyline_test_output == '' && inputs.e2e_refund_test_output == '' && inputs.e2e_refund_skyline_bridge_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
+                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.unit_test_output == '' && inputs.e2e_dynamic_validators_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
                       "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                     }
                   ]
@@ -99,10 +82,6 @@ jobs:
                     {
                       "type": "mrkdwn",
                       "text": "Commit: *<https://github.com/${{ github.repository }}/tree/${{ steps.short_sha.outputs.full_value }}|${{ steps.short_sha.outputs.value }}>*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "Environment: *${{ inputs.environment }}*"
                     }
                   ]
                 },
@@ -126,19 +105,7 @@ jobs:
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_apex_test_output == '' && env.succeed_job || env.failed_job }} *E2E ApexBridge Tests*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_skyline_test_output == '' && env.succeed_job || env.failed_job }} *E2E Skyline Tests*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_refund_test_output == '' && env.succeed_job || env.failed_job }} *E2E Refund Tests*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_refund_skyline_bridge_test_output == '' && env.succeed_job || env.failed_job }} *E2E Refund Skyline Tests*"
+                      "text": "${{ inputs.e2e_dynamic_validators_test_output == '' && env.succeed_job || env.failed_job }} *E2E Dynamic Validators Tests*"
                     }
                   ]
                 }

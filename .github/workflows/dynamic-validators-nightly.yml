@@ -1,9 +1,9 @@
 ---
-name: ApexBridge Main Nightly Local Tests
+name: Dynamic Validators Nightly Tests
 on: # yamllint disable-line rule:truthy
   schedule:
     # * is a special character in YAML so you have to quote this string
-    - cron: '0 0 * * *'
+    - cron: '0 6 15 * *'
   workflow_dispatch:
 
 jobs:
@@ -13,30 +13,28 @@ jobs:
     with:
       lint: true
       unit_test: true
-      e2e_apex_test: true
+      e2e_apex_test: false
       e2e_skyline_test: false
-      e2e_refund_test: true
+      e2e_refund_test: false
       e2e_refund_skyline_bridge_test: false
       e2e_skyline_mba_test: false
-      e2e_dynamic_validators_test: false
-      apex_bridge_ref: main
-      blade_apex_bridge_ref: develop
-      e2e_apex_big_test: ${{ vars.RUN_E2E_BIG_TESTS }}
-      e2e_apex_skip_redundant_tests: ${{ vars.SKIP_E2E_REDUNDANT_TESTS }}
+      e2e_dynamic_validators_test: true
+      apex_bridge_ref: feat/validator_set_2
+      blade_apex_bridge_ref: dynamic-validator-set
+      e2e_apex_big_test: false
+      e2e_apex_skip_redundant_tests: true
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-  notification_apex_nightly:
-    name: ApexBridge Nightly Notification
-    uses: ./.github/workflows/apex-notification-nightly.yml
+  notification_dynamic_validators_nightly:
+    name: Dynamic Validators Nightly Notification
+    uses: ./.github/workflows/dynamic-validators-notification.yml
     needs: apex-ci
     if: success() || failure()
     with:
-      environment: nightly
-      blade_apex_bridge_ref: develop
+      blade_apex_bridge_ref: dynamic-validator-set
       build_blade_output: ${{ needs.apex-ci.outputs.build_blade }}
       lint_output: ${{ needs.apex-ci.outputs.lint }}
       unit_test_output: ${{ needs.apex-ci.outputs.unit_test }}
-      e2e_apex_test_output: ${{ needs.apex-ci.outputs.e2e_apex_test }}
-      e2e_refund_test_output: ${{ needs.apex-ci.outputs.e2e_refund_test }}
+      e2e_dynamic_validators_test_output: ${{ needs.apex-ci.outputs.e2e_dynamic_validators_test }}
     secrets:
       APEX_SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}
