@@ -572,8 +572,7 @@ func (a *ApexSystem) SubmitTx(
 			ctx, privateKey, receiverAddr,
 			DfmToChainNativeTokenAmount(sourceChain, dfmAmount), data)
 		if err != nil {
-			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") ||
-				strings.Contains(err.Error(), infracommon.ErrRetryTimeout.Error()) {
+			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
 				return "", infracommon.ErrRetryTryAgain
 			}
 
@@ -648,8 +647,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
 			ctx, destinationChain, privateKey, receiversMap, feeAmount)
 		if err != nil {
-			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") ||
-				strings.Contains(err.Error(), infracommon.ErrRetryTimeout.Error()) {
+			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
 				return "", infracommon.ErrRetryTryAgain
 			}
 
