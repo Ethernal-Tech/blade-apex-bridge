@@ -552,6 +552,11 @@ func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
 	receiverAddr string, dfmAmount *big.Int, data []byte,
 ) (string, error) {
+	const (
+		numRetries = 5
+		waitTime   = time.Second * 10
+	)
+
 	privateKey, err := sender.GetPrivateKey(sourceChain)
 	if err != nil {
 		return "", err
@@ -562,9 +567,23 @@ func (a *ApexSystem) SubmitTx(
 		return "", err
 	}
 
-	return chain.SendTx(
-		ctx, privateKey, receiverAddr,
-		DfmToChainNativeTokenAmount(sourceChain, dfmAmount), data)
+	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
+		txHash, err := chain.SendTx(
+			ctx, privateKey, receiverAddr,
+			DfmToChainNativeTokenAmount(sourceChain, dfmAmount), data)
+		if err != nil {
+			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") ||
+				strings.Contains(err.Error(), infracommon.ErrRetryTimeout.Error()) {
+				return "", infracommon.ErrRetryTryAgain
+			}
+
+			return "", err
+		}
+
+		return txHash, nil
+	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
+
+	return txHash, nil
 }
 
 func (a *ApexSystem) SubmitBridgingRequest(
