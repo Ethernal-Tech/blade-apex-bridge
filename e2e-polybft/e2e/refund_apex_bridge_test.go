@@ -238,7 +238,7 @@ func TestE2E_ApexRefund_BatchRecreated(t *testing.T) {
 	primeConfig.FundAmount = 500_000_000
 	vectorConfig.FundAmount = 500_000_000
 	primeConfig.TTLInc, primeConfig.SlotRoundingThreshold = 250, 50
-	vectorConfig.TTLInc, vectorConfig.SlotRoundingThreshold = 5, 30
+	vectorConfig.TTLInc, vectorConfig.SlotRoundingThreshold = 1, 20
 
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,
