@@ -364,7 +364,7 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	if IsVectorEnabled(apex) {
 		t.Run("1. Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
 			executeInvalidMismatchSendLovelaceAmount(
-				t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, retryDelaySec, bridgingType, true)
+				t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
 		})
 
 		t.Run("2. Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
@@ -373,22 +373,22 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 
 		t.Run("3. Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
 			executeInvalidMetadataType(
-				t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, retryDelaySec, bridgingType, true)
+				t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
 		})
 
 		t.Run("4. Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
 			executeInvalidDestination(
-				t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryDelaySec, bridgingType, true)
+				t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
 		})
 
 		t.Run("5. Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
 			executeInvalidMetadataInvalidSender(
-				t, ctx, apex, primeTestConfig, apex.Users[4], requestStateTimeoutSec, retryDelaySec, bridgingType)
+				t, ctx, apex, primeTestConfig, apex.Users[4], requestStateTimeoutSec, retryDelaySec, bridgingType, 0)
 		})
 
 		t.Run("6. Prime to Vector submitted invalid metadata - empty receivers", func(t *testing.T) {
 			executeInvalidEmptyReceivers(
-				t, ctx, apex, primeTestConfig, apex.Users[5], requestStateTimeoutSec, retryDelaySec, bridgingType, false)
+				t, ctx, apex, primeTestConfig, apex.Users[5], requestStateTimeoutSec, retryDelaySec, bridgingType, false, 0)
 		})
 	}
 

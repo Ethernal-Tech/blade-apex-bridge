@@ -316,37 +316,37 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 
 	t.Run("1. Mismatch submitted and receiver amounts", func(t *testing.T) {
 		executeInvalidMismatchSendLovelaceAmount(
-			t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, retryIntervalSec, bridgingType, true)
+			t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("2. Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
 		executeInvalidBridgingFee(
-			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryIntervalSec, bridgingType, true)
+			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("3. Submitted invalid metadata - empty receivers", func(t *testing.T) {
 		executeInvalidEmptyReceivers(
-			t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, retryIntervalSec, bridgingType, true)
+			t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("4. Submitted invalid metadata - wrong type", func(t *testing.T) {
 		executeInvalidMetadataType(
-			t, ctx, apex, primeTestConfig, apex.Users[1], requestStateTimeoutSec, retryIntervalSec, bridgingType, true)
+			t, ctx, apex, primeTestConfig, apex.Users[1], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("5. Submitted invalid metadata - invalid destination", func(t *testing.T) {
 		executeInvalidDestination(
-			t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryIntervalSec, bridgingType, true)
+			t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("6. Submitted invalid metadata - invalid sender", func(t *testing.T) {
 		executeInvalidMetadataInvalidSender(
-			t, ctx, apex, primeTestConfig, apex.Users[1], requestStateTimeoutSec, retryIntervalSec, bridgingType)
+			t, ctx, apex, primeTestConfig, apex.Users[1], requestStateTimeoutSec, retryIntervalSec, bridgingType, 0)
 	})
 
 	t.Run("7. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
 		executeInvalidFeeReceiverAddr(
-			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryIntervalSec, bridgingType, true)
+			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("8. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
@@ -376,7 +376,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 		}
 
 		executeInvalidMismatchSendNativeTokenAmount(
-			t, ctx, apex, user, primeTestConfig, *tokenAmount, requestStateTimeoutSec, retryIntervalSec, true)
+			t, ctx, apex, user, primeTestConfig, *tokenAmount, requestStateTimeoutSec, retryIntervalSec, true, 0)
 	})
 }
 

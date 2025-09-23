@@ -91,7 +91,7 @@ func WaitForTestResult(
 // Test methods
 func executeInvalidMismatchSendLovelaceAmount(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -106,7 +106,7 @@ func executeInvalidMismatchSendLovelaceAmount(
 	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
 
 	txHash, err := apex.SubmitTx(
-		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[0],
+		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		lovelaceAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
@@ -116,7 +116,7 @@ func executeInvalidMismatchSendLovelaceAmount(
 
 func executeInvalidMismatchSendAmountMultipleInstances(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -135,7 +135,7 @@ func executeInvalidMismatchSendAmountMultipleInstances(
 
 		txHash, err := apex.SubmitTx(
 			ctx, config.srcChainID, apex.Users[i],
-			config.srcMultiSigAddr, lovelaceAmount, sentTokenAmount, metadata)
+			apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex], lovelaceAmount, sentTokenAmount, metadata)
 		require.NoError(t, err)
 
 		WaitForTestResult(t, ctx, apex, config, apex.Users[i], txHash, beforeSendingAmountDfm, waitForAmount,
@@ -146,6 +146,7 @@ func executeInvalidMismatchSendAmountMultipleInstances(
 func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig,
 	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -171,7 +172,7 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 
 			txHashe, err := apex.SubmitTx(
 				ctx, config.srcChainID, apex.Users[idx],
-				config.srcMultiSigAddr, lovelaceAmount, sentTokenAmount, metadata)
+				apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex], lovelaceAmount, sentTokenAmount, metadata)
 			require.NoError(t, err)
 
 			WaitForTestResult(t, ctx, apex, config, apex.Users[idx], txHashe, beforeSendingAmountDfm, waitForAmount,
@@ -184,7 +185,7 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 
 func executeInvalidMetadataType(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -200,7 +201,7 @@ func executeInvalidMetadataType(
 	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
 
 	txHash, err := apex.SubmitTx(
-		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[0],
+		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		lovelaceAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
@@ -217,6 +218,7 @@ func executeInvalidMetadataType(
 func executeInvalidDestination(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
 	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -245,7 +247,7 @@ func executeInvalidDestination(
 	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
 
 	txHash, err := apex.SubmitTx(
-		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[0],
+		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		lovelaceAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
@@ -255,7 +257,7 @@ func executeInvalidDestination(
 
 func executeInvalidMetadataInvalidSender(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -275,7 +277,7 @@ func executeInvalidMetadataInvalidSender(
 	lovelaceAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
 
 	txHash, err := apex.SubmitTx(
-		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[0],
+		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		lovelaceAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
@@ -284,7 +286,7 @@ func executeInvalidMetadataInvalidSender(
 
 func executeInvalidEmptyReceivers(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -312,7 +314,7 @@ func executeInvalidEmptyReceivers(
 	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
 
 	txHash, err := apex.SubmitTx(
-		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[0],
+		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		lovelaceAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
