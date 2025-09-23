@@ -582,7 +582,7 @@ func (a *ApexSystem) SubmitTx(
 		return txHash, nil
 	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
 
-	return txHash, nil
+	return txHash, err
 }
 
 func (a *ApexSystem) SubmitBridgingRequest(
