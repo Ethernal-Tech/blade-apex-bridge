@@ -83,6 +83,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 
 	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee,
 		operationFee, primeToken.TokenName())
+
 	cardanoTestConfig := newTestConfig(t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime,
 		bridgingFee, operationFee, cardanoToken.TokenName())
 
@@ -221,7 +222,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendUnknownToken(t, ctx, apex, user, primeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true)
+		executeInvalidSendNativeToken(t, ctx, apex, user, primeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("12. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
@@ -390,7 +391,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Prime multisig addresses amounts: ", primeAddrAmounts)
 
-		executeInvalidSendNativeTokenToWrongAddress(t, ctx, apex, user, primeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true)
+		executeInvalidSendNativeToken(t, ctx, apex, user, primeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 2)
 
 		primeAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
@@ -426,7 +427,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Prime multisig addresses amounts: ", primeAddrAmounts)
 
-		executeInvalidSendNativeTokenToWrongAddress(t, ctx, apex, user, primeTestConfig, *primeToken, maxWaitTimeSec, retryDelaySec, true)
+		executeInvalidSendNativeToken(t, ctx, apex, user, primeTestConfig, *primeToken, maxWaitTimeSec, retryDelaySec, true, 2)
 
 		primeAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
 		require.NoError(t, err)

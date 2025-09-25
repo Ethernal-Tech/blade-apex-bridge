@@ -192,7 +192,8 @@ func executeInvalidMismatchSendNativeTokenAmount(
 	}
 
 	metadata, feeAmount := createMetadata(
-		t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee, config.operationFee, user, receivers, bridgingType)
+		t, ctx, apex, config.srcChainID, config.dstChainID,
+		config.bridgingFee, config.operationFee, user, receivers, bridgingType)
 
 	bridgingRequestMetadata := bytes.Replace(metadata,
 		[]byte(fmt.Sprintf("%d", nativeTokenAmount.Amount)), []byte(fmt.Sprintf("%d", nativeTokenAmount.Amount+1)), 1)
@@ -213,10 +214,10 @@ func executeInvalidMismatchSendNativeTokenAmount(
 		bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
-func executeInvalidSendUnknownToken(
+func executeInvalidSendNativeToken(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
 	config *testConfig, nativeTokenAmount wallet.TokenAmount,
-	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -240,7 +241,8 @@ func executeInvalidSendUnknownToken(
 	}
 
 	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
-		ctx, config.dstChainID, receiversForFeeCalculation, config.bridgingFee, config.operationFee, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[0])
+		ctx, config.dstChainID, receiversForFeeCalculation, config.bridgingFee,
+		config.operationFee, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex])
 	require.NoError(t, err)
 
 	metadata, err := apex.GetChainMust(t, config.srcChainID).CreateMetadata(
@@ -252,56 +254,8 @@ func executeInvalidSendUnknownToken(
 
 	lovelaceAmount := max(defaultLovelaceAmount, feeAmount) + config.bridgingFee + config.operationFee
 
-	txHash, err := apex.SubmitTx(ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[0],
-		new(big.Int).SetUint64(lovelaceAmount), []wallet.TokenAmount{nativeTokenAmount}, metadata)
-	require.NoError(t, err)
-
-	fmt.Printf("txHash: %s\n", txHash)
-
-	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, lovelaceAmount,
-		bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
-}
-
-func executeInvalidSendNativeTokenToWrongAddress(
-	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
-	config *testConfig, nativeTokenAmount wallet.TokenAmount,
-	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
-) {
-	t.Helper()
-
-	bridgingType := sendtx.BridgingTypeCurrencyOnSource
-
-	receivers := []sendtx.BridgingTxReceiver{
-		{
-			Addr:         user.GetAddress(config.dstChainID),
-			Amount:       defaultLovelaceAmount,
-			BridgingType: bridgingType,
-		},
-	}
-
-	// for fee calculation, because of unknown token
-	receiversForFeeCalculation := []sendtx.BridgingTxReceiver{
-		{
-			Addr:         user.GetAddress(config.dstChainID),
-			Amount:       defaultLovelaceAmount,
-			BridgingType: sendtx.BridgingTypeNativeTokenOnSource,
-		},
-	}
-
-	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
-		ctx, config.dstChainID, receiversForFeeCalculation, config.bridgingFee, config.operationFee, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[1])
-	require.NoError(t, err)
-
-	metadata, err := apex.GetChainMust(t, config.srcChainID).CreateMetadata(
-		user.GetAddress(config.srcChainID), config.dstChainID, receivers, config.bridgingFee, config.operationFee)
-	require.NoError(t, err)
-
-	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
-	require.NoError(t, err)
-
-	lovelaceAmount := max(defaultLovelaceAmount, feeAmount) + config.bridgingFee + config.operationFee
-
-	txHash, err := apex.SubmitTx(ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[1],
+	txHash, err := apex.SubmitTx(ctx, config.srcChainID, user,
+		apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		new(big.Int).SetUint64(lovelaceAmount), []wallet.TokenAmount{nativeTokenAmount}, metadata)
 	require.NoError(t, err)
 

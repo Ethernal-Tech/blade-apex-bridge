@@ -769,7 +769,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendUnknownToken(t, ctx, apex, user, primeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false)
+		executeInvalidSendNativeToken(t, ctx, apex, user, primeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0)
 	})
 
 	t.Run("13. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
