@@ -218,13 +218,26 @@ func ExecuteBridging(
 
 				// Retrieve all failed transactions on the source chain, if any
 				for _, txHash := range apex.GetChainMust(t, chainPair.srcChain).GetIndexer().GetFailedTxs() {
-					sum.Add(sum, txHashTxDataMap[txHash].SendAmountDfm)
+					// check whether failed transaction is one of these sent from the users (ignore funding transaction rollbacks)
+					if _, exists := txHashTxDataMap[txHash]; exists {
+						sum.Add(sum, txHashTxDataMap[txHash].SendAmountDfm)
+					}
 				}
 
 				lock.Lock()
+				oldValue := new(big.Int).Set(desiredAmounts[dstChain][tokenName])
+
 				// Subtract failed transaction amounts from the original desired amounts on the destination chain
 				desiredAmounts[dstChain][tokenName].Sub(originalDesiredAmounts[dstChain][tokenName], sum)
+
+				newValue := desiredAmounts[dstChain][tokenName]
+				isDifferent := oldValue.Cmp(newValue) != 0
+
 				lock.Unlock()
+
+				if isDifferent {
+					fmt.Printf("Desired amount for %s is %d (was %d)", chainPair.dstChain, newValue, oldValue)
+				}
 			}
 		}
 	}()
@@ -256,8 +269,6 @@ func ExecuteBridging(
 					defer lock.RUnlock()
 
 					receivedAmount := bigIntCache.Add(bigIntCache.Set(initialAmountDfm), desiredAmounts[dstChain][tokenName])
-
-					fmt.Printf("TXs on %s for user %d expected amount to receive %s\n", dstChain, idx, receivedAmount)
 
 					return receivedAmount
 				}

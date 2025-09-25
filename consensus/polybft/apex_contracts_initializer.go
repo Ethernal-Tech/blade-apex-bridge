@@ -11,7 +11,7 @@ import (
 
 const (
 	maxNumberOfTransactions = 5
-	timeoutBlocksNumber     = 5
+	timeoutBlocksNumber     = 12
 )
 
 func initApex(transition *state.Transition, polyBFTConfig PolyBFTConfig) (err error) {
