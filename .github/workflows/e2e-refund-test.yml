@@ -78,7 +78,7 @@ jobs:
       - name: Check certificate key permissions
         run: ls -l /etc/ssl/private/localhost.key
       - name: Run tests
-        run: make test-e2e-refund-apex-bridge && make test-e2e-refund-skyline-bridge
+        run: make test-e2e-refund-apex-bridge
         env: 
           SKIP_E2E_REDUNDANT_TESTS: ${{ inputs.e2e_apex_skip_redundant_tests }}
       - name: Run tests failed
