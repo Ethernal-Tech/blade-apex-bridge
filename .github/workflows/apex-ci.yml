@@ -150,7 +150,7 @@ jobs:
           if [[ "${{ inputs.apex_bridge_ref }}" == "" ]]; then
             if [[ "${{ github.event_name }}" == "pull_request" ]]; then
               if [[ "${{ github.base_ref }}" == "feat/skyline" ]]; then
-                echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
+                echo "apex_bridge_ref=feat/skyline_refund" >> $GITHUB_OUTPUT
               elif [[ "${{ github.base_ref }}" == "feat/skyline_refund" ]]; then
                 echo "apex_bridge_ref=feat/skyline_refund" >> $GITHUB_OUTPUT
               else
