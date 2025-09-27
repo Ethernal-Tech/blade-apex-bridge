@@ -287,6 +287,19 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 			PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, bridgingOpts...)
 		})
+
+		t.Run("Vector and Nexus both directions sequential and parallel", func(t *testing.T) {
+			const (
+				sequentialInstances = 3
+				parallelInstances   = 6
+			)
+
+			receiverUser := apex.Users[parallelInstances]
+			sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+
+			DstNexusBothDirectionsSequentialAndParallel(
+				t, ctx, apex, cardanofw.ChainIDVector, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+		})
 	}
 
 	t.Run("From Prime to Nexus sequential and parallel with max receivers", func(t *testing.T) {
@@ -297,7 +310,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		PrimeToNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+		DstNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, cardanofw.ChainIDPrime, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 
 	t.Run("Prime and Nexus both directions sequential and parallel", func(t *testing.T) {
@@ -309,8 +322,8 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 		receiverUser := apex.Users[parallelInstances]
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		PrimeNexusBothDirectionsSequentialAndParallel(
-			t, ctx, apex, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+		DstNexusBothDirectionsSequentialAndParallel(
+			t, ctx, apex, cardanofw.ChainIDPrime, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 
 	t.Run("From Nexus to Prime sequential and parallel max receivers", func(t *testing.T) {
@@ -321,7 +334,7 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		NexusToPrimeSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+		SrcNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, cardanofw.ChainIDPrime, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
 	})
 }
 
@@ -346,10 +359,12 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 		operationFee, "")
 	bridgingType := sendtx.BridgingTypeNormal
 
+	srcChain := cardanofw.ChainIDPrime
+
 	if IsVectorEnabled(apex) {
 		t.Run("1. Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
 			executeInvalidMismatchSendLovelaceAmount(
-				t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, retryDelaySec, bridgingType, true)
+				t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
 		})
 
 		t.Run("2. Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
@@ -358,63 +373,63 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 
 		t.Run("3. Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
 			executeInvalidMetadataType(
-				t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, retryDelaySec, bridgingType, true)
+				t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
 		})
 
 		t.Run("4. Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
 			executeInvalidDestination(
-				t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryDelaySec, bridgingType, true)
+				t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
 		})
 
 		t.Run("5. Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
 			executeInvalidMetadataInvalidSender(
-				t, ctx, apex, primeTestConfig, apex.Users[4], requestStateTimeoutSec, retryDelaySec, bridgingType)
+				t, ctx, apex, primeTestConfig, apex.Users[4], requestStateTimeoutSec, retryDelaySec, bridgingType, 0)
 		})
 
 		t.Run("6. Prime to Vector submitted invalid metadata - empty receivers", func(t *testing.T) {
 			executeInvalidEmptyReceivers(
-				t, ctx, apex, primeTestConfig, apex.Users[5], requestStateTimeoutSec, retryDelaySec, bridgingType, false)
+				t, ctx, apex, primeTestConfig, apex.Users[5], requestStateTimeoutSec, retryDelaySec, bridgingType, false, 0)
 		})
 	}
 
 	t.Run("Prime to Nexus submitter not enough funds", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(500_000))
 
-		PrimeToNexusSubmitterNotEnoughFunds(t, ctx, apex, apex.Users[6], sendAmountDfm, feeAmount)
+		DstNexusSubmitterNotEnoughFunds(t, ctx, apex, srcChain, apex.Users[6], sendAmountDfm, feeAmount)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - sliced off", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		PrimeToNexusInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[7], sendAmountDfm, feeAmount)
+		DstNexusInvalidMetadataSlicedOff(t, ctx, apex, srcChain, apex.Users[7], sendAmountDfm, feeAmount)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - wrong type", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		PrimeToNexusInvalidMetadataWrongType(t, ctx, apex, apex.Users[8], requestStateTimeoutSec, sendAmountDfm, feeAmount)
+		DstNexusInvalidMetadataWrongType(t, ctx, apex, srcChain, apex.Users[8], requestStateTimeoutSec, sendAmountDfm, feeAmount)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - invalid destination", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		PrimeToNexusInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[9], requestStateTimeoutSec, sendAmountDfm, feeAmount)
+		DstNexusInvalidMetadataInvalidDestination(t, ctx, apex, srcChain, apex.Users[9], requestStateTimeoutSec, sendAmountDfm, feeAmount)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - invalid sender", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		PrimeToNexusInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[0], requestStateTimeoutSec, sendAmountDfm, feeAmount)
+		DstNexusInvalidMetadataInvalidSender(t, ctx, apex, srcChain, apex.Users[0], requestStateTimeoutSec, sendAmountDfm, feeAmount)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - empty tx", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		PrimeToNexusInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[1], requestStateTimeoutSec, sendAmountDfm, feeAmount)
+		DstNexusInvalidMetadataInvalidTransactions(t, ctx, apex, srcChain, apex.Users[1], requestStateTimeoutSec, sendAmountDfm, feeAmount)
 	})
 
 	t.Run("Nexus to Prime submitter not enough funds", func(t *testing.T) {
-		NexusToPrimeSubmitterNotEnoughFunds(t, ctx, apex)
+		SrcNexusSubmitterNotEnoughFunds(t, ctx, apex, srcChain)
 	})
 }
 

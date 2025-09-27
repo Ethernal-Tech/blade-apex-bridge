@@ -17,6 +17,7 @@ import (
 func executeInvalidBridgingFee(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
 	config *testConfig, maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -24,7 +25,7 @@ func executeInvalidBridgingFee(
 	receivers := createReceivers(apex, 1, config.dstChainID, defaultLovelaceAmount, bridgingType)
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee,
-		config.operationFee, user, receivers)
+		config.operationFee, user, receivers, bridgingType)
 	bytesToReplace := []byte(strconv.FormatUint(config.bridgingFee, 10))
 	metadata = bytes.Replace(metadata, bytesToReplace, []byte("1"), 1)
 
@@ -34,7 +35,7 @@ func executeInvalidBridgingFee(
 	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
 
 	txHash, err := apex.SubmitTx(
-		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
+		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		lovelaceAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
@@ -47,11 +48,11 @@ func executeInvalidBridgingFee(
 func executeInvalidFeeReceiverAddr(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
 	config *testConfig, maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	addrIndex uint8,
 ) {
 	t.Helper()
 
 	user := apex.Users[len(apex.Users)-1]
-
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:         apex.GetCardanoInfo(config.dstChainID).FeeAddr,
@@ -61,7 +62,7 @@ func executeInvalidFeeReceiverAddr(
 	}
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee,
-		config.operationFee, user, receivers)
+		config.operationFee, user, receivers, bridgingType)
 
 	sentAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
 
@@ -70,7 +71,7 @@ func executeInvalidFeeReceiverAddr(
 
 	if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
 		txHash, err := apex.SubmitTx(
-			ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
+			ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 			sentAmount, []wallet.TokenAmount{}, metadata)
 		require.NoError(t, err)
 
@@ -80,7 +81,7 @@ func executeInvalidFeeReceiverAddr(
 			bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 	} else {
 		txHash, err := apex.SubmitTx(
-			ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
+			ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 			new(big.Int).SetUint64(feeAmount+config.operationFee), sentTokenAmount, metadata)
 		require.NoError(t, err)
 
@@ -90,9 +91,45 @@ func executeInvalidFeeReceiverAddr(
 			bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 	}
 }
+func executeInvalidMetadataSender(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
+	srcChain, dstChain cardanofw.ChainID, bridgingFee, operationFee uint64, timeoutSec uint,
+) {
+	t.Helper()
+
+	sendAmount := uint64(1_000_000)
+	user := apex.Users[0]
+
+	bridgingType := sendtx.BridgingTypeCurrencyOnSource
+	receivers := createReceivers(apex, 1, dstChain, sendAmount, bridgingType)
+
+	multisigAddr, err := apex.GetChainMust(t, srcChain).GetAddressToBridgeTo(
+		ctx, bridgingType,
+	)
+	require.NoError(t, err)
+
+	feeAmount, err := apex.GetChainMust(t, srcChain).GetBridgingFee(
+		ctx, dstChain, receivers, bridgingFee, operationFee, multisigAddr)
+	require.NoError(t, err)
+
+	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
+		"dummy", dstChain, receivers, feeAmount, operationFee)
+	require.NoError(t, err)
+
+	metadata = bytes.Replace(metadata, []byte("[\"dummy\"]"), []byte("\"\""), 1)
+
+	txHash, err := apex.SubmitTx(
+		ctx, srcChain, user, multisigAddr,
+		new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
+	require.NoError(t, err)
+
+	fmt.Printf("txHash: %s\n", txHash)
+
+	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, timeoutSec)
+}
 
 func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	config *testConfig, bridgingType sendtx.BridgingType,
+	config *testConfig, bridgingType sendtx.BridgingType, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -117,8 +154,10 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 		require.NoError(t, err)
 	}
 
+	multisigAddr := apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex]
+
 	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
-		ctx, config.dstChainID, receivers, config.bridgingFee, config.operationFee)
+		ctx, config.dstChainID, receivers, config.bridgingFee, config.operationFee, multisigAddr)
 	require.NoError(t, err)
 
 	metadata, err := apex.GetChainMust(t, config.srcChainID).CreateMetadata(
@@ -131,14 +170,14 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 
 	_, err = apex.SubmitTx(
 		ctx, config.srcChainID, user,
-		config.srcMultiSigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+config.operationFee), nil, metadata)
+		multisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+config.operationFee), nil, metadata)
 	require.Error(t, err)
 }
 
 func executeInvalidMismatchSendNativeTokenAmount(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
 	config *testConfig, nativeTokenAmount wallet.TokenAmount,
-	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -153,7 +192,8 @@ func executeInvalidMismatchSendNativeTokenAmount(
 	}
 
 	metadata, feeAmount := createMetadata(
-		t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee, config.operationFee, user, receivers)
+		t, ctx, apex, config.srcChainID, config.dstChainID,
+		config.bridgingFee, config.operationFee, user, receivers, bridgingType)
 
 	bridgingRequestMetadata := bytes.Replace(metadata,
 		[]byte(fmt.Sprintf("%d", nativeTokenAmount.Amount)), []byte(fmt.Sprintf("%d", nativeTokenAmount.Amount+1)), 1)
@@ -162,7 +202,7 @@ func executeInvalidMismatchSendNativeTokenAmount(
 	require.NoError(t, err)
 
 	txHash, err := apex.SubmitTx(ctx, config.srcChainID,
-		user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
+		user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		new(big.Int).SetUint64(feeAmount+config.operationFee),
 		[]wallet.TokenAmount{nativeTokenAmount}, bridgingRequestMetadata,
 	)
@@ -174,10 +214,10 @@ func executeInvalidMismatchSendNativeTokenAmount(
 		bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
-func executeInvalidSendUnknownToken(
+func executeInvalidSendNativeToken(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
 	config *testConfig, nativeTokenAmount wallet.TokenAmount,
-	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -201,7 +241,8 @@ func executeInvalidSendUnknownToken(
 	}
 
 	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
-		ctx, config.dstChainID, receiversForFeeCalculation, config.bridgingFee, config.operationFee)
+		ctx, config.dstChainID, receiversForFeeCalculation, config.bridgingFee,
+		config.operationFee, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex])
 	require.NoError(t, err)
 
 	metadata, err := apex.GetChainMust(t, config.srcChainID).CreateMetadata(
@@ -213,7 +254,8 @@ func executeInvalidSendUnknownToken(
 
 	lovelaceAmount := max(defaultLovelaceAmount, feeAmount) + config.bridgingFee + config.operationFee
 
-	txHash, err := apex.SubmitTx(ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
+	txHash, err := apex.SubmitTx(ctx, config.srcChainID, user,
+		apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		new(big.Int).SetUint64(lovelaceAmount), []wallet.TokenAmount{nativeTokenAmount}, metadata)
 	require.NoError(t, err)
 
