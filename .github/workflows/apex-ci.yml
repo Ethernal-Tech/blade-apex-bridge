@@ -35,7 +35,7 @@ on: # yamllint disable-line rule:truthy
       e2e_refund_skyline_bridge_test:
         description: E2E Refund-Skyline Bridge Tests
         type: boolean
-        default: false
+        default: true
       e2e_apex_big_test:
         description: E2E ApexBridge Big Tests
         type: boolean
