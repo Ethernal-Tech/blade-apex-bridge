@@ -95,13 +95,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4.3.0
         with:
-          name: e2e-apex-bridge-logs
+          name: e2e-apex-bridge-with-nexus-logs
           path: e2e-logs-*/
           retention-days: 30
       - name: Archive e2e bridge data
         if: always()
         uses: actions/upload-artifact@v4.3.0
         with:
-          name: e2e-bridge-data
+          name: e2e-bridge-data-with-nexus
           path: e2e-bridge-data-tmp-*/
           retention-days: 3
