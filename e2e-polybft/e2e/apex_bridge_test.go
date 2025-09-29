@@ -1788,7 +1788,7 @@ func sendWithoutWaitInvalidMetadataWrongType(
 	return nil
 }
 
-func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
+func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
 	}
