@@ -111,6 +111,9 @@ on: # yamllint disable-line rule:truthy
       e2e_apex_test:
         description: E2E ApexBridge Tests output
         value: ${{ jobs.e2e_apex_test.outputs.workflow_output }}
+      e2e_apex_with_nexus_test:
+        description: E2E ApexBridgeWithNexus Tests output
+        value: ${{ jobs.e2e_apex_with_nexus_test.outputs.workflow_output }}
       e2e_skyline_test:
         description: E2E Skyline Tests output
         value: ${{ jobs.e2e_skyline_test.outputs.workflow_output }}
@@ -216,6 +219,20 @@ jobs:
       e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_apex_with_nexus_test:
+    name: E2E ApexBridgeWithNexus Tests
+    uses: ./.github/workflows/e2e-apex-with-nexus-test.yml
+    needs: [inputs_check, build_blade]
+    if: |
+      inputs.e2e_apex_test || 
+      github.event_name == 'pull_request'
+    with:
+      apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
+      e2e_apex_big_test: ${{ inputs.e2e_apex_big_test || 'false' }}
+      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_apex_test_push_develop:
     name: E2E ApexBridge Tests (push on develop branch)
     uses: ./.github/workflows/e2e-apex-test.yml
@@ -228,9 +245,33 @@ jobs:
       e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_apex_with_nexus_test_push_develop:
+    name: E2E ApexBridgeWithNexus Tests (push on develop branch)
+    uses: ./.github/workflows/e2e-apex-with-nexus-test.yml
+    needs: build_blade
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/develop')
+    with:
+      apex_bridge_ref: main
+      blade_apex_bridge_ref: develop
+      e2e_apex_big_test: false
+      e2e_apex_skip_redundant_tests: false
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_apex_test_push_skyline:
     name: E2E ApexBridge Tests (push on feat/skyline branch)
     uses: ./.github/workflows/e2e-apex-test.yml
+    needs: build_blade
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/skyline')
+    with:
+      apex_bridge_ref: feat/skyline
+      blade_apex_bridge_ref: feat/skyline
+      e2e_apex_big_test: false
+      e2e_apex_skip_redundant_tests: false
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_apex_with_nexus_test_push_skyline:
+    name: E2E ApexBridgeWithNexus Tests (push on feat/skyline branch)
+    uses: ./.github/workflows/e2e-apex-with-nexus-test.yml
     needs: build_blade
     if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/skyline')
     with:
