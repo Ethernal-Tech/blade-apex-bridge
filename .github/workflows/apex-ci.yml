@@ -111,6 +111,9 @@ on: # yamllint disable-line rule:truthy
       e2e_apex_test:
         description: E2E ApexBridge Tests output
         value: ${{ jobs.e2e_apex_test.outputs.workflow_output }}
+      e2e_apex_with_nexus_test:
+        description: E2E ApexBridgeWithNexus Tests output
+        value: ${{ jobs.e2e_apex_with_nexus_test.outputs.workflow_output }}
       e2e_skyline_test:
         description: E2E Skyline Tests output
         value: ${{ jobs.e2e_skyline_test.outputs.workflow_output }}
