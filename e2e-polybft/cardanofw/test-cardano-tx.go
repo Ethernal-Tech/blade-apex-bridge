@@ -116,6 +116,7 @@ func createTx(
 		Amount: amount,
 	}, wallet.TxOutput{
 		Addr:   senderAddr,
+		Amount: inputs.Sum[wallet.AdaTokenName] - amount,
 		Tokens: senderTokens,
 	})
 

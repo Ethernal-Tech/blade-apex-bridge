@@ -198,6 +198,7 @@ func createNativeTokenTx(
 	builder.AddInputs(inputs.Inputs...)
 	builder.AddOutputs(receiverOutput, cardanowallet.TxOutput{
 		Addr:   senderAddr,
+		Amount: inputs.Sum[cardanowallet.AdaTokenName] - lovelaceAmount,
 		Tokens: senderTokens,
 	})
 
@@ -354,6 +355,7 @@ func createMintTx(
 	builder.AddInputs(inputs.Inputs...).AddTokenMints(tokenPolicyScripts, tokens)
 	builder.AddOutputs(txOutput, cardanowallet.TxOutput{
 		Addr:   walletAddr.String(),
+		Amount: inputs.Sum[cardanowallet.AdaTokenName] - lovelaceAmount,
 		Tokens: senderTokens,
 	})
 
