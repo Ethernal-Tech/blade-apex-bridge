@@ -303,78 +303,80 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 
 	const (
 		requestStateTimeoutSec = 1500
+		retryIntervalSec       = 5
 		bridgingFee            = uint64(1_000_010)
 		operationFee           = uint64(0)
 	)
 
-	t.Run("Mismatch submitted and receiver amounts", func(t *testing.T) {
+	srcChainID, dstChainID := cardanofw.ChainIDPrime, cardanofw.ChainIDCardano
+	srcTokenName := apex.GetTokenNameForChains(srcChainID, dstChainID)
+
+	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, dstChainID, bridgingFee, operationFee, srcTokenName)
+	bridgingType := sendtx.BridgingTypeCurrencyOnSource
+
+	t.Run("1. Mismatch submitted and receiver amounts", func(t *testing.T) {
 		executeInvalidMismatchSendLovelaceAmount(
-			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, requestStateTimeoutSec)
+			t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
-	t.Run("Submitted invalid metadata - wrong type", func(t *testing.T) {
-		executeInvalidMetadataType(
-			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, requestStateTimeoutSec)
-	})
-
-	t.Run("Submitted invalid metadata - invalid sender", func(t *testing.T) {
-		executeInvalidMetadataSender(
-			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, requestStateTimeoutSec)
-	})
-
-	t.Run("Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
+	t.Run("2. Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
 		executeInvalidBridgingFee(
-			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, requestStateTimeoutSec)
+			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
-	t.Run("Submitted invalid metadata - empty receivers", func(t *testing.T) {
+	t.Run("3. Submitted invalid metadata - empty receivers", func(t *testing.T) {
 		executeInvalidEmptyReceivers(
-			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, requestStateTimeoutSec)
+			t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
-	t.Run("Submitted invalid metadata - invalid destination", func(t *testing.T) {
+	t.Run("4. Submitted invalid metadata - wrong type", func(t *testing.T) {
+		executeInvalidMetadataType(
+			t, ctx, apex, primeTestConfig, apex.Users[1], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
+	})
+
+	t.Run("5. Submitted invalid metadata - invalid destination", func(t *testing.T) {
 		executeInvalidDestination(
-			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, requestStateTimeoutSec)
+			t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
-	t.Run("Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
+	t.Run("6. Submitted invalid metadata - invalid sender", func(t *testing.T) {
+		executeInvalidMetadataInvalidSender(
+			t, ctx, apex, primeTestConfig, apex.Users[1], requestStateTimeoutSec, retryIntervalSec, bridgingType, 0)
+	})
+
+	t.Run("7. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
 		executeInvalidFeeReceiverAddr(
-			t, ctx, apex, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, bridgingFee, operationFee, requestStateTimeoutSec)
+			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
-	t.Run("Submitted with unknown tokens to bridging addr", func(t *testing.T) {
-		srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDCardano
-		sendAmount := uint64(1_500_000)
+	t.Run("8. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
 		user := apex.Users[len(apex.Users)-1]
 
-		minterWallet, _ := user.GetCardanoWallet(srcChain)
+		minterWallet, _ := user.GetCardanoWallet(srcChainID)
 
 		tokensFunded, err := cardanofw.FundUserWithToken(
-			ctx, apex, srcChain,
+			ctx, apex, srcChainID,
 			minterWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendUnknownToken(
-			t, ctx, apex, user, srcChain, dstChain,
-			bridgingFee, operationFee, sendAmount, *tokensFunded, requestStateTimeoutSec)
+		executeInvalidSendNativeToken(t, ctx, apex, user, primeTestConfig, *tokensFunded, requestStateTimeoutSec, retryIntervalSec, true, 0)
 	})
 
-	t.Run("Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
-		srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDCardano
+	t.Run("9. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
+		user := apex.Users[len(apex.Users)-1]
 
-		token, err := cardanowallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(srcChain, dstChain))
+		token, err := cardanowallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(srcChainID, dstChainID))
 		require.NoError(t, err)
 
 		tokenAmount := &cardanowallet.TokenAmount{
-			Amount: 1_123_000,
+			Amount: 1_000_000,
 			Token:  token,
 		}
 
 		executeInvalidMismatchSendNativeTokenAmount(
-			t, ctx, apex, apex.Users[len(apex.Users)-1], srcChain, dstChain,
-			bridgingFee, operationFee, *tokenAmount, requestStateTimeoutSec)
+			t, ctx, apex, user, primeTestConfig, *tokenAmount, requestStateTimeoutSec, retryIntervalSec, true, 0)
 	})
 }
 

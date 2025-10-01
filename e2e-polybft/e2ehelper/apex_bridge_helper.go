@@ -211,10 +211,9 @@ func ExecuteBridging(
 			}
 
 			for _, chainPair := range chainPairs {
-				dstChain := chainPair.dstChain
 				sum := new(big.Int)
 
-				tokenName := getTokenNameForChains(apex, dstChain, chainPair.srcChain, expectNativeTokens)
+				tokenName := getTokenNameForChains(apex, chainPair.dstChain, chainPair.srcChain, expectNativeTokens)
 
 				// Retrieve all failed transactions on the source chain, if any
 				for _, txHash := range apex.GetChainMust(t, chainPair.srcChain).GetIndexer().GetFailedTxs() {
@@ -225,12 +224,12 @@ func ExecuteBridging(
 				}
 
 				lock.Lock()
-				oldValue := new(big.Int).Set(desiredAmounts[dstChain][tokenName])
+				oldValue := new(big.Int).Set(desiredAmounts[chainPair.dstChain][tokenName])
 
 				// Subtract failed transaction amounts from the original desired amounts on the destination chain
-				desiredAmounts[dstChain][tokenName].Sub(originalDesiredAmounts[dstChain][tokenName], sum)
+				desiredAmounts[chainPair.dstChain][tokenName].Sub(originalDesiredAmounts[chainPair.dstChain][tokenName], sum)
 
-				newValue := desiredAmounts[dstChain][tokenName]
+				newValue := desiredAmounts[chainPair.dstChain][tokenName]
 				isDifferent := oldValue.Cmp(newValue) != 0
 
 				lock.Unlock()

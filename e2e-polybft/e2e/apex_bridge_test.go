@@ -446,7 +446,8 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDPrime, sender: apex.Users[0]},
 			{src: cardanofw.ChainIDNexus, dest: cardanofw.ChainIDPrime, sender: apex.Users[0]},
 		}
-		txHashes = make([]string, len(bridgingRequests))
+		txHashes               = make([]string, len(bridgingRequests))
+		beforeSendingAmountDfm = make([]map[string]*big.Int, len(bridgingRequests))
 	)
 
 	var wg sync.WaitGroup
@@ -457,8 +458,12 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		go func(i int, src string, dest string, sender *cardanofw.TestApexUser) {
 			defer wg.Done()
 
-			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNormal,
-				user)
+			var err error
+
+			beforeSendingAmountDfm[i], err = apex.GetBalance(ctx, user, src)
+			require.NoError(t, err)
+
+			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNormal, user)
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
 		}(idx, br.src, br.dest, br.sender)
 	}
@@ -471,7 +476,13 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			cardanofw.WaitForInvalidState(t, ctx, apex, br.src, txHashes[idx], apiKey, 0)
+			lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[idx][infrawallet.AdaTokenName], apexSendAmount)
+
+			fmt.Printf("Tx hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm[idx])
+
+			err := apex.WaitForAmountInRange(ctx, apex.Users[0], br.src, br.dest, lowerBoundaryDfm, beforeSendingAmountDfm[idx][infrawallet.AdaTokenName],
+				60, time.Second*30)
+			require.NoError(t, err)
 		}()
 	}
 
@@ -597,100 +608,114 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 	user := apex.Users[0]
 
-	t.Run("Mismatch submitted and receiver amounts", func(t *testing.T) {
-		PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, user, 0, bridgingFeeAmount)
+	t.Run("Submitted invalid metadata - sliced off", func(t *testing.T) {
+		PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, user)
 	})
 
-	t.Run("Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
-		for i := 0; i < 5; i++ {
-			sendAmount := uint64(1_000_000)
-			feeAmount := uint64(1_100_000)
-
-			metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-				apex.Users[i].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
-				[]sendtx.BridgingTxReceiver{
-					{
-						Addr:         apex.Users[i].GetAddress(cardanofw.ChainIDVector),
-						Amount:       sendAmount * 10,
-						BridgingType: sendtx.BridgingTypeNormal,
-					},
-				}, bridgingFeeAmount, operationFee)
-			require.NoError(t, err)
-
-			txHash, err := apex.SubmitTx(
-				ctx, cardanofw.ChainIDPrime, apex.Users[i],
-				apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
-			require.NoError(t, err)
-
-			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
-		}
-	})
-
-	t.Run("Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
-		instances := 5
-		txHashes := make([]string, instances)
-
-		sendAmount := uint64(1_000_000)
+	t.Run("Submitted not enough funds - invalid send amount", func(t *testing.T) {
+		sendAmount := uint64(800_000)
 		feeAmount := uint64(1_100_000)
 
-		var wg sync.WaitGroup
+		beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
 
-		for i := 0; i < instances; i++ {
-			wg.Add(1)
+		fmt.Println("beforeSendingAmountDfm", beforeSendingAmountDfm)
 
-			go func(idx int) {
-				defer wg.Done()
+		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
+			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+			[]sendtx.BridgingTxReceiver{
+				{
+					Addr:   user.GetAddress(cardanofw.ChainIDVector),
+					Amount: sendAmount - feeAmount,
+				},
+			}, feeAmount, operationFee)
+		require.NoError(t, err)
 
-				testUser := apex.Users[idx]
+		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr[0],
+			new(big.Int).SetUint64(sendAmount), nil, metadata)
+		require.NoError(t, err)
 
-				metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
-					testUser.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
-					[]sendtx.BridgingTxReceiver{
-						{
-							Addr:         apex.Users[idx].GetAddress(cardanofw.ChainIDVector),
-							Amount:       sendAmount * 10,
-							BridgingType: sendtx.BridgingTypeNormal,
-						},
-					}, bridgingFeeAmount, operationFee)
-				require.NoError(t, err)
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
+		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, cardanofw.DefaultRequestStateTimeoutSec)
+	})
+}
 
-				txHashes[idx], err = apex.SubmitTx(
-					ctx, cardanofw.ChainIDPrime, testUser,
-					apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
-				require.NoError(t, err)
-			}(i)
-		}
+func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 15
 
-		wg.Wait()
+		requestStateTimeoutSec = 600
+		retryDelaySec          = 5
 
-		for i := 0; i < instances; i++ {
-			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHashes[i], apiKey, 0)
-		}
+		bridgingFee  = uint64(1_000_010)
+		operationFee = uint64(0)
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+
+	defer cncl()
+
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig.PremineAmount = 500_000_000
+	vectorConfig.PremineAmount = 500_000_000
+	primeConfig.UseIndexer = true
+	vectorConfig.UseIndexer = true
+
+	apex := cardanofw.SetupAndRunReactorBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+			mp["refundEnabled"] = false
+		}, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+
+	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, bridgingFee, operationFee, "")
+	bridgingType := sendtx.BridgingTypeNormal
+
+	t.Run("1 .Mismatch submitted and receiver amounts", func(t *testing.T) {
+		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType, false, 0)
 	})
 
-	t.Run("Submitted invalid metadata - sliced off", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, user, bridgingFeeAmount)
+	t.Run("2. Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
+		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryDelaySec, bridgingType, false, 0)
 	})
 
-	t.Run("Submitted invalid metadata - wrong type", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, user, 60, bridgingFeeAmount)
+	t.Run("3. Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
+		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryDelaySec, bridgingType, false, 0)
 	})
 
-	t.Run("Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, user, 0, bridgingFeeAmount)
+	t.Run("4. Submitted invalid metadata - wrong type", func(t *testing.T) {
+		executeInvalidMetadataType(
+			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType, false, 0)
 	})
 
-	t.Run("Submitted invalid metadata - invalid sender", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidSender(t, ctx, apex, user, 0, bridgingFeeAmount)
+	t.Run("5. Submitted invalid metadata - invalid destination", func(t *testing.T) {
+		executeInvalidDestination(
+			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType, false, 0)
 	})
 
-	t.Run("Submitted invalid metadata - empty tx", func(t *testing.T) {
-		PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, user, 0, bridgingFeeAmount)
+	t.Run("6. Submitted invalid metadata - invalid sender", func(t *testing.T) {
+		executeInvalidMetadataInvalidSender(
+			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType, 0)
 	})
 
-	t.Run("Submitted with tokens to bridging addr", func(t *testing.T) {
+	t.Run("7. Submitted invalid metadata - empty receivers", func(t *testing.T) {
+		executeInvalidEmptyReceivers(
+			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType, false, 0)
+	})
+
+	t.Run("8. Submitted with tokens to bridging addr", func(t *testing.T) {
 		sendAmount := uint64(5_000_000)
 		feeAmount := uint64(1_100_000)
+		operationFee := uint64(0)
 
 		minterUser := apex.Users[userCnt-1]
 
@@ -713,7 +738,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 					Addr:   user.GetAddress(cardanofw.ChainIDVector),
 					Amount: sendAmount - feeAmount,
 				},
-			}, bridgingFeeAmount, operationFee)
+			}, feeAmount, operationFee)
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
@@ -745,6 +770,9 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		cardanofw.WithUserCnt(userCnt),
 		cardanofw.WithPrimeConfig(primerConfig),
 		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+			mp["refundEnabled"] = false
+		}, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1124,13 +1152,8 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 	)
 
 	var (
-		err error
+		chains = []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus}
 	)
-
-	type chainStageKey struct {
-		chain    string
-		receiver uint
-	}
 
 	type bridingRequest struct {
 		src         string
@@ -1223,88 +1246,6 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		wg.Wait()
 	}
 
-	waitOnDestination := func(
-		ctx context.Context, apex *cardanofw.ApexSystem,
-		chainPrevAmounts map[chainStageKey]*big.Int, chainExpectedAmounts map[chainStageKey]*big.Int,
-		chainReceivers map[chainStageKey]*cardanofw.TestApexUser, numRetries int, waitTime time.Duration,
-	) map[chainStageKey]error {
-		var (
-			wg           sync.WaitGroup
-			errsPerChain = make(map[chainStageKey]error, len(chainPrevAmounts))
-			mu           sync.Mutex
-		)
-
-		for chainKey, prevAmount := range chainPrevAmounts {
-			wg.Add(1)
-
-			go func() {
-				defer wg.Done()
-
-				fmt.Printf("Waiting for %v Amount on %v\n", chainExpectedAmounts[chainKey], chainKey.chain)
-
-				expectedAmount := new(big.Int).Set(chainExpectedAmounts[chainKey])
-				expectedAmount.Add(expectedAmount, prevAmount)
-
-				err = apex.WaitForExactAmount(
-					ctx, chainReceivers[chainKey], chainKey.chain, "", expectedAmount, numRetries, waitTime)
-
-				mu.Lock()
-				defer mu.Unlock()
-
-				errsPerChain[chainKey] = err
-			}()
-		}
-
-		wg.Wait()
-
-		return errsPerChain
-	}
-
-	fundWallets := func(
-		ctx context.Context, apex *cardanofw.ApexSystem,
-		fundAmountApex *big.Int,
-	) error {
-		fmt.Printf("Funding hot wallets\n")
-
-		for _, chain := range []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus} {
-			if err = apex.FundChainHotWallet(ctx, chain, cardanofw.ApexToDfm(fundAmountApex)); err != nil {
-				return err
-			}
-		}
-
-		fmt.Printf("Hot wallets have been funded\n")
-
-		return nil
-	}
-
-	defundWallets := func(
-		ctx context.Context, apex *cardanofw.ApexSystem,
-		defundReceiver *cardanofw.TestApexUser, defundAmountApex *big.Int,
-		defundReceiverPrevAmounts map[chainStageKey]*big.Int, defundReceiverExpectedAmounts map[chainStageKey]*big.Int,
-		defundReceivers map[chainStageKey]*cardanofw.TestApexUser,
-	) {
-		fmt.Printf("Defunding hot wallets\n")
-
-		defundAmount := cardanofw.ApexToDfm(defundAmountApex)
-
-		require.NoError(t, apex.DefundHotWallet(
-			cardanofw.ChainIDPrime, defundReceiver.GetAddress(cardanofw.ChainIDPrime), defundAmount, big.NewInt(0)))
-
-		require.NoError(t, apex.DefundHotWallet(
-			cardanofw.ChainIDVector, defundReceiver.GetAddress(cardanofw.ChainIDVector), defundAmount, big.NewInt(0)))
-
-		require.NoError(t, apex.DefundHotWallet(
-			cardanofw.ChainIDNexus, defundReceiver.GetAddress(cardanofw.ChainIDNexus), defundAmount, big.NewInt(0)))
-
-		errsPerChain := waitOnDestination(ctx, apex,
-			defundReceiverPrevAmounts, defundReceiverExpectedAmounts, defundReceivers,
-			200, time.Second*10)
-		for chainKey, err := range errsPerChain {
-			require.NoError(t, err)
-			fmt.Printf("Defund on %v confirmed\n", chainKey.chain)
-		}
-	}
-
 	t.Run("Fund_Parallel_Send_BRs_Then_Full_Fund", func(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
@@ -1351,7 +1292,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
 		}
 
-		require.NoError(t, fundWallets(ctx, apex, big.NewInt(100)))
+		fundWallets(t, ctx, apex, chains, big.NewInt(100))
 
 		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10)
 		for chainKey, err := range errsPerChain {
@@ -1411,7 +1352,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
 		}
 
-		require.NoError(t, fundWallets(ctx, apex, big.NewInt(10)))
+		fundWallets(t, ctx, apex, chains, big.NewInt(10))
 
 		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10)
 		for chainKey, err := range errsPerChain {
@@ -1424,7 +1365,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			}
 		}
 
-		require.NoError(t, fundWallets(ctx, apex, big.NewInt(1000)))
+		fundWallets(t, ctx, apex, chains, big.NewInt(1000))
 
 		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10)
 		for chainKey, err := range errsPerChain {
@@ -1489,7 +1430,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			defundReceiversPrevAmount, defundReceiversExpectedAmount, defundReceivers :=
 			createBridgingData(ctx, apex, bridgingRequests, receivers, defundReceiver, apexDefundAndFundAmount)
 
-		defundWallets(ctx, apex, defundReceiver, apexDefundAndFundAmount,
+		defundWallets(t, ctx, apex, chains, defundReceiver, apexDefundAndFundAmount,
 			defundReceiversPrevAmount, defundReceiversExpectedAmount, defundReceivers)
 
 		bridgeTransactions(ctx, apex, bridgingRequests, receivers)
@@ -1502,7 +1443,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chain], chain)
 		}
 
-		require.NoError(t, fundWallets(ctx, apex, apexDefundAndFundAmount))
+		fundWallets(t, ctx, apex, chains, apexDefundAndFundAmount)
 
 		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10)
 		for chain, err := range errsPerChain {
@@ -1581,7 +1522,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			fmt.Printf("As intended, %v TX on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
 		}
 
-		require.NoError(t, fundWallets(ctx, apex, apexDefundAndFundAmount))
+		fundWallets(t, ctx, apex, chains, apexDefundAndFundAmount)
 
 		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10)
 		for chainKey, err := range errsPerChain {
@@ -1725,6 +1666,126 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 
 		wg.Wait()
 	})
+}
+
+type chainStageKey struct {
+	chain     string
+	destChain string
+	receiver  uint
+}
+
+func waitOnDestination(
+	ctx context.Context, apex *cardanofw.ApexSystem,
+	chainPrevAmounts map[chainStageKey]*big.Int, chainExpectedAmounts map[chainStageKey]*big.Int,
+	chainReceivers map[chainStageKey]*cardanofw.TestApexUser, numRetries int, waitTime time.Duration,
+) map[chainStageKey]error {
+	var (
+		wg           sync.WaitGroup
+		errsPerChain = make(map[chainStageKey]error, len(chainPrevAmounts))
+		mu           sync.Mutex
+
+		err error
+	)
+
+	for chainKey, prevAmount := range chainPrevAmounts {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			fmt.Printf("Waiting for %v Amount on %v\n", chainExpectedAmounts[chainKey], chainKey.chain)
+
+			expectedAmount := new(big.Int).Set(chainExpectedAmounts[chainKey])
+			expectedAmount.Add(expectedAmount, prevAmount)
+
+			err = apex.WaitForExactAmount(
+				ctx, chainReceivers[chainKey], chainKey.chain, chainKey.destChain, expectedAmount, numRetries, waitTime)
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			errsPerChain[chainKey] = err
+		}()
+	}
+
+	wg.Wait()
+
+	return errsPerChain
+}
+
+func fundWallets(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, chains []string,
+	fundAmountApex *big.Int,
+) {
+	t.Helper()
+
+	fmt.Printf("Funding hot wallets\n")
+
+	for _, chain := range chains {
+		require.NoError(t,
+			apex.FundChainHotWallet(ctx, chain, cardanofw.ApexToDfm(fundAmountApex)),
+		)
+	}
+
+	fmt.Printf("Hot wallets have been funded\n")
+}
+
+func defundWallets(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, chains []string,
+	defundReceiver *cardanofw.TestApexUser, defundAmountApex *big.Int,
+	defundReceiverPrevAmounts map[chainStageKey]*big.Int, defundReceiverExpectedAmounts map[chainStageKey]*big.Int,
+	defundReceivers map[chainStageKey]*cardanofw.TestApexUser,
+) {
+	t.Helper()
+
+	fmt.Printf("Defunding hot wallets\n")
+
+	defundAmount := cardanofw.ApexToDfm(defundAmountApex)
+
+	for _, chain := range chains {
+		require.NoError(t,
+			apex.DefundHotWallet(chain, defundReceiver.GetAddress(chain), defundAmount, big.NewInt(0)))
+	}
+
+	errsPerChain := waitOnDestination(ctx, apex,
+		defundReceiverPrevAmounts, defundReceiverExpectedAmounts, defundReceivers,
+		300, time.Second*10)
+	for chain, err := range errsPerChain {
+		require.NoError(t, err)
+		fmt.Printf("Defund on %v confirmed\n", chain)
+	}
+}
+
+func sendWithoutWaitInvalidMetadataWrongType(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, sender, receiver *cardanofw.TestApexUser,
+	originChainID, destinationChainID string, sendAmount, feeAmount uint64,
+) error {
+	t.Helper()
+
+	receivers := []sendtx.BridgingTxReceiver{
+		{
+			Addr:         receiver.GetAddress(destinationChainID),
+			BridgingType: sendtx.BridgingTypeNormal,
+			Amount:       sendAmount,
+		},
+	}
+
+	metadata, feeAmount := createMetadata(t, ctx, apex, originChainID, destinationChainID, feeAmount,
+		0, sender, receivers, sendtx.BridgingTypeNormal)
+	metadata = bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
+
+	multisigAddress, err := apex.GetChainMust(t, originChainID).GetAddressToBridgeTo(ctx, sendtx.BridgingTypeNormal)
+	if err != nil {
+		return err
+	}
+
+	_, err = apex.SubmitTx(ctx, originChainID, sender, multisigAddress, new(big.Int).SetUint64(sendAmount+feeAmount), nil,
+		metadata)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
@@ -1944,7 +2005,7 @@ func submitInvalidSendAmountTransaction(
 }
 
 func PrimeToVectorInvalidMetadataSlicedOff(
-	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser, bridgingFeeAmount uint64,
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
 ) {
 	t.Helper()
 
@@ -1963,7 +2024,7 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 
 	metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
 		user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
-		receivers, bridgingFeeAmount, operationFee)
+		receivers, sendAmount, operationFee)
 	require.NoError(t, err)
 
 	// Send only half bytes of metadata making it invalid
@@ -1974,7 +2035,6 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 		apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 	require.Error(t, err)
 }
-
 func PrimeToVectorInvalidMetadataWrongType(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
 	requestStateTimeoutSec uint, bridgingFeeAmount uint64,
@@ -2302,4 +2362,22 @@ func checkConsolidationBatchCounts(
 
 		return res
 	}, lastBatchIDs
+}
+
+func waitForTestResult(t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser, txHash string,
+	beforeSendingAmountDfm *big.Int, sentAmount uint64, refundEnabled bool,
+) {
+	t.Helper()
+
+	if refundEnabled {
+		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sentAmount))
+
+		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
+
+		err := apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, lowerBoundaryDfm, beforeSendingAmountDfm,
+			50, time.Second*30)
+		require.NoError(t, err)
+	} else {
+		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, 0)
+	}
 }

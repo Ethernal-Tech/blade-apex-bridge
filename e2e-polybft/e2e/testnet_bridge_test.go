@@ -347,35 +347,48 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 
 	const (
 		requestStateTimeoutSec = 1500
+		retryDelaySec          = 5
+
+		bridgingFee  = uint64(1_000_010)
+		operationFee = uint64(0)
 	)
 
 	feeAmount := uint64(1_100_000)
 
+	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, bridgingFee,
+		operationFee, "")
+	bridgingType := sendtx.BridgingTypeNormal
+
 	srcChain := cardanofw.ChainIDPrime
 
 	if IsVectorEnabled(apex) {
-		t.Run("Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
-			PrimeToVectorMismatchSubmittedAndReceiverAmounts(t, ctx, apex, apex.Users[0], requestStateTimeoutSec, feeAmount)
+		t.Run("1. Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
+			executeInvalidMismatchSendLovelaceAmount(
+				t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
 		})
 
-		t.Run("Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
-			PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[1], feeAmount)
+		t.Run("2. Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
+			PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, apex.Users[1])
 		})
 
-		t.Run("Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
-			PrimeToVectorInvalidMetadataWrongType(t, ctx, apex, apex.Users[2], requestStateTimeoutSec, feeAmount)
+		t.Run("3. Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
+			executeInvalidMetadataType(
+				t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
 		})
 
-		t.Run("Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
-			PrimeToVectorInvalidMetadataInvalidDestination(t, ctx, apex, apex.Users[3], requestStateTimeoutSec, feeAmount)
+		t.Run("4. Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
+			executeInvalidDestination(
+				t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
 		})
 
-		t.Run("Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
-			PrimeToVectorInvalidMetadataInvalidSender(t, ctx, apex, apex.Users[4], requestStateTimeoutSec, feeAmount)
+		t.Run("5. Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
+			executeInvalidMetadataInvalidSender(
+				t, ctx, apex, primeTestConfig, apex.Users[4], requestStateTimeoutSec, retryDelaySec, bridgingType, 0)
 		})
 
-		t.Run("Prime to Vector submitted invalid metadata - empty tx", func(t *testing.T) {
-			PrimeToVectorInvalidMetadataInvalidTransactions(t, ctx, apex, apex.Users[5], requestStateTimeoutSec, feeAmount)
+		t.Run("6. Prime to Vector submitted invalid metadata - empty receivers", func(t *testing.T) {
+			executeInvalidEmptyReceivers(
+				t, ctx, apex, primeTestConfig, apex.Users[5], requestStateTimeoutSec, retryDelaySec, bridgingType, false, 0)
 		})
 	}
 

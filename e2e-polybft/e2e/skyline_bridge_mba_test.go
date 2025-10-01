@@ -16,8 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const bridgeAddrCnt = 4
-
 func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
