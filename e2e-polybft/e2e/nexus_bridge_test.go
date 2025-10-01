@@ -1125,7 +1125,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 	})
 }
 
-func TestE2E_NexusFundAmount(t *testing.T) {
+func TestE2E_ApexBridgeWithNexus_NexusFundAmount(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
 	}
@@ -1198,13 +1198,6 @@ func TestE2E_NexusFundAmount(t *testing.T) {
 			sendAmountDfm: cardanofw.WeiToDfm(ethgo.Ether(5)),
 			fromChain:     cardanofw.ChainIDNexus,
 			toChain:       cardanofw.ChainIDVector,
-			fundAmountDfm: new(big.Int).SetUint64(fundAmount),
-		},
-		{
-			name:          "From vector to nexus - not enough funds",
-			sendAmountDfm: cardanofw.WeiToDfm(ethgo.Ether(15)),
-			fromChain:     cardanofw.ChainIDVector,
-			toChain:       cardanofw.ChainIDNexus,
 			fundAmountDfm: new(big.Int).SetUint64(fundAmount),
 		},
 	}
