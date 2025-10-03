@@ -242,6 +242,8 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
 	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
 	primeConfig.PremineAmount = 100_700_000_000
 	vectorConfig.PremineAmount = 500_000_000
+	primeConfig.UseIndexer = true
+	vectorConfig.UseIndexer = true
 
 	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
@@ -451,6 +453,8 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
 	primeConfig.PremineAmount = 100_700_000_000
 	vectorConfig.PremineAmount = 500_000_000
+	primeConfig.UseIndexer = true
+	vectorConfig.UseIndexer = true
 
 	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
