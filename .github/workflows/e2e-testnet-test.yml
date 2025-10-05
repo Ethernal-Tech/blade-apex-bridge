@@ -62,13 +62,9 @@ jobs:
       - name: Update certificate key file permissions
         run: sudo chmod 644 /etc/ssl/private/localhost.key
       - name: Install Cardano tools
-        uses: milos-ethernal/cardano-node-action@26dcf8e4b11bef82122de0f64ef7ab3b4fad15a8
-        with:
-          tag: '10.1.4'
+        uses: milos-ethernal/cardano-node-action@5a3bce7266cc1500d96e8fa63b3bb97135988482
       - name: Install ogmios
-        uses: milos-ethernal/ogmios-action@a77426bc6547b84421f2dee20beaed35a404c69b
-        with:
-          tag: 'v6.11.2'
+        uses: milos-ethernal/ogmios-action@13e2be0b00da80f26bb8583fa129bd7c08856a49
       - name: Checkout apex-bridge repo
         uses: actions/checkout@v4.1.1
         with:
