@@ -134,7 +134,6 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 
 				minUtxo, err := txBuilder.SetProtocolParameters(protParamsCached[chain]).CalculateMinUtxo(cardanowallet.TxOutput{
 					Addr:   addr,
-					Amount: balance[cardanowallet.AdaTokenName] - cardanofw.MinUTxODefaultValue - cardanofw.PotentialFee,
 					Tokens: tokens,
 				})
 				require.NoError(t, err)
