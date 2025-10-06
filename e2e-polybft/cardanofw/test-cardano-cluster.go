@@ -639,7 +639,7 @@ func (c *TestCardanoCluster) GenesisCreateStaked(startTime time.Time) error {
 		c.Config.NodesCount, c.Config.NodesCount, c.Config.NodesCount, c.Config.NodesCount, c.Config.NodesCount)
 
 	args := append([]string{
-		"genesis", "create-staked",
+		"latest", "genesis", "create-staked",
 		"--genesis-dir", c.Config.Dir(""),
 		"--start-time", startTime.Format("2006-01-02T15:04:05Z"),
 		"--supply", "2000000000000",
