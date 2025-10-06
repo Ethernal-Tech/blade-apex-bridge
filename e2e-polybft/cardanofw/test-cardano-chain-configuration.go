@@ -13,7 +13,7 @@ func getShelleyGenesis(networkMagic uint) func(mp map[string]interface{}) {
 	switch networkMagic {
 	case wallet.PrimeTestNetProtocolMagic:
 		return testPrimeShelleyGenesis
-	case wallet.VectorTestNetProtocolMagic:
+	case wallet.MainNetProtocolMagic:
 		return testVectorShelleyGenesis
 	default:
 		return nil
@@ -24,6 +24,8 @@ func getShelleyGenesis(networkMagic uint) func(mp map[string]interface{}) {
 func getConwayGenesis(networkType wallet.CardanoNetworkType) func(mp map[string]interface{}) {
 	switch networkType {
 	case wallet.TestNetNetwork:
+		return noChanges
+	case wallet.MainNetNetwork:
 		return noChanges
 	default:
 		return nil
@@ -48,6 +50,7 @@ func testPrimeShelleyGenesis(mp map[string]interface{}) {
 }
 
 func testVectorShelleyGenesis(mp map[string]interface{}) {
+	mp["networkId"] = "Mainnet"
 	mp["slotLength"] = 1
 	mp["activeSlotsCoeff"] = 0.25
 	mp["securityParam"] = 216
@@ -55,13 +58,16 @@ func testVectorShelleyGenesis(mp map[string]interface{}) {
 	mp["maxLovelaceSupply"] = 1000000000000
 	mp["updateQuorum"] = 2
 	prParams := getMapFromInterfaceKey(mp, "protocolParams")
-	getMapFromInterfaceKey(prParams, "protocolVersion")["major"] = 7
+	getMapFromInterfaceKey(prParams, "protocolVersion")["major"] = 2
 	prParams["minFeeA"] = 45
 	prParams["minFeeB"] = 156253
 	prParams["minUTxOValue"] = 1000000
 	prParams["decentralisationParam"] = 0.7
 	prParams["rho"] = 0.00001
 	prParams["tau"] = 0.000001
+	stakingParams := getMapFromInterfaceKey(mp, "staking")
+	stakingParams["pools"] = map[string]interface{}{}
+	stakingParams["stake"] = map[string]interface{}{}
 }
 
 func updateJSON(content []byte, callback func(mp map[string]interface{})) ([]byte, error) {

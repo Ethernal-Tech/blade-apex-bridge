@@ -196,6 +196,7 @@ func (c *TestCardanoCluster) NewTestServer(id int, port int) error {
 		//StdOut:       c.Config.GetStdout(fmt.Sprintf("node-%d", id)),
 		ConfigFile:   c.Config.Dir("configuration.yaml"),
 		NodeDir:      c.Config.Dir(fmt.Sprintf("node-spo%d", id)),
+		SocketPath:   c.Config.Dir(fmt.Sprintf("node-spo%d/node.socket", id)),
 		NetworkMagic: c.Config.NetworkMagic,
 		NetworkID:    c.Config.NetworkType,
 	})
@@ -515,10 +516,14 @@ func (c *TestCardanoCluster) CopyConfigFilesAndInitDirectoriesStep2(networkType 
 		func(mp map[string]interface{}) {
 			getShelleyGenesis(c.Config.NetworkMagic)(mp)
 
-			funds := getMapFromInterfaceKey(mp, "initialFunds")
+			if networkType == wallet.MainNetNetwork {
+				mp["initialFunds"] = map[string]interface{}{}
+			} else {
+				funds := getMapFromInterfaceKey(mp, "initialFunds")
 
-			for _, addr := range c.Config.InitialFundsKeys {
-				funds[addr] = c.Config.InitialFundsAmount
+				for _, addr := range c.Config.InitialFundsKeys {
+					funds[addr] = c.Config.InitialFundsAmount
+				}
 			}
 
 			var prevMax uint64
