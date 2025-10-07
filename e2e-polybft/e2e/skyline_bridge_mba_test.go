@@ -49,6 +49,7 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 	cardanoConfig.FundTokenAmount = fundFactor * minValue * fundUtxoCount
 	cardanoConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
 	cardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
+	cardanoConfig.UseIndexer = true
 
 	primeConfig := cardanofw.NewPrimeChainConfig()
 	primeConfig.BridgingAddressCnt = bridgeAddrCnt
@@ -57,6 +58,7 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 	primeConfig.FundTokenAmount = fundFactor * minValue * fundUtxoCount
 	primeConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
 	primeConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
+	primeConfig.UseIndexer = true
 
 	sendAmountTokens := minValue*sendMinValueFactor*fundFactor + sendMinValueIncrement   // when we send tokens, this amount of currency will be released from multisig address
 	sendAmountCurrency := minValue*sendMinValueFactor*fundFactor + sendMinValueIncrement // when we send currency, this amount of native tokens will be released from multisig address
