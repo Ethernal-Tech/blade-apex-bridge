@@ -56,8 +56,16 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 
 				fmt.Printf("Funding %s address: %s\n", chain, receiverAddr)
 
-				_, err := apex.SubmitTx(ctx, chain, apex.FunderUser, receiverAddr,
-					tokensToFundBigInt, tokens, nil)
+				// resubmit the transaction in case of error because of a possible rollback
+				_, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
+					txHash, err := apex.SubmitTx(ctx, chain, apex.FunderUser, receiverAddr,
+						tokensToFundBigInt, tokens, nil)
+					if errors.Is(err, common.ErrRetryTimeout) {
+						return "", common.ErrRetryTryAgain
+					}
+
+					return txHash, err
+				})
 				if err != nil {
 					mu.Lock()
 					addrErrs = append(addrErrs, fmt.Errorf("error while funding %s addr %s: %w", chain, receiverAddr, err))
