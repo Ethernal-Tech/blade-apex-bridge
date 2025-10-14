@@ -2201,6 +2201,7 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
 	sendAmount := vectorConfig.FundAmount - cardanofw.MinUTxODefaultValue*3
 
+	// adding indexer because there are many funding transactions
 	vectorConfig.UseIndexer = true
 
 	var (
