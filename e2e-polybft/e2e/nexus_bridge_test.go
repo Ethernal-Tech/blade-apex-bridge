@@ -642,197 +642,197 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 
 	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-	// t.Run("Test insufficient gas price dynamicTx=true", func(t *testing.T) {
-	// 	if cardanofw.ShouldSkipE2RRedundantTests() {
-	// 		t.Skip()
-	// 	}
+	t.Run("Test insufficient gas price dynamicTx=true", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
 
-	// 	srcChain := cardanofw.ChainIDPrime
+		srcChain := cardanofw.ChainIDPrime
 
-	// 	ctx, cncl := context.WithCancel(context.Background())
-	// 	defer cncl()
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
 
-	// 	var (
-	// 		failedToExecute int
-	// 		timeout         bool
-	// 	)
+		var (
+			failedToExecute int
+			timeout         bool
+		)
 
-	// 	apex := cardanofw.SetupAndRunApexBridge(
-	// 		t, ctx,
-	// 		cardanofw.WithAPIKey(apiKey),
-	// 		cardanofw.WithVectorEnabled(false),
-	// 		cardanofw.WithNexusEnabled(true),
-	// 		cardanofw.WithUserCnt(userCnt),
-	// 		cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-	// 			block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
-	// 			block["gasFeeCap"] = uint64(10)
-	// 			block["gasTipCap"] = uint64(11)
-	// 		}),
-	// 	)
+		apex := cardanofw.SetupAndRunApexBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithVectorEnabled(false),
+			cardanofw.WithNexusEnabled(true),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
+				block["gasFeeCap"] = uint64(10)
+				block["gasTipCap"] = uint64(11)
+			}),
+		)
 
-	// 	user := apex.Users[userCnt-1]
+		user := apex.Users[userCnt-1]
 
-	// 	txHash := apex.SubmitBridgingRequest(
-	// 		t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
+		txHash := apex.SubmitBridgingRequest(
+			t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
 
-	// 	fmt.Printf("Tx sent. hash: %s\n", txHash)
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
 
-	// 	// Check relay failed
-	// 	failedToExecute, timeout = cardanofw.WaitForBatchState(
-	// 		ctx, apex, srcChain, txHash, apiKey, true, false, cardanofw.BatchStateExecuted)
+		// Check relay failed
+		failedToExecute, timeout = cardanofw.WaitForBatchState(
+			ctx, apex, srcChain, txHash, apiKey, true, false, cardanofw.BatchStateExecuted)
 
-	// 	require.Equal(t, failedToExecute, 1)
-	// 	require.False(t, timeout)
+		require.Equal(t, failedToExecute, 1)
+		require.False(t, timeout)
 
-	// 	// Restart relayer after config fix
-	// 	require.NoError(t, apex.StopRelayer())
+		// Restart relayer after config fix
+		require.NoError(t, apex.StopRelayer())
 
-	// 	err := cardanofw.UpdateJSONFile(
-	// 		apex.GetValidator(t, 0).GetRelayerConfig(),
-	// 		apex.GetValidator(t, 0).GetRelayerConfig(),
-	// 		func(mp map[string]interface{}) {
-	// 			block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
-	// 			block["gasFeeCap"] = uint64(0)
-	// 			block["gasTipCap"] = uint64(0)
-	// 		},
-	// 		false,
-	// 	)
-	// 	require.NoError(t, err)
+		err := cardanofw.UpdateJSONFile(
+			apex.GetValidator(t, 0).GetRelayerConfig(),
+			apex.GetValidator(t, 0).GetRelayerConfig(),
+			func(mp map[string]interface{}) {
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
+				block["gasFeeCap"] = uint64(0)
+				block["gasTipCap"] = uint64(0)
+			},
+			false,
+		)
+		require.NoError(t, err)
 
-	// 	err = apex.StartRelayer(ctx)
-	// 	require.NoError(t, err)
+		err = apex.StartRelayer(ctx)
+		require.NoError(t, err)
 
-	// 	failedToExecute, timeout = cardanofw.WaitForBatchState(
-	// 		ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
+		failedToExecute, timeout = cardanofw.WaitForBatchState(
+			ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
 
-	// 	require.LessOrEqual(t, failedToExecute, 1)
-	// 	require.False(t, timeout)
-	// })
+		require.LessOrEqual(t, failedToExecute, 1)
+		require.False(t, timeout)
+	})
 
-	// t.Run("Test insufficient gas price dynamicTx=false", func(t *testing.T) {
-	// 	if cardanofw.ShouldSkipE2RRedundantTests() {
-	// 		t.Skip()
-	// 	}
+	t.Run("Test insufficient gas price dynamicTx=false", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
 
-	// 	ctx, cncl := context.WithCancel(context.Background())
-	// 	defer cncl()
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
 
-	// 	var (
-	// 		failedToExecute int
-	// 		timeout         bool
-	// 	)
+		var (
+			failedToExecute int
+			timeout         bool
+		)
 
-	// 	srcChain := cardanofw.ChainIDVector
+		srcChain := cardanofw.ChainIDVector
 
-	// 	apex := cardanofw.SetupAndRunApexBridge(
-	// 		t, ctx,
-	// 		cardanofw.WithAPIKey(apiKey),
-	// 		cardanofw.WithVectorEnabled(true),
-	// 		cardanofw.WithNexusEnabled(true),
-	// 		cardanofw.WithUserCnt(userCnt),
-	// 		cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-	// 			block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
-	// 			block["gasPrice"] = uint64(10)
-	// 			block["dynamicTx"] = bool(false)
-	// 		}),
-	// 	)
+		apex := cardanofw.SetupAndRunApexBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithVectorEnabled(true),
+			cardanofw.WithNexusEnabled(true),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
+				block["gasPrice"] = uint64(10)
+				block["dynamicTx"] = bool(false)
+			}),
+		)
 
-	// 	user := apex.Users[userCnt-1]
+		user := apex.Users[userCnt-1]
 
-	// 	txHash := apex.SubmitBridgingRequest(
-	// 		t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
+		txHash := apex.SubmitBridgingRequest(
+			t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
 
-	// 	fmt.Printf("Tx sent. hash: %s\n", txHash)
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
 
-	// 	// Check relay failed
-	// 	failedToExecute, timeout = cardanofw.WaitForBatchState(
-	// 		ctx, apex, srcChain, txHash, apiKey, true, false, cardanofw.BatchStateExecuted)
+		// Check relay failed
+		failedToExecute, timeout = cardanofw.WaitForBatchState(
+			ctx, apex, srcChain, txHash, apiKey, true, false, cardanofw.BatchStateExecuted)
 
-	// 	require.Equal(t, failedToExecute, 1)
-	// 	require.False(t, timeout)
+		require.Equal(t, failedToExecute, 1)
+		require.False(t, timeout)
 
-	// 	// Restart relayer after config fix
-	// 	require.NoError(t, apex.StopRelayer())
+		// Restart relayer after config fix
+		require.NoError(t, apex.StopRelayer())
 
-	// 	err := cardanofw.UpdateJSONFile(
-	// 		apex.GetValidator(t, 0).GetRelayerConfig(),
-	// 		apex.GetValidator(t, 0).GetRelayerConfig(),
-	// 		func(mp map[string]interface{}) {
-	// 			block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
-	// 			block["gasPrice"] = uint64(0)
-	// 		},
-	// 		false,
-	// 	)
-	// 	require.NoError(t, err)
+		err := cardanofw.UpdateJSONFile(
+			apex.GetValidator(t, 0).GetRelayerConfig(),
+			apex.GetValidator(t, 0).GetRelayerConfig(),
+			func(mp map[string]interface{}) {
+				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
+				block["gasPrice"] = uint64(0)
+			},
+			false,
+		)
+		require.NoError(t, err)
 
-	// 	err = apex.StartRelayer(ctx)
-	// 	require.NoError(t, err)
+		err = apex.StartRelayer(ctx)
+		require.NoError(t, err)
 
-	// 	failedToExecute, timeout = cardanofw.WaitForBatchState(
-	// 		ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
+		failedToExecute, timeout = cardanofw.WaitForBatchState(
+			ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
 
-	// 	require.LessOrEqual(t, failedToExecute, 1)
-	// 	require.False(t, timeout)
-	// })
+		require.LessOrEqual(t, failedToExecute, 1)
+		require.False(t, timeout)
+	})
 
-	// t.Run("Test small fee", func(t *testing.T) {
-	// 	ctx, cncl := context.WithCancel(context.Background())
-	// 	defer cncl()
+	t.Run("Test small fee", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
 
-	// 	var (
-	// 		failedToExecute int
-	// 		timeout         bool
-	// 	)
+		var (
+			failedToExecute int
+			timeout         bool
+		)
 
-	// 	srcChain := cardanofw.ChainIDPrime
+		srcChain := cardanofw.ChainIDPrime
 
-	// 	apex := cardanofw.SetupAndRunApexBridge(
-	// 		t, ctx,
-	// 		cardanofw.WithAPIKey(apiKey),
-	// 		cardanofw.WithVectorEnabled(false),
-	// 		cardanofw.WithNexusEnabled(true),
-	// 		cardanofw.WithUserCnt(userCnt),
-	// 		cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-	// 			cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(10)
-	// 		}),
-	// 	)
+		apex := cardanofw.SetupAndRunApexBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithVectorEnabled(false),
+			cardanofw.WithNexusEnabled(true),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(10)
+			}),
+		)
 
-	// 	user := apex.Users[userCnt-1]
+		user := apex.Users[userCnt-1]
 
-	// 	txHash := apex.SubmitBridgingRequest(
-	// 		t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
+		txHash := apex.SubmitBridgingRequest(
+			t, ctx, srcChain, cardanofw.ChainIDNexus, user, sendAmountDfm, user)
 
-	// 	fmt.Printf("Tx sent. hash: %s\n", txHash)
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
 
-	// 	// Check relay failed
-	// 	failedToExecute, timeout = cardanofw.WaitForBatchState(ctx,
-	// 		apex, srcChain, txHash, apiKey, true, false, cardanofw.BatchStateExecuted)
+		// Check relay failed
+		failedToExecute, timeout = cardanofw.WaitForBatchState(ctx,
+			apex, srcChain, txHash, apiKey, true, false, cardanofw.BatchStateExecuted)
 
-	// 	require.Equal(t, failedToExecute, 1)
-	// 	require.False(t, timeout)
+		require.Equal(t, failedToExecute, 1)
+		require.False(t, timeout)
 
-	// 	// Restart relayer after config fix
-	// 	require.NoError(t, apex.StopRelayer())
+		// Restart relayer after config fix
+		require.NoError(t, apex.StopRelayer())
 
-	// 	err := cardanofw.UpdateJSONFile(
-	// 		apex.GetValidator(t, 0).GetRelayerConfig(),
-	// 		apex.GetValidator(t, 0).GetRelayerConfig(),
-	// 		func(mp map[string]interface{}) {
-	// 			cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(0)
-	// 		},
-	// 		false,
-	// 	)
-	// 	require.NoError(t, err)
+		err := cardanofw.UpdateJSONFile(
+			apex.GetValidator(t, 0).GetRelayerConfig(),
+			apex.GetValidator(t, 0).GetRelayerConfig(),
+			func(mp map[string]interface{}) {
+				cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(0)
+			},
+			false,
+		)
+		require.NoError(t, err)
 
-	// 	err = apex.StartRelayer(ctx)
-	// 	require.NoError(t, err)
+		err = apex.StartRelayer(ctx)
+		require.NoError(t, err)
 
-	// 	failedToExecute, timeout = cardanofw.WaitForBatchState(ctx,
-	// 		apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
+		failedToExecute, timeout = cardanofw.WaitForBatchState(ctx,
+			apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
 
-	// 	require.LessOrEqual(t, failedToExecute, 1)
-	// 	require.False(t, timeout)
-	// })
+		require.LessOrEqual(t, failedToExecute, 1)
+		require.False(t, timeout)
+	})
 
 	//nolint:dupl
 	t.Run("Test failed batch", func(t *testing.T) {
