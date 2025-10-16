@@ -211,7 +211,11 @@ func (ec *TestCardanoChain) GetExistingStakePools(t *testing.T, ctx context.Cont
 	txProvider, err := ec.GetTxProvider()
 	require.NoError(t, err)
 
-	stakePools, err := txProvider.GetStakePools(ctx)
+	stakePools, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]string, error) {
+			return txProvider.GetStakePools(ctx)
+		},
+	)
 	require.NoError(t, err)
 
 	return stakePools
@@ -632,7 +636,11 @@ func (ec *TestCardanoChain) GetAddressToBridgeTo(
 	index := 0
 
 	for i, address := range ec.multisigAddr {
-		utxos, err := txProvider.GetUtxos(ctx, address)
+		utxos, err := infracommon.ExecuteWithRetry(
+			ctx, func(ctx context.Context) ([]infrawallet.Utxo, error) {
+				return txProvider.GetUtxos(ctx, address)
+			},
+		)
 		if err != nil {
 			return "", err
 		}

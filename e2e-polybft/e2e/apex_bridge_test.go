@@ -25,6 +25,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
+	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/ethgo"
@@ -2246,21 +2247,33 @@ func getInitialUtxosAndTip(
 	multisigUtxosCnt := 0
 
 	for idx, addr := range multisigAddresses {
-		multisigUtoxs, err := txProvider.GetUtxos(ctx, addr)
+		multisigUtxos, err := infracommon.ExecuteWithRetry(
+			ctx, func(ctx context.Context) ([]infrawallet.Utxo, error) {
+				return txProvider.GetUtxos(ctx, addr)
+			},
+		)
 		require.NoError(t, err)
 
-		fmt.Printf("\nMultisig addr: %s[%d]: %v\n", addr, idx, multisigUtoxs)
+		fmt.Printf("\nMultisig addr: %s[%d]: %v\n", addr, idx, multisigUtxos)
 
-		addrUtxos[addr] = append(addrUtxos[addr], multisigUtoxs...)
-		multisigUtxosCnt += len(multisigUtoxs)
+		addrUtxos[addr] = append(addrUtxos[addr], multisigUtxos...)
+		multisigUtxosCnt += len(multisigUtxos)
 	}
 
-	feeUtxos, err := txProvider.GetUtxos(ctx, feeAddr)
+	feeUtxos, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]infrawallet.Utxo, error) {
+			return txProvider.GetUtxos(ctx, feeAddr)
+		},
+	)
 	require.NoError(t, err)
 
 	fmt.Printf("\nFee addr: %s: %v\n", feeAddr, feeUtxos)
 
-	tipData, err := txProvider.GetTip(ctx)
+	tipData, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) (infrawallet.QueryTipData, error) {
+			return txProvider.GetTip(ctx)
+		},
+	)
 	require.NoError(t, err)
 
 	initialUtxos := make([]map[string]any, 0, multisigUtxosCnt+len(feeUtxos))
