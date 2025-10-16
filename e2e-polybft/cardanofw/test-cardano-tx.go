@@ -74,7 +74,11 @@ func createTx(
 	networkMagic uint,
 	metadata []byte,
 ) ([]byte, string, error) {
-	allUtxos, err := txProvider.GetUtxos(ctx, senderAddr)
+	allUtxos, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]wallet.Utxo, error) {
+			return txProvider.GetUtxos(ctx, senderAddr)
+		},
+	)
 	if err != nil {
 		return nil, "", err
 	}
