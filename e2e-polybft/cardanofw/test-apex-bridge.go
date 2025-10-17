@@ -137,6 +137,11 @@ func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSm
 			contracts.Claims.String(), contracts.ApexBridgeAdmin.String()})
 	require.NoError(t, err)
 
+	chainTokensContractAddr, err := apexSystem.DeploySmartContract(
+		dir, "ChainTokens", []string{contracts.Bridge.String(),
+			contracts.Claims.String(), contracts.ApexBridgeAdmin.String()})
+	require.NoError(t, err)
+
 	contractParams := []ContractParams{
 		{
 			contractName:    "Admin",
@@ -147,14 +152,14 @@ func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSm
 		{
 			contractName:    "Bridge",
 			contractAddress: contracts.Bridge.String(),
-			functionName:    "setBridgingAddrsDependencyAndSync",
-			functionArgs:    []string{bridgingAddressesContractAddr},
+			functionName:    "setAdditionalDependenciesAndSync",
+			functionArgs:    []string{bridgingAddressesContractAddr, chainTokensContractAddr},
 		},
 		{
 			contractName:    "Claims",
 			contractAddress: contracts.Claims.String(),
-			functionName:    "setBridgingAddrsDependencyAndSync",
-			functionArgs:    []string{bridgingAddressesContractAddr},
+			functionName:    "setAdditionalDependenciesAndSync",
+			functionArgs:    []string{bridgingAddressesContractAddr, chainTokensContractAddr},
 		},
 	}
 
