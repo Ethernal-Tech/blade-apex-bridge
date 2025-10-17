@@ -529,7 +529,7 @@ func (ec *TestCardanoChain) GetBridgingFee(
 ) (uint64, error) {
 	return ec.txSender.GetBridgingFee(
 		ctx,
-		sendtx.BridgingTxInput{
+		sendtx.BridgingTxDto{
 			SrcChainID:      ec.ChainID(),
 			DstChainID:      dstChainID,
 			Receivers:       receivers,
@@ -599,7 +599,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 
 	txInfo, _, err := ec.txSender.CreateBridgingTx(
 		ctx,
-		sendtx.BridgingTxInput{
+		sendtx.BridgingTxDto{
 			SrcChainID:      srcChainID,
 			DstChainID:      dstChainID,
 			SenderAddr:      walletAddr.String(),
@@ -691,12 +691,14 @@ func (ec *TestCardanoChain) SendTx(
 
 	txInfo, err := ec.txSender.CreateTxGeneric(
 		ctx,
-		ec.ChainID(),
-		walletAddr.String(),
-		receiverAddr,
-		metadata,
-		amount.Uint64(),
-		nativeTokenAmounts,
+		sendtx.GenericTxDto{
+			SrcChainID:         ec.ChainID(),
+			SenderAddr:         walletAddr.String(),
+			ReceiverAddr:       receiverAddr,
+			Metadata:           metadata,
+			OutputLovelace:     amount.Uint64(),
+			OutputNativeTokens: nativeTokenAmounts,
+		},
 	)
 	if err != nil {
 		return "", err
