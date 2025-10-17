@@ -120,7 +120,11 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 					require.NoError(t, err)
 				}
 
-				utxos, err := txProvider.GetUtxos(ctx, addr)
+				utxos, err := infracommon.ExecuteWithRetry(
+					ctx, func(ctx context.Context) ([]cardanowallet.Utxo, error) {
+						return txProvider.GetUtxos(ctx, addr)
+					},
+				)
 				require.NoError(t, err)
 
 				balance := cardanowallet.GetUtxosSum(utxos)

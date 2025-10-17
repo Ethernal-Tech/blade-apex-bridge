@@ -25,6 +25,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
+	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/assert"
@@ -2201,6 +2202,9 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
 	sendAmount := vectorConfig.FundAmount - cardanofw.MinUTxODefaultValue*3
 
+	// adding indexer because there are many funding transactions
+	vectorConfig.UseIndexer = true
+
 	var (
 		initialUtxos []map[string]any
 		tipData      infrawallet.QueryTipData
@@ -2421,16 +2425,28 @@ func getInitialUtxosAndTip(
 	txProvider, err := chainInfo.GetTxProvider()
 	require.NoError(t, err)
 
-	multisigUtoxs, err := txProvider.GetUtxos(ctx, multisigAddr)
+	multisigUtxos, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]infrawallet.Utxo, error) {
+			return txProvider.GetUtxos(ctx, multisigAddr)
+		},
+	)
 	require.NoError(t, err)
 
-	feeUtxos, err := txProvider.GetUtxos(ctx, feeAddr)
+	feeUtxos, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]infrawallet.Utxo, error) {
+			return txProvider.GetUtxos(ctx, feeAddr)
+		},
+	)
 	require.NoError(t, err)
 
-	tipData, err := txProvider.GetTip(ctx)
+	tipData, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) (infrawallet.QueryTipData, error) {
+			return txProvider.GetTip(ctx)
+		},
+	)
 	require.NoError(t, err)
 
-	initialUtxos := make([]map[string]any, 0, len(multisigUtoxs)+len(feeUtxos))
+	initialUtxos := make([]map[string]any, 0, len(multisigUtxos)+len(feeUtxos))
 
 	utxoToMap := func(utxo infrawallet.Utxo, addr string) map[string]any {
 		bytes, _ := hex.DecodeString(utxo.Hash)
@@ -2444,7 +2460,7 @@ func getInitialUtxosAndTip(
 		}
 	}
 
-	for _, utxo := range multisigUtoxs {
+	for _, utxo := range multisigUtxos {
 		initialUtxos = append(initialUtxos, utxoToMap(utxo, multisigAddr))
 	}
 
