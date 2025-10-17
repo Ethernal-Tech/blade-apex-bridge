@@ -146,20 +146,20 @@ func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSm
 		{
 			contractName:    "Admin",
 			contractAddress: contracts.ApexBridgeAdmin.String(),
-			functionName:    "setBridgingAddrsDependency",
-			functionArgs:    []string{bridgingAddressesContractAddr},
+			functionName:    "setAdditionalDependenciesAndSync",
+			functionArgs:    []string{bridgingAddressesContractAddr, chainTokensContractAddr, "true"},
 		},
 		{
 			contractName:    "Bridge",
 			contractAddress: contracts.Bridge.String(),
 			functionName:    "setAdditionalDependenciesAndSync",
-			functionArgs:    []string{bridgingAddressesContractAddr, chainTokensContractAddr},
+			functionArgs:    []string{bridgingAddressesContractAddr, chainTokensContractAddr, "true"},
 		},
 		{
 			contractName:    "Claims",
 			contractAddress: contracts.Claims.String(),
 			functionName:    "setAdditionalDependenciesAndSync",
-			functionArgs:    []string{bridgingAddressesContractAddr, chainTokensContractAddr},
+			functionArgs:    []string{bridgingAddressesContractAddr, chainTokensContractAddr, "true"},
 		},
 	}
 
