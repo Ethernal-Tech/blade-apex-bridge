@@ -1809,6 +1809,9 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
 	sendAmount := vectorConfig.FundAmount - cardanofw.MinUTxODefaultValue*3
 
+	// adding indexer because there are many funding transactions
+	vectorConfig.UseIndexer = true
+
 	var (
 		initialUtxos []map[string]any
 		tipData      infrawallet.QueryTipData
@@ -1865,7 +1868,11 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 
 	require.Equal(t, uint64(0), getLastConfirmedBatchID(cardanofw.ChainIDVector))
 
-	utxos, err := txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr[0])
+	utxos, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]infrawallet.Utxo, error) {
+			return txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr[0])
+		},
+	)
 	require.NoError(t, err)
 
 	require.Len(t, utxos, vectorConfig.FundUTxOCount)
@@ -1876,7 +1883,11 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 
 	require.Equal(t, uint64(2), getLastConfirmedBatchID(cardanofw.ChainIDVector))
 
-	utxos, err = txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr[0])
+	utxos, err = infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]infrawallet.Utxo, error) {
+			return txProviderVector.GetUtxos(ctx, apex.VectorInfo.MultisigAddr[0])
+		},
+	)
 	require.NoError(t, err)
 
 	require.Len(t, utxos, 1)

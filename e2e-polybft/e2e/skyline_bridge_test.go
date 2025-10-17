@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/0xPolygon/polygon-edge/helper/hex"
+	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/assert"
@@ -1064,7 +1065,11 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 		require.NoError(t, err)
 	}
 
-	utxos, err := txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr[0])
+	utxos, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]wallet.Utxo, error) {
+			return txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr[0])
+		},
+	)
 	require.NoError(t, err)
 
 	require.Len(t, utxos, cardanoConfig.FundUTxOCount)
@@ -1079,7 +1084,11 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 		ctxChild, cncl := context.WithCancel(ctx)
 		defer cncl()
 
-		utxosCardano, err := txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr[0])
+		utxosCardano, err := infracommon.ExecuteWithRetry(
+			ctx, func(ctx context.Context) ([]wallet.Utxo, error) {
+				return txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr[0])
+			},
+		)
 		require.NoError(t, err)
 
 		utxosCardanoSum := wallet.GetUtxosSum(utxosCardano)
@@ -1143,7 +1152,11 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 		)
 
-		utxosCardano, err := txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr[0])
+		utxosCardano, err := infracommon.ExecuteWithRetry(
+			ctx, func(ctx context.Context) ([]wallet.Utxo, error) {
+				return txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr[0])
+			},
+		)
 		require.NoError(t, err)
 
 		utxosCardanoSum := wallet.GetUtxosSum(utxosCardano)
