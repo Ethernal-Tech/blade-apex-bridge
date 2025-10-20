@@ -10,6 +10,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
+	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/assert"
@@ -134,7 +135,11 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	utxos, err := txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr[0])
+	utxos, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]wallet.Utxo, error) {
+			return txProviderCardano.GetUtxos(ctx, apex.CardanoInfo.MultisigAddr[0])
+		},
+	)
 	require.NoError(t, err)
 
 	require.Len(t, utxos, cardanoConfig.FundUTxOCount)
@@ -240,7 +245,11 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 		fmt.Print("\nBEFORE: Prime chain")
 
 		for idx, addr := range apex.PrimeInfo.MultisigAddr {
-			multisigUtoxs, err := txProviderPrime.GetUtxos(ctx, addr)
+			multisigUtoxs, err := infracommon.ExecuteWithRetry(
+				ctx, func(ctx context.Context) ([]wallet.Utxo, error) {
+					return txProviderPrime.GetUtxos(ctx, addr)
+				},
+			)
 			require.NoError(t, err)
 
 			fmt.Printf("\n\tmultisig addr: %s[%d]: %v\n", addr, idx, multisigUtoxs)
@@ -249,7 +258,11 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 		fmt.Print("\nBEFORE: Cardano chain")
 
 		for idx, addr := range apex.CardanoInfo.MultisigAddr {
-			multisigUtoxs, err := txProviderCardano.GetUtxos(ctx, addr)
+			multisigUtoxs, err := infracommon.ExecuteWithRetry(
+				ctx, func(ctx context.Context) ([]wallet.Utxo, error) {
+					return txProviderCardano.GetUtxos(ctx, addr)
+				},
+			)
 			require.NoError(t, err)
 
 			fmt.Printf("\n\tmultisig addr: %s[%d]: %v\n", addr, idx, multisigUtoxs)

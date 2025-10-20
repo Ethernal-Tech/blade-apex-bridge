@@ -71,6 +71,7 @@ func SetupAndRunApexBridge(
 	// stop all chains and the bridge
 	t.Cleanup(func() {
 		assert.NoError(t, apexSystem.StopAll())
+		assert.NoError(t, apexSystem.CheckAndTerminateAPIProcess())
 	})
 
 	require.NoError(t, apexSystem.StartChains(t))
