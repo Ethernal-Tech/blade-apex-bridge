@@ -85,6 +85,10 @@ on: # yamllint disable-line rule:truthy
         description: E2E ApexBridge Big Tests
         type: string
         required: true
+      e2e_dynamic_validators_test:
+        description: E2E Dynamic Validators Tests
+        type: boolean
+        required: true
       e2e_apex_skip_redundant_tests:
         description: E2E ApexBridge Skip Redundant Tests
         type: string
@@ -125,6 +129,9 @@ on: # yamllint disable-line rule:truthy
       e2e_skyline_mba_test:
         description: E2E Skyline MBA Tests output
         value: ${{ jobs.e2e_skyline_mba_test.outputs.workflow_output }}
+      e2e_dynamic_validators_test:
+        description: E2E Dynamic Validators Tests output
+        value: ${{ jobs.e2e_dynamic_validators_test.outputs.workflow_output }}
     secrets:
       PERSONAL_ACCESS_TOKEN:
         required: true
@@ -381,5 +388,15 @@ jobs:
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
       e2e_apex_skip_redundant_tests: false
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_dynamic_validators_test:
+    name: E2E Dynamic Validators Tests
+    uses: ./.github/workflows/e2e-dynamic-validators-test.yml
+    needs: [inputs_check, build_blade]
+    if: inputs.e2e_dynamic_validators_test
+    with:
+      apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
