@@ -152,9 +152,19 @@ func ExecuteBridging(
 				}
 
 				lock.Lock()
+				oldValue := new(big.Int).Set(desiredAmounts[chainPair.dstChain])
+
 				// Subtract failed transaction amounts from the original desired amounts on the destination chain
 				desiredAmounts[chainPair.dstChain].Sub(originalDesiredAmounts[chainPair.dstChain], sum)
+
+				newValue := desiredAmounts[chainPair.dstChain]
+				isDifferent := oldValue.Cmp(newValue) != 0
+
 				lock.Unlock()
+
+				if isDifferent {
+					fmt.Printf("Desired amount for %s is %d (was %d)", chainPair.dstChain, newValue, oldValue)
+				}
 			}
 		}
 	}()
@@ -176,8 +186,6 @@ func ExecuteBridging(
 					defer lock.RUnlock()
 
 					receivedAmount := bigIntCache.Add(bigIntCache.Set(initialAmountDfm), desiredAmounts[dstChain])
-
-					fmt.Printf("TXs on %s for user %d expected amount to receive %s\n", dstChain, idx, receivedAmount)
 
 					return receivedAmount
 				}

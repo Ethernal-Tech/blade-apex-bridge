@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"testing"
@@ -160,6 +161,30 @@ func (a *ApexSystem) StopAll() error {
 	fmt.Printf("Chains has been stopped...%v\n", err)
 
 	return err
+}
+
+func (a *ApexSystem) CheckAndTerminateAPIProcess() error {
+	fmt.Printf("Checking if port %d is still in use...\n", a.Config.APIPortStart)
+
+	exists, err := isProcessOnPort(a.Config.APIPortStart)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		fmt.Printf("Process on port %d is still active. Terminating the process...\n", a.Config.APIPortStart)
+
+		command := fmt.Sprintf("lsof -i tcp:%d | grep LISTEN | awk '{print $2}' | xargs kill -9", a.Config.APIPortStart)
+		cmd := exec.Command("bash", "-c", command)
+
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+	}
+
+	fmt.Printf("Process on port %d is terminated successfully\n", a.Config.APIPortStart)
+
+	return nil
 }
 
 func (a *ApexSystem) StartChains(t *testing.T) error {
@@ -552,6 +577,11 @@ func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
 	receiverAddr string, dfmAmount *big.Int, data []byte,
 ) (string, error) {
+	const (
+		numRetries = 5
+		waitTime   = time.Second * 10
+	)
+
 	privateKey, err := sender.GetPrivateKey(sourceChain)
 	if err != nil {
 		return "", err
@@ -562,9 +592,22 @@ func (a *ApexSystem) SubmitTx(
 		return "", err
 	}
 
-	return chain.SendTx(
-		ctx, privateKey, receiverAddr,
-		DfmToChainNativeTokenAmount(sourceChain, dfmAmount), data)
+	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
+		txHash, err := chain.SendTx(
+			ctx, privateKey, receiverAddr,
+			DfmToChainNativeTokenAmount(sourceChain, dfmAmount), data)
+		if err != nil {
+			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
+				return "", infracommon.ErrRetryTryAgain
+			}
+
+			return "", err
+		}
+
+		return txHash, nil
+	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
+
+	return txHash, err
 }
 
 func (a *ApexSystem) SubmitBridgingRequest(
@@ -629,8 +672,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
 			ctx, destinationChain, privateKey, receiversMap, feeAmount)
 		if err != nil {
-			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") ||
-				strings.Contains(err.Error(), infracommon.ErrRetryTimeout.Error()) {
+			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
 				return "", infracommon.ErrRetryTryAgain
 			}
 

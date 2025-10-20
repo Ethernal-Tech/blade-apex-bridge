@@ -165,7 +165,11 @@ func createNativeTokenTx(
 		builder.SetMetaData(metadata)
 	}
 
-	allUtxos, err := txProvider.GetUtxos(ctx, senderAddr)
+	allUtxos, err := common.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]cardanowallet.Utxo, error) {
+			return txProvider.GetUtxos(ctx, senderAddr)
+		},
+	)
 	if err != nil {
 		return nil, "", err
 	}
@@ -198,6 +202,7 @@ func createNativeTokenTx(
 	builder.AddInputs(inputs.Inputs...)
 	builder.AddOutputs(receiverOutput, cardanowallet.TxOutput{
 		Addr:   senderAddr,
+		Amount: inputs.Sum[cardanowallet.AdaTokenName] - lovelaceAmount,
 		Tokens: senderTokens,
 	})
 
@@ -322,7 +327,11 @@ func createMintTx(
 		return nil, "", err
 	}
 
-	allUtxos, err := txProvider.GetUtxos(ctx, senderAddr)
+	allUtxos, err := common.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]cardanowallet.Utxo, error) {
+			return txProvider.GetUtxos(ctx, senderAddr)
+		},
+	)
 	if err != nil {
 		return nil, "", err
 	}
@@ -354,6 +363,7 @@ func createMintTx(
 	builder.AddInputs(inputs.Inputs...).AddTokenMints(tokenPolicyScripts, tokens)
 	builder.AddOutputs(txOutput, cardanowallet.TxOutput{
 		Addr:   walletAddr.String(),
+		Amount: inputs.Sum[cardanowallet.AdaTokenName] - lovelaceAmount,
 		Tokens: senderTokens,
 	})
 
