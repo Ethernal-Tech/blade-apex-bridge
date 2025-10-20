@@ -160,31 +160,69 @@ func ToCardanoPrivateKeyString(paymentKey, stakeKey []byte) string {
 	return fmt.Sprintf("%s_%s", paymentSK, hex.EncodeToString(stakeKey))
 }
 
-func FromCardanoPrivateKeyString(privateKey string) (paymentKey, stakeKey []byte, err error) {
-	var (
-		pKey = privateKey
-		sKey string
-	)
+func FromCardanoPrivateKeyString(
+	str string, networkID wallet.CardanoNetworkType, networkMagic uint,
+) (wallets []*wallet.Wallet, policyScript *wallet.PolicyScript, addr string, err error) {
+	if !strings.HasPrefix(str, "ps") {
+		parts := strings.Split(str, "_")
 
-	if strings.Contains(privateKey, "_") {
-		keys := strings.Split(privateKey, "_")
-		pKey = keys[0]
-		sKey = keys[1]
-	}
-
-	paymentKey, err = hex.DecodeString(pKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if len(sKey) > 0 {
-		stakeKey, err = hex.DecodeString(sKey)
+		paymentKey, err := hex.DecodeString(parts[0])
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, "", err
 		}
+
+		var stakeKey []byte
+
+		if len(parts) > 1 && len(parts[1]) > 0 {
+			stakeKey, err = hex.DecodeString(parts[0])
+			if err != nil {
+				return nil, nil, "", err
+			}
+		}
+
+		wallets = []*wallet.Wallet{wallet.NewWallet(paymentKey, stakeKey)}
+
+		walletAddress, err := GetAddress(networkID, wallets[0])
+		if err != nil {
+			return nil, nil, "", err
+		}
+
+		return wallets, nil, walletAddress.String(), nil
 	}
 
-	return paymentKey, stakeKey, err
+	parts := strings.Split(str[2:], "_")
+	if len(parts) < 2 {
+		return nil, nil, "", fmt.Errorf("invalid nuber of parts: %d", len(parts))
+	}
+
+	psBytes, err := hex.DecodeString(parts[0])
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	if err := json.Unmarshal(psBytes, &policyScript); err != nil {
+		return nil, nil, "", err
+	}
+
+	wallets = make([]*wallet.Wallet, len(parts)-1)
+
+	for i, keyHex := range parts[1:] {
+		paymentKey, err := hex.DecodeString(keyHex)
+		if err != nil {
+			return nil, nil, "", err
+		}
+
+		wallets[i] = wallet.NewWallet(paymentKey, nil)
+	}
+
+	cliUtils := wallet.NewCliUtils(ResolveCardanoCliBinary(networkID))
+
+	walletAddress, err := cliUtils.GetPolicyScriptEnterpriseAddress(networkMagic, policyScript)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	return wallets, policyScript, walletAddress, nil
 }
 
 func JSONRPCClient(jsonRPCAddr string) (*jsonrpc.EthClient, error) {

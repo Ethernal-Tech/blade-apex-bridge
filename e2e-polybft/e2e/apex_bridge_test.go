@@ -337,14 +337,14 @@ func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 	}
 }
 
-func TestE2E_ApexBridge_SingleBridging(t *testing.T) {
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
+func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
+	const privateKeysCount = 5
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDVector
+	sendAmountDfm := cardanofw.ApexToDfm(big.NewInt(1))
 	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
 	primeConfig.PremineAmount = 500_000_000
 	vectorConfig.PremineAmount = 500_000_000
@@ -358,11 +358,62 @@ func TestE2E_ApexBridge_SingleBridging(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	sendAmountDfm := cardanofw.ApexToDfm(big.NewInt(1))
+	wallets := make([]*infrawallet.Wallet, privateKeysCount)
+	keyHashes := make([]string, privateKeysCount)
 
-	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm,
-		sendtx.BridgingTypeNormal)
+	for i := range privateKeysCount {
+		var err error
+
+		wallets[i], err = infrawallet.GenerateWallet(true)
+		require.NoError(t, err)
+
+		keyHashes[i], err = infrawallet.GetKeyHash(wallets[i].VerificationKey)
+		require.NoError(t, err)
+	}
+
+	quorumCount := (len(keyHashes)*2)/3 + 1
+	policyScript := infrawallet.NewPolicyScript(keyHashes, quorumCount)
+
+	multisigAddr, err := infrawallet.NewCliUtils(cardanofw.ResolveCardanoCliBinary(primeConfig.NetworkType)).
+		GetPolicyScriptEnterpriseAddress(primeConfig.NetworkMagic, policyScript)
+	require.NoError(t, err)
+
+	// fund multsig addr
+	txHashFund, err := apex.SubmitTx(ctx, srcChain, apex.Users[0], multisigAddr, big.NewInt(10_000_000), nil, nil)
+	require.NoError(t, err)
+
+	fmt.Printf("multsig addr %s funded: %s\n", multisigAddr, txHashFund)
+
+	policyScriptBytes, err := policyScript.GetBytesJSON()
+	require.NoError(t, err)
+
+	var senderUserBuilder strings.Builder
+
+	senderUserBuilder.WriteString("ps")
+	senderUserBuilder.WriteString(hex.EncodeToString(policyScriptBytes))
+
+	for _, w := range wallets {
+		senderUserBuilder.WriteRune('_')
+		senderUserBuilder.WriteString(hex.EncodeToString(w.SigningKey))
+	}
+
+	balance, err := apex.GetBalance(ctx, apex.Users[0], dstChain)
+	require.NoError(t, err)
+
+	prevAmount := cardanofw.SetOrDefault(balance[infrawallet.AdaTokenName], big.NewInt(0))
+	expectedAmount := new(big.Int).Add(prevAmount, sendAmountDfm)
+
+	txHash, err := apex.GetChainMust(t, srcChain).BridgingRequest(
+		ctx, dstChain, senderUserBuilder.String(), map[string]*big.Int{
+			apex.Users[0].VectorAddress.String(): sendAmountDfm,
+		}, big.NewInt(1_000_010), 0, sendtx.BridgingTypeNormal)
+	require.NoError(t, err)
+
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+	err = apex.WaitForExactAmount(
+		ctx, apex.Users[0], dstChain, srcChain, expectedAmount, 48, time.Second*10, false)
+	require.NoError(t, err)
 }
 
 func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
@@ -2386,22 +2437,4 @@ func checkConsolidationBatchCounts(
 
 		return res
 	}, lastBatchIDs
-}
-
-func waitForTestResult(t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser, txHash string,
-	beforeSendingAmountDfm *big.Int, sentAmount uint64, refundEnabled bool,
-) {
-	t.Helper()
-
-	if refundEnabled {
-		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sentAmount))
-
-		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
-
-		err := apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, lowerBoundaryDfm, beforeSendingAmountDfm,
-			50, time.Second*30)
-		require.NoError(t, err)
-	} else {
-		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apex.Config.APIKey, 0)
-	}
 }

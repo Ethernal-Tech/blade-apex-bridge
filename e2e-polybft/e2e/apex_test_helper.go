@@ -257,7 +257,7 @@ func executeInvalidDestination(
 
 func executeInvalidMetadataInvalidSender(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, addrIndex uint8,
+	maxWaitTimeSec, _ uint, bridgingType sendtx.BridgingType, addrIndex uint8,
 ) {
 	t.Helper()
 
