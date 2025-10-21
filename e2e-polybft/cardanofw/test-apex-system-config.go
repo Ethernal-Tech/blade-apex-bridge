@@ -141,6 +141,8 @@ func WithBridgingAddrCnt(chainID ChainID, addressCnt int) ApexSystemOptions {
 		switch chainID {
 		case ChainIDPrime:
 			h.PrimeConfig.BridgingAddressCnt = addressCnt
+
+			break
 		case ChainIDCardano:
 			h.CardanoConfig.BridgingAddressCnt = addressCnt
 		}
