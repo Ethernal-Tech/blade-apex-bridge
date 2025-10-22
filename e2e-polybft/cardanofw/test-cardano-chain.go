@@ -84,9 +84,9 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 	}
 }
 
-func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
+func NewVectorChainConfig() *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:                   isEnabled,
+		IsEnabled:                   true,
 		ID:                          1,
 		NetworkType:                 infrawallet.TestNetNetwork,
 		NetworkMagic:                infrawallet.VectorTestNetProtocolMagic,

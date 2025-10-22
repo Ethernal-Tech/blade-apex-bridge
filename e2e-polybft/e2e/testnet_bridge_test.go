@@ -395,7 +395,7 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 
 		t.Run("5. Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
 			executeInvalidMetadataInvalidSender(
-				t, ctx, apex, primeTestConfig, apex.Users[4], requestStateTimeoutSec, retryDelaySec, bridgingType, 0)
+				t, ctx, apex, primeTestConfig, apex.Users[4], requestStateTimeoutSec, bridgingType, 0)
 		})
 
 		t.Run("6. Prime to Vector submitted invalid metadata - empty receivers", func(t *testing.T) {

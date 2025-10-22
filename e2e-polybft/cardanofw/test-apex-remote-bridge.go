@@ -109,6 +109,9 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 				},
 			},
 		},
+		// VectorInfo: CardanoChainInfo{
+
+		// },
 		CardanoInfo: CardanoChainInfo{
 			NetworkAddress: "preview-node.onprem.ethernal.work:5561",
 			OgmiosURL:      "https://preview-ogmios.onprem.ethernal.work",
@@ -270,6 +273,7 @@ func SetupSkylineRemoteBridge(
 
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig:   NewRemotePrimeChainConfig(defaultMinBridgingFeeAmount, 0),
+		VectorConfig:  NewRemotePrimeChainConfig(defaultMinBridgingFeeAmount, 0),
 		CardanoConfig: NewRemoteCardanoChainConfig(true, defaultMinBridgingFeeAmount, 0),
 		APIKey:        remoteConfig.BridgingAPIKey,
 	}
@@ -288,6 +292,16 @@ func SetupSkylineRemoteBridge(
 		indexer:          e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 
+	vectorChain := &TestCardanoChain{
+		config:           apexConfig.VectorConfig,
+		multisigAddr:     remoteConfig.VectorInfo.MultisigAddr,
+		multisigFeeAddr:  remoteConfig.VectorInfo.FeeAddr,
+		ogmiosURL:        remoteConfig.VectorInfo.OgmiosURL,
+		blockfrostURL:    remoteConfig.VectorInfo.BlockfrostURL,
+		blockfrostAPIKey: remoteConfig.VectorInfo.BlockfrostAPIKey,
+		indexer:          e2eindexer.NewTxsExecutedComponentDummy(),
+	}
+
 	cardanoChain := &TestCardanoChain{
 		config:           apexConfig.CardanoConfig,
 		multisigAddr:     remoteConfig.CardanoInfo.MultisigAddr,
@@ -299,7 +313,7 @@ func SetupSkylineRemoteBridge(
 	}
 
 	usersData, err := GetTestnetApexUsers(
-		NewApexNetworkTypes(apexConfig.PrimeConfig, nil, apexConfig.CardanoConfig, nil))
+		NewApexNetworkTypes(apexConfig.PrimeConfig, apexConfig.VectorConfig, apexConfig.CardanoConfig, nil))
 	if err != nil {
 		return nil, err
 	}
@@ -309,9 +323,10 @@ func SetupSkylineRemoteBridge(
 		FunderUser:   usersData.Funder,
 		Users:        usersData.Users,
 		IsSkyline:    true,
-		chains:       []ITestApexChain{primeChain, cardanoChain},
+		chains:       []ITestApexChain{primeChain, vectorChain, cardanoChain},
 		bridgingAPIs: remoteConfig.BridgingAPIs,
 		PrimeInfo:    remoteConfig.PrimeInfo,
+		VectorInfo:   remoteConfig.VectorInfo,
 		CardanoInfo:  remoteConfig.CardanoInfo,
 	}
 

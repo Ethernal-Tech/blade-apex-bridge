@@ -30,7 +30,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig()
 	primeConfig.PremineAmount = 100_700_000_000
 	vectorConfig.PremineAmount = 500_000_000
 
@@ -120,7 +120,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 	t.Run("7. Submitted invalid metadata - invalid sender", func(t *testing.T) {
 		executeInvalidMetadataInvalidSender(
-			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType, 0)
+			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, bridgingType, 0)
 	})
 
 	t.Run("8. Submitted invalid metadata - empty receivers", func(t *testing.T) {
@@ -186,7 +186,7 @@ func TestE2E_ApexRefund_BatchRecreated(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig()
 	primeConfig.FundAmount = 500_000_000
 	vectorConfig.FundAmount = 500_000_000
 	primeConfig.TTLInc, primeConfig.SlotRoundingThreshold = 250, 50
@@ -239,7 +239,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig()
 	primeConfig.PremineAmount = 100_700_000_000
 	vectorConfig.PremineAmount = 500_000_000
 	primeConfig.UseIndexer = true
@@ -287,7 +287,9 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
 		map[string][]string{
 			cardanofw.ChainIDPrime: {cardanofw.ChainIDVector},
 		},
-		sendtx.BridgingTypeNormal,
+		map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+			e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): sendtx.BridgingTypeNormal,
+		},
 		new(big.Int).SetUint64(sendAmount2))
 
 	err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, lowerBoundaryDfm,
@@ -304,7 +306,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxBatchTryCount(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig()
 	primeConfig.PremineAmount = 100_700_000_000
 	vectorConfig.PremineAmount = 500_000_000
 	vectorConfig.TTLInc, vectorConfig.SlotRoundingThreshold = 1, 30
@@ -358,7 +360,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxRefundTryCount(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig()
 	primeConfig.PremineAmount = 100_700_000_000
 	vectorConfig.PremineAmount = 500_000_000
 	primeConfig.TTLInc, primeConfig.SlotRoundingThreshold = 1, 20
@@ -450,7 +452,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 	defer cncl()
 
 	// setup bridge environment
-	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig()
 	primeConfig.PremineAmount = 100_700_000_000
 	vectorConfig.PremineAmount = 500_000_000
 	primeConfig.UseIndexer = true
@@ -502,7 +504,10 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 				cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
 				cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
 			},
-			sendtx.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): sendtx.BridgingTypeNormal,
+				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDPrime): sendtx.BridgingTypeNormal,
+			},
 			new(big.Int).SetUint64(sendAmount))
 	}()
 

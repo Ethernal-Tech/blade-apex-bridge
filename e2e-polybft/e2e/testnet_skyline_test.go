@@ -198,23 +198,21 @@ func Test_E2E_SkylineSanityCheck(t *testing.T) {
 	user := apex.Users[0]
 	sendAmount := cardanofw.ApexToDfm(big.NewInt(1))
 	bridgingRequests := []struct {
-		src  string
-		dest string
+		src          string
+		dest         string
+		bridgingType sendtx.BridgingType
 	}{
-		{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano},
-		{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime},
+		{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, bridgingType: sendtx.BridgingTypeCurrencyOnSource},
+		{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, bridgingType: sendtx.BridgingTypeNativeTokenOnSource},
+		{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDCardano, bridgingType: sendtx.BridgingTypeNativeTokenOnSource},
+		{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDVector, bridgingType: sendtx.BridgingTypeCurrencyOnSource},
 	}
 
 	for _, dir := range bridgingRequests {
-		fmt.Printf("bridging from %s to %s native token on source\n", dir.src, dir.dest)
+		fmt.Printf("bridging from %s to %s, %s\n", dir.src, dir.dest, dir.bridgingType.String())
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, sendtx.BridgingTypeNativeTokenOnSource, bridgingOpts...)
-
-		fmt.Printf("bridging from %s to %s currency on source\n", dir.src, dir.dest)
-
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, sendtx.BridgingTypeCurrencyOnSource, bridgingOpts...)
+			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, dir.bridgingType, bridgingOpts...)
 	}
 }
 
@@ -236,7 +234,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 			sendAmountDfm, sendtx.BridgingTypeCurrencyOnSource)
 	})
 
-	t.Run("Cardano -> Prime - native on src", func(t *testing.T) {
+	t.Run("Cardano -> Prime - native token on src", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
 			sendAmountDfm, sendtx.BridgingTypeNativeTokenOnSource)
@@ -249,17 +247,17 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 			sendAmountDfm, sendtx.BridgingTypeCurrencyOnSource, bridgingOpts...)
 	})
 
-	t.Run("Prime -> Cardano sequential native token on source", func(t *testing.T) {
+	t.Run("Vector -> Cardano sequential native token on source", func(t *testing.T) {
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
 			t, ctx, apex, numOfInstanceForSequentialTests, user,
-			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+			cardanofw.ChainIDVector, cardanofw.ChainIDCardano,
 			sendAmountDfm, sendtx.BridgingTypeNativeTokenOnSource, bridgingOpts...)
 	})
 
-	t.Run("Cardano -> Prime sequential currency on source", func(t *testing.T) {
+	t.Run("Cardano -> Vector sequential currency on source", func(t *testing.T) {
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
 			t, ctx, apex, numOfInstanceForSequentialTests, user,
-			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
+			cardanofw.ChainIDCardano, cardanofw.ChainIDVector,
 			sendAmountDfm, sendtx.BridgingTypeCurrencyOnSource, bridgingOpts...)
 	})
 
@@ -270,7 +268,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 			sendAmountDfm, sendtx.BridgingTypeNativeTokenOnSource, bridgingOpts...)
 	})
 
-	executeBothDirectionsMulReceiversTest := func(t *testing.T, txType sendtx.BridgingType) {
+	executeAllDirectionsMulReceiversTest := func(t *testing.T, chainsDst map[string][]string, txTypes map[e2ehelper.SrcDstChainPair]sendtx.BridgingType) {
 		t.Helper()
 
 		const (
@@ -286,19 +284,28 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 		e2ehelper.ExecuteBridging(
 			t, ctx, apex, sequentialInstances, senders, receivers,
 			[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDCardano},
-			map[string][]string{
-				cardanofw.ChainIDPrime:   {cardanofw.ChainIDCardano},
-				cardanofw.ChainIDCardano: {cardanofw.ChainIDPrime},
-			},
-			txType, sendAmountDfm, options...)
+			chainsDst,
+			txTypes,
+			sendAmountDfm, options...)
 	}
 
 	t.Run("Both directions sequential and parallel multiple receivers currency on source", func(t *testing.T) {
-		executeBothDirectionsMulReceiversTest(t, sendtx.BridgingTypeCurrencyOnSource)
+		executeAllDirectionsMulReceiversTest(t, map[string][]string{
+			cardanofw.ChainIDPrime:   {cardanofw.ChainIDCardano},
+			cardanofw.ChainIDCardano: {cardanofw.ChainIDVector},
+		}, map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+			e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano):  sendtx.BridgingTypeCurrencyOnSource,
+			e2ehelper.NewChainPair(cardanofw.ChainIDCardano, cardanofw.ChainIDVector): sendtx.BridgingTypeCurrencyOnSource,
+		})
 	})
 
 	t.Run("Both directions sequential and parallel multiple receivers native token on source", func(t *testing.T) {
-		executeBothDirectionsMulReceiversTest(t, sendtx.BridgingTypeNativeTokenOnSource)
+		executeAllDirectionsMulReceiversTest(t, map[string][]string{
+			cardanofw.ChainIDCardano: {cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
+		}, map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+			e2ehelper.NewChainPair(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime):  sendtx.BridgingTypeNativeTokenOnSource,
+			e2ehelper.NewChainPair(cardanofw.ChainIDCardano, cardanofw.ChainIDVector): sendtx.BridgingTypeCurrencyOnSource,
+		})
 	})
 }
 
@@ -316,66 +323,67 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 		operationFee           = uint64(0)
 	)
 
-	srcChainID, dstChainID := cardanofw.ChainIDPrime, cardanofw.ChainIDCardano
-	srcTokenName := apex.GetTokenNameForChains(srcChainID, dstChainID)
+	vectorCardanoTokenName := apex.GetTokenNameForChains(cardanofw.ChainIDVector, cardanofw.ChainIDCardano)
 
-	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, dstChainID, bridgingFee, operationFee, srcTokenName)
+	primeCardanoTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee, operationFee, "")
+	cardanoVectorTestConfig := newTestConfig(t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDVector, bridgingFee, operationFee, "")
+	vectorCardanoTestConfig := newTestConfig(t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, bridgingFee, operationFee, vectorCardanoTokenName)
 	bridgingType := sendtx.BridgingTypeCurrencyOnSource
 
 	t.Run("1. Mismatch submitted and receiver amounts", func(t *testing.T) {
 		executeInvalidMismatchSendLovelaceAmount(
-			t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
+			t, ctx, apex, primeCardanoTestConfig, apex.Users[0], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("2. Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
 		executeInvalidBridgingFee(
-			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
+			t, ctx, apex, primeCardanoTestConfig, requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("3. Submitted invalid metadata - empty receivers", func(t *testing.T) {
 		executeInvalidEmptyReceivers(
-			t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
+			t, ctx, apex, primeCardanoTestConfig, apex.Users[2], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("4. Submitted invalid metadata - wrong type", func(t *testing.T) {
 		executeInvalidMetadataType(
-			t, ctx, apex, primeTestConfig, apex.Users[1], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
+			t, ctx, apex, primeCardanoTestConfig, apex.Users[1], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("5. Submitted invalid metadata - invalid destination", func(t *testing.T) {
 		executeInvalidDestination(
-			t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
+			t, ctx, apex, cardanoVectorTestConfig, apex.Users[3], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("6. Submitted invalid metadata - invalid sender", func(t *testing.T) {
 		executeInvalidMetadataInvalidSender(
-			t, ctx, apex, primeTestConfig, apex.Users[1], requestStateTimeoutSec, retryIntervalSec, bridgingType, 0)
+			t, ctx, apex, cardanoVectorTestConfig, apex.Users[1], requestStateTimeoutSec, bridgingType, 0)
 	})
 
 	t.Run("7. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
 		executeInvalidFeeReceiverAddr(
-			t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
+			t, ctx, apex, cardanoVectorTestConfig, requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("8. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
 		user := apex.Users[len(apex.Users)-1]
 
-		minterWallet, _ := user.GetCardanoWallet(srcChainID)
+		minterWallet, _ := user.GetCardanoWallet(cardanofw.ChainIDPrime)
 
 		tokensFunded, err := cardanofw.FundUserWithToken(
-			ctx, apex, srcChainID,
+			ctx, apex, cardanofw.ChainIDPrime,
 			minterWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendNativeToken(t, ctx, apex, user, primeTestConfig, *tokensFunded, requestStateTimeoutSec, retryIntervalSec, true, 0)
+		executeInvalidSendNativeToken(t, ctx, apex, user, primeCardanoTestConfig, *tokensFunded, requestStateTimeoutSec, retryIntervalSec, true, 0)
 	})
 
 	t.Run("9. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
 		user := apex.Users[len(apex.Users)-1]
 
-		token, err := cardanowallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(srcChainID, dstChainID))
+		token, err := cardanowallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(cardanofw.ChainIDVector, cardanofw.ChainIDCardano))
 		require.NoError(t, err)
 
 		tokenAmount := &cardanowallet.TokenAmount{
@@ -384,7 +392,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 		}
 
 		executeInvalidMismatchSendNativeTokenAmount(
-			t, ctx, apex, user, primeTestConfig, *tokenAmount, requestStateTimeoutSec, retryIntervalSec, true, 0)
+			t, ctx, apex, user, vectorCardanoTestConfig, *tokenAmount, requestStateTimeoutSec, retryIntervalSec, true, 0)
 	})
 }
 

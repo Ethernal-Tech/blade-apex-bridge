@@ -144,6 +144,7 @@ func NewSkylineSystem(
 	}
 
 	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee
+	config.VectorConfig.MinOperationFee = DefaultMinOperationFee
 
 	users := make([]*TestApexUser, config.UserCnt)
 
@@ -163,6 +164,7 @@ func NewSkylineSystem(
 		dataDirPath: dataDirPath,
 		chains: []ITestApexChain{
 			NewTestCardanoChain(config.PrimeConfig),
+			NewTestCardanoChain(config.VectorConfig),
 			NewTestCardanoChain(config.CardanoConfig),
 		},
 		IsSkyline: true,
@@ -337,11 +339,12 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 
 	if a.IsSkyline {
 		require.NotNil(t, a.PrimeInfo.GenesisWallet)
+		require.NotNil(t, a.VectorInfo.GenesisWallet)
 		require.NotNil(t, a.CardanoInfo.GenesisWallet)
 
-		tokenPrime, _, err := GetTokenAndPolicyForVerificationKey(
-			a.Config.PrimeConfig.ChainType, a.Config.PrimeConfig.NetworkType,
-			a.PrimeInfo.GenesisWallet.VerificationKey, DefaultTokenName)
+		tokenVector, _, err := GetTokenAndPolicyForVerificationKey(
+			a.Config.VectorConfig.ChainType, a.Config.VectorConfig.NetworkType,
+			a.VectorInfo.GenesisWallet.VerificationKey, DefaultTokenName)
 		require.NoError(t, err)
 
 		tokenCardano, _, err := GetTokenAndPolicyForVerificationKey(
@@ -349,10 +352,11 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			a.CardanoInfo.GenesisWallet.VerificationKey, DefaultTokenName)
 		require.NoError(t, err)
 
-		a.PrimeInfo.NativeTokens = []sendtx.TokenExchangeConfig{
+		a.PrimeInfo.NativeTokens = nil
+		a.VectorInfo.NativeTokens = []sendtx.TokenExchangeConfig{
 			{
 				DstChainID: ChainIDCardano,
-				TokenName:  tokenPrime.String(),
+				TokenName:  tokenVector.String(),
 			},
 		}
 		a.CardanoInfo.NativeTokens = []sendtx.TokenExchangeConfig{
@@ -378,7 +382,6 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinUtxoValue:          MinUTxODefaultValue,
 			MinBridgingFeeAmount:  a.Config.PrimeConfig.MinBridgingFee,
 			MinOperationFeeAmount: a.Config.PrimeConfig.MinOperationFee,
-			NativeTokens:          a.PrimeInfo.NativeTokens,
 			PotentialFee:          PotentialFee,
 		},
 	}
@@ -392,6 +395,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinUtxoValue:          MinUTxODefaultValue,
 			MinBridgingFeeAmount:  a.Config.VectorConfig.MinBridgingFee,
 			MinOperationFeeAmount: a.Config.VectorConfig.MinOperationFee,
+			NativeTokens:          a.VectorInfo.NativeTokens,
 			PotentialFee:          PotentialFee,
 		}
 	}
@@ -534,11 +538,11 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 		}
 
 		cardanoPrimeTokenName := a.CardanoInfo.NativeTokens[0].TokenName
-		primeCardanoTokenName := a.PrimeInfo.NativeTokens[0].TokenName
+		vectorCardanoTokenName := a.VectorInfo.NativeTokens[0].TokenName
 
 		err := validator.GenerateSkylineConfigs(
 			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i),
-			cardanoPrimeTokenName, primeCardanoTokenName, args...)
+			cardanoPrimeTokenName, vectorCardanoTokenName, args...)
 		if err != nil {
 			return err
 		}
@@ -869,10 +873,10 @@ func (a *ApexSystem) GetBridgingAddressesTokenAmounts(
 	switch sourceChain {
 	case ChainIDPrime:
 		bridingAddresses = a.PrimeInfo.MultisigAddr
-	case ChainIDCardano:
-		bridingAddresses = a.CardanoInfo.MultisigAddr
 	case ChainIDVector:
 		bridingAddresses = a.VectorInfo.MultisigAddr
+	case ChainIDCardano:
+		bridingAddresses = a.CardanoInfo.MultisigAddr
 	}
 
 	txProvider, err := a.getChain(sourceChain)
@@ -1056,7 +1060,9 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	require.True(t,
 		(sourceChain != ChainIDCardano && destinationChain != ChainIDCardano) ||
 			(sourceChain == ChainIDCardano && destinationChain == ChainIDPrime) ||
-			(sourceChain == ChainIDPrime && destinationChain == ChainIDCardano))
+			(sourceChain == ChainIDPrime && destinationChain == ChainIDCardano) ||
+			(sourceChain == ChainIDCardano && destinationChain == ChainIDVector) ||
+			(sourceChain == ChainIDVector && destinationChain == ChainIDCardano))
 
 	// check if number of receivers is valid
 	require.Greater(t, len(receivers), 0)
@@ -1129,6 +1135,8 @@ func (a *ApexSystem) UpdateBridgingAddressCounts(ctx context.Context) error {
 			switch chainID {
 			case ChainIDPrime:
 				addrCount = a.Config.PrimeConfig.BridgingAddressCnt
+			case ChainIDVector:
+				addrCount = a.Config.VectorConfig.BridgingAddressCnt
 			case ChainIDCardano:
 				addrCount = a.Config.CardanoConfig.BridgingAddressCnt
 			}

@@ -148,7 +148,7 @@ func (cv *TestApexValidator) GenerateSkylineConfigs(
 	apiKey string,
 	telemetryConfig string,
 	cardanoPrimeTokenName string,
-	primeCardanoTokenName string,
+	vectorCardanoTokenName string,
 	args ...string,
 ) error {
 	cv.APIPort = apiPort
@@ -170,10 +170,11 @@ func (cv *TestApexValidator) GenerateSkylineConfigs(
 		"--api-keys", apiKey,
 		"--telemetry", telemetryConfig,
 		"--relayer-data-dir", cv.server.DataDir(),
-		"--prime-cardano-token-name", primeCardanoTokenName,
 		"--cardano-prime-token-name", cardanoPrimeTokenName,
+		"--vector-cardano-token-name", vectorCardanoTokenName,
 		"--cardano-utxo-min-amount", strconv.FormatUint(MinUTxODefaultValue, 10),
 		"--prime-utxo-min-amount", strconv.FormatUint(MinUTxODefaultValue, 10),
+		"--vector-utxo-min-amount", strconv.FormatUint(MinUTxODefaultValue, 10),
 	}, args...)
 
 	if err := RunCommand(ResolveApexBridgeBinary(), args, os.Stdout); err != nil {

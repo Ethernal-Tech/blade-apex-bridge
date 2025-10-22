@@ -141,8 +141,8 @@ func WithBridgingAddrCnt(chainID ChainID, addressCnt int) ApexSystemOptions {
 		switch chainID {
 		case ChainIDPrime:
 			h.PrimeConfig.BridgingAddressCnt = addressCnt
-
-			break
+		case ChainIDVector:
+			h.VectorConfig.BridgingAddressCnt = addressCnt
 		case ChainIDCardano:
 			h.CardanoConfig.BridgingAddressCnt = addressCnt
 		}
@@ -158,7 +158,7 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 		BladeValidatorCount: 4,
 
 		PrimeConfig:   NewPrimeChainConfig(),
-		VectorConfig:  NewVectorChainConfig(true),
+		VectorConfig:  NewVectorChainConfig(),
 		CardanoConfig: NewCardanoChainConfig(false),
 		NexusConfig:   NewNexusChainConfig(false),
 
@@ -175,7 +175,7 @@ func getDefaultSkylinexSystemConfig() *ApexSystemConfig {
 		BladeValidatorCount: 4,
 
 		PrimeConfig:   NewPrimeChainConfig(),
-		VectorConfig:  NewVectorChainConfig(false),
+		VectorConfig:  NewVectorChainConfig(),
 		CardanoConfig: NewCardanoChainConfig(true),
 		NexusConfig:   NewNexusChainConfig(false),
 

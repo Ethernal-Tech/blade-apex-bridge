@@ -184,7 +184,9 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				srcChain: {cardanofw.ChainIDVector},
 			},
-			sendtx.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+				e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDVector): sendtx.BridgingTypeNormal,
+			},
 			sendAmountDfm)
 	})
 
@@ -202,7 +204,9 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				srcChain: {cardanofw.ChainIDPrime},
 			},
-			sendtx.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+				e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDPrime): sendtx.BridgingTypeNormal,
+			},
 			sendAmountDfm)
 	})
 
@@ -232,7 +236,9 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				srcChain: {cardanofw.ChainIDPrime},
 			},
-			sendtx.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+				e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDPrime): sendtx.BridgingTypeNormal,
+			},
 			sendAmountDfm,
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
@@ -348,7 +354,7 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 	primeConfig := cardanofw.NewPrimeChainConfig()
 	primeConfig.UseIndexer = true
 
-	vectorConfig := cardanofw.NewVectorChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig()
 	vectorConfig.UseIndexer = true
 
 	apex := cardanofw.SetupAndRunReactorBridge(
@@ -417,7 +423,9 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 			},
-			sendtx.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus): sendtx.BridgingTypeNormal,
+			},
 			sendAmountDfm)
 	})
 
@@ -444,7 +452,9 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDVector: {cardanofw.ChainIDNexus},
 			},
-			sendtx.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDNexus): sendtx.BridgingTypeNormal,
+			},
 			sendAmountDfm)
 	})
 
@@ -491,7 +501,9 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDVector: {cardanofw.ChainIDNexus},
 			},
-			sendtx.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDNexus): sendtx.BridgingTypeNormal,
+			},
 			sendAmountDfm,
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
@@ -520,7 +532,12 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDNexus:  {cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
 				cardanofw.ChainIDVector: {cardanofw.ChainIDNexus},
 			},
-			sendtx.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus):  sendtx.BridgingTypeNormal,
+				e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime):  sendtx.BridgingTypeNormal,
+				e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDVector): sendtx.BridgingTypeNormal,
+				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDNexus): sendtx.BridgingTypeNormal,
+			},
 			sendAmountDfm)
 	})
 
@@ -564,7 +581,10 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 				cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 			},
-			sendtx.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus): sendtx.BridgingTypeNormal,
+				e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime): sendtx.BridgingTypeNormal,
+			},
 			sendAmountDfm,
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
@@ -596,7 +616,10 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDVector: {cardanofw.ChainIDNexus},
 				cardanofw.ChainIDNexus:  {cardanofw.ChainIDVector},
 			},
-			sendtx.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDNexus): sendtx.BridgingTypeNormal,
+				e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDVector): sendtx.BridgingTypeNormal,
+			},
 			sendAmountDfm,
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
@@ -624,7 +647,7 @@ func TestE2E_ApexBridgeWithNexus_DstN_InvalidScenarios(t *testing.T) {
 	primeConfig := cardanofw.NewPrimeChainConfig()
 	primeConfig.PremineAmount = premineAmount
 
-	vectorConfig := cardanofw.NewVectorChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig()
 	vectorConfig.PremineAmount = premineAmount
 
 	apex := cardanofw.SetupAndRunReactorBridge(
@@ -1142,7 +1165,7 @@ func TestE2E_ApexBridgeWithNexus_NexusFundAmount(t *testing.T) {
 	primeConfig := cardanofw.NewPrimeChainConfig()
 	primeConfig.FundAmount = 1_000_000
 
-	vectorConfig := cardanofw.NewVectorChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig()
 	vectorConfig.FundAmount = 1_000_000
 
 	nexusConfig := cardanofw.NewNexusChainConfig(true)
@@ -1309,7 +1332,9 @@ func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
 		map[string][]string{
 			cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 		},
-		sendtx.BridgingTypeNormal,
+		map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+			e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus): sendtx.BridgingTypeNormal,
+		},
 		sendAmountDfm)
 }
 
@@ -1331,7 +1356,9 @@ func SrcNexusSequentialAndParallelWithMaxReceivers(
 		map[string][]string{
 			cardanofw.ChainIDNexus: {dstChain},
 		},
-		sendtx.BridgingTypeNormal,
+		map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+			e2ehelper.NewChainPair(cardanofw.ChainIDNexus, dstChain): sendtx.BridgingTypeNormal,
+		},
 		sendAmountDfm,
 		options...)
 }
@@ -1380,7 +1407,9 @@ func DstNexusSequentialAndParallelWithMaxReceivers(
 		map[string][]string{
 			srcChain: {cardanofw.ChainIDNexus},
 		},
-		sendtx.BridgingTypeNormal,
+		map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+			e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDNexus): sendtx.BridgingTypeNormal,
+		},
 		sendAmountDfm,
 		options...)
 }
@@ -1403,7 +1432,10 @@ func DstNexusBothDirectionsSequentialAndParallel(
 			srcChain:               {cardanofw.ChainIDNexus},
 			cardanofw.ChainIDNexus: {srcChain},
 		},
-		sendtx.BridgingTypeNormal,
+		map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+			e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDNexus): sendtx.BridgingTypeNormal,
+			e2ehelper.NewChainPair(cardanofw.ChainIDNexus, srcChain): sendtx.BridgingTypeNormal,
+		},
 		sendAmountDfm,
 		options...)
 }
@@ -1721,6 +1753,8 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 		map[string][]string{
 			cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 		},
-		sendtx.BridgingTypeNormal,
+		map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
+			e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime): sendtx.BridgingTypeNormal,
+		},
 		sendAmountDfm)
 }
