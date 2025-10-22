@@ -174,7 +174,7 @@ func FromCardanoPrivateKeyString(
 		var stakeKey []byte
 
 		if len(parts) > 1 && len(parts[1]) > 0 {
-			stakeKey, err = hex.DecodeString(parts[0])
+			stakeKey, err = hex.DecodeString(parts[1])
 			if err != nil {
 				return nil, nil, "", err
 			}
