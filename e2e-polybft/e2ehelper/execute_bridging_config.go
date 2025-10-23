@@ -18,6 +18,7 @@ type SubmittedTxData struct {
 	SrcChainID, DstChainID cardanofw.ChainID
 	TxHash                 string
 	SendAmountDfm          *big.Int
+	BridgingTxType         sendtx.BridgingType
 }
 
 type TimeoutConfig struct {
@@ -88,7 +89,7 @@ type RestartValidatorsConfig struct {
 type SendTxStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-	bridgingType sendtx.BridgingType) []*SubmittedTxData
+	bridgingTypes map[SrcDstChainPair]sendtx.BridgingType) []*SubmittedTxData
 
 type RestartValidatorStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig)
@@ -153,7 +154,7 @@ var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-		bridgingType sendtx.BridgingType) []*SubmittedTxData {
+		bridgingTypes map[SrcDstChainPair]sendtx.BridgingType) []*SubmittedTxData {
 		t.Helper()
 
 		var (
@@ -173,17 +174,18 @@ var (
 						for _, dstChain := range dstChains {
 							txHash := apex.SubmitBridgingRequest(
 								t, ctx, srcChain, dstChain, senderUser, sendAmountDfm,
-								bridgingType, receivers...)
+								bridgingTypes[NewChainPair(srcChain, dstChain)], receivers...)
 
 							fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
 								idx+1, j+1, srcChain, dstChain, txHash)
 
 							mu.Lock()
 							submittedTxData = append(submittedTxData, &SubmittedTxData{
-								SrcChainID:    srcChain,
-								DstChainID:    dstChain,
-								TxHash:        txHash,
-								SendAmountDfm: sendAmountDfm,
+								SrcChainID:     srcChain,
+								DstChainID:     dstChain,
+								TxHash:         txHash,
+								SendAmountDfm:  sendAmountDfm,
+								BridgingTxType: bridgingTypes[NewChainPair(srcChain, dstChain)],
 							})
 							mu.Unlock()
 						}

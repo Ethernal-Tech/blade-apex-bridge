@@ -257,7 +257,7 @@ func executeInvalidDestination(
 
 func executeInvalidMetadataInvalidSender(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, addrIndex uint8,
+	maxWaitTimeSec uint, bridgingType sendtx.BridgingType, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -320,6 +320,31 @@ func executeInvalidEmptyReceivers(
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
 		bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
+}
+
+func executeInvalidTokenDirection(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool, addrIndex uint8,
+) {
+	t.Helper()
+
+	receivers := createReceivers(apex, 1, config.dstChainID, defaultLovelaceAmount, bridgingType)
+
+	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee,
+		config.operationFee, user, receivers, bridgingType)
+
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
+	require.NoError(t, err)
+
+	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
+
+	txHash, err := apex.SubmitTx(
+		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
+		lovelaceAmount, sentTokenAmount, metadata)
+	require.NoError(t, err)
+
+	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount, bridgingType,
+		refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
 func getDefaultSendAmounts(t *testing.T, config *testConfig, minUtxoAmount uint64, bridgingType sendtx.BridgingType,

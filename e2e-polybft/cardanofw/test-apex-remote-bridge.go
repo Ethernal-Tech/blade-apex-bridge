@@ -101,11 +101,19 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 				"addr_test1xp4vckvhx0y6tlrkapcpyryyjlk5yhw0n3pwd9jqv4t6t0hhsap3pamhjvarygggn5rxsn96yauc40w4y0cezm6dk62s6qlcfy",
 			},
 			FeeAddr: "addr_test1xr06xce9aq6atg0hwuucxe7eu5g6nx8mmnvw2d2e848cz4y93epqj6zxan4pykvt4ux34uzwcwnts4akrfrus070ntss82juq8", //nolint:lll
+		},
+		VectorInfo: CardanoChainInfo{
+			NetworkAddress: "vector-node.onprem.ethernal.work:5571",
+			OgmiosURL:      "https://vector-ogmios.onprem.ethernal.work",
+			MultisigAddr: []string{
+				"addr1xypy8dp8q9seraqws8ncjnl4wmtctrqu6phcnacke5cuaz2w22ds0zvg63ejvfhrq8ngsyxzfpl2rhqgvpl4qm3uescsuwwf68",
+			},
+			FeeAddr: "addr1x8m2clera4ucuj9hwvmux6k4g9mdplqna0ezg0fkd5u3r3ngx8nt5azu82cqd0plerhpg38a8wg6rwtj5jvz3epyh3sq42gx85",
 			NativeTokens: []sendtx.TokenExchangeConfig{
 				{
 					DstChainID: ChainIDCardano,
 					TokenName: cardanowallet.NewToken(
-						"a59a8df821056ddcaeae4eb16f272565a0b3581c61e04a9bd18d4b32", "WADA").String(),
+						"e243e802ff88962c9084a13de96fa875c8a6bb3ef2d1d29b0a0a7e90", "wADA").String(),
 				},
 			},
 		},
@@ -194,7 +202,7 @@ func SetupRemoteApexBridge(
 
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig:  NewRemotePrimeChainConfig(0, 0),
-		VectorConfig: NewRemoteVectorChainConfig(vectorEnabled),
+		VectorConfig: NewRemoteVectorChainConfig(0, 0),
 		NexusConfig:  NewRemoteNexusChainConfig(true),
 		APIKey:       remoteConfig.BridgingAPIKey,
 	}
@@ -270,6 +278,7 @@ func SetupSkylineRemoteBridge(
 
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig:   NewRemotePrimeChainConfig(defaultMinBridgingFeeAmount, 0),
+		VectorConfig:  NewRemoteVectorChainConfig(defaultMinBridgingFeeAmount, 0),
 		CardanoConfig: NewRemoteCardanoChainConfig(true, defaultMinBridgingFeeAmount, 0),
 		APIKey:        remoteConfig.BridgingAPIKey,
 	}
@@ -288,6 +297,16 @@ func SetupSkylineRemoteBridge(
 		indexer:          e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 
+	vectorChain := &TestCardanoChain{
+		config:           apexConfig.VectorConfig,
+		multisigAddr:     remoteConfig.VectorInfo.MultisigAddr,
+		multisigFeeAddr:  remoteConfig.VectorInfo.FeeAddr,
+		ogmiosURL:        remoteConfig.VectorInfo.OgmiosURL,
+		blockfrostURL:    remoteConfig.VectorInfo.BlockfrostURL,
+		blockfrostAPIKey: remoteConfig.VectorInfo.BlockfrostAPIKey,
+		indexer:          e2eindexer.NewTxsExecutedComponentDummy(),
+	}
+
 	cardanoChain := &TestCardanoChain{
 		config:           apexConfig.CardanoConfig,
 		multisigAddr:     remoteConfig.CardanoInfo.MultisigAddr,
@@ -299,7 +318,7 @@ func SetupSkylineRemoteBridge(
 	}
 
 	usersData, err := GetTestnetApexUsers(
-		NewApexNetworkTypes(apexConfig.PrimeConfig, nil, apexConfig.CardanoConfig, nil))
+		NewApexNetworkTypes(apexConfig.PrimeConfig, apexConfig.VectorConfig, apexConfig.CardanoConfig, nil))
 	if err != nil {
 		return nil, err
 	}
@@ -309,9 +328,10 @@ func SetupSkylineRemoteBridge(
 		FunderUser:   usersData.Funder,
 		Users:        usersData.Users,
 		IsSkyline:    true,
-		chains:       []ITestApexChain{primeChain, cardanoChain},
+		chains:       []ITestApexChain{primeChain, vectorChain, cardanoChain},
 		bridgingAPIs: remoteConfig.BridgingAPIs,
 		PrimeInfo:    remoteConfig.PrimeInfo,
+		VectorInfo:   remoteConfig.VectorInfo,
 		CardanoInfo:  remoteConfig.CardanoInfo,
 	}
 

@@ -127,7 +127,7 @@ func ExecuteBridgingWaitAfterSubmits(
 func ExecuteBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	senderUsers []*cardanofw.TestApexUser, receiverUsers []*cardanofw.TestApexUser,
-	chains []string, chainsDst map[string][]string, bridgingType sendtx.BridgingType,
+	chains []string, chainsDst map[string][]string, bridgingTypes map[SrcDstChainPair]sendtx.BridgingType,
 	sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
@@ -138,7 +138,9 @@ func ExecuteBridging(
 		chainPairs = getAllChainPairs(chains, chainsDst)
 		// per each receiver -> per each chain -> per each token
 		initialAmountsPerRecv = make([]map[string]map[string]*big.Int, len(receiverUsers))
-		expectNativeTokens    = bridgingType == sendtx.BridgingTypeCurrencyOnSource
+		expectNativeTokens    = func(bridgingType sendtx.BridgingType) bool {
+			return bridgingType == sendtx.BridgingTypeCurrencyOnSource
+		}
 	)
 
 	// calculate receivers initial balances
@@ -156,14 +158,15 @@ func ExecuteBridging(
 				initialAmountsPerRecv[i][pair.dstChain] = map[string]*big.Int{}
 			}
 
-			tokenName := getTokenNameForChains(apex, pair.dstChain, pair.srcChain, expectNativeTokens)
+			tokenName := getTokenNameForChains(
+				apex, pair.dstChain, pair.srcChain, expectNativeTokens(bridgingTypes[pair]))
 			initialAmountsPerRecv[i][pair.dstChain][tokenName] = cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
 		}
 	}
 
 	// send transactions
 	sendTxDatas := config.sendTxStrategy(
-		t, ctx, apex, chainsDst, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender, bridgingType)
+		t, ctx, apex, chainsDst, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender, bridgingTypes)
 
 	var (
 		wgResults              sync.WaitGroup
@@ -178,7 +181,8 @@ func ExecuteBridging(
 
 	// calculate desired amounts per chain
 	for _, txData := range sendTxDatas {
-		tokenName := getTokenNameForChains(apex, txData.DstChainID, txData.SrcChainID, expectNativeTokens)
+		tokenName := getTokenNameForChains(
+			apex, txData.DstChainID, txData.SrcChainID, expectNativeTokens(txData.BridgingTxType))
 
 		if _, exists := originalDesiredAmounts[txData.DstChainID]; !exists {
 			originalDesiredAmounts[txData.DstChainID] = make(map[string]*big.Int)
@@ -213,7 +217,8 @@ func ExecuteBridging(
 			for _, chainPair := range chainPairs {
 				sum := new(big.Int)
 
-				tokenName := getTokenNameForChains(apex, chainPair.dstChain, chainPair.srcChain, expectNativeTokens)
+				tokenName := getTokenNameForChains(
+					apex, chainPair.dstChain, chainPair.srcChain, expectNativeTokens(bridgingTypes[chainPair]))
 
 				// Retrieve all failed transactions on the source chain, if any
 				for _, txHash := range apex.GetChainMust(t, chainPair.srcChain).GetIndexer().GetFailedTxs() {
@@ -243,7 +248,8 @@ func ExecuteBridging(
 
 	// prepare the map (dstChain + tokenName -> sourceChain)
 	for _, pair := range chainPairs {
-		tokenName := getTokenNameForChains(apex, pair.dstChain, pair.srcChain, expectNativeTokens)
+		tokenName := getTokenNameForChains(
+			apex, pair.dstChain, pair.srcChain, expectNativeTokens(bridgingTypes[pair]))
 		key := fmt.Sprintf("%s-%s", pair.dstChain, tokenName)
 		// It doesn't matter if two source chains have the same token name (e.g., "lovelace")
 		// for the same destination chain — just pick any one.
@@ -253,7 +259,8 @@ func ExecuteBridging(
 	// wait for amounts
 	for i, userRecv := range receiverUsers {
 		for j, chainPair := range chainPairs {
-			tokenName := getTokenNameForChains(apex, chainPair.dstChain, chainPair.srcChain, expectNativeTokens)
+			tokenName := getTokenNameForChains(
+				apex, chainPair.dstChain, chainPair.srcChain, expectNativeTokens(bridgingTypes[chainPair]))
 
 			wgResults.Add(1)
 
@@ -278,7 +285,7 @@ func ExecuteBridging(
 					},
 					len(receiverUsers)*config.timeoutConfig.bridgingNumRetries,
 					config.timeoutConfig.bridgingRetryWaitTime,
-					expectNativeTokens,
+					expectNativeTokens(bridgingTypes[NewChainPair(srcChain, dstChain)]),
 				)
 				if err != nil {
 					errs[idx*len(chainPairs)+idxChain] = fmt.Errorf("receiver %d on %s (%s vs %s): %w",
@@ -294,7 +301,7 @@ func ExecuteBridging(
 					err := apex.WaitForGreaterAmount(
 						ctx, receiver, dstChain, srcChain, receivedAmount,
 						config.timeoutConfig.unexpectedBridgesNumRetries, config.timeoutConfig.unexpectedBridgesRetryWaitTime,
-						expectNativeTokens)
+						expectNativeTokens(bridgingTypes[NewChainPair(srcChain, dstChain)]))
 					if !errors.Is(err, infracommon.ErrRetryTimeout) {
 						lock.Lock()
 						errs = append(errs, fmt.Errorf(

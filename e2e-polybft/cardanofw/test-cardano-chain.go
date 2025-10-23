@@ -84,9 +84,9 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 	}
 }
 
-func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
+func NewVectorChainConfig() *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:                   isEnabled,
+		IsEnabled:                   true,
 		ID:                          1,
 		NetworkType:                 infrawallet.TestNetNetwork,
 		NetworkMagic:                infrawallet.VectorTestNetProtocolMagic,
@@ -138,9 +138,9 @@ func NewRemotePrimeChainConfig(minBridgingFeeAmount, minOperationFee uint64) *Te
 	}
 }
 
-func NewRemoteVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
+func NewRemoteVectorChainConfig(minBridgingFeeAmount, minOperationFee uint64) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:    isEnabled,
+		IsEnabled:    true,
 		ID:           1,
 		NetworkType:  infrawallet.MainNetNetwork,
 		NetworkMagic: infrawallet.MainNetProtocolMagic,

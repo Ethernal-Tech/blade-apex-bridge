@@ -654,7 +654,12 @@ func GetAllTokensForChainWithAmounts(
 
 	for _, otherChain := range chains {
 		if otherChain != chain {
-			token, err := wallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(chain, otherChain))
+			tokenName := apex.GetTokenNameForChains(chain, otherChain)
+			if tokenName == "" {
+				continue
+			}
+
+			token, err := wallet.NewTokenWithFullNameTry(tokenName)
 			require.NoError(t, err)
 
 			tokens = append(tokens, wallet.NewTokenAmount(token, amount))

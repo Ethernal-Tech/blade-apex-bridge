@@ -67,15 +67,22 @@ func getAllDestionationChains(chains []string, chainsDst map[string][]string) (r
 	return res
 }
 
-type srcDstChainPair struct {
+type SrcDstChainPair struct {
 	srcChain string
 	dstChain string
 }
 
-func getAllChainPairs(chains []string, chainsDst map[string][]string) (res []srcDstChainPair) {
+func NewChainPair(src, dst string) SrcDstChainPair {
+	return SrcDstChainPair{
+		srcChain: src,
+		dstChain: dst,
+	}
+}
+
+func getAllChainPairs(chains []string, chainsDst map[string][]string) (res []SrcDstChainPair) {
 	for _, srcChain := range chains {
 		for _, dstChain := range chainsDst[srcChain] {
-			res = append(res, srcDstChainPair{
+			res = append(res, SrcDstChainPair{
 				srcChain: srcChain,
 				dstChain: dstChain,
 			})
