@@ -105,8 +105,10 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 		VectorInfo: CardanoChainInfo{
 			NetworkAddress: "vector-node.onprem.ethernal.work:5571",
 			OgmiosURL:      "https://vector-ogmios.onprem.ethernal.work",
-			MultisigAddr:   []string{"addr1xypy8dp8q9seraqws8ncjnl4wmtctrqu6phcnacke5cuaz2w22ds0zvg63ejvfhrq8ngsyxzfpl2rhqgvpl4qm3uescsuwwf68"},
-			FeeAddr:        "addr1x8m2clera4ucuj9hwvmux6k4g9mdplqna0ezg0fkd5u3r3ngx8nt5azu82cqd0plerhpg38a8wg6rwtj5jvz3epyh3sq42gx85",
+			MultisigAddr: []string{
+				"addr1xypy8dp8q9seraqws8ncjnl4wmtctrqu6phcnacke5cuaz2w22ds0zvg63ejvfhrq8ngsyxzfpl2rhqgvpl4qm3uescsuwwf68",
+			},
+			FeeAddr: "addr1x8m2clera4ucuj9hwvmux6k4g9mdplqna0ezg0fkd5u3r3ngx8nt5azu82cqd0plerhpg38a8wg6rwtj5jvz3epyh3sq42gx85",
 			NativeTokens: []sendtx.TokenExchangeConfig{
 				{
 					DstChainID: ChainIDCardano,
