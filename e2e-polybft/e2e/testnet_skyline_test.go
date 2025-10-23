@@ -18,7 +18,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDCardano}
+var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano}
+var skylineChainsTokenDirections = map[string][]cardanofw.ChainID{
+	cardanofw.ChainIDCardano: {cardanofw.ChainIDPrime},
+	cardanofw.ChainIDVector:  {cardanofw.ChainIDCardano},
+}
 
 func Test_E2E_SkylineTestnetFund(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
@@ -299,7 +303,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 		})
 	})
 
-	t.Run("Both directions sequential and parallel multiple receivers native token on source", func(t *testing.T) {
+	t.Run("Both directions sequential and parallel multiple receivers with cardano as a source", func(t *testing.T) {
 		executeAllDirectionsMulReceiversTest(t, map[string][]string{
 			cardanofw.ChainIDCardano: {cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
 		}, map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
@@ -368,16 +372,16 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	t.Run("8. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
 		user := apex.Users[len(apex.Users)-1]
 
-		minterWallet, _ := user.GetCardanoWallet(cardanofw.ChainIDPrime)
+		minterWallet, _ := user.GetCardanoWallet(cardanofw.ChainIDVector)
 
 		tokensFunded, err := cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDPrime,
+			ctx, apex, cardanofw.ChainIDVector,
 			minterWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendNativeToken(t, ctx, apex, user, primeCardanoTestConfig, *tokensFunded, requestStateTimeoutSec, retryIntervalSec, true, 0, sendtx.BridgingTypeCurrencyOnSource)
+		executeInvalidSendNativeToken(t, ctx, apex, user, vectorCardanoTestConfig, *tokensFunded, requestStateTimeoutSec, retryIntervalSec, true, 0, sendtx.BridgingTypeCurrencyOnSource)
 	})
 
 	t.Run("9. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
