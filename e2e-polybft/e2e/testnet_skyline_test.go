@@ -377,7 +377,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendNativeToken(t, ctx, apex, user, primeCardanoTestConfig, *tokensFunded, requestStateTimeoutSec, retryIntervalSec, true, 0)
+		executeInvalidSendNativeToken(t, ctx, apex, user, primeCardanoTestConfig, *tokensFunded, requestStateTimeoutSec, retryIntervalSec, true, 0, sendtx.BridgingTypeCurrencyOnSource)
 	})
 
 	t.Run("9. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {

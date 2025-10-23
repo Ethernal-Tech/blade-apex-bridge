@@ -235,7 +235,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoPrimeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
+		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoPrimeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0, sendtx.BridgingTypeCurrencyOnSource)
 	})
 
 	t.Run("12. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
@@ -284,6 +284,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 			tryCountLimitsSettings["maxSubmitTryCount"] = 2
 		}, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDCardano, bridgeAddrCnt),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -377,7 +378,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
 
-		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
+		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0, sendtx.BridgingTypeCurrencyOnSource)
 
 		cardanoAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
 		require.NoError(t, err)
@@ -400,6 +401,20 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 		require.NoError(t, err)
 
 		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, cardanoTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
+
+		cardanoAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
+		require.NoError(t, err)
+		fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
+	})
+
+	t.Run("13. Submitted tokens to bridging addr other than 0", func(t *testing.T) {
+		user := apex.Users[0]
+
+		cardanoAddrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
+		require.NoError(t, err)
+		fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
+
+		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoTestConfig, *cardanoToken, maxWaitTimeSec, retryDelaySec, true, 2, sendtx.BridgingTypeNativeTokenOnSource)
 
 		cardanoAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
 		require.NoError(t, err)

@@ -181,11 +181,9 @@ func executeInvalidMismatchSendNativeTokenAmount(
 func executeInvalidSendNativeToken(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
 	config *testConfig, nativeTokenAmount wallet.TokenAmount,
-	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8,
+	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8, bridgingType sendtx.BridgingType,
 ) {
 	t.Helper()
-
-	bridgingType := sendtx.BridgingTypeCurrencyOnSource
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
