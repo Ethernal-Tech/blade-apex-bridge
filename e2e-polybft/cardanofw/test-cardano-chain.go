@@ -126,19 +126,17 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	}
 }
 
-func NewRemotePrimeChainConfig(minBridgingFeeAmount, minOperationFee uint64) *TestCardanoChainConfig {
+func NewRemotePrimeChainConfig() *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:       true,
-		ID:              0,
-		NetworkType:     infrawallet.TestNetNetwork,
-		NetworkMagic:    infrawallet.PrimeTestNetProtocolMagic,
-		ChainType:       ChainIDPrime,
-		MinBridgingFee:  minBridgingFeeAmount,
-		MinOperationFee: minOperationFee,
+		IsEnabled:    true,
+		ID:           0,
+		NetworkType:  infrawallet.TestNetNetwork,
+		NetworkMagic: infrawallet.PrimeTestNetProtocolMagic,
+		ChainType:    ChainIDPrime,
 	}
 }
 
-func NewRemoteVectorChainConfig(minBridgingFeeAmount, minOperationFee uint64) *TestCardanoChainConfig {
+func NewRemoteVectorChainConfig() *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:    true,
 		ID:           1,
@@ -148,17 +146,13 @@ func NewRemoteVectorChainConfig(minBridgingFeeAmount, minOperationFee uint64) *T
 	}
 }
 
-func NewRemoteCardanoChainConfig(
-	isEnabled bool, minBridgingFeeAmount, minOperationFee uint64,
-) *TestCardanoChainConfig {
+func NewRemoteCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:       isEnabled,
-		ID:              4,
-		NetworkType:     infrawallet.TestNetNetwork,
-		NetworkMagic:    infrawallet.TestNetProtocolMagic,
-		ChainType:       ChainIDCardano,
-		MinBridgingFee:  minBridgingFeeAmount,
-		MinOperationFee: minOperationFee,
+		IsEnabled:    isEnabled,
+		ID:           4,
+		NetworkType:  infrawallet.TestNetNetwork,
+		NetworkMagic: infrawallet.TestNetProtocolMagic,
+		ChainType:    ChainIDCardano,
 	}
 }
 
@@ -772,7 +766,7 @@ func (ec *TestCardanoChain) submitTx(
 	signers []*infrawallet.Wallet,
 ) (string, error) {
 	const (
-		retryCount    = 40
+		retryCount    = 50
 		retryWaitTime = time.Second * 5
 	)
 

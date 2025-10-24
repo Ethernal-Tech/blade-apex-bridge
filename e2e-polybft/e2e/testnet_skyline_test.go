@@ -19,10 +19,6 @@ import (
 )
 
 var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano}
-var skylineChainsTokenDirections = map[string][]cardanofw.ChainID{
-	cardanofw.ChainIDCardano: {cardanofw.ChainIDPrime},
-	cardanofw.ChainIDVector:  {cardanofw.ChainIDCardano},
-}
 
 func Test_E2E_SkylineTestnetFund(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
