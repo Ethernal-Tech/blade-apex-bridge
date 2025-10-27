@@ -19,7 +19,7 @@ type ITestApexChainServer interface {
 type ITestApexChain interface {
 	RunChain(t *testing.T) error
 	Stop() error
-	CreateWallets(validator *TestApexValidator) error
+	CreateWallets(validator *TestApexValidator) (string, error)
 	CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridgeURL string) error
 	FundWallets(ctx context.Context) error
 	RegisterChain(validator *TestApexValidator) error
@@ -120,8 +120,8 @@ func (td *TestApexChainDummy) CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridg
 	return nil
 }
 
-func (td *TestApexChainDummy) CreateWallets(validator *TestApexValidator) error {
-	return nil
+func (td *TestApexChainDummy) CreateWallets(validator *TestApexValidator) (string, error) {
+	return "", nil
 }
 
 func (td *TestApexChainDummy) FundWallets(ctx context.Context) error {

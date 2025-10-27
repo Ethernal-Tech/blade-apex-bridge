@@ -50,6 +50,7 @@ type TestCardanoChainConfig struct {
 	FundTokenAmount             uint64
 	FundUTxOCount               int
 	FundFeeUTxOCount            int
+	FundRelayerAmount           uint64
 	PreminesAddresses           []string
 	PremineAmount               uint64
 	SlotRoundingThreshold       uint64
@@ -171,6 +172,7 @@ type TestCardanoChain struct {
 	multisigAddr      []string
 	multisigStakeAddr []string
 	multisigFeeAddr   string
+	relayerAddr       string
 	txSender          *sendtx.TxSender
 	indexer           e2eindexer.TxsExecutedComponent
 }
@@ -317,13 +319,27 @@ func (ec *TestCardanoChain) Stop() error {
 	return nil
 }
 
-func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) error {
-	walletType := ""
+func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) (string, error) {
+	var (
+		walletType  = ""
+		relayerAddr = ""
+		err         error
+	)
+
+	if RunRelayerOnValidatorID == validator.ID {
+		relayerAddr, err = validator.RelayerCardanoWalletCreate(ec.ChainID())
+		if err != nil {
+			return relayerAddr, err
+		}
+
+		ec.relayerAddr = relayerAddr
+	}
+
 	if ec.config.BridgeAddrHasStake {
 		walletType = "stake"
 	}
 
-	return validator.CardanoWalletCreate(ec.ChainID(), walletType)
+	return relayerAddr, validator.CardanoWalletCreate(ec.ChainID(), walletType)
 }
 
 func (ec *TestCardanoChain) CreateAddresses(
@@ -397,6 +413,15 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 			fmt.Printf("%s fee addr: %s funded with %s: %s\n", ec.ChainID(), ec.multisigFeeAddr, amount, txHash)
 		}
+	}
+
+	if totalAmount := ec.config.FundRelayerAmount; totalAmount != 0 && ec.relayerAddr != "" {
+		txHash, err := ec.SendTx(ctx, privateKey, ec.relayerAddr, new(big.Int).SetUint64(totalAmount), nil, nil)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("%s relayer addr: %s funded with %d: %s\n", ec.ChainID(), ec.relayerAddr, totalAmount, txHash)
 	}
 
 	if ec.config.FundTokenAmount != 0 || ec.config.FundAmount != 0 {

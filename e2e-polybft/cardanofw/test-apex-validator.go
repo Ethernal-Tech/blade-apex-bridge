@@ -1,13 +1,16 @@
 package cardanofw
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 
 	"github.com/0xPolygon/polygon-edge/contracts"
@@ -87,6 +90,36 @@ func (cv *TestApexValidator) CardanoWalletCreate(chain ChainID, walletType strin
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
 }
 
+func (cv *TestApexValidator) RelayerCardanoWalletCreate(chain ChainID) (string, error) {
+	args := []string{
+		"wallet-create",
+		"--chain", chain,
+		"--validator-data-dir", cv.server.DataDir() + "/relayer",
+		"--show-pk",
+		"--type", "relayer-cardano",
+	}
+
+	var outb bytes.Buffer
+
+	err := RunCommand(ResolveApexBridgeBinary(), args, io.MultiWriter(os.Stdout, &outb))
+	if err != nil {
+		return "", err
+	}
+
+	output := outb.String()
+
+	// Regular expressions for parsing the output
+	reRelayerAddress := regexp.MustCompile(`Address\s*=\s*([^\s]+)`)
+
+	relayerAddressMatches := reRelayerAddress.FindAllStringSubmatch(output, -1)
+
+	if len(relayerAddressMatches) == 0 {
+		return "", fmt.Errorf("no relayer addresses found in output")
+	}
+
+	return relayerAddressMatches[0][1], nil
+}
+
 func (cv *TestApexValidator) RegisterChain(
 	chain ChainID,
 	tokenSupply *big.Int,
@@ -149,6 +182,7 @@ func (cv *TestApexValidator) GenerateSkylineConfigs(
 	telemetryConfig string,
 	cardanoPrimeTokenName string,
 	vectorCardanoTokenName string,
+	relayerAddresses map[ChainID]string,
 	args ...string,
 ) error {
 	cv.APIPort = apiPort
@@ -163,19 +197,28 @@ func (cv *TestApexValidator) GenerateSkylineConfigs(
 		"--output-relayer-file-name", RelayerConfigFileName,
 		"--bridge-node-url", cv.server.JSONRPCAddr(),
 		"--bridge-sc-address", contracts.Bridge.String(),
-		"--relayer-data-dir", cv.GetNexusTestDir(),
 		"--logs-path", logsPath,
 		"--dbs-path", dbsPath,
 		"--api-port", fmt.Sprint(apiPort),
 		"--api-keys", apiKey,
 		"--telemetry", telemetryConfig,
-		"--relayer-data-dir", cv.server.DataDir(),
+		"--relayer-data-dir", cv.server.DataDir() + "/relayer",
 		"--cardano-prime-token-name", cardanoPrimeTokenName,
 		"--vector-cardano-token-name", vectorCardanoTokenName,
 		"--cardano-utxo-min-amount", strconv.FormatUint(MinUTxODefaultValue, 10),
 		"--prime-utxo-min-amount", strconv.FormatUint(MinUTxODefaultValue, 10),
 		"--vector-utxo-min-amount", strconv.FormatUint(MinUTxODefaultValue, 10),
 	}, args...)
+
+	if len(relayerAddresses) > 0 {
+		for chainID, addr := range relayerAddresses {
+			if chainID == ChainIDVector {
+				continue
+			}
+
+			args = append(args, fmt.Sprintf("--%s-relayer-address", chainID), addr)
+		}
+	}
 
 	if err := RunCommand(ResolveApexBridgeBinary(), args, os.Stdout); err != nil {
 		return err

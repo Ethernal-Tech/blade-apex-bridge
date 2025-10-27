@@ -179,24 +179,24 @@ func (ec *TestEVMChain) JSONRPC() (*jsonrpc.EthClient, error) {
 	return JSONRPCClient(ec.jsonRPCAddr)
 }
 
-func (ec *TestEVMChain) CreateWallets(validator *TestApexValidator) error {
+func (ec *TestEVMChain) CreateWallets(validator *TestApexValidator) (string, error) {
 	_, err := validator.getEvmBatcherWallet()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if validator.ID == RunRelayerOnValidatorID {
 		if err = validator.createEvmSpecificWallet("relayer-evm"); err != nil {
-			return err
+			return "", err
 		}
 
 		ec.relayerWallet, err = validator.getEvmRelayerWallet()
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
 
-	return nil
+	return "", nil
 }
 
 func (ec *TestEVMChain) CreateAddresses(

@@ -63,8 +63,9 @@ type ApexSystem struct {
 	bladeAdmin      *crypto.ECDSAKey
 	bladeProxyAdmin *crypto.ECDSAKey
 
-	validators  []*TestApexValidator
-	relayerNode *framework.Node
+	validators       []*TestApexValidator
+	relayerNode      *framework.Node
+	relayerAddresses map[string]string
 
 	chains []ITestApexChain
 
@@ -167,7 +168,8 @@ func NewSkylineSystem(
 			NewTestCardanoChain(config.VectorConfig),
 			NewTestCardanoChain(config.CardanoConfig),
 		},
-		IsSkyline: true,
+		IsSkyline:        true,
+		relayerAddresses: make(map[string]string),
 	}
 
 	apex.Config.applyPremineFundingOptions(apex.Users)
@@ -295,9 +297,14 @@ func (a *ApexSystem) GetBridgeNode(t *testing.T, idx int) *framework.TestServer 
 func (a *ApexSystem) CreateWallets() (err error) {
 	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		for _, chain := range a.chains {
-			if err := chain.CreateWallets(validator); err != nil {
+			relayerAddr, err := chain.CreateWallets(validator)
+			if err != nil {
 				return fmt.Errorf("operation failed for validator = %d and chain = %s: %w",
 					i, chain.ChainID(), err)
+			}
+
+			if a.IsSkyline && relayerAddr != "" {
+				a.relayerAddresses[chain.ChainID()] = relayerAddr
 			}
 		}
 
@@ -542,7 +549,7 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 
 		err := validator.GenerateSkylineConfigs(
 			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i),
-			cardanoPrimeTokenName, vectorCardanoTokenName, args...)
+			cardanoPrimeTokenName, vectorCardanoTokenName, a.relayerAddresses, args...)
 		if err != nil {
 			return err
 		}
