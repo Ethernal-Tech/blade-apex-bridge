@@ -19,13 +19,10 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 	defer cncl()
 
 	// Combined configuration for both currency and native token tests
-	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfigWithMinting(true)
 	primeConfig.FundAmount = 0
 	primeConfig.FundTokenAmount = 0
 	cardanoConfig.FundTokenAmount = 1_500_000
-
-	// Relayer funding for minting native tokens
-	cardanoConfig.FundRelayerAmount = 100_000_000
 
 	apex := cardanofw.SetupAndRunSkylineBridge(
 		t, ctx,
@@ -35,6 +32,7 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 		cardanofw.WithCustomConfigHandlers(func(a *cardanofw.ApexSystem, _ map[string]interface{}) {
 			a.CardanoInfo.NativeTokens[0].Mint = false
 			// a.CardanoInfo.NativeTokens[0].TokenName = "policyID.mintable_token"
+
 		}, nil),
 	)
 

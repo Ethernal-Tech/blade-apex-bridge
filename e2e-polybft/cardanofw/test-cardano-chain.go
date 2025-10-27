@@ -50,7 +50,6 @@ type TestCardanoChainConfig struct {
 	FundTokenAmount             uint64
 	FundUTxOCount               int
 	FundFeeUTxOCount            int
-	FundRelayerAmount           uint64
 	PreminesAddresses           []string
 	PremineAmount               uint64
 	SlotRoundingThreshold       uint64
@@ -60,6 +59,10 @@ type TestCardanoChainConfig struct {
 	BridgeAddrHasStake          bool
 	BridgingAddressCnt          int
 	UseIndexer                  bool
+
+	// Minting
+	FundRelayerAmount          uint64
+	CustodialAddressGeneration bool
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -127,6 +130,16 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	}
 }
 
+func NewCardanoChainConfigWithMinting(isEnabled bool) *TestCardanoChainConfig {
+	config := NewCardanoChainConfig(isEnabled)
+
+	config.FundTokenAmount = 0
+	config.FundRelayerAmount = 100_000_000
+	config.CustodialAddressGeneration = true
+
+	return config
+}
+
 func NewRemotePrimeChainConfig(minBridgingFeeAmount, minOperationFee uint64) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:       true,
@@ -173,6 +186,7 @@ type TestCardanoChain struct {
 	multisigStakeAddr []string
 	multisigFeeAddr   string
 	relayerAddr       string
+	custodialAddress  string
 	txSender          *sendtx.TxSender
 	indexer           e2eindexer.TxsExecutedComponent
 }
@@ -360,6 +374,10 @@ func (ec *TestCardanoChain) CreateAddresses(
 		"--chain", ec.ChainID(),
 	}
 
+	if ec.config.CustodialAddressGeneration {
+		args = append(args, "--generate-custodial-address")
+	}
+
 	var outb bytes.Buffer
 
 	err = RunCommand(ResolveApexBridgeBinary(), args, io.MultiWriter(os.Stdout, &outb))
@@ -368,6 +386,17 @@ func (ec *TestCardanoChain) CreateAddresses(
 	}
 
 	output := outb.String()
+
+	if ec.config.CustodialAddressGeneration {
+		reCustodial := regexp.MustCompile(`Custodial Address\s*=\s*([^\s]+)`)
+		custodialMatches := reCustodial.FindAllStringSubmatch(output, -1)
+
+		if len(custodialMatches) == 0 {
+			return fmt.Errorf("no custodial addresses found in output")
+		}
+
+		ec.custodialAddress = custodialMatches[0][1]
+	}
 
 	// Regular expressions for parsing the output
 	reMultisig := regexp.MustCompile(`Multisig Address\s*=\s*([^\s]+)`)
@@ -448,6 +477,27 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 			fmt.Printf("%s multisig addr funded with native currency and token `%s` amount: %s, %s\n",
 				ec.ChainID(), token.TokenName(), amounts[0], amounts[1])
 		}
+	}
+
+	if ec.custodialAddress != "" {
+		minterWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
+		if err != nil {
+			return err
+		}
+
+		lovelaceFundAmount := 2 * MinUTxODefaultValue
+
+		token, err := FundAddressWithToken(
+			ctx, ec,
+			minterWallet, ec.custodialAddress,
+			MintNFTTokenName, MintNFTAmount,
+			lovelaceFundAmount, MintNFTAmount)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("%s custodial addr funded with NFT `%s` amount: %d, %d\n",
+			ec.ChainID(), token.TokenName(), lovelaceFundAmount, MintNFTAmount)
 	}
 
 	return nil
