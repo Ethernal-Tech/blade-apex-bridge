@@ -126,33 +126,39 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	}
 }
 
-func NewRemotePrimeChainConfig() *TestCardanoChainConfig {
+func NewRemotePrimeChainConfig(minBridgingFeeAmount, minOperationFee uint64) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:    true,
-		ID:           0,
-		NetworkType:  infrawallet.TestNetNetwork,
-		NetworkMagic: infrawallet.PrimeTestNetProtocolMagic,
-		ChainType:    ChainIDPrime,
+		IsEnabled:       true,
+		ID:              0,
+		NetworkType:     infrawallet.TestNetNetwork,
+		NetworkMagic:    infrawallet.PrimeTestNetProtocolMagic,
+		ChainType:       ChainIDPrime,
+		MinBridgingFee:  minBridgingFeeAmount,
+		MinOperationFee: minOperationFee,
 	}
 }
 
-func NewRemoteVectorChainConfig() *TestCardanoChainConfig {
+func NewRemoteVectorChainConfig(minBridgingFeeAmount, minOperationFee uint64) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:    true,
-		ID:           1,
-		NetworkType:  infrawallet.MainNetNetwork,
-		NetworkMagic: infrawallet.MainNetProtocolMagic,
-		ChainType:    ChainIDVector,
+		IsEnabled:       true,
+		ID:              1,
+		NetworkType:     infrawallet.MainNetNetwork,
+		NetworkMagic:    infrawallet.MainNetProtocolMagic,
+		ChainType:       ChainIDVector,
+		MinBridgingFee:  minBridgingFeeAmount,
+		MinOperationFee: minOperationFee,
 	}
 }
 
-func NewRemoteCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
+func NewRemoteCardanoChainConfig(isEnabled bool, minBridgingFeeAmount, minOperationFee uint64) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:    isEnabled,
-		ID:           4,
-		NetworkType:  infrawallet.TestNetNetwork,
-		NetworkMagic: infrawallet.TestNetProtocolMagic,
-		ChainType:    ChainIDCardano,
+		IsEnabled:       isEnabled,
+		ID:              4,
+		NetworkType:     infrawallet.TestNetNetwork,
+		NetworkMagic:    infrawallet.TestNetProtocolMagic,
+		ChainType:       ChainIDCardano,
+		MinBridgingFee:  minBridgingFeeAmount,
+		MinOperationFee: minOperationFee,
 	}
 }
 

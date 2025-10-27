@@ -201,8 +201,8 @@ func SetupRemoteApexBridge(
 	vectorEnabled := len(remoteConfig.VectorInfo.MultisigAddr) > 0
 
 	apexConfig := &ApexSystemConfig{
-		PrimeConfig:  NewRemotePrimeChainConfig(),
-		VectorConfig: NewRemoteVectorChainConfig(),
+		PrimeConfig:  NewRemotePrimeChainConfig(0, 0),
+		VectorConfig: NewRemoteVectorChainConfig(0, 0),
 		NexusConfig:  NewRemoteNexusChainConfig(true),
 		APIKey:       remoteConfig.BridgingAPIKey,
 	}
@@ -277,9 +277,9 @@ func SetupSkylineRemoteBridge(
 	t.Helper()
 
 	apexConfig := &ApexSystemConfig{
-		PrimeConfig:   NewRemotePrimeChainConfig(),
-		VectorConfig:  NewRemoteVectorChainConfig(),
-		CardanoConfig: NewRemoteCardanoChainConfig(true),
+		PrimeConfig:   NewRemotePrimeChainConfig(defaultMinBridgingFeeAmount, 0),
+		VectorConfig:  NewRemoteVectorChainConfig(defaultMinBridgingFeeAmount, 0),
+		CardanoConfig: NewRemoteCardanoChainConfig(true, defaultMinBridgingFeeAmount, 0),
 		APIKey:        remoteConfig.BridgingAPIKey,
 	}
 
