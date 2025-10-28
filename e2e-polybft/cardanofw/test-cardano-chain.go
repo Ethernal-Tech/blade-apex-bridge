@@ -194,6 +194,8 @@ type TestCardanoChain struct {
 	multisigFeeAddr   string
 	relayerAddr       string
 	custodialAddress  string
+	nftPolicyID       string
+	nftHexName        string
 	txSender          *sendtx.TxSender
 	indexer           e2eindexer.TxsExecutedComponent
 	cardnoScriptInfo  CardanoScriptInfo
@@ -371,7 +373,8 @@ func (ec *TestCardanoChain) DeployCardanoContract() error {
 	if err != nil {
 		return err
 	}
-
+	// ec.nftPolicyID
+	// ec.nftHexName
 	args := []string{
 		"bridge-admin", "deploy-cardano-script",
 		"--key", hex.EncodeToString(minterWallet.SigningKey),
@@ -544,7 +547,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 		lovelaceFundAmount := 2 * MinUTxODefaultValue
 
-		token, err := FundAddressWithToken(
+		nft, err := FundAddressWithToken(
 			ctx, ec,
 			minterWallet, ec.custodialAddress,
 			MintNFTTokenName, MintNFTAmount,
@@ -554,7 +557,10 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		}
 
 		fmt.Printf("%s custodial addr funded with NFT `%s` amount: %d, %d\n",
-			ec.ChainID(), token.TokenName(), lovelaceFundAmount, MintNFTAmount)
+			ec.ChainID(), nft.TokenName(), lovelaceFundAmount, MintNFTAmount)
+
+		ec.nftPolicyID = nft.PolicyID
+		ec.nftHexName = strings.Split(nft.TokenName(), ".")[1]
 	}
 
 	return nil

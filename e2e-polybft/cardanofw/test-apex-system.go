@@ -554,7 +554,10 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
 		}
 
+		// TODO: Fix up token config for cardano
 		cardanoPrimeTokenName := a.CardanoInfo.NativeTokens[0].TokenName
+		//
+
 		vectorCardanoTokenName := a.VectorInfo.NativeTokens[0].TokenName
 
 		err := validator.GenerateSkylineConfigs(

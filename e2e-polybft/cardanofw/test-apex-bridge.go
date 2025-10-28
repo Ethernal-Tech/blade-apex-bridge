@@ -112,13 +112,13 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Wallets have been funded\n")
 
-	require.NoError(t, apexSystem.GenerateConfigs())
-
-	fmt.Printf("Configs have been generated\n")
-
 	require.NoError(t, apexSystem.DeployCardanoContracts())
 
 	fmt.Printf("Cardano contracts have been deployed\n")
+
+	require.NoError(t, apexSystem.GenerateConfigs())
+
+	fmt.Printf("Configs have been generated\n")
 
 	require.NoError(t, apexSystem.StartValidatorComponents(ctx))
 
