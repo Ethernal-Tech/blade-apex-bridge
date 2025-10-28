@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -176,6 +177,12 @@ func NewRemoteCardanoChainConfig(
 	}
 }
 
+type CardanoScriptInfo struct {
+	PlutusAddress      string
+	ReferenceUtxoHash  string
+	ReferenceUtxoIndex uint32
+}
+
 type TestCardanoChain struct {
 	config            *TestCardanoChainConfig
 	cluster           *TestCardanoCluster
@@ -189,6 +196,7 @@ type TestCardanoChain struct {
 	custodialAddress  string
 	txSender          *sendtx.TxSender
 	indexer           e2eindexer.TxsExecutedComponent
+	cardnoScriptInfo  CardanoScriptInfo
 }
 
 // GetBridgingStakeAddressInfo implements ITestApexChain.
@@ -354,6 +362,55 @@ func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) (string,
 	}
 
 	return relayerAddr, validator.CardanoWalletCreate(ec.ChainID(), walletType)
+}
+
+func (ec *TestCardanoChain) DeployCardanoContract() error {
+	fmt.Printf("Deploying Cardano contract on chain %s\n", ec.ChainID())
+
+	minterWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
+	if err != nil {
+		return err
+	}
+
+	args := []string{
+		"bridge-admin", "deploy-cardano-script",
+		"--key", hex.EncodeToString(minterWallet.SigningKey),
+		"--ogmios", ec.ogmiosURL,
+		"--network-id", fmt.Sprint(ec.config.NetworkType),
+		"--testnet-magic", fmt.Sprint(ec.config.NetworkMagic),
+	}
+
+	var outb bytes.Buffer
+
+	err = RunCommand(ResolveApexBridgeBinary(), args, io.MultiWriter(os.Stdout, &outb))
+	if err != nil {
+		return err
+	}
+
+	output := outb.String()
+
+	// Regular expressions for parsing the output
+	rePlutusAddr := regexp.MustCompile(`Plutus script address\s*=\s*([^\s]+)`)
+	reUtxoHash := regexp.MustCompile(`Reference Script Utxo Hash\s*=\s*([^\s]+)`)
+	reUtxoIdx := regexp.MustCompile(`Reference Script Utxo Index\s*=\s*([^\s]+)`)
+
+	// Find all matches
+	plutusAddr := rePlutusAddr.FindStringSubmatch(output)
+	utxoHash := reUtxoHash.FindStringSubmatch(output)
+	utxoIdxStr := reUtxoIdx.FindStringSubmatch(output)
+
+	utxoIdx, err := strconv.ParseUint(utxoIdxStr[1], 10, 32)
+	if err != nil {
+		return fmt.Errorf("failed to parse UTXO index: %w", err)
+	}
+
+	ec.cardnoScriptInfo = CardanoScriptInfo{
+		PlutusAddress:      plutusAddr[1],
+		ReferenceUtxoHash:  utxoHash[1],
+		ReferenceUtxoIndex: uint32(utxoIdx),
+	}
+
+	return nil
 }
 
 func (ec *TestCardanoChain) CreateAddresses(

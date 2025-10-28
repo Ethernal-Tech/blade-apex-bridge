@@ -27,6 +27,7 @@ type ITestApexChain interface {
 	GetGenerateConfigsParams(indx int) []string
 	PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error
 	UpdateTxSendChainConfiguration(configs map[string]sendtx.ChainConfig)
+	DeployCardanoContract() error
 	ChainID() string
 	GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error)
 	BridgingRequest(
@@ -122,6 +123,10 @@ func (td *TestApexChainDummy) CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridg
 
 func (td *TestApexChainDummy) CreateWallets(validator *TestApexValidator) (string, error) {
 	return "", nil
+}
+
+func (ec *TestApexChainDummy) DeployCardanoContract() error {
+	return nil
 }
 
 func (td *TestApexChainDummy) FundWallets(ctx context.Context) error {

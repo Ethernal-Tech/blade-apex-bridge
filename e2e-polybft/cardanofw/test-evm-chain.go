@@ -199,6 +199,10 @@ func (ec *TestEVMChain) CreateWallets(validator *TestApexValidator) (string, err
 	return "", nil
 }
 
+func (ec *TestEVMChain) DeployCardanoContract() error {
+	return nil
+}
+
 func (ec *TestEVMChain) CreateAddresses(
 	bladeAdmin *crypto.ECDSAKey, bridgeURL string,
 ) error {

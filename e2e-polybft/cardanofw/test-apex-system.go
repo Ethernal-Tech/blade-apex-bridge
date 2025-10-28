@@ -469,6 +469,16 @@ func (a *ApexSystem) RegisterChains() error {
 	})
 }
 
+func (a *ApexSystem) DeployCardanoContracts() error {
+	if a.IsSkyline {
+		return a.execForEachChain(func(chain ITestApexChain) error {
+			return chain.DeployCardanoContract()
+		})
+	}
+
+	return nil
+}
+
 func (a *ApexSystem) GenerateConfigs() error {
 	if a.IsSkyline {
 		return a.generateSkylineConfigs()
