@@ -22,18 +22,12 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfigWithMinting(true)
 	primeConfig.FundAmount = 0
 	primeConfig.FundTokenAmount = 0
-	cardanoConfig.FundTokenAmount = 1_500_000
 
 	apex := cardanofw.SetupAndRunSkylineBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
-		cardanofw.WithCustomConfigHandlers(func(a *cardanofw.ApexSystem, _ map[string]interface{}) {
-			a.CardanoInfo.NativeTokens[0].Mint = false
-			// a.CardanoInfo.NativeTokens[0].TokenName = "policyID.mintable_token"
-
-		}, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -42,7 +36,7 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 
 	user := apex.Users[0]
 
-	t.Run("1. prime -> cardano - currency on src", func(t *testing.T) {
+	t.Run("1. full mint", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
 			t.Skip()
 		}
@@ -52,6 +46,46 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 		})
 
 		sendAmountDfm := big.NewInt(1_500_000)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
+			sendtx.BridgingTypeCurrencyOnSource)
+	})
+
+	t.Run("2. partial mint", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(1_000_000),
+			sendtx.BridgingTypeNativeTokenOnSource)
+
+		sendAmountDfm := big.NewInt(1_500_000)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
+			sendtx.BridgingTypeCurrencyOnSource)
+	})
+
+	t.Run("3. burn", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(1_000_000),
+			sendtx.BridgingTypeNativeTokenOnSource)
+
+		sendAmountDfm := big.NewInt(500_000)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,

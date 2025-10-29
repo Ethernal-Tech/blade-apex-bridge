@@ -21,6 +21,7 @@ import (
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	wallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -354,10 +355,15 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			a.VectorInfo.GenesisWallet.VerificationKey, DefaultTokenName)
 		require.NoError(t, err)
 
-		tokenCardano, _, err := GetTokenAndPolicyForVerificationKey(
-			a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
-			a.CardanoInfo.GenesisWallet.VerificationKey, DefaultTokenName)
-		require.NoError(t, err)
+		var tokenCardano cardanowallet.Token
+		if a.Config.CardanoConfig.MintPolicyID != "" {
+			tokenCardano = wallet.NewToken(a.Config.CardanoConfig.MintPolicyID, a.Config.CardanoConfig.MintableTokens[0])
+		} else {
+			tokenCardano, _, err = GetTokenAndPolicyForVerificationKey(
+				a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
+				a.CardanoInfo.GenesisWallet.VerificationKey, DefaultTokenName)
+			require.NoError(t, err)
+		}
 
 		a.PrimeInfo.NativeTokens = nil
 		a.VectorInfo.NativeTokens = []sendtx.TokenExchangeConfig{
@@ -554,10 +560,40 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
 		}
 
-		// TODO: Fix up token config for cardano
-		cardanoPrimeTokenName := a.CardanoInfo.NativeTokens[0].TokenName
-		//
+		if a.Config.CardanoConfig != nil && a.Config.CardanoConfig.CustodialAddressGeneration {
+			tokenPolicyID := ""
 
+			var scriptInfo CardanoScriptInfo
+
+			for _, chain := range a.chains {
+				if chain.ChainID() == ChainIDCardano {
+					tokenPolicyID = chain.GetMintTokenPolicyID()
+					scriptInfo = chain.GetCardanoScriptInfo()
+
+					break
+				}
+			}
+
+			a.CardanoInfo.NativeTokens = make([]sendtx.TokenExchangeConfig, len(a.Config.CardanoConfig.MintableTokens))
+
+			for i, tokenName := range a.Config.CardanoConfig.MintableTokens {
+				a.CardanoInfo.NativeTokens[i] = sendtx.TokenExchangeConfig{
+					DstChainID: ChainIDPrime,
+					TokenName:  fmt.Sprintf("%s.%s", tokenPolicyID, hex.EncodeToString([]byte(tokenName))),
+					Mint:       true,
+				}
+			}
+
+			a.Config.CardanoConfig.ScriptTxInputHash = scriptInfo.ReferenceUtxoHash
+			a.Config.CardanoConfig.ScriptTxInputIndex = scriptInfo.ReferenceUtxoIndex
+
+			args = append(args, "--cardano-minting-script-tx-input-hash",
+				a.Config.CardanoConfig.ScriptTxInputHash)
+			args = append(args, "--cardano-minting-script-tx-input-index",
+				fmt.Sprintf("%d", a.Config.CardanoConfig.ScriptTxInputIndex))
+		}
+
+		cardanoPrimeTokenName := a.CardanoInfo.NativeTokens[0].TokenName
 		vectorCardanoTokenName := a.VectorInfo.NativeTokens[0].TokenName
 
 		err := validator.GenerateSkylineConfigs(

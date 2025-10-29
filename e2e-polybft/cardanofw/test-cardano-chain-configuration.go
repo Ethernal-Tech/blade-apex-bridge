@@ -33,7 +33,7 @@ func getConwayGenesis(networkType wallet.CardanoNetworkType) func(mp map[string]
 func testPrimeShelleyGenesis(mp map[string]interface{}) {
 	mp["slotLength"] = 0.1
 	mp["activeSlotsCoeff"] = 0.1
-	mp["securityParam"] = 10
+	mp["securityParam"] = 100
 	mp["epochLength"] = 500
 	mp["maxLovelaceSupply"] = 1000000000000
 	mp["updateQuorum"] = 2

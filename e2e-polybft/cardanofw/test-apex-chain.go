@@ -71,6 +71,8 @@ type ITestApexChain interface {
 		expectError bool,
 	) (infrawallet.QueryStakeAddressInfo, error)
 	GetAddressToBridgeTo(ctx context.Context, bridgingType sendtx.BridgingType) (string, error)
+	GetMintTokenPolicyID() string
+	GetCardanoScriptInfo() CardanoScriptInfo
 }
 
 type TestApexChainDummy struct {
@@ -220,6 +222,16 @@ func (td *TestApexChainDummy) GetAddressToBridgeTo(
 	bridgingType sendtx.BridgingType,
 ) (string, error) {
 	return "", nil
+}
+
+// GetMintTokenPolicyID implements ITestApexChain.
+func (td *TestApexChainDummy) GetMintTokenPolicyID() string {
+	return ""
+}
+
+// GetCardanoScriptInfo implements ITestApexChain.
+func (td *TestApexChainDummy) GetCardanoScriptInfo() CardanoScriptInfo {
+	return CardanoScriptInfo{}
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)

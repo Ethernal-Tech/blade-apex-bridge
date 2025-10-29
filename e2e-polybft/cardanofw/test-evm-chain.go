@@ -93,6 +93,16 @@ type TestEVMChain struct {
 	indexer       e2eindexer.TxsExecutedComponent
 }
 
+// GetMintTokenPolicyID implements ITestApexChain.
+func (ec *TestEVMChain) GetMintTokenPolicyID() string {
+	panic("unimplemented") //nolint:gocritic
+}
+
+// GetMintTokenPolicyID implements ITestApexChain.
+func (ec *TestEVMChain) GetCardanoScriptInfo() CardanoScriptInfo {
+	panic("unimplemented") //nolint:gocritic
+}
+
 // GetBridgingStakeAddressInfo implements ITestApexChain.
 func (ec *TestEVMChain) GetBridgingStakeAddressInfo(
 	t *testing.T, ctx context.Context, indx uint8, expectError bool,

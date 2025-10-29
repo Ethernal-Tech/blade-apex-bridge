@@ -62,8 +62,14 @@ type TestCardanoChainConfig struct {
 	UseIndexer                  bool
 
 	// Minting
+
 	FundRelayerAmount          uint64
 	CustodialAddressGeneration bool
+	ScriptTxInputHash          string
+	ScriptTxInputIndex         uint32
+	// Human readable names of tokens that should be mintable on this chain
+	MintPolicyID   string
+	MintableTokens []string
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -137,6 +143,7 @@ func NewCardanoChainConfigWithMinting(isEnabled bool) *TestCardanoChainConfig {
 	config.FundTokenAmount = 0
 	config.FundRelayerAmount = 100_000_000
 	config.CustodialAddressGeneration = true
+	config.MintableTokens = []string{DefaultTokenName}
 
 	return config
 }
@@ -181,6 +188,7 @@ type CardanoScriptInfo struct {
 	PlutusAddress      string
 	ReferenceUtxoHash  string
 	ReferenceUtxoIndex uint32
+	PolicyID           string
 }
 
 type TestCardanoChain struct {
@@ -367,20 +375,33 @@ func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) (string,
 }
 
 func (ec *TestCardanoChain) DeployCardanoContract() error {
+	if ec.nftPolicyID == "" || ec.nftHexName == "" {
+		return nil
+	}
+
 	fmt.Printf("Deploying Cardano contract on chain %s\n", ec.ChainID())
 
 	minterWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
 	if err != nil {
 		return err
 	}
-	// ec.nftPolicyID
-	// ec.nftHexName
+
+	repoRoot, err := filepath.Abs("../../..")
+	if err != nil {
+		return fmt.Errorf("failed to get repository root: %w", err)
+	}
+
+	scriptDir := filepath.Join(repoRoot, "apex-bridge", "cardano_smart_contracts", "mint_tokens")
+
 	args := []string{
 		"bridge-admin", "deploy-cardano-script",
 		"--key", hex.EncodeToString(minterWallet.SigningKey),
 		"--ogmios", ec.ogmiosURL,
 		"--network-id", fmt.Sprint(ec.config.NetworkType),
 		"--testnet-magic", fmt.Sprint(ec.config.NetworkMagic),
+		"--nft-policy-id", ec.nftPolicyID,
+		"--nft-name-hex", ec.nftHexName,
+		"--plutus-script-dir", scriptDir,
 	}
 
 	var outb bytes.Buffer
@@ -396,11 +417,15 @@ func (ec *TestCardanoChain) DeployCardanoContract() error {
 	rePlutusAddr := regexp.MustCompile(`Plutus script address\s*=\s*([^\s]+)`)
 	reUtxoHash := regexp.MustCompile(`Reference Script Utxo Hash\s*=\s*([^\s]+)`)
 	reUtxoIdx := regexp.MustCompile(`Reference Script Utxo Index\s*=\s*([^\s]+)`)
+	rePolicyID := regexp.MustCompile(`Policy Id\s*=\s*([^\s]+)`)
 
 	// Find all matches
 	plutusAddr := rePlutusAddr.FindStringSubmatch(output)
 	utxoHash := reUtxoHash.FindStringSubmatch(output)
 	utxoIdxStr := reUtxoIdx.FindStringSubmatch(output)
+	policyID := rePolicyID.FindStringSubmatch(output)
+
+	ec.config.MintPolicyID = policyID[1]
 
 	utxoIdx, err := strconv.ParseUint(utxoIdxStr[1], 10, 32)
 	if err != nil {
@@ -411,6 +436,7 @@ func (ec *TestCardanoChain) DeployCardanoContract() error {
 		PlutusAddress:      plutusAddr[1],
 		ReferenceUtxoHash:  utxoHash[1],
 		ReferenceUtxoIndex: uint32(utxoIdx),
+		PolicyID:           policyID[1],
 	}
 
 	return nil
@@ -655,6 +681,14 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 	}
 
 	return balanceTransformed, nil
+}
+
+func (ec *TestCardanoChain) GetMintTokenPolicyID() string {
+	return ec.cardnoScriptInfo.PolicyID
+}
+
+func (ec *TestCardanoChain) GetCardanoScriptInfo() CardanoScriptInfo {
+	return ec.cardnoScriptInfo
 }
 
 func (ec *TestCardanoChain) GetBridgingFee(
