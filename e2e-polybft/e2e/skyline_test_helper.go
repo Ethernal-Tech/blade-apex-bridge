@@ -72,7 +72,7 @@ func executeInvalidFeeReceiverAddr(
 	if bridgingType == sendtx.BridgingTypeCurrencyOnSource {
 		txHash, err := apex.SubmitTx(
 			ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-			sentAmount, []wallet.TokenAmount{}, metadata)
+			sentAmount, nil, metadata)
 		require.NoError(t, err)
 
 		fmt.Printf("txHash: %s\n", txHash)

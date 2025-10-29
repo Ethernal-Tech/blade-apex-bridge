@@ -65,27 +65,18 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	fmt.Println("cardano fee addr: ", apex.CardanoInfo.FeeAddr)
 	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
 
-	var (
-		vectorToken  *wallet.TokenAmount
-		cardanoToken *wallet.TokenAmount
-		err          error
-	)
-
-	for i := 0; i < userCnt; i++ {
-		vectorToken, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDVector,
-			apex.VectorInfo.GenesisWallet, apex.Users[i],
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
-		require.NoError(t, err)
-
-		cardanoToken, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDCardano,
-			apex.CardanoInfo.GenesisWallet, apex.Users[i],
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
-		require.NoError(t, err)
-	}
+	tokens := fundTestUsersWithToken(
+		t, ctx, apex, []*testConfig{
+			{
+				srcChainID:      cardanofw.ChainIDVector,
+				srcMinterWallet: apex.VectorInfo.GenesisWallet,
+			},
+			{
+				srcChainID:      cardanofw.ChainIDCardano,
+				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
+			},
+		}, apex.Users[:userCnt], uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
+	vectorToken, cardanoToken := tokens[0], tokens[1]
 
 	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee,
 		operationFee, "")
@@ -299,20 +290,14 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 	fmt.Println("cardano fee addr: ", apex.CardanoInfo.FeeAddr)
 	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
 
-	var (
-		primeToken   *wallet.TokenAmount
-		cardanoToken *wallet.TokenAmount
-		err          error
-	)
-
-	for i := 0; i < userCnt; i++ {
-		cardanoToken, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDCardano,
-			apex.CardanoInfo.GenesisWallet, apex.Users[i],
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
-		require.NoError(t, err)
-	}
+	tokens := fundTestUsersWithToken(
+		t, ctx, apex, []*testConfig{
+			{
+				srcChainID:      cardanofw.ChainIDCardano,
+				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
+			},
+		}, apex.Users[:userCnt], uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
+	cardanoToken := tokens[0]
 
 	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee,
 		operationFee, "")
@@ -320,7 +305,6 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 	cardanoTestConfig := newTestConfig(t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, bridgingFee,
 		operationFee, cardanoToken.TokenName())
 
-	fmt.Printf("Prime test config: %+v\n", primeToken)
 	fmt.Printf("Cardano test config: %+v\n", cardanoToken)
 
 	t.Run("1. Prime -> Cardano - Mismatch submitted and receiver amounts", func(t *testing.T) {
@@ -560,21 +544,21 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		mu sync.RWMutex
 	)
 
-	_, err := cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDVector,
-		apex.VectorInfo.GenesisWallet, apex.Users[0],
-		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(5_000_000), uint64(1_000_000_000))
-	require.NoError(t, err)
+	fundTestUsersWithToken(t, ctx, apex, []*testConfig{
+		{
+			srcChainID:      cardanofw.ChainIDVector,
+			srcMinterWallet: apex.VectorInfo.GenesisWallet,
+		},
+		{
+			srcChainID:      cardanofw.ChainIDCardano,
+			srcMinterWallet: apex.CardanoInfo.GenesisWallet,
+		},
+	}, apex.Users[:1], uint64(5_000_000), uint64(1_000_000_000))
 
-	_, err = cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDCardano,
-		apex.CardanoInfo.GenesisWallet, apex.Users[0],
-		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(5_000_000), uint64(1_000_000_000))
-	require.NoError(t, err)
-
-	var wg sync.WaitGroup
+	var (
+		wg  sync.WaitGroup
+		err error
+	)
 
 	for idx, br := range bridgingRequests {
 		wg.Add(1)
