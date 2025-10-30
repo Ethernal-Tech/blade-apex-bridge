@@ -355,15 +355,10 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			a.VectorInfo.GenesisWallet.VerificationKey, DefaultTokenName)
 		require.NoError(t, err)
 
-		var tokenCardano cardanowallet.Token
-		if a.Config.CardanoConfig.MintPolicyID != "" {
-			tokenCardano = wallet.NewToken(a.Config.CardanoConfig.MintPolicyID, a.Config.CardanoConfig.MintableTokens[0])
-		} else {
-			tokenCardano, _, err = GetTokenAndPolicyForVerificationKey(
-				a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
-				a.CardanoInfo.GenesisWallet.VerificationKey, DefaultTokenName)
-			require.NoError(t, err)
-		}
+		tokenCardano, _, err := GetTokenAndPolicyForVerificationKey(
+			a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
+			a.CardanoInfo.GenesisWallet.VerificationKey, DefaultTokenName)
+		require.NoError(t, err)
 
 		a.PrimeInfo.NativeTokens = nil
 		a.VectorInfo.NativeTokens = []sendtx.TokenExchangeConfig{
@@ -478,7 +473,17 @@ func (a *ApexSystem) RegisterChains() error {
 func (a *ApexSystem) DeployCardanoContracts() error {
 	if a.IsSkyline {
 		return a.execForEachChain(func(chain ITestApexChain) error {
-			return chain.DeployCardanoContract()
+			err := chain.DeployCardanoContract()
+			if err != nil {
+				return err
+			}
+
+			if chain.ChainID() == ChainIDCardano {
+				a.CardanoInfo.NativeTokens[0].TokenName = wallet.NewToken(
+					a.Config.CardanoConfig.MintPolicyID, a.Config.CardanoConfig.MintableTokens[0]).String()
+			}
+
+			return nil
 		})
 	}
 

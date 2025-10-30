@@ -20,8 +20,6 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 
 	// Combined configuration for both currency and native token tests
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfigWithMinting(true)
-	primeConfig.FundAmount = 0
-	primeConfig.FundTokenAmount = 0
 
 	apex := cardanofw.SetupAndRunSkylineBridge(
 		t, ctx,
@@ -45,7 +43,7 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 			apex.ResetIndexers()
 		})
 
-		sendAmountDfm := big.NewInt(1_500_000)
+		sendAmountDfm := big.NewInt(10_000_000)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
@@ -62,10 +60,10 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 		})
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(1_000_000),
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(5_000_000),
 			sendtx.BridgingTypeNativeTokenOnSource)
 
-		sendAmountDfm := big.NewInt(1_500_000)
+		sendAmountDfm := big.NewInt(10_000_000)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
@@ -82,10 +80,10 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 		})
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(1_000_000),
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(10_000_000),
 			sendtx.BridgingTypeNativeTokenOnSource)
 
-		sendAmountDfm := big.NewInt(500_000)
+		sendAmountDfm := big.NewInt(5_000_000)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
