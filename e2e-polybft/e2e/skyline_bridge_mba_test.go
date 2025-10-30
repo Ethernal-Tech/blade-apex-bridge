@@ -381,6 +381,8 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 	executeBridging(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
 		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
 
+	primeTestChain := apex.GetChainMust(t, cardanofw.ChainIDPrime)
+
 	// 1. Check existing stake pools in the system
 	stakePools := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetExistingStakePools(t, ctx)
 	require.NotEmpty(t, stakePools)
@@ -394,7 +396,7 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 		err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
 		require.NoError(t, err)
 
-		addrInfo, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, false)
+		addrInfo, err := primeTestChain.GetBridgingStakeAddressInfo(t, ctx, 0, false)
 		require.NoError(t, err)
 		require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
 
@@ -421,7 +423,7 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 			case <-time.After(time.Second):
 			}
 
-			addrInfo, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, false)
+			addrInfo, err := primeTestChain.GetBridgingStakeAddressInfo(t, ctx, 0, false)
 			require.NoError(t, err)
 
 			if addrInfo.StakeDelegation != previousStakePool {
@@ -446,7 +448,7 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 			case <-time.After(time.Second):
 			}
 
-			addrInfo, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, true)
+			addrInfo, err := primeTestChain.GetBridgingStakeAddressInfo(t, ctx, 0, true)
 
 			if err != nil {
 				require.ErrorContains(t, err, "stake address is not registered yet")
@@ -490,7 +492,7 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 				}
 
 				// 1. Check existing stake pools in the system
-				stakePools := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetExistingStakePools(t, ctx)
+				stakePools := primeTestChain.GetExistingStakePools(t, ctx)
 				require.NotEmpty(t, stakePools)
 
 				// 2. Register and delegate bridging address
@@ -498,7 +500,7 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 				require.NoError(t, err)
 
 				// 3. Check if the registration and delegation was successful
-				addrInfo, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetBridgingStakeAddressInfo(t, ctx, 0, false)
+				addrInfo, err := primeTestChain.GetBridgingStakeAddressInfo(t, ctx, 0, false)
 				require.NoError(t, err)
 				require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
 				fmt.Println("Bridging address staked successfully")

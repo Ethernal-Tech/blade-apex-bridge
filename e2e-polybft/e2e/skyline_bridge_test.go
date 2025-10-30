@@ -947,13 +947,17 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for idx, br := range bridgingRequests {
+		var err error
+
 		wg.Add(1)
 
 		go func(i int, src string, dest string, sender *cardanofw.TestApexUser) {
 			defer wg.Done()
 
-			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeCurrencyOnSource,
+			txHashes[i], err = apex.SubmitBridgingRequest(ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeCurrencyOnSource,
 				user)
+			require.NoError(t, err)
+
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
 		}(idx, br.src, br.dest, br.sender)
 	}
@@ -1045,8 +1049,10 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		go func(i int, src string, dest string, sender *cardanofw.TestApexUser) {
 			defer wg.Done()
 
-			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNativeTokenOnSource,
+			txHashes[i], err = apex.SubmitBridgingRequest(ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNativeTokenOnSource,
 				user)
+			require.NoError(t, err)
+
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
 		}(idx, br.src, br.dest, br.sender)
 	}
@@ -1405,7 +1411,9 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			go func(src string, dest string, sender *cardanofw.TestApexUser, receiver *cardanofw.TestApexUser, amount *big.Int) {
 				defer wg.Done()
 
-				txHash := apex.SubmitBridgingRequest(t, ctx, src, dest, sender, amount, br.requestType, receiver)
+				txHash, err := apex.SubmitBridgingRequest(ctx, src, dest, sender, amount, br.requestType, receiver)
+				require.NoError(t, err)
+
 				fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHash)
 			}(br.src, br.dest, br.sender, receivers[br.receiverIdx], cardanofw.ApexToDfm(br.amount))
 		}
@@ -2362,7 +2370,8 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 					if valid {
 						time.Sleep(time.Second * time.Duration(r.Intn(maxWaitTime)))
 
-						apex.SubmitBridgingRequest(t, ctx, br.src, br.dest, apex.Users[idx], sendAmount, br.bridgingType, br.receiver)
+						_, err := apex.SubmitBridgingRequest(ctx, br.src, br.dest, apex.Users[idx], sendAmount, br.bridgingType, br.receiver)
+						require.NoError(t, err)
 					} else {
 						sendInvalidSendAmountTransaction(t, ctx, apex, br.src, br.dest, apex.Users[idx], sendAmount, br.receiver.GetAddress(br.dest), br.multiSigAddr)
 					}
@@ -2433,17 +2442,19 @@ func sendInvalidSendAmountTransaction(
 		},
 	}
 
-	feeAmount, err := apex.GetChainMust(t, src).GetBridgingFee(
+	srcTestChain := apex.GetChainMust(t, src)
+
+	feeAmount, err := srcTestChain.GetBridgingFee(
 		ctx, dest, receivers, bridgingFee, operationFee, multiSigAddr)
 	require.NoError(t, err)
 
-	metadata, err := apex.GetChainMust(t, src).CreateMetadata(
+	metadata, err := srcTestChain.CreateMetadata(
 		senderUser.GetAddress(src), dest,
 		receivers, feeAmount, operationFee)
 	require.NoError(t, err)
 
 	_, err = apex.SubmitTx(
-		ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddresses()[0],
+		ctx, src, senderUser, srcTestChain.GetHotWalletAddresses()[0],
 		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount+operationFee)), nil, metadata)
 	require.NoError(t, err)
 }
@@ -2507,6 +2518,8 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 		wg.Add(1)
 
 		go func(i int, br bridgingRequest) {
+			var err error
+
 			defer wg.Done()
 
 			if br.requestType == sendtx.BridgingTypeNativeTokenOnSource {
@@ -2518,7 +2531,9 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, br.src, br.dest, br.sender, apexSendAmount, br.requestType, user)
+			txHashes[i], err = apex.SubmitBridgingRequest(ctx, br.src, br.dest, br.sender, apexSendAmount, br.requestType, user)
+			require.NoError(t, err)
+
 			fmt.Printf("Bridging request: %v to %v sent %v. hash: %s\n", br.src, br.dest, br.requestType, txHashes[i])
 		}(idx, br)
 	}

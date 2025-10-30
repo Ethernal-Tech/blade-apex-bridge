@@ -14,11 +14,11 @@ import (
 
 type IApexSystem interface {
 	SubmitBridgingRequest(
-		t *testing.T, ctx context.Context,
+		ctx context.Context,
 		sourceChain cardanofw.ChainID, destinationChain cardanofw.ChainID,
 		sender *cardanofw.TestApexUser, dfmAmount *big.Int, bridgingType sendtx.BridgingType,
 		receivers ...*cardanofw.TestApexUser,
-	) string
+	) (string, error)
 	WaitForGreaterAmount(
 		ctx context.Context, user *cardanofw.TestApexUser, dstChain cardanofw.ChainID, srcChain cardanofw.ChainID,
 		expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration, isNativeToken ...bool,

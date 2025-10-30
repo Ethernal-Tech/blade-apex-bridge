@@ -774,16 +774,11 @@ func FundAddressWithToken(
 	return &tokenAmount, nil
 }
 
-func isProcessOnPort(port int) (bool, error) {
-	command := fmt.Sprintf("lsof -i tcp:%d | grep LISTEN | awk '{print $2}'", port)
-	cmd := exec.Command("bash", "-c", command)
-
-	var out bytes.Buffer
-	cmd.Stdout = &out
-
-	if err := cmd.Run(); err != nil {
-		return false, err
+func isExitCode(err error, code int) bool {
+	var exitError *exec.ExitError
+	if errors.As(err, &exitError) {
+		return exitError.ExitCode() == code
 	}
 
-	return out.String() != "", nil
+	return false
 }

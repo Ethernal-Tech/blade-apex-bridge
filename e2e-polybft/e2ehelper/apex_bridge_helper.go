@@ -31,8 +31,9 @@ func ExecuteSingleBridging(
 	tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
 	prevAmount := cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
 
-	txHash := apex.SubmitBridgingRequest(
-		t, ctx, srcChain, dstChain, senderUser, sendAmount, bridgingType, receiverUser)
+	txHash, err := apex.SubmitBridgingRequest(
+		ctx, srcChain, dstChain, senderUser, sendAmount, bridgingType, receiverUser)
+	require.NoError(t, err)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
@@ -83,7 +84,11 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 		tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
 		prevAmount := cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
 
-		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, receiverUser)
+		txHash, err := apex.SubmitBridgingRequest(
+			ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, receiverUser)
+		require.NoError(t, err)
+
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
 
 		expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
 
@@ -113,7 +118,11 @@ func ExecuteBridgingWaitAfterSubmits(
 	expectedAmount := prevAmount
 
 	for i := 0; i < txCountPerSender; i++ {
-		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, receiverUser)
+		txHash, err := apex.SubmitBridgingRequest(
+			ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, receiverUser)
+		require.NoError(t, err)
+
+		fmt.Printf("Tx[%d] sent. hash: %s\n", i, txHash)
 
 		expectedAmount = expectedAmount.Add(expectedAmount, sendAmount)
 	}

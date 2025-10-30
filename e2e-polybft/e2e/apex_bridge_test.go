@@ -449,10 +449,11 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 	sendAmount := uint64(1_000_000)
 
 	// Initiate bridging PRIME -> VECTOR
-	txHash := apex.SubmitBridgingRequest(t, ctx,
+	txHash, err := apex.SubmitBridgingRequest(ctx,
 		cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
 		user, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, user,
 	)
+	require.NoError(t, err)
 
 	_, timeout := cardanofw.WaitForBatchState(
 		ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, false, true,
@@ -515,7 +516,9 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			beforeSendingAmountDfm[i], err = apex.GetBalance(ctx, user, src)
 			require.NoError(t, err)
 
-			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNormal, user)
+			txHashes[i], err = apex.SubmitBridgingRequest(ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNormal, user)
+			require.NoError(t, err)
+
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
 		}(idx, br.src, br.dest, br.sender)
 	}
@@ -607,10 +610,11 @@ func TestE2E_FundAmount(t *testing.T) {
 			expectedAmount := new(big.Int).Set(tc.sendAmount)
 			expectedAmount.Add(expectedAmount, prevAmount)
 
-			txHash := apex.SubmitBridgingRequest(t, ctx,
+			txHash, err := apex.SubmitBridgingRequest(ctx,
 				tc.fromChain, tc.toChain,
 				user, tc.sendAmount, sendtx.BridgingTypeNormal, user,
 			)
+			require.NoError(t, err)
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
 
@@ -619,10 +623,11 @@ func TestE2E_FundAmount(t *testing.T) {
 
 			require.NoError(t, apex.FundChainHotWallet(ctx, tc.toChain, big.NewInt(tc.fundAmount)))
 
-			txHash = apex.SubmitBridgingRequest(t, ctx,
+			txHash, err = apex.SubmitBridgingRequest(ctx,
 				tc.fromChain, tc.toChain,
 				user, tc.sendAmount, sendtx.BridgingTypeNormal, user,
 			)
+			require.NoError(t, err)
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
 
@@ -1313,7 +1318,9 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			go func(src string, dest string, sender *cardanofw.TestApexUser, receiver *cardanofw.TestApexUser, amount *big.Int) {
 				defer wg.Done()
 
-				txHash := apex.SubmitBridgingRequest(t, ctx, src, dest, sender, amount, sendtx.BridgingTypeNormal, receiver)
+				txHash, err := apex.SubmitBridgingRequest(ctx, src, dest, sender, amount, sendtx.BridgingTypeNormal, receiver)
+				require.NoError(t, err)
+
 				fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHash)
 			}(br.src, br.dest, br.sender, receivers[br.receiverIdx], cardanofw.ApexToDfm(br.amount))
 		}
@@ -1706,7 +1713,8 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 					if valid {
 						time.Sleep(time.Second * time.Duration(r.Intn(maxWaitTime)))
 
-						apex.SubmitBridgingRequest(t, ctx, src, dest, apex.Users[idx], sendAmount, sendtx.BridgingTypeNormal, user)
+						_, err := apex.SubmitBridgingRequest(ctx, src, dest, apex.Users[idx], sendAmount, sendtx.BridgingTypeNormal, user)
+						require.NoError(t, err)
 					} else if src != cardanofw.ChainIDNexus {
 						submitInvalidSendAmountTransaction(t, ctx, apex, src, dest, apex.Users[idx], sendAmount, user.GetAddress(dest))
 					}
@@ -2079,7 +2087,9 @@ func submitInvalidSendAmountTransaction(
 	feeAmount := big.NewInt(1_100_000)
 	operationFee := uint64(0)
 
-	bridgingRequestMetadata, err := apex.GetChainMust(t, src).CreateMetadata(
+	srcTestChain := apex.GetChainMust(t, src)
+
+	bridgingRequestMetadata, err := srcTestChain.CreateMetadata(
 		senderUser.GetAddress(src), dest, []sendtx.BridgingTxReceiver{
 			{
 				Addr:         receiverUserAddr,
@@ -2089,7 +2099,7 @@ func submitInvalidSendAmountTransaction(
 		}, feeAmount.Uint64(), operationFee)
 	require.NoError(t, err)
 
-	_, err = apex.SubmitTx(ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddresses()[0],
+	_, err = apex.SubmitTx(ctx, src, senderUser, srcTestChain.GetHotWalletAddresses()[0],
 		new(big.Int).Add(sendAmount, feeAmount), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 }
@@ -2125,6 +2135,7 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 		apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 	require.Error(t, err)
 }
+
 func PrimeToVectorInvalidMetadataWrongType(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
 	requestStateTimeoutSec uint, bridgingFeeAmount uint64,

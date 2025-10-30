@@ -172,9 +172,10 @@ var (
 
 					for j := 0; j < txCountPerSender; j++ {
 						for _, dstChain := range dstChains {
-							txHash := apex.SubmitBridgingRequest(
-								t, ctx, srcChain, dstChain, senderUser, sendAmountDfm,
+							txHash, err := apex.SubmitBridgingRequest(
+								ctx, srcChain, dstChain, senderUser, sendAmountDfm,
 								bridgingTypes[NewChainPair(srcChain, dstChain)], receivers...)
+							require.NoError(t, err)
 
 							fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
 								idx+1, j+1, srcChain, dstChain, txHash)
