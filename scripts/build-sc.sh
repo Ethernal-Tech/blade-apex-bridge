@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BRANCH=feat/skyline
+BRANCH=feat/cardano-mint-sc
 
 # build Apex-bridge smartcontracts
 cd ./apex-bridge-smartcontracts

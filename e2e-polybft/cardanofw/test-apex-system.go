@@ -21,7 +21,6 @@ import (
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	wallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -479,7 +478,7 @@ func (a *ApexSystem) DeployCardanoContracts() error {
 			}
 
 			if chain.ChainID() == ChainIDCardano {
-				a.CardanoInfo.NativeTokens[0].TokenName = wallet.NewToken(
+				a.CardanoInfo.NativeTokens[0].TokenName = cardanowallet.NewToken(
 					a.Config.CardanoConfig.MintPolicyID, a.Config.CardanoConfig.MintableTokens[0]).String()
 			}
 
@@ -565,7 +564,8 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
 		}
 
-		if a.Config.CardanoConfig != nil && a.Config.CardanoConfig.CustodialAddressGeneration {
+		cardanoConfig := a.Config.CardanoConfig
+		if cardanoConfig != nil && cardanoConfig.CustodialAddressGeneration {
 			tokenPolicyID := ""
 
 			var scriptInfo CardanoScriptInfo
@@ -579,9 +579,9 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 				}
 			}
 
-			a.CardanoInfo.NativeTokens = make([]sendtx.TokenExchangeConfig, len(a.Config.CardanoConfig.MintableTokens))
+			a.CardanoInfo.NativeTokens = make([]sendtx.TokenExchangeConfig, len(cardanoConfig.MintableTokens))
 
-			for i, tokenName := range a.Config.CardanoConfig.MintableTokens {
+			for i, tokenName := range cardanoConfig.MintableTokens {
 				a.CardanoInfo.NativeTokens[i] = sendtx.TokenExchangeConfig{
 					DstChainID: ChainIDPrime,
 					TokenName:  fmt.Sprintf("%s.%s", tokenPolicyID, hex.EncodeToString([]byte(tokenName))),
@@ -589,13 +589,16 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 				}
 			}
 
-			a.Config.CardanoConfig.ScriptTxInputHash = scriptInfo.ReferenceUtxoHash
-			a.Config.CardanoConfig.ScriptTxInputIndex = scriptInfo.ReferenceUtxoIndex
+			cardanoConfig.ScriptTxInputHash = scriptInfo.ReferenceUtxoHash
+			cardanoConfig.ScriptTxInputIndex = scriptInfo.ReferenceUtxoIndex
 
 			args = append(args, "--cardano-minting-script-tx-input-hash",
-				a.Config.CardanoConfig.ScriptTxInputHash)
+				cardanoConfig.ScriptTxInputHash)
 			args = append(args, "--cardano-minting-script-tx-input-index",
-				fmt.Sprintf("%d", a.Config.CardanoConfig.ScriptTxInputIndex))
+				fmt.Sprintf("%d", cardanoConfig.ScriptTxInputIndex))
+
+			args = append(args, "--cardano-nft-policy-id", cardanoConfig.CustodialNFT.PolicyID)
+			args = append(args, "--cardano-nft-name", cardanoConfig.CustodialNFT.Name)
 		}
 
 		cardanoPrimeTokenName := a.CardanoInfo.NativeTokens[0].TokenName

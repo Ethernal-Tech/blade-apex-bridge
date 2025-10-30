@@ -62,7 +62,6 @@ type TestCardanoChainConfig struct {
 	UseIndexer                  bool
 
 	// Minting
-
 	FundRelayerAmount          uint64
 	CustodialAddressGeneration bool
 	ScriptTxInputHash          string
@@ -70,6 +69,8 @@ type TestCardanoChainConfig struct {
 	// Human readable names of tokens that should be mintable on this chain
 	MintPolicyID   string
 	MintableTokens []string
+	// Custodial NFT
+	CustodialNFT *infrawallet.Token
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -202,8 +203,6 @@ type TestCardanoChain struct {
 	multisigFeeAddr   string
 	relayerAddr       string
 	custodialAddress  string
-	nftPolicyID       string
-	nftHexName        string
 	txSender          *sendtx.TxSender
 	indexer           e2eindexer.TxsExecutedComponent
 	cardnoScriptInfo  CardanoScriptInfo
@@ -375,7 +374,8 @@ func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) (string,
 }
 
 func (ec *TestCardanoChain) DeployCardanoContract() error {
-	if ec.nftPolicyID == "" || ec.nftHexName == "" {
+	custodialNFT := ec.config.CustodialNFT
+	if custodialNFT == nil {
 		return nil
 	}
 
@@ -399,8 +399,8 @@ func (ec *TestCardanoChain) DeployCardanoContract() error {
 		"--ogmios", ec.ogmiosURL,
 		"--network-id", fmt.Sprint(ec.config.NetworkType),
 		"--testnet-magic", fmt.Sprint(ec.config.NetworkMagic),
-		"--nft-policy-id", ec.nftPolicyID,
-		"--nft-name-hex", ec.nftHexName,
+		"--nft-policy-id", custodialNFT.PolicyID,
+		"--nft-name-hex", hex.EncodeToString([]byte(custodialNFT.Name)),
 		"--plutus-script-dir", scriptDir,
 	}
 
@@ -421,9 +421,24 @@ func (ec *TestCardanoChain) DeployCardanoContract() error {
 
 	// Find all matches
 	plutusAddr := rePlutusAddr.FindStringSubmatch(output)
+	if plutusAddr == nil {
+		return fmt.Errorf("failed to find plutus address in output")
+	}
+
 	utxoHash := reUtxoHash.FindStringSubmatch(output)
+	if utxoHash == nil {
+		return fmt.Errorf("failed to find UTXO hash in output")
+	}
+
 	utxoIdxStr := reUtxoIdx.FindStringSubmatch(output)
+	if utxoIdxStr == nil {
+		return fmt.Errorf("failed to find UTXO index in output")
+	}
+
 	policyID := rePolicyID.FindStringSubmatch(output)
+	if policyID == nil {
+		return fmt.Errorf("failed to find policy ID in output")
+	}
 
 	ec.config.MintPolicyID = policyID[1]
 
@@ -475,13 +490,13 @@ func (ec *TestCardanoChain) CreateAddresses(
 
 	if ec.config.CustodialAddressGeneration {
 		reCustodial := regexp.MustCompile(`Custodial Address\s*=\s*([^\s]+)`)
-		custodialMatches := reCustodial.FindAllStringSubmatch(output, -1)
+		custodialMatches := reCustodial.FindStringSubmatch(output)
 
-		if len(custodialMatches) == 0 {
+		if custodialMatches == nil {
 			return fmt.Errorf("no custodial addresses found in output")
 		}
 
-		ec.custodialAddress = custodialMatches[0][1]
+		ec.custodialAddress = custodialMatches[1]
 	}
 
 	// Regular expressions for parsing the output
@@ -585,8 +600,10 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		fmt.Printf("%s custodial addr funded with NFT `%s` amount: %d, %d\n",
 			ec.ChainID(), nft.TokenName(), lovelaceFundAmount, MintNFTAmount)
 
-		ec.nftPolicyID = nft.PolicyID
-		ec.nftHexName = strings.Split(nft.TokenName(), ".")[1]
+		ec.config.CustodialNFT = &infrawallet.Token{
+			PolicyID: nft.PolicyID,
+			Name:     nft.Name,
+		}
 	}
 
 	return nil

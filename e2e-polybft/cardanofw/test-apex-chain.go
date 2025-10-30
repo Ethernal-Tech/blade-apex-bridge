@@ -127,7 +127,7 @@ func (td *TestApexChainDummy) CreateWallets(validator *TestApexValidator) (strin
 	return "", nil
 }
 
-func (ec *TestApexChainDummy) DeployCardanoContract() error {
+func (td *TestApexChainDummy) DeployCardanoContract() error {
 	return nil
 }
 
