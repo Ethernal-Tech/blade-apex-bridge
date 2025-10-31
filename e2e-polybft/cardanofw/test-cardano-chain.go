@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -59,6 +60,7 @@ type TestCardanoChainConfig struct {
 	BridgeAddrHasStake          bool
 	BridgingAddressCnt          int
 	UseIndexer                  bool
+	AllowedDirections           []ChainID
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -81,6 +83,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		MinOperationFee:             uint64(0),
 		BridgeAddrHasStake:          true,
 		BridgingAddressCnt:          1,
+		AllowedDirections:           []string{},
 	}
 }
 
@@ -103,6 +106,7 @@ func NewVectorChainConfig() *TestCardanoChainConfig {
 		MinBridgingFee:              defaultMinBridgingFeeAmount,
 		MinOperationFee:             uint64(0),
 		BridgingAddressCnt:          1,
+		AllowedDirections:           []string{},
 	}
 }
 
@@ -123,6 +127,7 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		MinBridgingFee:              defaultMinBridgingFeeAmount,
 		MinOperationFee:             DefaultMinOperationFee,
 		BridgingAddressCnt:          1,
+		AllowedDirections:           []string{},
 	}
 }
 
@@ -437,28 +442,48 @@ func (ec *TestCardanoChain) RegisterChain(validator *TestApexValidator) error {
 		ChainTypeCardano)
 }
 
-func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string) {
-	getFlag := func(suffix string) string {
-		return fmt.Sprintf("--%s-%s", ec.ChainID(), suffix)
+func (ec *TestCardanoChain) GenerateChainConfigs(indx int, validator *TestApexValidator, tokens []sendtx.TokenExchangeConfig) error {
+	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
+	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
+
+	args := []string{
+		"generate-configs", "cardano-chain",
+		"--chain-id", ec.ChainID(),
+		"--network-address", server.NetworkAddress(),
+		"--network-magic", fmt.Sprint(ec.config.NetworkMagic),
+		"--network-id", fmt.Sprint(ec.config.NetworkType),
+		"--ogmios-url", ec.ogmiosURL,
+		"--utxo-min-amount", strconv.FormatUint(MinUTxODefaultValue, 10),
+		"--output-dir", validator.GetBridgingConfigsDir(),
+		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
+		"--output-relayer-file-name", RelayerConfigFileName,
+		"--dbs-path", dbsPath,
 	}
 
-	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
-	result = []string{
-		getFlag("network-address"), server.NetworkAddress(),
-		getFlag("network-magic"), fmt.Sprint(ec.config.NetworkMagic),
-		getFlag("network-id"), fmt.Sprint(ec.config.NetworkType),
-		getFlag("ogmios-url"), ec.ogmiosURL,
+	for _, token := range tokens {
+		args = append(args,
+			"--native-token-name", token.TokenName,
+			"--native-token-destination-chain-id", token.DstChainID,
+		)
+	}
+
+	for _, direction := range ec.config.AllowedDirections {
+		args = append(args, "--allowed-directions", direction)
 	}
 
 	if ec.config.TTLInc > 0 {
-		result = append(result, getFlag("ttl-slot-inc"), fmt.Sprint(ec.config.TTLInc))
+		args = append(args, "--ttl-slot-inc", fmt.Sprint(ec.config.TTLInc))
 	}
 
 	if ec.config.SlotRoundingThreshold > 0 {
-		result = append(result, getFlag("slot-rounding-threshold"), fmt.Sprint(ec.config.SlotRoundingThreshold))
+		args = append(args, "--slot-rounding-threshold", fmt.Sprint(ec.config.SlotRoundingThreshold))
 	}
 
-	return result
+	if err := RunCommand(ResolveApexBridgeBinary(), args, os.Stdout); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (ec *TestCardanoChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error {

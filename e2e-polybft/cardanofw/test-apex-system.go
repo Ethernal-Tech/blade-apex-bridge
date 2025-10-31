@@ -104,6 +104,10 @@ func NewApexSystem(
 		opt(config)
 	}
 
+	config.NexusConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
+	config.VectorConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDNexus}
+	config.PrimeConfig.AllowedDirections = []ChainID{ChainIDVector, ChainIDNexus}
+
 	nexus, err := NewTestEVMChain(config.NexusConfig)
 	if err != nil {
 		return nil, err
@@ -145,6 +149,10 @@ func NewSkylineSystem(
 
 	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee
 	config.VectorConfig.MinOperationFee = DefaultMinOperationFee
+
+	config.CardanoConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
+	config.VectorConfig.AllowedDirections = []ChainID{ChainIDCardano}
+	config.PrimeConfig.AllowedDirections = []ChainID{ChainIDCardano}
 
 	users := make([]*TestApexUser, config.UserCnt)
 
@@ -485,14 +493,16 @@ func (a *ApexSystem) generateReactorConfigs() error {
 
 		var args []string
 
-		for _, chain := range a.chains {
-			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
-		}
-
 		err := validator.GenerateConfigs(
 			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i), args...)
 		if err != nil {
 			return err
+		}
+
+		for _, chain := range a.chains {
+			if err := chain.GenerateChainConfigs(serverIndx, validator, nil); err != nil {
+				return err
+			}
 		}
 
 		if handler := a.Config.CustomOracleConfigHandler; handler != nil {
@@ -533,18 +543,18 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 
 		var args []string
 
-		for _, chain := range a.chains {
-			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
-		}
-
-		cardanoPrimeTokenName := a.CardanoInfo.NativeTokens[0].TokenName
-		vectorCardanoTokenName := a.VectorInfo.NativeTokens[0].TokenName
-
 		err := validator.GenerateSkylineConfigs(
 			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i),
-			cardanoPrimeTokenName, vectorCardanoTokenName, args...)
+			args...)
 		if err != nil {
 			return err
+		}
+
+		for _, chain := range a.chains {
+			tokens := a.GetCardanoInfo(chain.ChainID()).NativeTokens
+			if err := chain.GenerateChainConfigs(serverIndx, validator, tokens); err != nil {
+				return err
+			}
 		}
 
 		if handler := a.Config.CustomOracleConfigHandler; handler != nil {
