@@ -231,11 +231,13 @@ func executeInvalidDestination(
 		},
 	}
 
-	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
+	srcTestChain := apex.GetChainMust(t, config.srcChainID)
+
+	feeAmount, err := srcTestChain.GetBridgingFee(
 		ctx, config.dstChainID, receiversForFeeCalculation, config.bridgingFee, config.operationFee, config.srcMultiSigAddr)
 	require.NoError(t, err)
 
-	metadata, err := apex.GetChainMust(t, config.srcChainID).CreateMetadata(
+	metadata, err := srcTestChain.CreateMetadata(
 		user.GetAddress(config.srcChainID), config.dstChainID, receivers, feeAmount, config.operationFee)
 	require.NoError(t, err)
 
@@ -263,11 +265,13 @@ func executeInvalidMetadataInvalidSender(
 
 	receivers := createReceivers(apex, 1, config.dstChainID, defaultLovelaceAmount, bridgingType)
 
-	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
+	srcTestChain := apex.GetChainMust(t, config.srcChainID)
+
+	feeAmount, err := srcTestChain.GetBridgingFee(
 		ctx, config.dstChainID, receivers, config.bridgingFee, config.operationFee, config.srcMultiSigAddr)
 	require.NoError(t, err)
 
-	metadata, err := apex.GetChainMust(t, config.srcChainID).CreateMetadata(
+	metadata, err := srcTestChain.CreateMetadata(
 		"dummy", config.dstChainID, receivers, feeAmount, config.operationFee)
 	require.NoError(t, err)
 
@@ -300,11 +304,13 @@ func executeInvalidEmptyReceivers(
 		},
 	}
 
-	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
+	srcTestChain := apex.GetChainMust(t, config.srcChainID)
+
+	feeAmount, err := srcTestChain.GetBridgingFee(
 		ctx, config.dstChainID, receiversForFeeCalculation, config.bridgingFee, config.operationFee, config.srcMultiSigAddr)
 	require.NoError(t, err)
 
-	metadata, err := apex.GetChainMust(t, config.srcChainID).CreateMetadata(
+	metadata, err := srcTestChain.CreateMetadata(
 		user.GetAddress(config.srcChainID), config.dstChainID, receivers, feeAmount, config.operationFee)
 	require.NoError(t, err)
 
@@ -380,15 +386,15 @@ func createMetadata(
 ) ([]byte, uint64) {
 	t.Helper()
 
-	chain := apex.GetChainMust(t, srcChain)
+	srcTestChain := apex.GetChainMust(t, srcChain)
 
-	multisig, err := chain.GetAddressToBridgeTo(ctx, bridgingType)
+	multisig, err := srcTestChain.GetAddressToBridgeTo(ctx, bridgingType)
 	require.NoError(t, err)
 
-	feeAmount, err := chain.GetBridgingFee(ctx, dstChain, receivers, bridgingFee, operationFee, multisig)
+	feeAmount, err := srcTestChain.GetBridgingFee(ctx, dstChain, receivers, bridgingFee, operationFee, multisig)
 	require.NoError(t, err)
 
-	metadata, err := chain.CreateMetadata(sender.GetAddress(srcChain), dstChain, receivers, feeAmount, operationFee)
+	metadata, err := srcTestChain.CreateMetadata(sender.GetAddress(srcChain), dstChain, receivers, feeAmount, operationFee)
 	require.NoError(t, err)
 
 	return metadata, feeAmount

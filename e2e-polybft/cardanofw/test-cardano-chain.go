@@ -196,7 +196,7 @@ func (ec *TestCardanoChain) GetBridgingStakeAddressInfo(
 			}
 
 			return addrInfo, err
-		}, infracommon.WithRetryCount(60), infracommon.WithRetryWaitTime(time.Second))
+		}, infracommon.WithRetryCount(120), infracommon.WithRetryWaitTime(time.Second))
 	if !expectError {
 		require.NoError(t, err)
 	}

@@ -483,8 +483,10 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			beforeSendingAmountDfm[idx], err = apex.GetBalance(ctx, user, src)
 			require.NoError(t, err)
 
-			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeCurrencyOnSource,
+			txHashes[i], err = apex.SubmitBridgingRequest(ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeCurrencyOnSource,
 				user)
+			require.NoError(t, err)
+
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
 		}(idx, br.src, br.dest, br.sender)
 	}
@@ -585,8 +587,10 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 			mu.Unlock()
 			require.NoError(t, err)
 
-			txHash := apex.SubmitBridgingRequest(
-				t, ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNativeTokenOnSource, user)
+			txHash, err := apex.SubmitBridgingRequest(
+				ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNativeTokenOnSource, user)
+			require.NoError(t, err)
+
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHash)
 		}(idx, br.src, br.dest, br.sender)
 	}
@@ -693,7 +697,9 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, br.src, br.dest, br.sender, sendAmount, br.requestType, user)
+			txHashes[i], err = apex.SubmitBridgingRequest(ctx, br.src, br.dest, br.sender, sendAmount, br.requestType, user)
+			require.NoError(t, err)
+
 			fmt.Printf("Bridging request: %v to %v sent %v. hash: %s\n", br.src, br.dest, br.requestType, txHashes[i])
 		}(idx, br)
 	}
