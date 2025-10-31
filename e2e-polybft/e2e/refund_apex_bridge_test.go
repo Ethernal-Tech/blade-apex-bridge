@@ -79,7 +79,6 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		primeTestChain := apex.GetChainMust(t, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
 
 		metadata, err := primeTestChain.CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
@@ -151,7 +150,6 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		primeTestChain := apex.GetChainMust(t, cardanofw.ChainIDPrime)
-		require.NoError(t, err)
 
 		metadata, err := primeTestChain.CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
