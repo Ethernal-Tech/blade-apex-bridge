@@ -238,7 +238,7 @@ func TestE2E_ApexRefund_BatchRecreated(t *testing.T) {
 	primeConfig.FundAmount = 500_000_000
 	vectorConfig.FundAmount = 500_000_000
 	primeConfig.TTLInc, primeConfig.SlotRoundingThreshold = 250, 50
-	vectorConfig.TTLInc, vectorConfig.SlotRoundingThreshold = 5, 30
+	vectorConfig.TTLInc, vectorConfig.SlotRoundingThreshold = 1, 20
 
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,
@@ -290,6 +290,8 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
 	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
 	primeConfig.PremineAmount = 100_700_000_000
 	vectorConfig.PremineAmount = 500_000_000
+	primeConfig.UseIndexer = true
+	vectorConfig.UseIndexer = true
 
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,
@@ -485,6 +487,8 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
 	primeConfig.PremineAmount = 100_700_000_000
 	vectorConfig.PremineAmount = 500_000_000
+	primeConfig.UseIndexer = true
+	vectorConfig.UseIndexer = true
 
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx,

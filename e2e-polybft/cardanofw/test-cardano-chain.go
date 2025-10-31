@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -356,7 +357,11 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 		return nil, err
 	}
 
-	utxos, err := txProvider.GetUtxos(ctx, addr)
+	utxos, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]infrawallet.Utxo, error) {
+			return txProvider.GetUtxos(ctx, addr)
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -497,6 +502,15 @@ func (ec *TestCardanoChain) sendTx(
 		return txHash, nil
 	}, infracommon.WithRetryCount(retryCount), infracommon.WithRetryWaitTime(retryWaitTime))
 	if err != nil {
+		if errors.Is(err, infracommon.ErrRetryTimeout) &&
+			ec.indexer != nil && slices.Contains(ec.indexer.GetFailedTxs(), txHash) {
+			fmt.Printf("Transaction %s timed out because it was rolled back\n", txHash)
+			// Since the timeout happened because of rollback, we return txHash normally
+			// so later all the submited txs can be compared against the hashes of
+			// txs that were rolled back
+			return txHash, nil
+		}
+
 		return "", fmt.Errorf("failed to send tx %s to receiver %s: %w", txHash, receiverAddr, err)
 	}
 

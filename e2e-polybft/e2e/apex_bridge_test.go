@@ -25,6 +25,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
+	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/assert"
@@ -335,7 +336,7 @@ func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 	}
 }
 
-func TestE2E_ApexBridge(t *testing.T) {
+func TestE2E_ApexBridge_SingleBridging(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
 	}
@@ -2181,7 +2182,7 @@ func submitInvalidSendAmountTransaction(
 	require.NoError(t, err)
 }
 
-func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
+func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
 	}
@@ -2200,6 +2201,9 @@ func TestE2E_ApexBridgeUTxOConsolidation(t *testing.T) {
 	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * fundUtxoCount
 	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
 	sendAmount := vectorConfig.FundAmount - cardanofw.MinUTxODefaultValue*3
+
+	// adding indexer because there are many funding transactions
+	vectorConfig.UseIndexer = true
 
 	var (
 		initialUtxos []map[string]any
@@ -2412,77 +2416,6 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 	assert.GreaterOrEqual(t, cntConsolidationBatches[cardanofw.ChainIDVector], minimumExpectedConsolidations)
 }
 
-func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
-	t.Skip()
-
-	const (
-		apiKey = "test_api_key"
-	)
-
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	apex := cardanofw.SetupAndRunApexBridge(
-		t, ctx,
-		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithVectorEnabled(false),
-		cardanofw.WithNexusEnabled(true),
-	)
-
-	defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-	user := apex.Users[0]
-	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
-
-	// execute nexus to prime -> no wait
-	prevAmountPrimeDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
-	require.NoError(t, err)
-
-	// give time to oracle to submit hot wallet increment claims
-	select {
-	case <-ctx.Done():
-		return
-	case <-time.After(60 * time.Second):
-	}
-
-	txHash := apex.SubmitBridgingRequest(t, ctx, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, user, sendAmountDfm, user)
-
-	fmt.Printf("Submitted bridging request from Nexus to Prime, txHash: %s\n", txHash)
-
-	// close prime chain for some time
-	primeChainServer := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetServerMust(t, 1)
-
-	require.NoError(t, primeChainServer.Stop(true))
-
-	select {
-	case <-ctx.Done():
-		return
-	case <-time.After(720 * time.Second):
-	}
-
-	// start prime chain again
-	require.NoError(t, primeChainServer.Start())
-
-	// wait for tx on destination
-	expectedAmountDfm := new(big.Int).Add(prevAmountPrimeDfm, sendAmountDfm)
-
-	err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDPrime, expectedAmountDfm, 100, time.Second*10)
-	require.NoError(t, err)
-
-	fmt.Printf("Expected amount on Prime received\n")
-
-	// send prime -> nexus
-	e2ehelper.ExecuteBridging(
-		t, ctx, apex, 1,
-		[]*cardanofw.TestApexUser{user},
-		[]*cardanofw.TestApexUser{user},
-		[]string{cardanofw.ChainIDPrime},
-		map[string][]string{
-			cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
-		},
-		sendAmountDfm)
-}
-
 func getInitialUtxosAndTip(
 	t *testing.T, ctx context.Context, chainInfo cardanofw.CardanoChainInfo, multisigAddr, feeAddr string,
 ) ([]map[string]any, infrawallet.QueryTipData) {
@@ -2491,16 +2424,28 @@ func getInitialUtxosAndTip(
 	txProvider, err := chainInfo.GetTxProvider()
 	require.NoError(t, err)
 
-	multisigUtoxs, err := txProvider.GetUtxos(ctx, multisigAddr)
+	multisigUtxos, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]infrawallet.Utxo, error) {
+			return txProvider.GetUtxos(ctx, multisigAddr)
+		},
+	)
 	require.NoError(t, err)
 
-	feeUtxos, err := txProvider.GetUtxos(ctx, feeAddr)
+	feeUtxos, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) ([]infrawallet.Utxo, error) {
+			return txProvider.GetUtxos(ctx, feeAddr)
+		},
+	)
 	require.NoError(t, err)
 
-	tipData, err := txProvider.GetTip(ctx)
+	tipData, err := infracommon.ExecuteWithRetry(
+		ctx, func(ctx context.Context) (infrawallet.QueryTipData, error) {
+			return txProvider.GetTip(ctx)
+		},
+	)
 	require.NoError(t, err)
 
-	initialUtxos := make([]map[string]any, 0, len(multisigUtoxs)+len(feeUtxos))
+	initialUtxos := make([]map[string]any, 0, len(multisigUtxos)+len(feeUtxos))
 
 	utxoToMap := func(utxo infrawallet.Utxo, addr string) map[string]any {
 		bytes, _ := hex.DecodeString(utxo.Hash)
@@ -2514,7 +2459,7 @@ func getInitialUtxosAndTip(
 		}
 	}
 
-	for _, utxo := range multisigUtoxs {
+	for _, utxo := range multisigUtxos {
 		initialUtxos = append(initialUtxos, utxoToMap(utxo, multisigAddr))
 	}
 

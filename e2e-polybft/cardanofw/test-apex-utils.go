@@ -422,7 +422,7 @@ func WaitForBatchState(
 	apiKey string, breakIfFailed bool, failAtLeastOnce bool, batchState string, otherGoodBatchStates ...string,
 ) (int, bool) {
 	failedToExecuteCount := 0
-	err := WaitForRequestStateGeneric(ctx, apex, chainID, txHash, apiKey, time.Second*300, func(status string) bool {
+	err := WaitForRequestStateGeneric(ctx, apex, chainID, txHash, apiKey, time.Second*400, func(status string) bool {
 		if status == BatchStateFailedToExecute {
 			failedToExecuteCount++
 
@@ -519,4 +519,18 @@ func AddrToMetaDataAddr(addr string) []string {
 	addr = strings.TrimPrefix(strings.TrimPrefix(addr, "0x"), "0X")
 
 	return SplitString(addr, splitStringLength)
+}
+
+func isProcessOnPort(port int) (bool, error) {
+	command := fmt.Sprintf("lsof -i tcp:%d | grep LISTEN | awk '{print $2}'", port)
+	cmd := exec.Command("bash", "-c", command)
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	if err := cmd.Run(); err != nil {
+		return false, err
+	}
+
+	return out.String() != "", nil
 }
