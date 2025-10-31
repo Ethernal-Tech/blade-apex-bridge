@@ -442,7 +442,11 @@ func (ec *TestCardanoChain) RegisterChain(validator *TestApexValidator) error {
 		ChainTypeCardano)
 }
 
-func (ec *TestCardanoChain) GenerateChainConfigs(indx int, validator *TestApexValidator, tokens []sendtx.TokenExchangeConfig) error {
+func (ec *TestCardanoChain) GenerateChainConfigs(
+	indx int,
+	validator *TestApexValidator,
+	tokens []sendtx.TokenExchangeConfig,
+) error {
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
 

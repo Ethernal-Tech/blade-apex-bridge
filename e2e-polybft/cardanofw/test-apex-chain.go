@@ -132,7 +132,10 @@ func (td *TestApexChainDummy) GetAddressBalance(ctx context.Context, addr string
 	return nil, nil
 }
 
-func (td *TestApexChainDummy) GenerateChainConfigs(indx int, validator *TestApexValidator, tokens []sendtx.TokenExchangeConfig) error {
+func (td *TestApexChainDummy) GenerateChainConfigs(
+	indx int,
+	validator *TestApexValidator,
+	tokens []sendtx.TokenExchangeConfig) error {
 	return nil
 }
 
