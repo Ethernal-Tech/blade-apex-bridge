@@ -2279,10 +2279,12 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 }
 
 func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
-	// the test isn't applicable since signedbatch.isconsolidation is always false
-	t.Skip()
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
 
 	const (
+		batchTypeConsolidation        = uint8(1)
 		fundUtxoCount                 = 8
 		maxFeeUtxoCount               = 1
 		maxUtxoCount                  = 4
@@ -2377,12 +2379,12 @@ func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
 
 					batchInfo := decoded.(map[string]any)["_batch"].(map[string]any)
 					id := batchInfo["id"].(uint64)
-					isConsolidation := batchInfo["isConsolidation"].(bool)
+					batchType := batchInfo["batchType"].(uint8)
 
 					lock.Lock()
 
 					if lastBatchID[chainID] != id {
-						if isConsolidation {
+						if batchType == batchTypeConsolidation {
 							cntConsolidationBatches[chainID]++
 						}
 
