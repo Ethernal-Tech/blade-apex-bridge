@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -567,6 +568,7 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 		cardanoConfig := a.Config.CardanoConfig
 		if cardanoConfig != nil && cardanoConfig.CustodialAddressGeneration {
 			tokenPolicyID := ""
+			trueStr := strconv.FormatBool(true)
 
 			var scriptInfo CardanoScriptInfo
 
@@ -585,7 +587,6 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 				a.CardanoInfo.NativeTokens[i] = sendtx.TokenExchangeConfig{
 					DstChainID: ChainIDPrime,
 					TokenName:  fmt.Sprintf("%s.%s", tokenPolicyID, hex.EncodeToString([]byte(tokenName))),
-					Mint:       true,
 				}
 			}
 
@@ -599,6 +600,9 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 
 			args = append(args, "--cardano-nft-policy-id", cardanoConfig.CustodialNFT.PolicyID)
 			args = append(args, "--cardano-nft-name", cardanoConfig.CustodialNFT.Name)
+
+			args = append(args, "--vector-cardano-mint-wrapped-token", trueStr)
+			args = append(args, "--cardano-prime-mint-wrapped-token", trueStr)
 		}
 
 		cardanoPrimeTokenName := a.CardanoInfo.NativeTokens[0].TokenName
