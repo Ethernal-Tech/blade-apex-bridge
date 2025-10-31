@@ -16,6 +16,12 @@ type ITestApexChainServer interface {
 	Start() error
 }
 
+type GenericTxReceiver struct {
+	Addr         string
+	Amount       *big.Int
+	NativeTokens []infrawallet.TokenAmount
+}
+
 type ITestApexChain interface {
 	RunChain(t *testing.T) error
 	Stop() error
@@ -39,8 +45,7 @@ type ITestApexChain interface {
 		bridgingTypes ...sendtx.BridgingType,
 	) (string, error)
 	SendTx(
-		ctx context.Context, privateKey string, receiver string,
-		amount *big.Int, nativeTokenAmounts []infrawallet.TokenAmount, data []byte,
+		ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
 	) (string, error)
 	GetHotWalletAddresses() []string
 	GetAdminPrivateKey() (string, error)
@@ -160,8 +165,7 @@ func (*TestApexChainDummy) RunChain(t *testing.T) error {
 }
 
 func (td *TestApexChainDummy) SendTx(
-	ctx context.Context, privateKey string, receiver string,
-	amount *big.Int, nativeTokenAmounts []infrawallet.TokenAmount, data []byte,
+	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
 ) (string, error) {
 	return "", nil
 }
@@ -218,3 +222,24 @@ func (td *TestApexChainDummy) GetAddressToBridgeTo(
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)
+
+func createTxReceiver(
+	addr string, amount *big.Int, token *infrawallet.Token, tokenAmount *big.Int,
+) GenericTxReceiver {
+	var nativeTokens []infrawallet.TokenAmount
+
+	if token != nil && tokenAmount != nil && tokenAmount.BitLen() != 0 {
+		nativeTokens = []infrawallet.TokenAmount{
+			{
+				Token:  *token,
+				Amount: tokenAmount.Uint64(),
+			},
+		}
+	}
+
+	return GenericTxReceiver{
+		Addr:         addr,
+		Amount:       amount,
+		NativeTokens: nativeTokens,
+	}
+}

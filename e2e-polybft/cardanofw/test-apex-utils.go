@@ -551,40 +551,11 @@ func SetOrDefault[T comparable](val, def T) T {
 	return val
 }
 
-func SplitAmountNTimes(totalAmount *big.Int, cnt int) []*big.Int {
-	cnt = max(1, cnt)
+func SplitAmountNTimes(totalAmount *big.Int, cnt int) (*big.Int, *big.Int) {
 	amount := new(big.Int).Div(totalAmount, big.NewInt(int64(cnt)))
 	amountWithChange := new(big.Int).Sub(totalAmount, new(big.Int).Mul(amount, big.NewInt(int64(cnt-1))))
-	result := make([]*big.Int, 0, cnt)
 
-	for range cnt - 1 {
-		result = append(result, new(big.Int).Set(amount))
-	}
-
-	return append(result, amountWithChange)
-}
-
-func SplitAmountsNTimes(totalAmounts []*big.Int, cnt int) [][]*big.Int {
-	cnt = max(1, cnt)
-	result := make([][]*big.Int, 0, cnt)
-	amounts := make([]*big.Int, len(totalAmounts))
-	amountsWithChange := make([]*big.Int, len(totalAmounts))
-
-	for i, totalAmount := range totalAmounts {
-		amounts[i] = new(big.Int).Div(totalAmount, big.NewInt(int64(cnt)))
-		amountsWithChange[i] = new(big.Int).Sub(totalAmount, new(big.Int).Mul(amounts[i], big.NewInt(int64(cnt-1))))
-	}
-
-	for range cnt - 1 {
-		subResult := make([]*big.Int, len(amounts))
-		for i, amount := range amounts {
-			subResult[i] = new(big.Int).Set(amount)
-		}
-
-		result = append(result, subResult)
-	}
-
-	return append(result, amountsWithChange)
+	return amount, amountWithChange
 }
 
 func ChainIDToInt(chainID string) uint8 {
@@ -722,22 +693,7 @@ func FundAddressWithToken(
 	}
 
 	if mintAmount > 0 {
-		args := []string{
-			"bridge-admin", "mint-native-token",
-			"--key", hex.EncodeToString(minterWallet.SigningKey),
-			"--ogmios", chain.ogmiosURL,
-			"--network-id", fmt.Sprintf("%v", chain.config.NetworkType),
-			"--testnet-magic", fmt.Sprintf("%v", chain.config.NetworkMagic),
-			"--token-name", tokenName,
-			"--amount", fmt.Sprintf("%v", mintAmount),
-		}
-
-		if len(minterWallet.StakeSigningKey) > 0 {
-			args = append(args, "--stake-key", hex.EncodeToString(minterWallet.StakeSigningKey))
-		}
-
-		err := RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
-		if err != nil {
+		if err := MintToken(chain, minterWallet, tokenName, mintAmount); err != nil {
 			return nil, err
 		}
 	}
@@ -759,17 +715,77 @@ func FundAddressWithToken(
 		return &tokenAmount, nil
 	}
 
-	minterPK := ToCardanoPrivateKeyString(minterWallet.SigningKey, minterWallet.StakeSigningKey)
+	return FundAddressesWithToken(
+		ctx, chain, minterWallet, []string{addrToFund}, tokenName, lovelaceFundAmount, tokenFundAmount)
+}
 
-	txHash, err := chain.SendTx(
-		ctx, minterPK, addrToFund,
-		new(big.Int).SetUint64(lovelaceFundAmount), []wallet.TokenAmount{tokenAmount}, nil)
+func MintToken(
+	chain *TestCardanoChain, minterWallet *wallet.Wallet, tokenName string, mintAmount uint64,
+) error {
+	args := []string{
+		"bridge-admin", "mint-native-token",
+		"--key", hex.EncodeToString(minterWallet.SigningKey),
+		"--ogmios", chain.ogmiosURL,
+		"--network-id", fmt.Sprintf("%v", chain.config.NetworkType),
+		"--testnet-magic", fmt.Sprintf("%v", chain.config.NetworkMagic),
+		"--token-name", tokenName,
+		"--amount", fmt.Sprintf("%v", mintAmount),
+	}
+
+	if len(minterWallet.StakeSigningKey) > 0 {
+		args = append(args, "--stake-key", hex.EncodeToString(minterWallet.StakeSigningKey))
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
+}
+
+func FundUsersWithToken(
+	ctx context.Context, chain *TestCardanoChain,
+	sender *wallet.Wallet, users []*TestApexUser,
+	tokenName string, lovelaceFundAmount uint64, tokenFundAmount uint64,
+) (*wallet.TokenAmount, error) {
+	addrs := make([]string, len(users))
+
+	for i, u := range users {
+		addrs[i] = u.GetAddress(chain.ChainID())
+	}
+
+	return FundAddressesWithToken(
+		ctx, chain, sender, addrs, tokenName, lovelaceFundAmount, tokenFundAmount)
+}
+
+func FundAddressesWithToken(
+	ctx context.Context, chain *TestCardanoChain,
+	sender *wallet.Wallet, addrs []string,
+	tokenName string, lovelaceFundAmount uint64, tokenFundAmount uint64,
+) (*wallet.TokenAmount, error) {
+	token, _, err := GetTokenAndPolicyForVerificationKey(
+		chain.ChainID(), chain.config.NetworkType, sender.VerificationKey, tokenName)
+	if err != nil {
+		return nil, err
+	}
+
+	tokenAmount := wallet.NewTokenAmount(token, tokenFundAmount)
+	privateKey := ToCardanoPrivateKeyString(sender.SigningKey, sender.StakeSigningKey)
+	receivers := make([]GenericTxReceiver, len(addrs))
+
+	for i, addr := range addrs {
+		receivers[i] = GenericTxReceiver{
+			Addr:   addr,
+			Amount: new(big.Int).SetUint64(lovelaceFundAmount),
+			NativeTokens: []wallet.TokenAmount{
+				tokenAmount,
+			},
+		}
+	}
+
+	txHash, err := chain.SendTx(ctx, privateKey, nil, receivers)
 	if err != nil {
 		return nil, err
 	}
 
 	fmt.Printf("Funded %s with lovelace: %d, native tokens: %s. txHash: %s\n",
-		addrToFund, lovelaceFundAmount, tokenAmount, txHash)
+		addrs, lovelaceFundAmount, tokenAmount, txHash)
 
 	return &tokenAmount, nil
 }
