@@ -394,7 +394,9 @@ jobs:
     name: E2E Dynamic Validators Tests
     uses: ./.github/workflows/e2e-dynamic-validators-test.yml
     needs: [inputs_check, build_blade]
-    if: inputs.e2e_dynamic_validators_test
+    if: |
+      inputs.e2e_dynamic_validators_test ||
+      (github.event_name == 'pull_request' && github.base_ref == 'develop')
     with:
       apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
