@@ -219,6 +219,11 @@ update-apex-contracts:
 	go run consensus/polybft/contractsapi/apex-artifacts-gen/main.go && \
 	go run consensus/polybft/contractsapi/bindings-gen/main.go
 
+.PHONY: update-cardano-contracts
+update-cardano-contracts: check-npm
+	git submodule update --remote --init cardano-smart-contracts && \
+	cd cardano-smart-contracts/ && npm i && cd ..
+
 .PHONY: help
 help:
 	@echo "Available targets:"
@@ -245,6 +250,7 @@ help:
 	@printf "  %-35s - %s\n" "test-testnet-e2e-apex-bridge" "Run end-to-end tests for Apex Bridge Testnet"
 	@printf "  %-35s - %s\n" "full-test-testnet-e2e-apex-bridge" "Run fund wallets, end-to-end tests and defund wallets for Apex Bridge Testnet"
 	@printf "  %-35s - %s\n" "update-apex-contracts" "Update Apex Bridge smart contracts and bindings"
+	@printf "  %-35s - %s\n" "update-cardano-contracts" "Update Cardano smart contracts"
 	@printf "  %-35s - %s\n" "run-docker" "Run Docker cluster for PolyBFT"
 	@printf "  %-35s - %s\n" "stop-docker" "Stop Docker cluster for PolyBFT"
 	@printf "  %-35s - %s\n" "destroy-docker" "Destroy Docker cluster for PolyBFT"

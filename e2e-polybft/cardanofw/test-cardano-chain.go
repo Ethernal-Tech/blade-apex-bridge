@@ -33,6 +33,8 @@ const (
 	defaultFundTokenAmount   = uint64(100_000_000_000)
 	defaultPremineAmount     = uint64(20_000_000_000)
 	defaultNativeTokenAmount = uint64(0)
+
+	cardanoSmartContractDir = "cardano-smart-contracts"
 )
 
 type TestCardanoChainConfig struct {
@@ -386,13 +388,6 @@ func (ec *TestCardanoChain) DeployCardanoContract() error {
 		return err
 	}
 
-	repoRoot, err := filepath.Abs("../../..")
-	if err != nil {
-		return fmt.Errorf("failed to get repository root: %w", err)
-	}
-
-	scriptDir := filepath.Join(repoRoot, "apex-bridge", "cardano_smart_contracts", "mint_tokens")
-
 	args := []string{
 		"bridge-admin", "deploy-cardano-script",
 		"--key", hex.EncodeToString(minterWallet.SigningKey),
@@ -401,7 +396,7 @@ func (ec *TestCardanoChain) DeployCardanoContract() error {
 		"--testnet-magic", fmt.Sprint(ec.config.NetworkMagic),
 		"--nft-policy-id", custodialNFT.PolicyID,
 		"--nft-name-hex", hex.EncodeToString([]byte(custodialNFT.Name)),
-		"--plutus-script-dir", scriptDir,
+		"--plutus-script-dir", filepath.Join("..", "..", cardanoSmartContractDir),
 	}
 
 	var outb bytes.Buffer

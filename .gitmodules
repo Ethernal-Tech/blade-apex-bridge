@@ -11,3 +11,7 @@
 [submodule "apex-bridge-smartcontracts"]
 	path = apex-bridge-smartcontracts
 	url = https://github.com/Ethernal-Tech/apex-bridge-smartcontracts.git
+[submodule "cardano-smart-contracts"]
+	path = cardano-smart-contracts
+	url = https://github.com/Ethernal-Tech/cardano-smart-contracts
+	branch = feat/cardano-mint-sc

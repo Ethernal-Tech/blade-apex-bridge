@@ -479,8 +479,10 @@ func (a *ApexSystem) DeployCardanoContracts() error {
 			}
 
 			if chain.ChainID() == ChainIDCardano {
-				a.CardanoInfo.NativeTokens[0].TokenName = cardanowallet.NewToken(
-					a.Config.CardanoConfig.MintPolicyID, a.Config.CardanoConfig.MintableTokens[0]).String()
+				for i, mintableToken := range a.Config.CardanoConfig.MintableTokens {
+					a.CardanoInfo.NativeTokens[i].TokenName = cardanowallet.NewToken(
+						a.Config.CardanoConfig.MintPolicyID, mintableToken).String()
+				}
 			}
 
 			return nil
