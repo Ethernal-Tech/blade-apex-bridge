@@ -226,25 +226,25 @@ func (a *ApexSystem) StopAll() error {
 }
 
 func (a *ApexSystem) CheckAndTerminateAPIProcess() error {
-	fmt.Printf("Checking if port %d is still in use...\n", a.Config.APIPortStart)
+	fmt.Printf("Attempting to terminate process on port %d...\n", a.Config.APIPortStart)
 
-	exists, err := isProcessOnPort(a.Config.APIPortStart)
-	if err != nil {
-		return err
+	command := fmt.Sprintf("fuser -k %d/tcp", a.Config.APIPortStart)
+	cmd := exec.Command("bash", "-c", command)
+
+	err := cmd.Run()
+	if err == nil {
+		fmt.Printf("Process on port %d is terminated successfully\n", a.Config.APIPortStart)
+
+		return nil
 	}
 
-	if exists {
-		fmt.Printf("Process on port %d is still active. Terminating the process...\n", a.Config.APIPortStart)
+	if isExitCode(err, 1) {
+		fmt.Printf("Port %d is already free\n", a.Config.APIPortStart)
 
-		command := fmt.Sprintf("lsof -i tcp:%d | grep LISTEN | awk '{print $2}' | xargs kill -9", a.Config.APIPortStart)
-		cmd := exec.Command("bash", "-c", command)
-
-		if err := cmd.Run(); err != nil {
-			return err
-		}
+		return nil
 	}
 
-	fmt.Printf("Process on port %d is terminated successfully\n", a.Config.APIPortStart)
+	fmt.Printf("Termination error: %v\n", err)
 
 	return nil
 }
@@ -451,8 +451,14 @@ func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, dfm
 		return err
 	}
 
-	_, err = chain.SendTx(
-		ctx, pk, chain.GetHotWalletAddresses()[0], DfmToChainNativeTokenAmount(chainID, dfmAmount), nil, nil)
+	receivers := []GenericTxReceiver{
+		{
+			Addr:   chain.GetHotWalletAddresses()[0],
+			Amount: DfmToChainNativeTokenAmount(chainID, dfmAmount),
+		},
+	}
+
+	_, err = chain.SendTx(ctx, pk, nil, receivers)
 
 	return err
 }
@@ -1055,7 +1061,7 @@ func (a *ApexSystem) RedistributeTokens(
 
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
-	receiverAddr string, lovelaceDfmAmount *big.Int, nativeTokenAmounts []cardanowallet.TokenAmount, data []byte,
+	receiverAddr string, lovelaceDfmAmount *big.Int, nativeTokens []cardanowallet.TokenAmount, data []byte,
 ) (string, error) {
 	const (
 		numRetries = 5
@@ -1072,10 +1078,16 @@ func (a *ApexSystem) SubmitTx(
 		return "", err
 	}
 
+	receivers := []GenericTxReceiver{
+		{
+			Addr:         receiverAddr,
+			Amount:       DfmToChainNativeTokenAmount(sourceChain, lovelaceDfmAmount),
+			NativeTokens: nativeTokens,
+		},
+	}
+
 	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
-		txHash, err := chain.SendTx(
-			ctx, privateKey, receiverAddr,
-			DfmToChainNativeTokenAmount(sourceChain, lovelaceDfmAmount), nativeTokenAmounts, data)
+		txHash, err := chain.SendTx(ctx, privateKey, data, receivers)
 		if err != nil {
 			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
 				return "", infracommon.ErrRetryTryAgain
@@ -1091,79 +1103,123 @@ func (a *ApexSystem) SubmitTx(
 }
 
 func (a *ApexSystem) SubmitBridgingRequest(
-	t *testing.T, ctx context.Context,
+	ctx context.Context,
 	sourceChain ChainID, destinationChain ChainID,
 	sender *TestApexUser, dfmAmount *big.Int, bridgingType sendtx.BridgingType, receivers ...*TestApexUser,
-) string {
-	t.Helper()
-
+) (string, error) {
 	const (
 		numRetries = 5
 		waitTime   = time.Second * 10
+
+		numReceiversMin = 1
+		numReceiversMax = 5
 	)
 
-	require.True(t, sourceChain != destinationChain)
+	if sourceChain == destinationChain {
+		return "", fmt.Errorf("source and destination chains are equal")
+	}
 
-	// check if sourceChain is supported
-	require.True(t,
-		sourceChain == ChainIDPrime ||
-			sourceChain == ChainIDVector ||
-			sourceChain == ChainIDNexus ||
-			sourceChain == ChainIDCardano,
-	)
+	isSourceChainSupported := sourceChain == ChainIDPrime ||
+		sourceChain == ChainIDVector ||
+		sourceChain == ChainIDNexus ||
+		sourceChain == ChainIDCardano
 
-	// check if destinationChain is supported
-	require.True(t,
-		destinationChain == ChainIDPrime ||
-			destinationChain == ChainIDVector ||
-			destinationChain == ChainIDNexus ||
-			destinationChain == ChainIDCardano,
-	)
+	if !isSourceChainSupported {
+		return "", fmt.Errorf("source chain is not supported")
+	}
+
+	isDestinationChainSupported := destinationChain == ChainIDPrime ||
+		destinationChain == ChainIDVector ||
+		destinationChain == ChainIDNexus ||
+		destinationChain == ChainIDCardano
+
+	if !isDestinationChainSupported {
+		return "", fmt.Errorf("destination chain is not supported")
+	}
+
+	// check if chains are configured and enabled
+	if (a.Config.VectorConfig == nil || !a.Config.VectorConfig.IsEnabled) &&
+		(sourceChain == ChainIDVector || destinationChain == ChainIDVector) {
+		return "", fmt.Errorf("vector is not configured or enabled, but it is specified as source or destination")
+	}
+
+	if (a.Config.CardanoConfig == nil || !a.Config.CardanoConfig.IsEnabled) &&
+		(sourceChain == ChainIDCardano || destinationChain == ChainIDCardano) {
+		return "", fmt.Errorf("cardano is not configured or enabled, but it is specified as source or destination")
+	}
+
+	if (a.Config.NexusConfig == nil || !a.Config.NexusConfig.IsEnabled) &&
+		(sourceChain == ChainIDNexus || destinationChain == ChainIDNexus) {
+		return "", fmt.Errorf("nexus is not configured or enabled, but it is specified as source or destination")
+	}
 
 	// check if bridging direction is supported
-	require.False(t, (a.Config.VectorConfig == nil || !a.Config.VectorConfig.IsEnabled) &&
-		(sourceChain == ChainIDVector || destinationChain == ChainIDVector))
-	require.False(t, (a.Config.CardanoConfig == nil || !a.Config.CardanoConfig.IsEnabled) &&
-		(sourceChain == ChainIDCardano || destinationChain == ChainIDCardano))
-	require.False(t, (a.Config.NexusConfig == nil || !a.Config.NexusConfig.IsEnabled) &&
-		(sourceChain == ChainIDNexus || destinationChain == ChainIDNexus))
-	require.True(t,
-		(sourceChain != ChainIDCardano && destinationChain != ChainIDCardano) ||
-			(sourceChain == ChainIDCardano && destinationChain == ChainIDPrime) ||
-			(sourceChain == ChainIDPrime && destinationChain == ChainIDCardano) ||
-			(sourceChain == ChainIDCardano && destinationChain == ChainIDVector) ||
-			(sourceChain == ChainIDVector && destinationChain == ChainIDCardano))
+	isValidDirection := (sourceChain != ChainIDCardano && destinationChain != ChainIDCardano) ||
+		(sourceChain == ChainIDCardano && destinationChain == ChainIDPrime) ||
+		(sourceChain == ChainIDPrime && destinationChain == ChainIDCardano) ||
+		(sourceChain == ChainIDCardano && destinationChain == ChainIDVector) ||
+		(sourceChain == ChainIDVector && destinationChain == ChainIDCardano)
 
-	// check if number of receivers is valid
-	require.Greater(t, len(receivers), 0)
-	require.Less(t, len(receivers), 5)
+	if !isValidDirection {
+		return "", fmt.Errorf("invalid bridging direction")
+	}
+
+	if len(receivers) < numReceiversMin ||
+		len(receivers) > numReceiversMax {
+		return "", fmt.Errorf("invalid number of receivers")
+	}
 
 	feeAmount := DfmToChainNativeTokenAmount(sourceChain, new(big.Int).SetUint64(defaultMinBridgingFeeAmount))
 
 	receiversMap := make(map[string]*big.Int, len(receivers))
 
-	for _, receiver := range receivers {
-		require.True(t, destinationChain != ChainIDVector || receiver.HasVectorWallet)
-		require.True(t, destinationChain != ChainIDNexus || receiver.HasNexusWallet)
-		require.True(t, destinationChain != ChainIDCardano || receiver.HasCardanoWallet)
+	// check if receivers are valid for the bridging - do they have necessary wallets
+	for i, receiver := range receivers {
+		if destinationChain == ChainIDVector && !receiver.HasVectorWallet {
+			return "", fmt.Errorf("receiver %d does not have a vector wallet for vector chain transfer", i)
+		}
+
+		if destinationChain == ChainIDNexus && !receiver.HasNexusWallet {
+			return "", fmt.Errorf("receiver %d does not have a nexus wallet for nexus chain transfer", i)
+		}
+
+		if destinationChain == ChainIDCardano && !receiver.HasCardanoWallet {
+			return "", fmt.Errorf("receiver %d does not have a cardano wallet for cardano chain transfer", i)
+		}
 
 		receiversMap[receiver.GetAddress(destinationChain)] = DfmToChainNativeTokenAmount(sourceChain, dfmAmount)
 	}
+
 	// check if users are valid for the bridging - do they have necessary wallets
-	require.True(t, sourceChain != ChainIDVector || sender.HasVectorWallet)
-	require.True(t, sourceChain != ChainIDNexus || sender.HasNexusWallet)
-	require.True(t, sourceChain != ChainIDCardano || sender.HasCardanoWallet)
+	if sourceChain == ChainIDVector && !sender.HasVectorWallet {
+		return "", fmt.Errorf("sender does not have a vector wallet for vector chain transfer")
+	}
+
+	if sourceChain == ChainIDNexus && !sender.HasNexusWallet {
+		return "", fmt.Errorf("sender does not have a nexus wallet for nexus chain transfer")
+	}
+
+	if sourceChain == ChainIDCardano && !sender.HasCardanoWallet {
+		return "", fmt.Errorf("sender does not have a cardano wallet for cardano chain transfer")
+	}
 
 	privateKey, err := sender.GetPrivateKey(sourceChain)
-	require.NoError(t, err)
+	if err != nil {
+		return "", fmt.Errorf("error while retrieving the private key: %w", err)
+	}
 
 	operationFee := uint64(0)
 	if a.IsSkyline {
 		operationFee = DefaultMinOperationFee
 	}
 
+	srcChain, err := a.getChain(sourceChain)
+	if err != nil {
+		return "", err
+	}
+
 	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
-		txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
+		txHash, err := srcChain.BridgingRequest(
 			ctx, destinationChain, privateKey, receiversMap, feeAmount, operationFee, bridgingType)
 		if err != nil {
 			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
@@ -1175,9 +1231,11 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 		return txHash, nil
 	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
-	require.NoError(t, err)
+	if err != nil {
+		return "", fmt.Errorf("error while submitting bridging request: %w", err)
+	}
 
-	return txHash
+	return txHash, nil
 }
 
 func (a *ApexSystem) GetChainMust(t *testing.T, chainID ChainID) ITestApexChain {

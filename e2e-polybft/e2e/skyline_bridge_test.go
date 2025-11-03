@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -286,19 +287,18 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 			minterWallet, _ := minterUser.GetCardanoWallet(br.src)
 
-			_, err = cardanofw.FundUserWithToken(
-				ctx, apex, br.src,
-				minterWallet, brSubmitterUser,
-				cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-				uint64(50_000_000), uint64(1_000_000))
-			require.NoError(t, err)
-
-			_, err = cardanofw.FundUserWithToken(
-				ctx, apex, br.src,
-				br.srcMinterWallet, brSubmitterUser,
-				cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+			fundTestUsersWithToken(
+				t, ctx, apex, []*testConfig{
+					{
+						srcChainID:      br.src,
+						srcMinterWallet: minterWallet,
+					},
+					{
+						srcChainID:      br.src,
+						srcMinterWallet: br.srcMinterWallet,
+					},
+				}, []*cardanofw.TestApexUser{brSubmitterUser},
 				uint64(50_000_000), uint64(10_000_000))
-			require.NoError(t, err)
 
 			e2ehelper.ExecuteSingleBridging(
 				t, ctx, apex, brSubmitterUser, br.sender, br.src, br.dest, sendAmountDfm,
@@ -391,14 +391,13 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			)
 
 			if br.requestType == sendtx.BridgingTypeNativeTokenOnSource {
-				for _, sender := range apex.Users[:instances] {
-					_, err := cardanofw.FundUserWithToken(
-						ctx, apex, br.src,
-						br.srcMinterWallet, sender,
-						cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-						uint64(1_100_000_000), uint64(210_000_000))
-					require.NoError(t, err)
-				}
+				fundTestUsersWithToken(
+					t, ctx, apex, []*testConfig{
+						{
+							srcChainID:      br.src,
+							srcMinterWallet: br.srcMinterWallet,
+						},
+					}, apex.Users[:instances], uint64(1_100_000_000), uint64(210_000_000))
 			}
 
 			e2ehelper.ExecuteBridging(
@@ -434,14 +433,13 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			)
 
 			if br.requestType == sendtx.BridgingTypeNativeTokenOnSource {
-				for _, sender := range apex.Users[:parallelInstances] {
-					_, err := cardanofw.FundUserWithToken(
-						ctx, apex, br.src,
-						br.srcMinterWallet, sender,
-						cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-						uint64(1_100_000_000), uint64(210_000_000))
-					require.NoError(t, err)
-				}
+				fundTestUsersWithToken(
+					t, ctx, apex, []*testConfig{
+						{
+							srcChainID:      br.src,
+							srcMinterWallet: br.srcMinterWallet,
+						},
+					}, apex.Users[:parallelInstances], uint64(1_100_000_000), uint64(210_000_000))
 			}
 
 			e2ehelper.ExecuteBridging(
@@ -476,14 +474,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
-		for _, cfg := range testConfigs {
-			_, err = cardanofw.FundUserWithToken(
-				ctx, apex, cfg.srcChainID,
-				cfg.srcMinterWallet, brSubmitterUser,
-				cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-				uint64(1_100_000_000), uint64(10_000_000))
-			require.NoError(t, err)
-		}
+		fundTestUsersWithToken(
+			t, ctx, apex, testConfigs, []*cardanofw.TestApexUser{brSubmitterUser},
+			uint64(1_100_000_000), uint64(10_000_000))
 
 		e2ehelper.ExecuteBridging(
 			t, ctx, apex, instances,
@@ -513,16 +506,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			parallelInstances   = 6
 		)
 
-		for _, cfg := range testConfigs {
-			for _, sender := range apex.Users[:parallelInstances] {
-				_, err := cardanofw.FundUserWithToken(
-					ctx, apex, cfg.srcChainID,
-					cfg.srcMinterWallet, sender,
-					cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-					uint64(1_100_000_000), uint64(10_000_000))
-				require.NoError(t, err)
-			}
-		}
+		fundTestUsersWithToken(
+			t, ctx, apex, testConfigs, apex.Users[:parallelInstances],
+			uint64(1_100_000_000), uint64(10_000_000))
 
 		e2ehelper.ExecuteBridging(
 			t, ctx, apex, sequentialInstances,
@@ -557,16 +543,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			require.NoError(t, apex.GetValidator(t, validatorStoppingIdx).Start(ctx, false))
 		})
 
-		for _, cfg := range testConfigs {
-			for _, sender := range apex.Users[:parallelInstances] {
-				_, err := cardanofw.FundUserWithToken(
-					ctx, apex, cfg.srcChainID,
-					cfg.srcMinterWallet, sender,
-					cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-					uint64(1_100_000_000), uint64(10_000_000))
-				require.NoError(t, err)
-			}
-		}
+		fundTestUsersWithToken(
+			t, ctx, apex, testConfigs, apex.Users[:parallelInstances],
+			uint64(1_100_000_000), uint64(10_000_000))
 
 		e2ehelper.ExecuteBridging(
 			t, ctx, apex, sequentialInstances,
@@ -606,16 +585,9 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			require.NoError(t, apex.GetValidator(t, validatorStoppingIdx2).Start(ctx, false))
 		})
 
-		for _, cfg := range testConfigs {
-			for _, sender := range apex.Users[:parallelInstances] {
-				_, err := cardanofw.FundUserWithToken(
-					ctx, apex, cfg.srcChainID,
-					cfg.srcMinterWallet, sender,
-					cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-					uint64(1_100_000_000), uint64(10_000_000))
-				require.NoError(t, err)
-			}
-		}
+		fundTestUsersWithToken(
+			t, ctx, apex, testConfigs, apex.Users[:parallelInstances],
+			uint64(1_100_000_000), uint64(10_000_000))
 
 		e2ehelper.ExecuteBridging(
 			t, ctx, apex, sequentialInstances,
@@ -947,13 +919,17 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for idx, br := range bridgingRequests {
+		var err error
+
 		wg.Add(1)
 
 		go func(i int, src string, dest string, sender *cardanofw.TestApexUser) {
 			defer wg.Done()
 
-			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeCurrencyOnSource,
+			txHashes[i], err = apex.SubmitBridgingRequest(ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeCurrencyOnSource,
 				user)
+			require.NoError(t, err)
+
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
 		}(idx, br.src, br.dest, br.sender)
 	}
@@ -1023,21 +999,21 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		txHashes = make([]string, len(bridgingRequests))
 	)
 
-	_, err := cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDVector,
-		apex.VectorInfo.GenesisWallet, apex.Users[0],
-		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(5_000_000), uint64(1_000_000_000))
-	require.NoError(t, err)
+	fundTestUsersWithToken(t, ctx, apex, []*testConfig{
+		{
+			srcChainID:      cardanofw.ChainIDVector,
+			srcMinterWallet: apex.VectorInfo.GenesisWallet,
+		},
+		{
+			srcChainID:      cardanofw.ChainIDCardano,
+			srcMinterWallet: apex.CardanoInfo.GenesisWallet,
+		},
+	}, apex.Users[:1], uint64(5_000_000), uint64(1_000_000_000))
 
-	_, err = cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDCardano,
-		apex.CardanoInfo.GenesisWallet, apex.Users[0],
-		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(5_000_000), uint64(1_000_000_000))
-	require.NoError(t, err)
-
-	var wg sync.WaitGroup
+	var (
+		wg  sync.WaitGroup
+		err error
+	)
 
 	for idx, br := range bridgingRequests {
 		wg.Add(1)
@@ -1045,8 +1021,10 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		go func(i int, src string, dest string, sender *cardanofw.TestApexUser) {
 			defer wg.Done()
 
-			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNativeTokenOnSource,
+			txHashes[i], err = apex.SubmitBridgingRequest(ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNativeTokenOnSource,
 				user)
+			require.NoError(t, err)
+
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
 		}(idx, br.src, br.dest, br.sender)
 	}
@@ -1161,21 +1139,16 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 	txProviderCardano, err := apex.CardanoInfo.GetTxProvider()
 	require.NoError(t, err)
 
-	for _, sender := range apex.Users[:parallelInstances] {
-		_, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDPrime,
-			apex.PrimeInfo.GenesisWallet, sender,
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(2_000_000_000), uint64(2_000_000_000))
-		require.NoError(t, err)
-
-		_, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDCardano,
-			apex.CardanoInfo.GenesisWallet, sender,
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(2_000_000_000), uint64(2_000_000_000))
-		require.NoError(t, err)
-	}
+	fundTestUsersWithToken(t, ctx, apex, []*testConfig{
+		{
+			srcChainID:      cardanofw.ChainIDPrime,
+			srcMinterWallet: apex.PrimeInfo.GenesisWallet,
+		},
+		{
+			srcChainID:      cardanofw.ChainIDCardano,
+			srcMinterWallet: apex.CardanoInfo.GenesisWallet,
+		},
+	}, apex.Users[:parallelInstances], uint64(2_000_000_000), uint64(2_000_000_000))
 
 	utxos, err := infracommon.ExecuteWithRetry(
 		ctx, func(ctx context.Context) ([]wallet.Utxo, error) {
@@ -1405,7 +1378,9 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			go func(src string, dest string, sender *cardanofw.TestApexUser, receiver *cardanofw.TestApexUser, amount *big.Int) {
 				defer wg.Done()
 
-				txHash := apex.SubmitBridgingRequest(t, ctx, src, dest, sender, amount, br.requestType, receiver)
+				txHash, err := apex.SubmitBridgingRequest(ctx, src, dest, sender, amount, br.requestType, receiver)
+				require.NoError(t, err)
+
 				fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHash)
 			}(br.src, br.dest, br.sender, receivers[br.receiverIdx], cardanofw.ApexToDfm(br.amount))
 		}
@@ -1565,22 +1540,16 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 
 		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
 
-		minterWalletVector := apex.VectorInfo.GenesisWallet
-		minterWalletCardano := apex.CardanoInfo.GenesisWallet
-
-		_, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDVector,
-			minterWalletVector, apex.Users[0],
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(2_000_000), uint64(50_000_000))
-		require.NoError(t, err)
-
-		_, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDCardano,
-			minterWalletCardano, apex.Users[0],
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(2_000_000), uint64(50_000_000))
-		require.NoError(t, err)
+		fundTestUsersWithToken(t, ctx, apex, []*testConfig{
+			{
+				srcChainID:      cardanofw.ChainIDVector,
+				srcMinterWallet: apex.VectorInfo.GenesisWallet,
+			},
+			{
+				srcChainID:      cardanofw.ChainIDCardano,
+				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
+			},
+		}, apex.Users[:1], uint64(2_000_000), uint64(50_000_000))
 
 		chainPrevAmounts, chainExpectedAmounts, chainReceivers,
 			defundReceiversPrevAmount, defundReceiversExpectedAmount, defundReceivers :=
@@ -1749,22 +1718,16 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 
 		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
 
-		minterWalletVector := apex.VectorInfo.GenesisWallet
-		minterWalletCardano := apex.CardanoInfo.GenesisWallet
-
-		_, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDVector,
-			minterWalletVector, apex.Users[0],
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(2_000_000), uint64(50_000_000))
-		require.NoError(t, err)
-
-		_, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDCardano,
-			minterWalletCardano, apex.Users[0],
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(2_000_000), uint64(150_000_000))
-		require.NoError(t, err)
+		fundTestUsersWithToken(t, ctx, apex, []*testConfig{
+			{
+				srcChainID:      cardanofw.ChainIDVector,
+				srcMinterWallet: apex.VectorInfo.GenesisWallet,
+			},
+			{
+				srcChainID:      cardanofw.ChainIDCardano,
+				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
+			},
+		}, apex.Users[:1], uint64(2_000_000), uint64(50_000_000))
 
 		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ := createBridgingData(ctx, apex, bridgingRequests, receivers, nil, nil)
 
@@ -1832,36 +1795,16 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 
 		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
 
-		minterWalletVector := apex.VectorInfo.GenesisWallet
-		minterWalletCardano := apex.CardanoInfo.GenesisWallet
-
-		_, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDVector,
-			minterWalletVector, apex.Users[0],
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(2_000_000), uint64(250_000_000))
-		require.NoError(t, err)
-
-		_, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDCardano,
-			minterWalletCardano, apex.Users[0],
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(2_000_000), uint64(250_000_000))
-		require.NoError(t, err)
-
-		_, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDVector,
-			minterWalletVector, apex.Users[1],
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(2_000_000), uint64(250_000_000))
-		require.NoError(t, err)
-
-		_, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDCardano,
-			minterWalletCardano, apex.Users[1],
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(2_000_000), uint64(250_000_000))
-		require.NoError(t, err)
+		fundTestUsersWithToken(t, ctx, apex, []*testConfig{
+			{
+				srcChainID:      cardanofw.ChainIDVector,
+				srcMinterWallet: apex.VectorInfo.GenesisWallet,
+			},
+			{
+				srcChainID:      cardanofw.ChainIDCardano,
+				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
+			},
+		}, apex.Users[:2], uint64(2_000_000), uint64(250_000_000))
 
 		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ := createBridgingData(ctx, apex, bridgingRequests, receivers, nil, nil)
 
@@ -2264,9 +2207,6 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 	fmt.Println("vector fee addr: ", apex.VectorInfo.FeeAddr)
 	fmt.Printf("vector socket path: %s\n", apex.VectorInfo.SocketPath)
 
-	minterWalletVector := apex.VectorInfo.GenesisWallet
-	minterWalletCardano := apex.CardanoInfo.GenesisWallet
-
 	t.Run("Both directions 1000x 60min 90%", func(t *testing.T) {
 		const (
 			instances     = 1000
@@ -2303,21 +2243,16 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 
 		fmt.Printf("Funding users with native tokens\n")
 
-		for i := range instances {
-			_, err := cardanofw.FundUserWithToken(
-				ctx, apex, cardanofw.ChainIDVector,
-				minterWalletVector, apex.Users[i],
-				cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-				uint64(1_100_000_000), uint64(2_500_000))
-			require.NoError(t, err)
-
-			_, err = cardanofw.FundUserWithToken(
-				ctx, apex, cardanofw.ChainIDCardano,
-				minterWalletCardano, apex.Users[i],
-				cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-				uint64(1_100_000_000), uint64(2_500_000))
-			require.NoError(t, err)
-		}
+		fundTestUsersWithToken(t, ctx, apex, []*testConfig{
+			{
+				srcChainID:      cardanofw.ChainIDVector,
+				srcMinterWallet: apex.VectorInfo.GenesisWallet,
+			},
+			{
+				srcChainID:      cardanofw.ChainIDCardano,
+				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
+			},
+		}, apex.Users[:instances], uint64(1_100_000_000), uint64(2_500_000))
 
 		fmt.Printf("Sending %v transactions in %v seconds\n", instances*len(bridgingRequests), maxWaitTime)
 
@@ -2362,7 +2297,8 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 					if valid {
 						time.Sleep(time.Second * time.Duration(r.Intn(maxWaitTime)))
 
-						apex.SubmitBridgingRequest(t, ctx, br.src, br.dest, apex.Users[idx], sendAmount, br.bridgingType, br.receiver)
+						_, err := apex.SubmitBridgingRequest(ctx, br.src, br.dest, apex.Users[idx], sendAmount, br.bridgingType, br.receiver)
+						require.NoError(t, err)
 					} else {
 						sendInvalidSendAmountTransaction(t, ctx, apex, br.src, br.dest, apex.Users[idx], sendAmount, br.receiver.GetAddress(br.dest), br.multiSigAddr)
 					}
@@ -2433,17 +2369,19 @@ func sendInvalidSendAmountTransaction(
 		},
 	}
 
-	feeAmount, err := apex.GetChainMust(t, src).GetBridgingFee(
+	srcTestChain := apex.GetChainMust(t, src)
+
+	feeAmount, err := srcTestChain.GetBridgingFee(
 		ctx, dest, receivers, bridgingFee, operationFee, multiSigAddr)
 	require.NoError(t, err)
 
-	metadata, err := apex.GetChainMust(t, src).CreateMetadata(
+	metadata, err := srcTestChain.CreateMetadata(
 		senderUser.GetAddress(src), dest,
 		receivers, feeAmount, operationFee)
 	require.NoError(t, err)
 
 	_, err = apex.SubmitTx(
-		ctx, src, senderUser, apex.GetChainMust(t, src).GetHotWalletAddresses()[0],
+		ctx, src, senderUser, srcTestChain.GetHotWalletAddresses()[0],
 		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount+operationFee)), nil, metadata)
 	require.NoError(t, err)
 }
@@ -2507,6 +2445,8 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 		wg.Add(1)
 
 		go func(i int, br bridgingRequest) {
+			var err error
+
 			defer wg.Done()
 
 			if br.requestType == sendtx.BridgingTypeNativeTokenOnSource {
@@ -2518,7 +2458,9 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			txHashes[i] = apex.SubmitBridgingRequest(t, ctx, br.src, br.dest, br.sender, apexSendAmount, br.requestType, user)
+			txHashes[i], err = apex.SubmitBridgingRequest(ctx, br.src, br.dest, br.sender, apexSendAmount, br.requestType, user)
+			require.NoError(t, err)
+
 			fmt.Printf("Bridging request: %v to %v sent %v. hash: %s\n", br.src, br.dest, br.requestType, txHashes[i])
 		}(idx, br)
 	}
@@ -2544,4 +2486,41 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func fundTestUsersWithToken(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, testConfigs []*testConfig,
+	users []*cardanofw.TestApexUser, amount, tokenAmount uint64,
+) []*wallet.TokenAmount {
+	t.Helper()
+
+	wg := sync.WaitGroup{}
+	errs := make([]error, len(testConfigs))
+	tokenAmounts := make([]*wallet.TokenAmount, len(testConfigs))
+
+	for i, tcfg := range testConfigs {
+		wg.Add(1)
+
+		go func(cfg *testConfig, indx int) {
+			defer wg.Done()
+
+			chain := apex.GetChainMust(t, cfg.srcChainID).(*cardanofw.TestCardanoChain)
+
+			errs[indx] = cardanofw.MintToken(
+				chain, cfg.srcMinterWallet, cardanofw.DefaultTokenName, tokenAmount*uint64(len(users)))
+			if errs[indx] != nil {
+				return
+			}
+
+			tokenAmounts[indx], errs[indx] = cardanofw.FundUsersWithToken(
+				ctx, chain, cfg.srcMinterWallet,
+				users, cardanofw.DefaultTokenName, amount, tokenAmount)
+		}(tcfg, i)
+	}
+
+	wg.Wait()
+
+	require.NoError(t, errors.Join(errs...))
+
+	return tokenAmounts
 }
