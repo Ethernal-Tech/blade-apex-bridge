@@ -1,7 +1,7 @@
 package deploy
 
-var doc string = `This command is used to deploy smart contracts (and potentially upgrade OpenZeppelin proxies with them).
-Several flags are required for the command to function correctly. The first is --source. This flag
+var doc string = `This command is used to deploy smart contracts (and potentially upgrade OpenZeppelin proxies with
+them). Several flags are required for the command to function correctly. The first is --source. It
 defines the source (location) where smart contracts will be searched for deployment. If a local path
 is specified - either relative or absolute - then smart contracts are searched locally. If the path
 points to a .json file (for example: "../my/local/path.json"), it must be structured as follows:

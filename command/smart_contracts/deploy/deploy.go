@@ -199,10 +199,12 @@ func gitClone(dest string) error {
 		branch,
 		source,
 		dest)
+
 	if verbose {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
+
 	return cmd.Run()
 }
 
@@ -211,27 +213,32 @@ func isHardhatProject(path string) bool {
 	if _, err := os.Stat(configPath); err != nil {
 		return false
 	}
+
 	return true
 }
 
 func hardhatCompile(dir string) error {
 	fmt.Println("🧱 Compiling hardhat project (npm install && npx hardhat compile)...")
+
 	cmds := [][]string{
 		{"npm", "install"},
 		{"npx", "hardhat", "compile"},
 	}
 
 	for _, args := range cmds {
-		cmd := exec.Command(args[0], args[1:]...)
+		cmd := exec.Command(args[0], args[1:]...) // #nosec
 		cmd.Dir = dir
+
 		if verbose {
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 		}
+
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("%s failed: %w", strings.Join(args, " "), err)
 		}
 	}
+
 	return nil
 }
 
@@ -245,6 +252,7 @@ func deployFromJSON() error {
 		Name     string `json:"contractName"`
 		Bytecode string `json:"bytecode"`
 	}
+
 	if err := json.Unmarshal(data, &contracts); err != nil {
 		return fmt.Errorf("invalid JSON structure: %w", err)
 	}
@@ -275,6 +283,7 @@ func deployFromHardhat(dir string) error {
 	}
 
 	var contracts []pp
+
 	if err := filepath.WalkDir(artifactsPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -282,9 +291,9 @@ func deployFromHardhat(dir string) error {
 		if !d.IsDir() &&
 			!strings.Contains(path, "build-info") &&
 			!strings.HasSuffix(d.Name(), "dbg.json") {
-
 			if len(selected) == 0 {
 				contracts = append(contracts, pp{"", path})
+
 				return nil
 			}
 
@@ -294,6 +303,7 @@ func deployFromHardhat(dir string) error {
 				contracts = append(contracts, pp{proxy, path})
 			}
 		}
+
 		return nil
 	}); err != nil {
 		return fmt.Errorf("failed to deploy: %w", err)
@@ -331,17 +341,21 @@ func deployFromHardhat(dir string) error {
 
 func isSelected(path string, artifactsPath string, selected []string) (bool, string) {
 	rel, err := filepath.Rel(artifactsPath, path)
+
 	if err != nil {
 		return false, ""
 	}
+
 	rel = filepath.ToSlash(rel)
 	proxy := ""
+
 	for _, s := range selected {
 		if strings.Contains(s, ":") {
 			splited := strings.Split(s, ":")
 			proxy = splited[0]
 			s = splited[1]
 		}
+
 		s = strings.TrimPrefix(s, "./")
 		s = strings.TrimSuffix(s, ".sol")
 		s = filepath.ToSlash(s)
@@ -359,6 +373,7 @@ func isSelected(path string, artifactsPath string, selected []string) (bool, str
 
 func deploySmartContract(name, rawBytecode string) (string, error) {
 	fmt.Printf("📤 Deploying %s...\n", name)
+
 	relayer, err := txrelayer.NewTxRelayer(txrelayer.WithIPAddress(rpcURL))
 	if err != nil {
 		return "", err
@@ -380,11 +395,13 @@ func deploySmartContract(name, rawBytecode string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	if receipt.Status != uint64(types.ReceiptSuccess) {
 		return "", errors.New("deployment transaction failed")
 	}
 
 	fmt.Println("✅ Contract deployed at:", receipt.ContractAddress)
+
 	return receipt.ContractAddress.String(), nil
 }
 
@@ -392,6 +409,7 @@ var knownProxies = map[string]types.Address{"SM": contracts.StakeManagerContract
 
 func upgradeContract(proxyAddr, newImplAddr string) error {
 	fmt.Printf("🔧 Upgrading %s proxy to %s...\n", proxyAddr, newImplAddr)
+
 	relayer, err := txrelayer.NewTxRelayer(txrelayer.WithIPAddress(rpcURL))
 	if err != nil {
 		return err
@@ -439,18 +457,21 @@ func upgradeContract(proxyAddr, newImplAddr string) error {
 	}
 
 	fmt.Printf("✅ Proxy %s upgraded to: %s\n", proxyAddr, newImplAddr)
+
 	return nil
 }
 
 func resolveArtifactsPath(dir string) (string, error) {
 	configPath := filepath.Join(dir, "hardhat.config.ts")
 	data, err := os.ReadFile(configPath)
+
 	if err != nil {
 		return filepath.Join(dir, "artifacts/contracts"), nil
 	}
 
 	re := regexp.MustCompile(`artifacts:\s*["']([^"']+)["']`)
 	m := re.FindSubmatch(data)
+
 	if len(m) > 1 {
 		return filepath.Join(dir, string(m[1])), nil
 	}
