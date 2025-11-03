@@ -22,17 +22,21 @@ func executeInvalidBridgingFee(
 	t.Helper()
 
 	user := apex.Users[len(apex.Users)-1]
-	receivers := createReceivers(apex, 1, config.dstChainID, defaultLovelaceAmount, bridgingType)
+	receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount, bridgingType)
 
-	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee,
-		config.operationFee, user, receivers, bridgingType)
-	bytesToReplace := []byte(strconv.FormatUint(config.bridgingFee, 10))
+	operationFee := apex.GetMinOperationFee(config.srcChainID)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+
+	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
+		minBridgingFee, operationFee, user, receivers, bridgingType)
+	bytesToReplace := []byte(strconv.FormatUint(feeAmount, 10))
 	metadata = bytes.Replace(metadata, bytesToReplace, []byte("1"), 1)
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
 
-	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
+	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
+		t, config, feeAmount, operationFee, bridgingType)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
@@ -52,19 +56,22 @@ func executeInvalidFeeReceiverAddr(
 ) {
 	t.Helper()
 
+	operationFee := apex.GetMinOperationFee(config.srcChainID)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+
 	user := apex.Users[len(apex.Users)-1]
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:         apex.GetCardanoInfo(config.dstChainID).FeeAddr,
-			Amount:       config.bridgingFee,
+			Amount:       minBridgingFee,
 			BridgingType: bridgingType,
 		},
 	}
 
-	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee,
-		config.operationFee, user, receivers, bridgingType)
+	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
+		minBridgingFee, operationFee, user, receivers, bridgingType)
 
-	sentAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, bridgingType)
+	sentAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, operationFee, bridgingType)
 
 	initialBalances, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
@@ -82,7 +89,7 @@ func executeInvalidFeeReceiverAddr(
 	} else {
 		txHash, err := apex.SubmitTx(
 			ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-			new(big.Int).SetUint64(feeAmount+config.operationFee), sentTokenAmount, metadata)
+			new(big.Int).SetUint64(feeAmount+operationFee), sentTokenAmount, metadata)
 		require.NoError(t, err)
 
 		fmt.Printf("txHash: %s\n", txHash)
@@ -120,13 +127,16 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 
 	multisigAddr := apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex]
 
+	operationFee := apex.GetMinOperationFee(config.srcChainID)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+
 	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
-		ctx, config.dstChainID, receivers, config.bridgingFee, config.operationFee, multisigAddr)
+		ctx, config.dstChainID, receivers, minBridgingFee, operationFee, multisigAddr)
 	require.NoError(t, err)
 
 	metadata, err := apex.GetChainMust(t, config.srcChainID).CreateMetadata(
 		user.GetAddress(config.srcChainID), config.dstChainID,
-		receivers, feeAmount, config.operationFee)
+		receivers, feeAmount, operationFee)
 	require.NoError(t, err)
 
 	// Send only half bytes of metadata making it invalid
@@ -134,7 +144,7 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 
 	_, err = apex.SubmitTx(
 		ctx, config.srcChainID, user,
-		multisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+config.operationFee), nil, metadata)
+		multisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
 	require.Error(t, err)
 }
 
@@ -155,9 +165,12 @@ func executeInvalidMismatchSendNativeTokenAmount(
 		},
 	}
 
+	operationFee := apex.GetMinOperationFee(config.srcChainID)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+
 	metadata, feeAmount := createMetadata(
 		t, ctx, apex, config.srcChainID, config.dstChainID,
-		config.bridgingFee, config.operationFee, user, receivers, bridgingType)
+		minBridgingFee, operationFee, user, receivers, bridgingType)
 
 	bridgingRequestMetadata := bytes.Replace(metadata,
 		[]byte(fmt.Sprintf("%d", nativeTokenAmount.Amount)), []byte(fmt.Sprintf("%d", nativeTokenAmount.Amount+1)), 1)
@@ -167,7 +180,7 @@ func executeInvalidMismatchSendNativeTokenAmount(
 
 	txHash, err := apex.SubmitTx(ctx, config.srcChainID,
 		user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		new(big.Int).SetUint64(feeAmount+config.operationFee),
+		new(big.Int).SetUint64(feeAmount+operationFee),
 		[]wallet.TokenAmount{nativeTokenAmount}, bridgingRequestMetadata,
 	)
 	require.NoError(t, err)
@@ -188,7 +201,7 @@ func executeInvalidSendNativeToken(
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:         user.GetAddress(config.dstChainID),
-			Amount:       defaultLovelaceAmount,
+			Amount:       defaultSendAmount,
 			BridgingType: bridgingType,
 		},
 	}
@@ -197,24 +210,27 @@ func executeInvalidSendNativeToken(
 	receiversForFeeCalculation := []sendtx.BridgingTxReceiver{
 		{
 			Addr:         user.GetAddress(config.dstChainID),
-			Amount:       defaultLovelaceAmount,
+			Amount:       defaultSendAmount,
 			BridgingType: sendtx.BridgingTypeNativeTokenOnSource,
 		},
 	}
 
+	operationFee := apex.GetMinOperationFee(config.srcChainID)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+
 	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
-		ctx, config.dstChainID, receiversForFeeCalculation, config.bridgingFee,
-		config.operationFee, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex])
+		ctx, config.dstChainID, receiversForFeeCalculation, minBridgingFee,
+		operationFee, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex])
 	require.NoError(t, err)
 
 	metadata, err := apex.GetChainMust(t, config.srcChainID).CreateMetadata(
-		user.GetAddress(config.srcChainID), config.dstChainID, receivers, config.bridgingFee, config.operationFee)
+		user.GetAddress(config.srcChainID), config.dstChainID, receivers, minBridgingFee, operationFee)
 	require.NoError(t, err)
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
 
-	lovelaceAmount := max(defaultLovelaceAmount, feeAmount) + config.bridgingFee + config.operationFee
+	lovelaceAmount := defaultSendAmount + feeAmount + operationFee
 
 	txHash, err := apex.SubmitTx(ctx, config.srcChainID, user,
 		apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],

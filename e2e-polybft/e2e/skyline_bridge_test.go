@@ -124,9 +124,6 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 15
-
-		bridgingFee  = uint64(1_000_010)
-		operationFee = uint64(0)
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -177,8 +174,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 		}
 	)
 
-	testConfigPrime := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee, operationFee, "")
-	testConfigCardano := newTestConfig(t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, bridgingFee, operationFee, "")
+	testConfigPrime := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, "")
+	testConfigCardano := newTestConfig(t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, "")
 	testConfigs := []*testConfig{testConfigPrime, testConfigCardano}
 	minterWalletCardano := apex.CardanoInfo.GenesisWallet
 	minterWalletVector := apex.VectorInfo.GenesisWallet
@@ -618,9 +615,6 @@ func TestE2E_SkylineBridge_WithVector_InvalidScenarios(t *testing.T) {
 
 		maxWaitTimeSec = 600
 		retryDelaySec  = 5
-
-		bridgingFee  = uint64(1_000_010)
-		operationFee = uint64(0)
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -661,8 +655,8 @@ func TestE2E_SkylineBridge_WithVector_InvalidScenarios(t *testing.T) {
 		uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
 	require.NoError(t, err)
 
-	vectorCardanoTestConfig := newTestConfig(t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, bridgingFee,
-		operationFee, vectorToken.TokenName())
+	vectorCardanoTestConfig := newTestConfig(
+		t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, vectorToken.TokenName())
 
 	t.Run("1. vector -> cardano - currency on src", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
@@ -684,9 +678,6 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		maxWaitTimeSec = 600
 		retryDelaySec  = 5
-
-		bridgingFee  = uint64(1_000_010)
-		operationFee = uint64(0)
 
 		sendAmount = uint64(1_000_000)
 	)
@@ -739,10 +730,10 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
 	require.NoError(t, err)
 
-	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee,
-		operationFee, "")
-	vectorTestConfig := newTestConfig(t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, bridgingFee,
-		operationFee, vectorToken.TokenName())
+	primeTestConfig := newTestConfig(
+		t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, "")
+	vectorTestConfig := newTestConfig(
+		t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, vectorToken.TokenName())
 	bridgingType := sendtx.BridgingTypeCurrencyOnSource
 
 	fmt.Printf("cardano user tokenAmount: %+v\n", cardanoTokenAmount)
@@ -788,8 +779,11 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			},
 		}
 
+		operationFee := apex.GetMinOperationFee(cardanofw.ChainIDVector)
+
 		feeAmount, err := apex.GetChainMust(t, cardanofw.ChainIDVector).GetBridgingFee(
-			ctx, cardanofw.ChainIDCardano, receivers, bridgingFee, operationFee, apex.VectorInfo.MultisigAddr[0])
+			ctx, cardanofw.ChainIDCardano, receivers, apex.GetMinBridgingFee(cardanofw.ChainIDVector, true),
+			operationFee, apex.VectorInfo.MultisigAddr[0])
 		require.NoError(t, err)
 
 		feeAmount -= 1_000_000
@@ -1277,9 +1271,8 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 	}
 
 	const (
-		apiKey       = "test_api_key"
-		userCnt      = 10
-		feeAmountDfm = 1_100_000
+		apiKey  = "test_api_key"
+		userCnt = 10
 	)
 
 	var (
@@ -1536,8 +1529,6 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			}
 		)
 
-		require.True(t, cardanofw.ApexToDfm(apexSendAmount).Uint64()+feeAmountDfm < initialFundInDfm.Uint64())
-
 		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
 
 		fundTestUsersWithToken(t, ctx, apex, []*testConfig{
@@ -1646,9 +1637,6 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 			uint64(2_000_000), uint64(250_000_000))
 		require.NoError(t, err)
-
-		require.True(t,
-			cardanofw.ApexToDfm(apexSendAmount).Uint64()+feeAmountDfm < initialFundInDfm.Uint64())
 
 		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ :=
 			createBridgingData(ctx, apex, bridgingRequests, receivers, defundReceiver, apexDefundAndFundAmount)
@@ -1891,8 +1879,6 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			}
 		)
 
-		require.True(t, cardanofw.ApexToDfm(apexSendAmount).Uint64()+feeAmountDfm < initialFundInDfm.Uint64())
-
 		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
 
 		chainPrevAmounts, chainExpectedAmounts, chainReceivers,
@@ -1973,9 +1959,6 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		)
 
 		isNativeToken := bridgignType == sendtx.BridgingTypeCurrencyOnSource
-
-		require.True(t,
-			cardanofw.ApexToDfm(apexSendAmount).Uint64()+feeAmountDfm < initialFundInDfm.Uint64())
 
 		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ :=
 			createBridgingData(ctx, apex, bridgingRequests, receivers, defundReceiver, apexDefundAndFundAmount)
@@ -2356,11 +2339,6 @@ func sendInvalidSendAmountTransaction(
 ) {
 	t.Helper()
 
-	const (
-		bridgingFee  = uint64(1_000_010)
-		operationFee = uint64(0)
-	)
-
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:         receiverUserAddr,
@@ -2371,8 +2349,10 @@ func sendInvalidSendAmountTransaction(
 
 	srcTestChain := apex.GetChainMust(t, src)
 
+	operationFee := apex.GetMinOperationFee(src)
+
 	feeAmount, err := srcTestChain.GetBridgingFee(
-		ctx, dest, receivers, bridgingFee, operationFee, multiSigAddr)
+		ctx, dest, receivers, apex.GetMinBridgingFee(src, false), operationFee, multiSigAddr)
 	require.NoError(t, err)
 
 	metadata, err := srcTestChain.CreateMetadata(

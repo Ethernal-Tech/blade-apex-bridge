@@ -77,10 +77,11 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 	}
 }
 
-func NewRemoteNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
+func NewRemoteNexusChainConfig(isEnabled bool, minBridgingFeeAmount uint64) *TestEVMChainConfig {
 	return &TestEVMChainConfig{
-		ChainID:   ChainIDNexus,
-		IsEnabled: isEnabled,
+		IsEnabled:      isEnabled,
+		ChainID:        ChainIDNexus,
+		MinBridgingFee: minBridgingFeeAmount,
 	}
 }
 
@@ -330,6 +331,7 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 		"--output-relayer-file-name", RelayerConfigFileName,
 		"--dbs-path", dbsPath,
 		"--relayer-data-dir", validator.server.DataDir(),
+		"--evm-min-fee-for-bridging", fmt.Sprint(ec.config.MinBridgingFee),
 	}
 
 	for _, direction := range ec.config.AllowedDirections {

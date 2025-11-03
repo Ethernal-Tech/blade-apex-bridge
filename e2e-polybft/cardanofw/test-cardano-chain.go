@@ -55,7 +55,8 @@ type TestCardanoChainConfig struct {
 	PremineAmount               uint64
 	SlotRoundingThreshold       uint64
 	TTLInc                      uint64
-	MinBridgingFee              uint64
+	DefaultMinBridgingFee       uint64
+	MinBridgingFeeForTokens     uint64
 	MinOperationFee             uint64
 	BridgeAddrHasStake          bool
 	BridgingAddressCnt          int
@@ -79,7 +80,8 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		FundTokenAmount:             defaultNativeTokenAmount,
 		FundUTxOCount:               1,
 		FundFeeUTxOCount:            1,
-		MinBridgingFee:              defaultMinBridgingFeeAmount,
+		DefaultMinBridgingFee:       defaultMinBridgingFeeAmount,
+		MinBridgingFeeForTokens:     defaultMinBridgingFeeAmountForTokens,
 		MinOperationFee:             uint64(0),
 		BridgeAddrHasStake:          true,
 		BridgingAddressCnt:          1,
@@ -102,7 +104,8 @@ func NewVectorChainConfig() *TestCardanoChainConfig {
 		FundTokenAmount:             defaultNativeTokenAmount,
 		FundUTxOCount:               1,
 		FundFeeUTxOCount:            1,
-		MinBridgingFee:              defaultMinBridgingFeeAmount,
+		DefaultMinBridgingFee:       defaultMinBridgingFeeAmount,
+		MinBridgingFeeForTokens:     defaultMinBridgingFeeAmountForTokens,
 		MinOperationFee:             uint64(0),
 		BridgingAddressCnt:          1,
 	}
@@ -122,45 +125,55 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		FundAmount:                  defaultFundTokenAmount,
 		FundFeeAmount:               defaultFundTokenAmount,
 		FundTokenAmount:             defaultNativeTokenAmount,
-		MinBridgingFee:              defaultMinBridgingFeeAmount,
+		DefaultMinBridgingFee:       defaultMinBridgingFeeAmount,
+		MinBridgingFeeForTokens:     defaultMinBridgingFeeAmountForTokens,
 		MinOperationFee:             DefaultMinOperationFee,
 		BridgingAddressCnt:          1,
 	}
 }
 
-func NewRemotePrimeChainConfig(minBridgingFeeAmount, minOperationFee uint64) *TestCardanoChainConfig {
+func NewRemotePrimeChainConfig(
+	defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee uint64,
+) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:       true,
-		ID:              0,
-		NetworkType:     infrawallet.TestNetNetwork,
-		NetworkMagic:    infrawallet.PrimeTestNetProtocolMagic,
-		ChainType:       ChainIDPrime,
-		MinBridgingFee:  minBridgingFeeAmount,
-		MinOperationFee: minOperationFee,
+		IsEnabled:               true,
+		ID:                      0,
+		NetworkType:             infrawallet.TestNetNetwork,
+		NetworkMagic:            infrawallet.PrimeTestNetProtocolMagic,
+		ChainType:               ChainIDPrime,
+		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
+		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
+		MinOperationFee:         minOperationFee,
 	}
 }
 
-func NewRemoteVectorChainConfig(minBridgingFeeAmount, minOperationFee uint64) *TestCardanoChainConfig {
+func NewRemoteVectorChainConfig(
+	defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee uint64,
+) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:       true,
-		ID:              1,
-		NetworkType:     infrawallet.MainNetNetwork,
-		NetworkMagic:    infrawallet.MainNetProtocolMagic,
-		ChainType:       ChainIDVector,
-		MinBridgingFee:  minBridgingFeeAmount,
-		MinOperationFee: minOperationFee,
+		IsEnabled:               true,
+		ID:                      1,
+		NetworkType:             infrawallet.MainNetNetwork,
+		NetworkMagic:            infrawallet.MainNetProtocolMagic,
+		ChainType:               ChainIDVector,
+		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
+		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
+		MinOperationFee:         minOperationFee,
 	}
 }
 
-func NewRemoteCardanoChainConfig(isEnabled bool, minBridgingFeeAmount, minOperationFee uint64) *TestCardanoChainConfig {
+func NewRemoteCardanoChainConfig(
+	isEnabled bool, defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee uint64,
+) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
-		IsEnabled:       isEnabled,
-		ID:              4,
-		NetworkType:     infrawallet.TestNetNetwork,
-		NetworkMagic:    infrawallet.TestNetProtocolMagic,
-		ChainType:       ChainIDCardano,
-		MinBridgingFee:  minBridgingFeeAmount,
-		MinOperationFee: minOperationFee,
+		IsEnabled:               isEnabled,
+		ID:                      4,
+		NetworkType:             infrawallet.TestNetNetwork,
+		NetworkMagic:            infrawallet.TestNetProtocolMagic,
+		ChainType:               ChainIDCardano,
+		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
+		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
+		MinOperationFee:         minOperationFee,
 	}
 }
 
@@ -489,6 +502,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
 		"--output-relayer-file-name", RelayerConfigFileName,
 		"--dbs-path", dbsPath,
+		"--min-fee-for-bridging", fmt.Sprint(ec.config.DefaultMinBridgingFee),
 	}
 
 	for _, token := range tokens {
@@ -508,6 +522,10 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 
 	if ec.config.SlotRoundingThreshold > 0 {
 		args = append(args, "--slot-rounding-threshold", fmt.Sprint(ec.config.SlotRoundingThreshold))
+	}
+
+	if ec.config.MinBridgingFeeForTokens > 0 {
+		args = append(args, "--min-fee-for-bridging-tokens", fmt.Sprint(ec.config.MinBridgingFeeForTokens))
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
