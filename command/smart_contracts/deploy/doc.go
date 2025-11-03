@@ -58,7 +58,7 @@ the proxy smart contract (note: newer versions - >= v5.0.0 - of OpenZeppelin for
 support "upgradeTo"). Proxy addresses may or may not be prefixed with "0x". Also, instead of concrete addresses,
 aliases can be used. Currently, only "SM" is available, which is equivalent to "0x107". For example, if we
 have 16 smart contracts, the following command deploys only the selected 3 while additionally upgrading the
-SM proxy smart contract with "contracts/dir2/Random.sol":
+SM proxy smart contract with "contracts/dir2/Random2.sol":
 
 blade sc deploy --source "<path-to-hardhat-project>" --private-key ... --rpc-url ... \
 --select contracts/dir1/Random1.sol \
@@ -74,7 +74,7 @@ has an effect when a path to a local Hardhat project is specified (the second ca
 The --all flag allows deploying all found smart contracts regardless of filtering with the --select flag.
 This flag should be used when you want to deploy all smart contracts but additionally upgrade an OpenZeppelin
 proxy. For example, if we have 16 smart contracts, the following command will deploy all 16 while additionally
-upgrading the SM proxy smart contract to "contracts/dir2/Random.sol":
+upgrading the SM proxy smart contract to "contracts/dir2/Random2.sol":
 
 blade sc deploy --source "<path-to-hardhat-project>" --private-key ... --rpc-url ... \
 --select contracts/dir1/Random1.sol \
