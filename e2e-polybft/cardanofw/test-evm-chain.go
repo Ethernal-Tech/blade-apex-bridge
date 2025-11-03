@@ -324,7 +324,7 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 	args := []string{
 		"generate-configs", "evm-chain",
 		"--chain-id", ec.ChainID(),
-		"--node-url", server.JSONRPCAddr(),
+		"--evm-node-url", server.JSONRPCAddr(),
 		"--output-dir", validator.GetBridgingConfigsDir(),
 		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
 		"--output-relayer-file-name", RelayerConfigFileName,
