@@ -49,7 +49,7 @@ var (
 	ErrNoAddressesProvided = errors.New("no addresses provided")
 	ErrInconsistentLength  = errors.New("addresses and amounts must be equal length")
 
-	rootchainAccountKey *crypto.ECDSAKey
+	privateKey *crypto.ECDSAKey
 )
 
 type MessageResult struct {
@@ -77,12 +77,35 @@ func DecodePrivateKey(rawKey string) (crypto.Key, error) {
 		return nil, fmt.Errorf("failed to decode private key string '%s': %w", privateKeyRaw, err)
 	}
 
-	rootchainAccountKey, err = crypto.NewECDSAKeyFromRawPrivECDSA(dec)
+	privateKey, err = crypto.NewECDSAKeyFromRawPrivECDSA(dec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize key from provided private key '%s': %w", privateKeyRaw, err)
 	}
 
-	return rootchainAccountKey, nil
+	return privateKey, nil
+}
+
+func GetPrivateKeyForCommand(key, config string) (crypto.Key, error) {
+	if config == "" {
+		return DecodePrivateKey(key)
+	}
+
+	secretsManager, err := polybftsecrets.GetSecretsManager("", config, false)
+	if err != nil {
+		return nil, err
+	}
+
+	privateKeySecretsManager, err := secretsManager.GetSecret(key)
+	if err != nil {
+		return nil, err
+	}
+
+	privateKey, err = crypto.NewECDSAKeyFromRawPrivECDSA(privateKeySecretsManager)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize key from provided config: %w", err)
+	}
+
+	return privateKey, nil
 }
 
 func GetRootchainID() (string, error) {

@@ -65,49 +65,14 @@ func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 
 	cluster := apex.BridgeCluster
 
-	// check multisig amount
-	getMultisigAndFeeAmount := func(chainID cardanofw.ChainID) (uint64, uint64) {
-		apiURL, err := apex.GetBridgingAPI()
-		require.NoError(t, err)
-
-		requestURL := fmt.Sprintf("%s/api/OracleState/Get?chainId=%s", apiURL, chainID)
-		currentState, err := cardanofw.GetOracleState(ctx, requestURL, apiKey)
-
-		if err != nil || currentState == nil {
-			return 0, 0
-		}
-
-		var multisigAddr, feeAddr string
-
-		switch chainID {
-		case cardanofw.ChainIDPrime:
-			multisigAddr, feeAddr = apex.PrimeInfo.MultisigAddr, apex.PrimeInfo.FeeAddr
-		case cardanofw.ChainIDVector:
-			multisigAddr, feeAddr = apex.VectorInfo.MultisigAddr, apex.VectorInfo.FeeAddr
-		}
-
-		sumMultiSig, sumFee := uint64(0), uint64(0)
-
-		for _, utxo := range currentState.Utxos {
-			switch utxo.Address {
-			case multisigAddr:
-				sumMultiSig += utxo.Amount
-			case feeAddr:
-				sumFee += utxo.Amount
-			}
-		}
-
-		return sumMultiSig, sumFee
-	}
-
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 
 		return multisig == primeConfig.FundAmount && fee == primeConfig.FundFeeAmount
 	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
 
 		return multisig == vectorConfig.FundAmount && fee == vectorConfig.FundFeeAmount
 	}))
@@ -166,20 +131,7 @@ func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 	require.NoError(t, cluster.WaitForBlock(currentBlock+10, time.Minute))
 
 	// wait for validator set change to finish
-	require.NoError(t, cluster.WaitUntil(5*time.Minute, 10*time.Second, func() bool {
-		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
-		require.NoError(t, err)
-
-		ret, err := relayer.Call(types.ZeroAddress, contracts.Bridge, input)
-		require.NoError(t, err)
-
-		num, err := hex.DecodeUint64(ret)
-		require.NoError(t, err)
-
-		t.Log("Validator set change status", num == 1)
-
-		return num == 0
-	}))
+	waitUntilValidatorSetUpdateIsFinished(t, cluster, relayer, 5*time.Minute, 10*time.Second)
 
 	t.Log("Finished VSC")
 
@@ -198,7 +150,7 @@ func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 
 	// check on new multisig
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 
 		t.Log("prime multisig", multisig)
 
@@ -206,7 +158,7 @@ func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
 
 		t.Log("vector multisig", multisig)
 
@@ -261,49 +213,14 @@ func TestE2E_DynamicValidators_RemoveValidator(t *testing.T) {
 
 	cluster := apex.BridgeCluster
 
-	// check multisig amount
-	getMultisigAndFeeAmount := func(chainID cardanofw.ChainID) (uint64, uint64) {
-		apiURL, err := apex.GetBridgingAPI()
-		require.NoError(t, err)
-
-		requestURL := fmt.Sprintf("%s/api/OracleState/Get?chainId=%s", apiURL, chainID)
-		currentState, err := cardanofw.GetOracleState(ctx, requestURL, apiKey)
-
-		if err != nil || currentState == nil {
-			return 0, 0
-		}
-
-		var multisigAddr, feeAddr string
-
-		switch chainID {
-		case cardanofw.ChainIDPrime:
-			multisigAddr, feeAddr = apex.PrimeInfo.MultisigAddr, apex.PrimeInfo.FeeAddr
-		case cardanofw.ChainIDVector:
-			multisigAddr, feeAddr = apex.VectorInfo.MultisigAddr, apex.VectorInfo.FeeAddr
-		}
-
-		sumMultiSig, sumFee := uint64(0), uint64(0)
-
-		for _, utxo := range currentState.Utxos {
-			switch utxo.Address {
-			case multisigAddr:
-				sumMultiSig += utxo.Amount
-			case feeAddr:
-				sumFee += utxo.Amount
-			}
-		}
-
-		return sumMultiSig, sumFee
-	}
-
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 
 		return multisig == primeConfig.FundAmount && fee == primeConfig.FundFeeAmount
 	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
 
 		return multisig == vectorConfig.FundAmount && fee == vectorConfig.FundFeeAmount
 	}))
@@ -337,20 +254,7 @@ func TestE2E_DynamicValidators_RemoveValidator(t *testing.T) {
 	require.NoError(t, cluster.WaitForBlock(currentBlock+10, time.Minute))
 
 	// wait for validator set change to finish
-	require.NoError(t, cluster.WaitUntil(5*time.Minute, 10*time.Second, func() bool {
-		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
-		require.NoError(t, err)
-
-		ret, err := relayer.Call(types.ZeroAddress, contracts.Bridge, input)
-		require.NoError(t, err)
-
-		num, err := hex.DecodeUint64(ret)
-		require.NoError(t, err)
-
-		t.Log("Validator set change status", num == 1)
-
-		return num == 0
-	}))
+	waitUntilValidatorSetUpdateIsFinished(t, cluster, relayer, 5*time.Minute, 10*time.Second)
 
 	t.Log("Finished VSC")
 
@@ -369,7 +273,7 @@ func TestE2E_DynamicValidators_RemoveValidator(t *testing.T) {
 
 	// check on new multisig
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 
 		t.Log("prime multisig", multisig)
 
@@ -377,7 +281,7 @@ func TestE2E_DynamicValidators_RemoveValidator(t *testing.T) {
 	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
 
 		t.Log("vector multisig", multisig)
 
@@ -436,49 +340,14 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 
 	cluster := apex.BridgeCluster
 
-	// check multisig amount
-	getMultisigAndFeeAmount := func(chainID cardanofw.ChainID) (uint64, uint64) {
-		apiURL, err := apex.GetBridgingAPI()
-		require.NoError(t, err)
-
-		requestURL := fmt.Sprintf("%s/api/OracleState/Get?chainId=%s", apiURL, chainID)
-		currentState, err := cardanofw.GetOracleState(ctx, requestURL, apiKey)
-
-		if err != nil || currentState == nil {
-			return 0, 0
-		}
-
-		var multisigAddr, feeAddr string
-
-		switch chainID {
-		case cardanofw.ChainIDPrime:
-			multisigAddr, feeAddr = apex.PrimeInfo.MultisigAddr, apex.PrimeInfo.FeeAddr
-		case cardanofw.ChainIDVector:
-			multisigAddr, feeAddr = apex.VectorInfo.MultisigAddr, apex.VectorInfo.FeeAddr
-		}
-
-		sumMultiSig, sumFee := uint64(0), uint64(0)
-
-		for _, utxo := range currentState.Utxos {
-			switch utxo.Address {
-			case multisigAddr:
-				sumMultiSig += utxo.Amount
-			case feeAddr:
-				sumFee += utxo.Amount
-			}
-		}
-
-		return sumMultiSig, sumFee
-	}
-
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 
 		return multisig == primeConfig.FundAmount && fee == primeConfig.FundFeeAmount
 	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
 
 		return multisig == vectorConfig.FundAmount && fee == vectorConfig.FundFeeAmount
 	}))
@@ -544,20 +413,7 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 	require.NoError(t, cluster.WaitForBlock(currentBlock+10, time.Minute))
 
 	// wait for validator set change to finish
-	require.NoError(t, cluster.WaitUntil(10*time.Minute, 10*time.Second, func() bool {
-		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
-		require.NoError(t, err)
-
-		ret, err := relayer.Call(types.ZeroAddress, contracts.Bridge, input)
-		require.NoError(t, err)
-
-		num, err := hex.DecodeUint64(ret)
-		require.NoError(t, err)
-
-		t.Log("Validator set change status", num == 1)
-
-		return num == 0
-	}))
+	waitUntilValidatorSetUpdateIsFinished(t, cluster, relayer, 10*time.Minute, 10*time.Second)
 
 	t.Log("Finished VSC")
 
@@ -580,7 +436,7 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 
 	// check on new multisig
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 
 		t.Log("prime multisig", multisig)
 
@@ -588,7 +444,7 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
 
 		t.Log("vector multisig", multisig)
 
@@ -644,49 +500,14 @@ func TestE2E_DynamicValidators_OneFeeUtxo(t *testing.T) {
 
 	cluster := apex.BridgeCluster
 
-	// check multisig amount
-	getMultisigAndFeeAmount := func(chainID cardanofw.ChainID) (uint64, uint64) {
-		apiURL, err := apex.GetBridgingAPI()
-		require.NoError(t, err)
-
-		requestURL := fmt.Sprintf("%s/api/OracleState/Get?chainId=%s", apiURL, chainID)
-		currentState, err := cardanofw.GetOracleState(ctx, requestURL, apiKey)
-
-		if err != nil || currentState == nil {
-			return 0, 0
-		}
-
-		var multisigAddr, feeAddr string
-
-		switch chainID {
-		case cardanofw.ChainIDPrime:
-			multisigAddr, feeAddr = apex.PrimeInfo.MultisigAddr, apex.PrimeInfo.FeeAddr
-		case cardanofw.ChainIDVector:
-			multisigAddr, feeAddr = apex.VectorInfo.MultisigAddr, apex.VectorInfo.FeeAddr
-		}
-
-		sumMultiSig, sumFee := uint64(0), uint64(0)
-
-		for _, utxo := range currentState.Utxos {
-			switch utxo.Address {
-			case multisigAddr:
-				sumMultiSig += utxo.Amount
-			case feeAddr:
-				sumFee += utxo.Amount
-			}
-		}
-
-		return sumMultiSig, sumFee
-	}
-
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 
 		return multisig == primeConfig.FundAmount && fee == primeConfig.FundFeeAmount
 	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
 
 		return multisig == vectorConfig.FundAmount && fee == vectorConfig.FundFeeAmount
 	}))
@@ -718,20 +539,7 @@ func TestE2E_DynamicValidators_OneFeeUtxo(t *testing.T) {
 	require.NoError(t, cluster.WaitForBlock(currentBlock+10, time.Minute))
 
 	// wait for validator set change to finish
-	require.NoError(t, cluster.WaitUntil(5*time.Minute, 10*time.Second, func() bool {
-		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
-		require.NoError(t, err)
-
-		ret, err := relayer.Call(types.ZeroAddress, contracts.Bridge, input)
-		require.NoError(t, err)
-
-		num, err := hex.DecodeUint64(ret)
-		require.NoError(t, err)
-
-		t.Log("Validator set change status", num == 1)
-
-		return num == 0
-	}))
+	waitUntilValidatorSetUpdateIsFinished(t, cluster, relayer, 5*time.Minute, 10*time.Second)
 
 	t.Log("Finished VSC")
 
@@ -751,13 +559,13 @@ func TestE2E_DynamicValidators_OneFeeUtxo(t *testing.T) {
 	// wait until bridge is initialized and check on new multisig
 	<-time.After(15 * time.Second)
 
-	multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+	multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 	t.Log("prime multisig", multisig)
 
 	require.Zero(t, multisig)
 	require.Zero(t, fee)
 
-	multisig, fee = getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+	multisig, fee = getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
 	t.Log("vector multisig", multisig)
 
 	require.Zero(t, multisig)
@@ -811,49 +619,14 @@ func TestE2E_DynamicValidators_StopBladesDuringVSU(t *testing.T) {
 
 	cluster := apex.BridgeCluster
 
-	// check multisig amount
-	getMultisigAndFeeAmount := func(chainID cardanofw.ChainID) (uint64, uint64) {
-		apiURL, err := apex.GetBridgingAPI()
-		require.NoError(t, err)
-
-		requestURL := fmt.Sprintf("%s/api/OracleState/Get?chainId=%s", apiURL, chainID)
-		currentState, err := cardanofw.GetOracleState(ctx, requestURL, apiKey)
-
-		if err != nil || currentState == nil {
-			return 0, 0
-		}
-
-		var multisigAddr, feeAddr string
-
-		switch chainID {
-		case cardanofw.ChainIDPrime:
-			multisigAddr, feeAddr = apex.PrimeInfo.MultisigAddr, apex.PrimeInfo.FeeAddr
-		case cardanofw.ChainIDVector:
-			multisigAddr, feeAddr = apex.VectorInfo.MultisigAddr, apex.VectorInfo.FeeAddr
-		}
-
-		sumMultiSig, sumFee := uint64(0), uint64(0)
-
-		for _, utxo := range currentState.Utxos {
-			switch utxo.Address {
-			case multisigAddr:
-				sumMultiSig += utxo.Amount
-			case feeAddr:
-				sumFee += utxo.Amount
-			}
-		}
-
-		return sumMultiSig, sumFee
-	}
-
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 
 		return multisig == primeConfig.FundAmount && fee == primeConfig.FundFeeAmount
 	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
 
 		return multisig == vectorConfig.FundAmount && fee == vectorConfig.FundFeeAmount
 	}))
@@ -888,7 +661,7 @@ func TestE2E_DynamicValidators_StopBladesDuringVSU(t *testing.T) {
 
 	// wait until at least 1 batch is executed
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 
 		return multisig < primeConfig.FundAmount && fee < primeConfig.FundFeeAmount
 	}))
@@ -901,20 +674,7 @@ func TestE2E_DynamicValidators_StopBladesDuringVSU(t *testing.T) {
 	require.NoError(t, removeValidator.Start())
 
 	// wait for validator set change to finish
-	require.NoError(t, cluster.WaitUntil(10*time.Minute, 10*time.Second, func() bool {
-		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
-		require.NoError(t, err)
-
-		ret, err := relayer.Call(types.ZeroAddress, contracts.Bridge, input)
-		require.NoError(t, err)
-
-		num, err := hex.DecodeUint64(ret)
-		require.NoError(t, err)
-
-		t.Log("Validator set change status", num == 1)
-
-		return num == 0
-	}))
+	waitUntilValidatorSetUpdateIsFinished(t, cluster, relayer, 10*time.Minute, 10*time.Second)
 
 	t.Log("Finished VSC")
 
@@ -937,7 +697,7 @@ func TestE2E_DynamicValidators_StopBladesDuringVSU(t *testing.T) {
 
 	// check on new multisig
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 
 		t.Log("prime multisig", multisig)
 
@@ -945,7 +705,7 @@ func TestE2E_DynamicValidators_StopBladesDuringVSU(t *testing.T) {
 	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
 
 		t.Log("vector multisig", multisig)
 
@@ -1007,49 +767,14 @@ func TestE2E_DynamicValidators_StopApxBridgesDuringVSU(t *testing.T) {
 
 	cluster := apex.BridgeCluster
 
-	// check multisig amount
-	getMultisigAndFeeAmount := func(chainID cardanofw.ChainID) (uint64, uint64) {
-		apiURL, err := apex.GetBridgingAPI()
-		require.NoError(t, err)
-
-		requestURL := fmt.Sprintf("%s/api/OracleState/Get?chainId=%s", apiURL, chainID)
-		currentState, err := cardanofw.GetOracleState(ctx, requestURL, apiKey)
-
-		if err != nil || currentState == nil {
-			return 0, 0
-		}
-
-		var multisigAddr, feeAddr string
-
-		switch chainID {
-		case cardanofw.ChainIDPrime:
-			multisigAddr, feeAddr = apex.PrimeInfo.MultisigAddr, apex.PrimeInfo.FeeAddr
-		case cardanofw.ChainIDVector:
-			multisigAddr, feeAddr = apex.VectorInfo.MultisigAddr, apex.VectorInfo.FeeAddr
-		}
-
-		sumMultiSig, sumFee := uint64(0), uint64(0)
-
-		for _, utxo := range currentState.Utxos {
-			switch utxo.Address {
-			case multisigAddr:
-				sumMultiSig += utxo.Amount
-			case feeAddr:
-				sumFee += utxo.Amount
-			}
-		}
-
-		return sumMultiSig, sumFee
-	}
-
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 
 		return multisig == primeConfig.FundAmount && fee == primeConfig.FundFeeAmount
 	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
 
 		return multisig == vectorConfig.FundAmount && fee == vectorConfig.FundFeeAmount
 	}))
@@ -1084,7 +809,7 @@ func TestE2E_DynamicValidators_StopApxBridgesDuringVSU(t *testing.T) {
 
 	// wait until at least 1 batch is executed
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 
 		return multisig < primeConfig.FundAmount && fee < primeConfig.FundFeeAmount
 	}))
@@ -1097,20 +822,7 @@ func TestE2E_DynamicValidators_StopApxBridgesDuringVSU(t *testing.T) {
 	require.NoError(t, apex.GetValidator(t, 4).Start(ctx, true))
 
 	// wait for validator set change to finish
-	require.NoError(t, cluster.WaitUntil(10*time.Minute, 10*time.Second, func() bool {
-		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
-		require.NoError(t, err)
-
-		ret, err := relayer.Call(types.ZeroAddress, contracts.Bridge, input)
-		require.NoError(t, err)
-
-		num, err := hex.DecodeUint64(ret)
-		require.NoError(t, err)
-
-		t.Log("Validator set change status", num == 1)
-
-		return num == 0
-	}))
+	waitUntilValidatorSetUpdateIsFinished(t, cluster, relayer, 10*time.Minute, 10*time.Second)
 
 	t.Log("Finished VSC")
 
@@ -1133,7 +845,7 @@ func TestE2E_DynamicValidators_StopApxBridgesDuringVSU(t *testing.T) {
 
 	// check on new multisig
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDPrime)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
 
 		t.Log("prime multisig", multisig)
 
@@ -1141,7 +853,7 @@ func TestE2E_DynamicValidators_StopApxBridgesDuringVSU(t *testing.T) {
 	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
-		multisig, fee := getMultisigAndFeeAmount(cardanofw.ChainIDVector)
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
 
 		t.Log("vector multisig", multisig)
 
@@ -1300,4 +1012,61 @@ type validatorSetState struct {
 
 func (vs *validatorSetState) Unmarshal(b []byte) error {
 	return json.Unmarshal(b, vs)
+}
+
+// check multisig amount
+func getMultisigAndFeeAmount(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, apiKey string, chainID cardanofw.ChainID,
+) (uint64, uint64) {
+	apiURL, err := apex.GetBridgingAPI()
+	require.NoError(t, err)
+
+	requestURL := fmt.Sprintf("%s/api/OracleState/Get?chainId=%s", apiURL, chainID)
+	currentState, err := cardanofw.GetOracleState(ctx, requestURL, apiKey)
+
+	if err != nil || currentState == nil {
+		return 0, 0
+	}
+
+	var multisigAddr, feeAddr string
+
+	switch chainID {
+	case cardanofw.ChainIDPrime:
+		multisigAddr, feeAddr = apex.PrimeInfo.MultisigAddr, apex.PrimeInfo.FeeAddr
+	case cardanofw.ChainIDVector:
+		multisigAddr, feeAddr = apex.VectorInfo.MultisigAddr, apex.VectorInfo.FeeAddr
+	}
+
+	sumMultiSig, sumFee := uint64(0), uint64(0)
+
+	for _, utxo := range currentState.Utxos {
+		switch utxo.Address {
+		case multisigAddr:
+			sumMultiSig += utxo.Amount
+		case feeAddr:
+			sumFee += utxo.Amount
+		}
+	}
+
+	return sumMultiSig, sumFee
+}
+
+func waitUntilValidatorSetUpdateIsFinished(
+	t *testing.T, cluster *framework.TestCluster, relayer txrelayer.TxRelayer,
+	timeout, pullFrequency time.Duration,
+) {
+	require.NoError(t, cluster.WaitUntil(timeout, pullFrequency, func() bool {
+		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
+		require.NoError(t, err)
+
+		ret, err := relayer.Call(types.ZeroAddress, contracts.Bridge, input)
+		require.NoError(t, err)
+
+		num, err := hex.DecodeUint64(ret)
+		require.NoError(t, err)
+
+		t.Log("Validator set change status", num == 1)
+
+		return num == 0
+	}))
 }

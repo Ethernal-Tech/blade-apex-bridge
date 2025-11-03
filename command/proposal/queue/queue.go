@@ -83,7 +83,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		return
 	}
 
-	proposer, err := bridgeHelper.DecodePrivateKey(params.privateKey)
+	proposer, err := bridgeHelper.GetPrivateKeyForCommand(params.privateKey, "")
 	if err != nil {
 		outputter.SetError(err)
 

@@ -2278,7 +2278,7 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 	require.Len(t, utxos, 1)
 }
 
-func TestE2E_ApexBridgeUTxOConsolidationWithBothDirections(t *testing.T) {
+func TestE2E_ApexBridge_UTxOConsolidationWithBothDirections(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
 	}
