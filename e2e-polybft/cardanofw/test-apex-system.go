@@ -451,8 +451,14 @@ func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, dfm
 		return err
 	}
 
-	_, err = chain.SendTx(
-		ctx, pk, chain.GetHotWalletAddresses()[0], DfmToChainNativeTokenAmount(chainID, dfmAmount), nil, nil)
+	receivers := []GenericTxReceiver{
+		{
+			Addr:   chain.GetHotWalletAddresses()[0],
+			Amount: DfmToChainNativeTokenAmount(chainID, dfmAmount),
+		},
+	}
+
+	_, err = chain.SendTx(ctx, pk, nil, receivers)
 
 	return err
 }
@@ -995,7 +1001,7 @@ func (a *ApexSystem) RedistributeTokens(
 
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
-	receiverAddr string, lovelaceDfmAmount *big.Int, nativeTokenAmounts []cardanowallet.TokenAmount, data []byte,
+	receiverAddr string, lovelaceDfmAmount *big.Int, nativeTokens []cardanowallet.TokenAmount, data []byte,
 ) (string, error) {
 	const (
 		numRetries = 5
@@ -1012,10 +1018,16 @@ func (a *ApexSystem) SubmitTx(
 		return "", err
 	}
 
+	receivers := []GenericTxReceiver{
+		{
+			Addr:         receiverAddr,
+			Amount:       DfmToChainNativeTokenAmount(sourceChain, lovelaceDfmAmount),
+			NativeTokens: nativeTokens,
+		},
+	}
+
 	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
-		txHash, err := chain.SendTx(
-			ctx, privateKey, receiverAddr,
-			DfmToChainNativeTokenAmount(sourceChain, lovelaceDfmAmount), nativeTokenAmounts, data)
+		txHash, err := chain.SendTx(ctx, privateKey, data, receivers)
 		if err != nil {
 			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
 				return "", infracommon.ErrRetryTryAgain

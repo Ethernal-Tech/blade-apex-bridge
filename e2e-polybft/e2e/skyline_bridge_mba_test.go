@@ -118,14 +118,13 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 	txProviderCardano, err := apex.CardanoInfo.GetTxProvider()
 	require.NoError(t, err)
 
-	for _, sender := range apex.Users[:parallelInstances] {
-		_, err = cardanofw.FundUserWithToken(
-			ctx, apex, cardanofw.ChainIDCardano,
-			apex.CardanoInfo.GenesisWallet, sender,
-			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(2_000_000_000), uint64(2_000_000_000))
-		require.NoError(t, err)
-	}
+	fundTestUsersWithToken(
+		t, ctx, apex, []*testConfig{
+			{
+				srcChainID:      cardanofw.ChainIDCardano,
+				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
+			},
+		}, apex.Users[:parallelInstances], uint64(2_000_000_000), uint64(2_000_000_000))
 
 	utxos, err := infracommon.ExecuteWithRetry(
 		ctx, func(ctx context.Context) ([]wallet.Utxo, error) {
@@ -339,19 +338,13 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	_, err := cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDCardano,
-		apex.GetCardanoInfo(cardanofw.ChainIDCardano).GenesisWallet, apex.Users[0],
-		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(2_000_000), uint64(100_000_000))
-	require.NoError(t, err)
-
-	_, err = cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDCardano,
-		apex.GetCardanoInfo(cardanofw.ChainIDCardano).GenesisWallet, apex.Users[1],
-		cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(2_000_000), uint64(100_000_000))
-	require.NoError(t, err)
+	fundTestUsersWithToken(
+		t, ctx, apex, []*testConfig{
+			{
+				srcChainID:      cardanofw.ChainIDCardano,
+				srcMinterWallet: apex.GetCardanoInfo(cardanofw.ChainIDCardano).GenesisWallet,
+			},
+		}, apex.Users[:2], uint64(2_000_000), uint64(100_000_000))
 
 	sendAmountDfm := big.NewInt(1_500_000)
 
@@ -388,12 +381,12 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 	require.NotEmpty(t, stakePools)
 
 	t.Run("redeleg before reg and del should fail", func(t *testing.T) {
-		err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[1], false)
+		err := apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[1], false)
 		require.Error(t, err)
 	})
 
 	t.Run("reg and del should pass", func(t *testing.T) {
-		err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
+		err := apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
 		require.NoError(t, err)
 
 		addrInfo, err := primeTestChain.GetBridgingStakeAddressInfo(t, ctx, 0, false)
@@ -406,12 +399,12 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 
 	t.Run("reg and del again should fail", func(t *testing.T) {
 		// Registering already registered address should fail:
-		err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
+		err := apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
 		require.Error(t, err)
 	})
 
 	t.Run("redeleg should pass", func(t *testing.T) {
-		err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[1], false)
+		err := apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[1], false)
 		require.NoError(t, err)
 
 		previousStakePool := stakePools[0]
@@ -438,7 +431,7 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 	})
 
 	t.Run("dereg should pass", func(t *testing.T) {
-		err = apex.DeregisterStakeAddress(ctx, cardanofw.ChainIDPrime, 0)
+		err := apex.DeregisterStakeAddress(ctx, cardanofw.ChainIDPrime, 0)
 		require.NoError(t, err)
 
 		for range 60 {
@@ -496,7 +489,7 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 				require.NotEmpty(t, stakePools)
 
 				// 2. Register and delegate bridging address
-				err = apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
+				err := apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
 				require.NoError(t, err)
 
 				// 3. Check if the registration and delegation was successful
