@@ -82,6 +82,10 @@ func NewApexSystem(
 		opt(config)
 	}
 
+	config.NexusConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
+	config.VectorConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDNexus}
+	config.PrimeConfig.AllowedDirections = []ChainID{ChainIDVector, ChainIDNexus}
+
 	nexus, err := NewTestEVMChain(config.NexusConfig)
 	if err != nil {
 		return nil, err
@@ -325,14 +329,16 @@ func (a *ApexSystem) GenerateConfigs() error {
 
 		var args []string
 
-		for _, chain := range a.chains {
-			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
-		}
-
 		err := validator.GenerateConfigs(
 			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i), args...)
 		if err != nil {
 			return err
+		}
+
+		for _, chain := range a.chains {
+			if err := chain.GenerateChainConfigs(serverIndx, validator); err != nil {
+				return err
+			}
 		}
 
 		if handler := a.Config.CustomOracleConfigHandler; handler != nil {

@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -52,6 +53,7 @@ type TestCardanoChainConfig struct {
 	TTLInc                 uint64
 	BridgeAddrHasStake     bool
 	UseIndexer             bool
+	AllowedDirections      []ChainID
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -69,6 +71,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		FundUTxOCount:          1,
 		FundFeeUTxOCount:       1,
 		BridgeAddrHasStake:     true,
+		AllowedDirections:      []string{},
 	}
 }
 
@@ -86,6 +89,7 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		FundFeeAmount:          defaultFundTokenAmount,
 		FundUTxOCount:          1,
 		FundFeeUTxOCount:       1,
+		AllowedDirections:      []string{},
 	}
 }
 
@@ -303,28 +307,44 @@ func (ec *TestCardanoChain) RegisterChain(validator *TestApexValidator) error {
 	return validator.RegisterChain(ec.ChainID(), ec.config.InitialHotWalletAmount, ChainTypeCardano)
 }
 
-func (ec *TestCardanoChain) GetGenerateConfigsParams(indx int) (result []string) {
-	getFlag := func(suffix string) string {
-		return fmt.Sprintf("--%s-%s", ec.ChainID(), suffix)
+func (ec *TestCardanoChain) GenerateChainConfigs(
+	indx int,
+	validator *TestApexValidator,
+) error {
+	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
+	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
+
+	args := []string{
+		"generate-configs", "cardano-chain",
+		"--chain-id", ec.ChainID(),
+		"--network-address", server.NetworkAddress(),
+		"--network-magic", fmt.Sprint(ec.config.NetworkMagic),
+		"--network-id", fmt.Sprint(ec.config.NetworkType),
+		"--ogmios-url", ec.ogmiosURL,
+		"--utxo-min-amount", strconv.FormatUint(MinUTxODefaultValue, 10),
+		"--output-dir", validator.GetBridgingConfigsDir(),
+		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
+		"--output-relayer-file-name", RelayerConfigFileName,
+		"--dbs-path", dbsPath,
 	}
 
-	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
-	result = []string{
-		getFlag("network-address"), server.NetworkAddress(),
-		getFlag("network-magic"), fmt.Sprint(ec.config.NetworkMagic),
-		getFlag("network-id"), fmt.Sprint(ec.config.NetworkType),
-		getFlag("ogmios-url"), ec.ogmiosURL,
+	for _, direction := range ec.config.AllowedDirections {
+		args = append(args, "--allowed-directions", direction)
 	}
 
 	if ec.config.TTLInc > 0 {
-		result = append(result, getFlag("ttl-slot-inc"), fmt.Sprint(ec.config.TTLInc))
+		args = append(args, "--ttl-slot-inc", fmt.Sprint(ec.config.TTLInc))
 	}
 
 	if ec.config.SlotRoundingThreshold > 0 {
-		result = append(result, getFlag("slot-rounding-threshold"), fmt.Sprint(ec.config.SlotRoundingThreshold))
+		args = append(args, "--slot-rounding-threshold", fmt.Sprint(ec.config.SlotRoundingThreshold))
 	}
 
-	return result
+	if err := RunCommand(ResolveApexBridgeBinary(), args, os.Stdout); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (ec *TestCardanoChain) PopulateApexSystem(apexSystem *ApexSystem) error {
