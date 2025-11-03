@@ -20,7 +20,9 @@ import (
 	"github.com/0xPolygon/polygon-edge/command/sanitycheck"
 	"github.com/0xPolygon/polygon-edge/command/secrets"
 	"github.com/0xPolygon/polygon-edge/command/server"
+	smartcontract "github.com/0xPolygon/polygon-edge/command/smart_contracts"
 	"github.com/0xPolygon/polygon-edge/command/status"
+
 	"github.com/0xPolygon/polygon-edge/command/triestorageanalysis"
 	"github.com/0xPolygon/polygon-edge/command/txpool"
 	"github.com/0xPolygon/polygon-edge/command/validator"
@@ -65,6 +67,7 @@ func (rc *RootCommand) registerSubCommands() {
 		sanitycheck.GetCommand(),
 		accounts.GetCommand(),
 		proposal.GetCommand(),
+		smartcontract.GetCommand(),
 	)
 }
 
