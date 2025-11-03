@@ -141,9 +141,11 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 			tokens, err := cardanowallet.GetTokensFromSumMap(balance)
 			require.NoError(t, err)
 
-			receiverMinUtxo, err := txBuilder.SetProtocolParameters(protParams).CalculateMinUtxo(cardanowallet.TxOutput{
-				Addr:   senderAddr.String(),
-				Tokens: tokens,
+			receiverMinUtxo, err := txBuilder.SetProtocolParameters(protParams).CalculateMinUtxo(cardanowallet.TxOutputWithRefScript{
+				TxOutput: cardanowallet.TxOutput{
+					Addr:   senderAddr.String(),
+					Tokens: tokens,
+				},
 			})
 			require.NoError(t, err)
 

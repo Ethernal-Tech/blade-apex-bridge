@@ -136,9 +136,11 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 				require.NoError(t, err)
 				defer txBuilder.Dispose()
 
-				minUtxo, err := txBuilder.SetProtocolParameters(protParamsCached[chain]).CalculateMinUtxo(cardanowallet.TxOutput{
-					Addr:   addr,
-					Tokens: tokens,
+				minUtxo, err := txBuilder.SetProtocolParameters(protParamsCached[chain]).CalculateMinUtxo(cardanowallet.TxOutputWithRefScript{
+					TxOutput: cardanowallet.TxOutput{
+						Addr:   addr,
+						Tokens: tokens,
+					},
 				})
 				require.NoError(t, err)
 

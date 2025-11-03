@@ -551,13 +551,14 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	}
 
 	if totalAmount := ec.config.FundRelayerAmount; totalAmount != 0 && ec.relayerAddr != "" {
-		txHash, err := ec.SendTx(ctx, ToCardanoPrivateKeyString(minterWallet.SigningKey, minterWallet.StakeSigningKey), nil, []GenericTxReceiver{
-			{
-				Addr:         ec.relayerAddr,
-				Amount:       new(big.Int).SetUint64(totalAmount),
-				NativeTokens: nil,
-			},
-		})
+		txHash, err := ec.SendTx(ctx, ToCardanoPrivateKeyString(minterWallet.SigningKey, minterWallet.StakeSigningKey), nil,
+			[]GenericTxReceiver{
+				{
+					Addr:         ec.relayerAddr,
+					Amount:       new(big.Int).SetUint64(totalAmount),
+					NativeTokens: nil,
+				},
+			})
 		if err != nil {
 			return err
 		}
@@ -566,13 +567,14 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	}
 
 	if totalAmount := ec.config.FundRelayerAmount; totalAmount != 0 && ec.relayerAddr != "" {
-		txHash, err := ec.SendTx(ctx, ToCardanoPrivateKeyString(minterWallet.SigningKey, minterWallet.StakeSigningKey), nil, []GenericTxReceiver{
-			{
-				Addr:         ec.relayerAddr,
-				Amount:       new(big.Int).SetUint64(totalAmount),
-				NativeTokens: nil,
-			},
-		})
+		txHash, err := ec.SendTx(ctx, ToCardanoPrivateKeyString(minterWallet.SigningKey, minterWallet.StakeSigningKey), nil,
+			[]GenericTxReceiver{
+				{
+					Addr:         ec.relayerAddr,
+					Amount:       new(big.Int).SetUint64(totalAmount),
+					NativeTokens: nil,
+				},
+			})
 		if err != nil {
 			return err
 		}
