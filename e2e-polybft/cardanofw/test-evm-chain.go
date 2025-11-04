@@ -93,8 +93,13 @@ type TestEVMChain struct {
 	indexer       e2eindexer.TxsExecutedComponent
 }
 
-// GetMintTokenPolicyID implements ITestApexChain.
-func (ec *TestEVMChain) GetMintTokenPolicyID() string {
+// GetRelayerAddress implements ITestApexChain.
+func (ec *TestEVMChain) GetRelayerAddress() string {
+	panic("unimplemented") //nolint:gocritic
+}
+
+// GetMintableTokens implements ITestApexChain.
+func (ec *TestEVMChain) GetMintableTokens() []infrawallet.Token {
 	panic("unimplemented") //nolint:gocritic
 }
 
@@ -189,24 +194,24 @@ func (ec *TestEVMChain) JSONRPC() (*jsonrpc.EthClient, error) {
 	return JSONRPCClient(ec.jsonRPCAddr)
 }
 
-func (ec *TestEVMChain) CreateWallets(validator *TestApexValidator) (string, error) {
+func (ec *TestEVMChain) CreateWallets(validator *TestApexValidator) error {
 	_, err := validator.getEvmBatcherWallet()
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	if validator.ID == RunRelayerOnValidatorID {
 		if err = validator.createEvmSpecificWallet("relayer-evm"); err != nil {
-			return "", err
+			return err
 		}
 
 		ec.relayerWallet, err = validator.getEvmRelayerWallet()
 		if err != nil {
-			return "", err
+			return err
 		}
 	}
 
-	return "", nil
+	return nil
 }
 
 func (ec *TestEVMChain) DeployCardanoContract() error {

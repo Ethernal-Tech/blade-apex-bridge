@@ -64,9 +64,8 @@ type ApexSystem struct {
 	bladeAdmin      *crypto.ECDSAKey
 	bladeProxyAdmin *crypto.ECDSAKey
 
-	validators       []*TestApexValidator
-	relayerNode      *framework.Node
-	relayerAddresses map[string]string
+	validators  []*TestApexValidator
+	relayerNode *framework.Node
 
 	chains []ITestApexChain
 
@@ -169,8 +168,7 @@ func NewSkylineSystem(
 			NewTestCardanoChain(config.VectorConfig),
 			NewTestCardanoChain(config.CardanoConfig),
 		},
-		IsSkyline:        true,
-		relayerAddresses: make(map[string]string),
+		IsSkyline: true,
 	}
 
 	apex.Config.applyPremineFundingOptions(apex.Users)
@@ -298,14 +296,10 @@ func (a *ApexSystem) GetBridgeNode(t *testing.T, idx int) *framework.TestServer 
 func (a *ApexSystem) CreateWallets() (err error) {
 	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		for _, chain := range a.chains {
-			relayerAddr, err := chain.CreateWallets(validator)
+			err := chain.CreateWallets(validator)
 			if err != nil {
 				return fmt.Errorf("operation failed for validator = %d and chain = %s: %w",
 					i, chain.ChainID(), err)
-			}
-
-			if a.IsSkyline && relayerAddr != "" {
-				a.relayerAddresses[chain.ChainID()] = relayerAddr
 			}
 		}
 
@@ -484,10 +478,15 @@ func (a *ApexSystem) DeployCardanoContracts() error {
 				return err
 			}
 
-			if chain.ChainID() == ChainIDCardano {
-				for i, mintableToken := range a.Config.CardanoConfig.MintableTokens {
-					a.CardanoInfo.NativeTokens[i].TokenName = cardanowallet.NewToken(
-						a.Config.CardanoConfig.MintPolicyID, mintableToken).String()
+			mintableTokens := chain.GetMintableTokens()
+			if len(mintableTokens) > 0 {
+				switch chain.ChainID() {
+				case ChainIDCardano:
+					for i, mintableToken := range mintableTokens {
+						a.CardanoInfo.NativeTokens[i].TokenName = mintableToken.String()
+					}
+				default:
+					return fmt.Errorf("unimplemented cardano contract setup for chain %s", chain.ChainID())
 				}
 			}
 
@@ -567,34 +566,31 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 			serverIndx = 0
 		}
 
-		var args []string
+		var (
+			args             []string
+			relayerAddresses = make(map[string]string)
+		)
 
 		for _, chain := range a.chains {
 			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
+
+			relayerAddr := chain.GetRelayerAddress()
+			if relayerAddr != "" {
+				relayerAddresses[chain.ChainID()] = relayerAddr
+			}
 		}
 
 		cardanoConfig := a.Config.CardanoConfig
-		if cardanoConfig != nil && cardanoConfig.CustodialAddressGeneration {
-			tokenPolicyID := ""
+		if len(cardanoConfig.MintableTokens) > 0 {
 			trueStr := strconv.FormatBool(true)
 
 			var scriptInfo CardanoScriptInfo
 
 			for _, chain := range a.chains {
 				if chain.ChainID() == ChainIDCardano {
-					tokenPolicyID = chain.GetMintTokenPolicyID()
 					scriptInfo = chain.GetCardanoScriptInfo()
 
 					break
-				}
-			}
-
-			a.CardanoInfo.NativeTokens = make([]sendtx.TokenExchangeConfig, len(cardanoConfig.MintableTokens))
-
-			for i, tokenName := range cardanoConfig.MintableTokens {
-				a.CardanoInfo.NativeTokens[i] = sendtx.TokenExchangeConfig{
-					DstChainID: ChainIDPrime,
-					TokenName:  fmt.Sprintf("%s.%s", tokenPolicyID, hex.EncodeToString([]byte(tokenName))),
 				}
 			}
 
@@ -618,7 +614,7 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 
 		err := validator.GenerateSkylineConfigs(
 			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i),
-			cardanoPrimeTokenName, vectorCardanoTokenName, a.relayerAddresses, args...)
+			cardanoPrimeTokenName, vectorCardanoTokenName, relayerAddresses, args...)
 		if err != nil {
 			return err
 		}

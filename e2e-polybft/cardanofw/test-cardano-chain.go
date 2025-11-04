@@ -352,27 +352,24 @@ func (ec *TestCardanoChain) Stop() error {
 	return nil
 }
 
-func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) (string, error) {
+func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) error {
 	var (
-		walletType  = ""
-		relayerAddr = ""
-		err         error
+		walletType = ""
+		err        error
 	)
 
 	if RunRelayerOnValidatorID == validator.ID {
-		relayerAddr, err = validator.RelayerCardanoWalletCreate(ec.ChainID())
+		ec.relayerAddr, err = validator.RelayerCardanoWalletCreate(ec.ChainID())
 		if err != nil {
-			return relayerAddr, err
+			return err
 		}
-
-		ec.relayerAddr = relayerAddr
 	}
 
 	if ec.config.BridgeAddrHasStake {
 		walletType = "stake"
 	}
 
-	return relayerAddr, validator.CardanoWalletCreate(ec.ChainID(), walletType)
+	return validator.CardanoWalletCreate(ec.ChainID(), walletType)
 }
 
 func (ec *TestCardanoChain) DeployCardanoContract() error {
@@ -748,12 +745,22 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 	return balanceTransformed, nil
 }
 
-func (ec *TestCardanoChain) GetMintTokenPolicyID() string {
-	return ec.cardnoScriptInfo.PolicyID
+func (ec *TestCardanoChain) GetMintableTokens() []infrawallet.Token {
+	tokens := make([]infrawallet.Token, len(ec.config.MintableTokens))
+
+	for i, tokenName := range ec.config.MintableTokens {
+		tokens[i] = infrawallet.NewToken(ec.config.MintPolicyID, tokenName)
+	}
+
+	return tokens
 }
 
 func (ec *TestCardanoChain) GetCardanoScriptInfo() CardanoScriptInfo {
 	return ec.cardnoScriptInfo
+}
+
+func (ec *TestCardanoChain) GetRelayerAddress() string {
+	return ec.relayerAddr
 }
 
 func (ec *TestCardanoChain) GetBridgingFee(

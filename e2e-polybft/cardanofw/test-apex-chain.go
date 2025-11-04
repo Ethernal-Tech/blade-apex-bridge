@@ -25,7 +25,7 @@ type GenericTxReceiver struct {
 type ITestApexChain interface {
 	RunChain(t *testing.T) error
 	Stop() error
-	CreateWallets(validator *TestApexValidator) (string, error)
+	CreateWallets(validator *TestApexValidator) error
 	CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridgeURL string) error
 	FundWallets(ctx context.Context) error
 	RegisterChain(validator *TestApexValidator) error
@@ -76,8 +76,9 @@ type ITestApexChain interface {
 		expectError bool,
 	) (infrawallet.QueryStakeAddressInfo, error)
 	GetAddressToBridgeTo(ctx context.Context, bridgingType sendtx.BridgingType) (string, error)
-	GetMintTokenPolicyID() string
+	GetMintableTokens() []infrawallet.Token
 	GetCardanoScriptInfo() CardanoScriptInfo
+	GetRelayerAddress() string
 }
 
 type TestApexChainDummy struct {
@@ -128,8 +129,8 @@ func (td *TestApexChainDummy) CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridg
 	return nil
 }
 
-func (td *TestApexChainDummy) CreateWallets(validator *TestApexValidator) (string, error) {
-	return "", nil
+func (td *TestApexChainDummy) CreateWallets(validator *TestApexValidator) error {
+	return nil
 }
 
 func (td *TestApexChainDummy) DeployCardanoContract() error {
@@ -228,8 +229,13 @@ func (td *TestApexChainDummy) GetAddressToBridgeTo(
 	return "", nil
 }
 
-// GetMintTokenPolicyID implements ITestApexChain.
-func (td *TestApexChainDummy) GetMintTokenPolicyID() string {
+// GetMintableTokens implements ITestApexChain.
+func (td *TestApexChainDummy) GetMintableTokens() []infrawallet.Token {
+	return []infrawallet.Token{}
+}
+
+// GetRelayerAddress implements ITestApexChain.
+func (td *TestApexChainDummy) GetRelayerAddress() string {
 	return ""
 }
 
