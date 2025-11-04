@@ -270,7 +270,6 @@ func deployFromJSON() error {
 	return nil
 }
 
-// return deployFromHardhat(tmpDir, rpcURL, privateKey, selected, all)
 func deployFromHardhat(dir string) error {
 	artifactsPath, err := resolveArtifactsPath(dir)
 	if err != nil {
@@ -379,7 +378,7 @@ func deploySmartContract(name, rawBytecode string) (string, error) {
 		return "", err
 	}
 
-	deployer, err := bridgeHelper.DecodePrivateKey(strings.TrimPrefix(privateKey, "0x"))
+	deployer, err := bridgeHelper.GetPrivateKeyForCommand(privateKey)
 	if err != nil {
 		return "", err
 	}
@@ -419,7 +418,7 @@ func upgradeContract(proxyAddr, newImplAddr string) error {
 	if proxyAdminPrivateKey != "" {
 		deployer, err = bridgeHelper.DecodePrivateKey(strings.TrimPrefix(proxyAdminPrivateKey, "0x"))
 	} else {
-		deployer, err = bridgeHelper.DecodePrivateKey(strings.TrimPrefix(privateKey, "0x"))
+		deployer, err = bridgeHelper.GetPrivateKeyForCommand(privateKey)
 	}
 
 	if err != nil {

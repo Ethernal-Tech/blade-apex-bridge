@@ -39,7 +39,9 @@ in this case as well. Note: SSH is currently not supported, only https (http).
 
 The next required flag is --private-key. It defines the private key that will be used for deploying
 smart contracts and potentially upgrading OpenZeppelin proxies if the --admin-private-key flag is
-not specified. The private key may or may not be specified with a leading "0x".
+not specified. The private key may or may not be specified with a leading "0x". Alternatively, the flag
+can be provided in the "<path-to-config-file>:<secrets-manager-key>" format to read the key from a secrets
+manager.
 
 The last required flag is --rpc-url. Example: "http://something:5757".
 
@@ -48,7 +50,7 @@ All flags described below are optional.
 Filtering which smart contracts will be deployed is done using the optional --select flag. Additionally,
 this flag is used to optionally define which OpenZeppelin proxy will be upgraded with which of the deployed
 smart contracts. The --select flag only has an effect for Hardhat projects, not for local .json files
-(the first described case for the --source flag). There are two forms: "<smart-contract-path>" and
+(the first described case for the --source flag). There are two formats: "<smart-contract-path>" and
 "<proxy-address>:<smart-contract-path>" (":<smart-contract-path>" is equivalent to the first format).
 <smart-contract-path> represents the relative path to the desired smart contract from the Hardhat project
 root (for example: "contracts/blade/staking/StakeManager.sol" or "./contracts/blade/staking/StakeManager.sol").
@@ -85,8 +87,8 @@ blade sc deploy --source "<path-to-hardhat-project>" --private-key ... --rpc-url
 With the --verbose flag, output for git and npm/npx commands can be enabled.
 
 By default, the private key passed via the --private-key flag is used for upgrading OpenZeppelin proxies.
-This can be overridden with the admin-private-key flag. The private key may or may not be specified with a
-leading "0x".
+This can be overridden with the admin-private-key flag. The (admin) private key may or may not be specified with
+a leading "0x".
 
 NOTE: Due to the nature of the "sc deploy" command, it is NOT transaction-like, meaning it is NOT "all or nothing".
 If the command returns an exit code other than 0, undefined behavior is possible.`

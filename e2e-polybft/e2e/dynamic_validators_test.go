@@ -1018,6 +1018,8 @@ func (vs *validatorSetState) Unmarshal(b []byte) error {
 func getMultisigAndFeeAmount(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, apiKey string, chainID cardanofw.ChainID,
 ) (uint64, uint64) {
+	t.Helper()
+
 	apiURL, err := apex.GetBridgingAPI()
 	require.NoError(t, err)
 
@@ -1055,6 +1057,7 @@ func waitUntilValidatorSetUpdateIsFinished(
 	t *testing.T, cluster *framework.TestCluster, relayer txrelayer.TxRelayer,
 	timeout, pullFrequency time.Duration,
 ) {
+	t.Helper()
 	require.NoError(t, cluster.WaitUntil(timeout, pullFrequency, func() bool {
 		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
 		require.NoError(t, err)
