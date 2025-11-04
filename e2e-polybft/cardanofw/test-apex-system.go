@@ -327,10 +327,8 @@ func (a *ApexSystem) GenerateConfigs() error {
 			serverIndx = 0
 		}
 
-		var args []string
-
 		err := validator.GenerateConfigs(
-			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i), args...)
+			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i))
 		if err != nil {
 			return err
 		}

@@ -313,11 +313,7 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 		args = append(args, "--allowed-directions", direction)
 	}
 
-	if err := RunCommand(ResolveApexBridgeBinary(), args, os.Stdout); err != nil {
-		return err
-	}
-
-	return nil
+	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
 }
 
 func (ec *TestEVMChain) PopulateApexSystem(apexSystem *ApexSystem) error {
