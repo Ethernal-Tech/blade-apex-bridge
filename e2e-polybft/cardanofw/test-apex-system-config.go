@@ -183,18 +183,27 @@ func getDefaultSkylinexSystemConfig() *ApexSystemConfig {
 	}
 }
 
-func initAllowedDirecttions(config *ApexSystemConfig, isSkyline bool) {
+func initAllowedDirections(config *ApexSystemConfig, isSkyline bool) {
 	if isSkyline {
-		config.CardanoConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
-		config.VectorConfig.AllowedDirections = []ChainID{ChainIDCardano}
-		config.PrimeConfig.AllowedDirections = []ChainID{ChainIDCardano}
+		if len(config.CardanoConfig.AllowedDirections) == 0 {
+			config.CardanoConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
+		}
+		if len(config.VectorConfig.AllowedDirections) == 0 {
+			config.VectorConfig.AllowedDirections = []ChainID{ChainIDCardano}
+		}
+		if len(config.PrimeConfig.AllowedDirections) == 0 {
+			config.PrimeConfig.AllowedDirections = []ChainID{ChainIDCardano}
+		}
 	} else {
 		if len(config.NexusConfig.AllowedDirections) == 0 {
 			config.NexusConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
 		}
-
-		config.VectorConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDNexus}
-		config.PrimeConfig.AllowedDirections = []ChainID{ChainIDVector, ChainIDNexus}
+		if len(config.VectorConfig.AllowedDirections) == 0 {
+			config.VectorConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDNexus}
+		}
+		if len(config.PrimeConfig.AllowedDirections) == 0 {
+			config.PrimeConfig.AllowedDirections = []ChainID{ChainIDVector, ChainIDNexus}
+		}
 	}
 }
 

@@ -104,7 +104,7 @@ func NewApexSystem(
 		opt(config)
 	}
 
-	initAllowedDirecttions(config, false)
+	initAllowedDirections(config, false)
 
 	nexus, err := NewTestEVMChain(config.NexusConfig)
 	if err != nil {
@@ -148,7 +148,7 @@ func NewSkylineSystem(
 	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee
 	config.VectorConfig.MinOperationFee = DefaultMinOperationFee
 
-	initAllowedDirecttions(config, true)
+	initAllowedDirections(config, true)
 
 	users := make([]*TestApexUser, config.UserCnt)
 

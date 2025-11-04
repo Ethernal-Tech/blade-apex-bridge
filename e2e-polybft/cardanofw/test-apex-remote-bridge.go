@@ -211,7 +211,7 @@ func SetupRemoteApexBridge(
 		opt(apexConfig)
 	}
 
-	initAllowedDirecttions(apexConfig, false)
+	initAllowedDirections(apexConfig, false)
 
 	primeChain := &TestCardanoChain{
 		config:           apexConfig.PrimeConfig,
@@ -289,7 +289,7 @@ func SetupSkylineRemoteBridge(
 		opt(apexConfig)
 	}
 
-	initAllowedDirecttions(apexConfig, true)
+	initAllowedDirections(apexConfig, true)
 
 	primeChain := &TestCardanoChain{
 		config:           apexConfig.PrimeConfig,
