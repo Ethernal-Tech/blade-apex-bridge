@@ -35,10 +35,6 @@ func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 		userCnt = 40
 	)
 
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
-
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
@@ -183,10 +179,6 @@ func TestE2E_DynamicValidators_RemoveValidator(t *testing.T) {
 		userCnt = 40
 	)
 
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
-
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
@@ -305,10 +297,6 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 		apiKey  = "test_api_key"
 		userCnt = 40
 	)
-
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
@@ -470,10 +458,6 @@ func TestE2E_DynamicValidators_OneFeeUtxo(t *testing.T) {
 		userCnt = 40
 	)
 
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
-
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
@@ -584,10 +568,6 @@ func TestE2E_DynamicValidators_StopBladesDuringVSU(t *testing.T) {
 		apiKey  = "test_api_key"
 		userCnt = 40
 	)
-
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
@@ -732,10 +712,6 @@ func TestE2E_DynamicValidators_StopApxBridgesDuringVSU(t *testing.T) {
 		apiKey  = "test_api_key"
 		userCnt = 40
 	)
-
-	if cardanofw.ShouldSkipE2RRedundantTests() {
-		t.Skip()
-	}
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
@@ -1018,6 +994,8 @@ func (vs *validatorSetState) Unmarshal(b []byte) error {
 func getMultisigAndFeeAmount(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, apiKey string, chainID cardanofw.ChainID,
 ) (uint64, uint64) {
+	t.Helper()
+
 	apiURL, err := apex.GetBridgingAPI()
 	require.NoError(t, err)
 
@@ -1055,6 +1033,7 @@ func waitUntilValidatorSetUpdateIsFinished(
 	t *testing.T, cluster *framework.TestCluster, relayer txrelayer.TxRelayer,
 	timeout, pullFrequency time.Duration,
 ) {
+	t.Helper()
 	require.NoError(t, cluster.WaitUntil(timeout, pullFrequency, func() bool {
 		input, err := (&contractsapi.IsNewValidatorSetPendingApexBridgeContractsBridgeFn{}).EncodeAbi()
 		require.NoError(t, err)
