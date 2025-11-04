@@ -416,7 +416,7 @@ func upgradeContract(proxyAddr, newImplAddr string) error {
 
 	var deployer crypto.Key
 	if proxyAdminPrivateKey != "" {
-		deployer, err = bridgeHelper.DecodePrivateKey(strings.TrimPrefix(proxyAdminPrivateKey, "0x"))
+		deployer, err = bridgeHelper.GetPrivateKeyForCommand(proxyAdminPrivateKey)
 	} else {
 		deployer, err = bridgeHelper.GetPrivateKeyForCommand(privateKey)
 	}

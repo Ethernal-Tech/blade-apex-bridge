@@ -88,7 +88,8 @@ With the --verbose flag, output for git and npm/npx commands can be enabled.
 
 By default, the private key passed via the --private-key flag is used for upgrading OpenZeppelin proxies.
 This can be overridden with the admin-private-key flag. The (admin) private key may or may not be specified with
-a leading "0x".
+a leading "0x". Alternatively, the flag can be provided in the "<path-to-config-file>:<secrets-manager-key>"
+format to read the (admin) key from a secrets manager.
 
 NOTE: Due to the nature of the "sc deploy" command, it is NOT transaction-like, meaning it is NOT "all or nothing".
 If the command returns an exit code other than 0, undefined behavior is possible.`
