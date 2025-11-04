@@ -89,4 +89,27 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
 			sendtx.BridgingTypeCurrencyOnSource)
 	})
+
+	t.Run("4. bridging to custodial addr", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
+		custodialUser, err := cardanofw.NewApexUserTesting(apex.Config.CardanoConfig.CustodialAddress)
+		require.NoError(t, err)
+
+		sendAmountDfm := big.NewInt(5_000_000)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, custodialUser, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
+			sendtx.BridgingTypeCurrencyOnSource)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, custodialUser, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
+			sendtx.BridgingTypeCurrencyOnSource)
+	})
 }

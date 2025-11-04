@@ -66,6 +66,7 @@ type TestCardanoChainConfig struct {
 	// Minting
 	FundRelayerAmount          uint64
 	CustodialAddressGeneration bool
+	CustodialAddress           string
 	ScriptTxInputHash          string
 	ScriptTxInputIndex         uint32
 	// Human readable names of tokens that should be mintable on this chain
@@ -489,6 +490,7 @@ func (ec *TestCardanoChain) CreateAddresses(
 		}
 
 		ec.custodialAddress = custodialMatches[1]
+		ec.config.CustodialAddress = ec.custodialAddress
 	}
 
 	// Regular expressions for parsing the output

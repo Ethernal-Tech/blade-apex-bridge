@@ -197,6 +197,15 @@ func NewExistingTestApexUser(
 	}, nil
 }
 
+func NewApexUserTesting(addr string) (*TestApexUser, error) {
+	address, err := cardanowallet.NewCardanoAddressFromString(addr)
+
+	return &TestApexUser{
+		HasCardanoWallet: true,
+		CardanoAddress:   address,
+	}, err
+}
+
 func (u *TestApexUser) GetCardanoWallet(chain ChainID) (
 	*cardanowallet.Wallet, *cardanowallet.CardanoAddress,
 ) {
