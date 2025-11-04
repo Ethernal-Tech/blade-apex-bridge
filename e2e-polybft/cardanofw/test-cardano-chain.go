@@ -83,7 +83,6 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		MinOperationFee:             uint64(0),
 		BridgeAddrHasStake:          true,
 		BridgingAddressCnt:          1,
-		AllowedDirections:           []string{},
 	}
 }
 
@@ -106,7 +105,6 @@ func NewVectorChainConfig() *TestCardanoChainConfig {
 		MinBridgingFee:              defaultMinBridgingFeeAmount,
 		MinOperationFee:             uint64(0),
 		BridgingAddressCnt:          1,
-		AllowedDirections:           []string{},
 	}
 }
 
@@ -127,7 +125,6 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		MinBridgingFee:              defaultMinBridgingFeeAmount,
 		MinOperationFee:             DefaultMinOperationFee,
 		BridgingAddressCnt:          1,
-		AllowedDirections:           []string{},
 	}
 }
 
@@ -513,11 +510,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		args = append(args, "--slot-rounding-threshold", fmt.Sprint(ec.config.SlotRoundingThreshold))
 	}
 
-	if err := RunCommand(ResolveApexBridgeBinary(), args, os.Stdout); err != nil {
-		return err
-	}
-
-	return nil
+	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
 }
 
 func (ec *TestCardanoChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error {

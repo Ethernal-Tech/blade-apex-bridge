@@ -183,6 +183,21 @@ func getDefaultSkylinexSystemConfig() *ApexSystemConfig {
 	}
 }
 
+func initAllowedDirecttions(config *ApexSystemConfig, isSkyline bool) {
+	if isSkyline {
+		config.CardanoConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
+		config.VectorConfig.AllowedDirections = []ChainID{ChainIDCardano}
+		config.PrimeConfig.AllowedDirections = []ChainID{ChainIDCardano}
+	} else {
+		if len(config.NexusConfig.AllowedDirections) == 0 {
+			config.NexusConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
+		}
+
+		config.VectorConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDNexus}
+		config.PrimeConfig.AllowedDirections = []ChainID{ChainIDVector, ChainIDNexus}
+	}
+}
+
 func (asc *ApexSystemConfig) ServiceCount() int {
 	// Prime
 	count := 1

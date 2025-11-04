@@ -108,13 +108,12 @@ func (cv *TestApexValidator) GenerateConfigs(
 	apiPort int,
 	apiKey string,
 	telemetryConfig string,
-	args ...string,
 ) error {
 	cv.APIPort = apiPort
 	logsPath := filepath.Join(cv.dataDirPath, BridgingLogsDir)
 	dbsPath := filepath.Join(cv.dataDirPath, BridgingDBsDir)
 
-	args = append([]string{
+	args := []string{
 		"generate-configs",
 		"--validator-data-dir", cv.server.DataDir(),
 		"--output-dir", cv.GetBridgingConfigsDir(),
@@ -127,7 +126,7 @@ func (cv *TestApexValidator) GenerateConfigs(
 		"--api-port", fmt.Sprint(apiPort),
 		"--api-keys", apiKey,
 		"--telemetry", telemetryConfig,
-	}, args...)
+	}
 
 	if err := RunCommand(ResolveApexBridgeBinary(), args, os.Stdout); err != nil {
 		return err
@@ -144,13 +143,12 @@ func (cv *TestApexValidator) GenerateSkylineConfigs(
 	apiPort int,
 	apiKey string,
 	telemetryConfig string,
-	args ...string,
 ) error {
 	cv.APIPort = apiPort
 	logsPath := filepath.Join(cv.dataDirPath, BridgingLogsDir)
 	dbsPath := filepath.Join(cv.dataDirPath, BridgingDBsDir)
 
-	args = append([]string{
+	args := []string{
 		"generate-configs", "skyline",
 		"--validator-data-dir", cv.server.DataDir(),
 		"--output-dir", cv.GetBridgingConfigsDir(),
@@ -163,7 +161,7 @@ func (cv *TestApexValidator) GenerateSkylineConfigs(
 		"--api-port", fmt.Sprint(apiPort),
 		"--api-keys", apiKey,
 		"--telemetry", telemetryConfig,
-	}, args...)
+	}
 
 	if err := RunCommand(ResolveApexBridgeBinary(), args, os.Stdout); err != nil {
 		return err

@@ -104,9 +104,7 @@ func NewApexSystem(
 		opt(config)
 	}
 
-	config.NexusConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
-	config.VectorConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDNexus}
-	config.PrimeConfig.AllowedDirections = []ChainID{ChainIDVector, ChainIDNexus}
+	initAllowedDirecttions(config, false)
 
 	nexus, err := NewTestEVMChain(config.NexusConfig)
 	if err != nil {
@@ -150,9 +148,7 @@ func NewSkylineSystem(
 	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee
 	config.VectorConfig.MinOperationFee = DefaultMinOperationFee
 
-	config.CardanoConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
-	config.VectorConfig.AllowedDirections = []ChainID{ChainIDCardano}
-	config.PrimeConfig.AllowedDirections = []ChainID{ChainIDCardano}
+	initAllowedDirecttions(config, true)
 
 	users := make([]*TestApexUser, config.UserCnt)
 
@@ -497,10 +493,8 @@ func (a *ApexSystem) generateReactorConfigs() error {
 			serverIndx = 0
 		}
 
-		var args []string
-
 		err := validator.GenerateConfigs(
-			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i), args...)
+			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i))
 		if err != nil {
 			return err
 		}
@@ -547,11 +541,9 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 			serverIndx = 0
 		}
 
-		var args []string
-
 		err := validator.GenerateSkylineConfigs(
 			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i),
-			args...)
+		)
 		if err != nil {
 			return err
 		}
