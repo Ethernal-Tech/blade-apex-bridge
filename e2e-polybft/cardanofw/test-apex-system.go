@@ -82,9 +82,7 @@ func NewApexSystem(
 		opt(config)
 	}
 
-	config.NexusConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
-	config.VectorConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDNexus}
-	config.PrimeConfig.AllowedDirections = []ChainID{ChainIDVector, ChainIDNexus}
+	initAllowedDirections(config)
 
 	nexus, err := NewTestEVMChain(config.NexusConfig)
 	if err != nil {

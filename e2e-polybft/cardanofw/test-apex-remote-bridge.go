@@ -160,9 +160,7 @@ func SetupRemoteApexBridge(
 		opt(apexConfig)
 	}
 
-	apexConfig.PrimeConfig.AllowedDirections = []ChainID{ChainIDVector, ChainIDNexus}
-	apexConfig.VectorConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDNexus}
-	apexConfig.NexusConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
+	initAllowedDirections(apexConfig)
 
 	primeChain := &TestCardanoChain{
 		config:           apexConfig.PrimeConfig,
