@@ -336,7 +336,6 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 	indx int,
 	validator *TestApexValidator,
 	tokens []sendtx.TokenExchangeConfig,
-	mintableTokens []string,
 ) error {
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)

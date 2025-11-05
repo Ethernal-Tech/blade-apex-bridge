@@ -652,7 +652,6 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 	indx int,
 	validator *TestApexValidator,
 	tokens []sendtx.TokenExchangeConfig,
-	mintableTokens []string,
 ) error {
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
@@ -671,14 +670,20 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		"--dbs-path", dbsPath,
 	}
 
+	containsMintableTokens := false
+
 	for _, token := range tokens {
 		args = append(args,
 			"--native-token-name", token.TokenName,
 			"--native-token-destination-chain-id", token.DstChainID,
 		)
+
+		if token.Mint {
+			containsMintableTokens = true
+		}
 	}
 
-	if len(mintableTokens) > 0 && ec.ChainID() == ChainIDCardano {
+	if containsMintableTokens && ec.ChainID() == ChainIDCardano {
 		scriptInfo := ec.GetCardanoScriptInfo()
 		custodialNFT := ec.GetCustodialNFT()
 
