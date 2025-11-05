@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
@@ -27,6 +28,7 @@ var (
 	rpcURL               string
 	privateKey           string
 	selected             []string
+	dir                  string
 	branch               string
 	compile              bool
 	all                  bool
@@ -80,6 +82,14 @@ func GetCommand() *cobra.Command {
 	)
 
 	_ = cmd.MarkFlagRequired("branch")
+
+	cmd.Flags().StringVarP(
+		&dir,
+		"dir",
+		"d",
+		"",
+		"Specifies the destination directory for git clone. If not provided, a temporary directory will be used.",
+	)
 
 	cmd.Flags().StringVarP(
 		&branch,
@@ -147,25 +157,29 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 	}
 
 	if isRepo {
-		tmpDir, err := os.MkdirTemp("", "remote_hardhat_repo_")
-		if err != nil {
-			return err
+		if dir == "" {
+			dir, err = os.MkdirTemp("", "remote_hardhat_repo_")
+			if err != nil {
+				return err
+			}
+			defer os.RemoveAll(dir)
 		}
-		defer os.RemoveAll(tmpDir)
 
-		if err := gitClone(tmpDir); err != nil {
+		if err := gitClone(dir); err != nil {
 			return fmt.Errorf("failed to clone remote hardhat repository: %w", err)
 		}
 
-		if !isHardhatProject(tmpDir) {
-			return fmt.Errorf("not a valid hardhat project, missing hardhat.config.ts in %s", tmpDir)
+		time.Sleep(10 * time.Second)
+
+		if !isHardhatProject(dir) {
+			return fmt.Errorf("not a valid hardhat project, missing hardhat.config.ts in %s", dir)
 		}
 
-		if err := hardhatCompile(tmpDir); err != nil {
+		if err := hardhatCompile(dir); err != nil {
 			return fmt.Errorf("failed to compile hardhat project: %w", err)
 		}
 
-		return deployFromHardhat(tmpDir)
+		return deployFromHardhat(dir)
 	}
 
 	if isLocal && strings.HasSuffix(source, ".json") {
@@ -465,7 +479,7 @@ func resolveArtifactsPath(dir string) (string, error) {
 	data, err := os.ReadFile(configPath)
 
 	if err != nil {
-		return filepath.Join(dir, "artifacts/contracts"), nil
+		return filepath.Join(dir, "artifacts"), nil
 	}
 
 	re := regexp.MustCompile(`artifacts:\s*["']([^"']+)["']`)
@@ -475,5 +489,5 @@ func resolveArtifactsPath(dir string) (string, error) {
 		return filepath.Join(dir, string(m[1])), nil
 	}
 
-	return filepath.Join(dir, "artifacts/contracts"), nil
+	return filepath.Join(dir, "artifacts"), nil
 }

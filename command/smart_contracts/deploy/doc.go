@@ -73,6 +73,12 @@ compile before "searching" for smart contracts to deploy. For instance, in the t
 --source flag. The flag essentially represents calling "npm install && npx hardhat compile". This flag only
 has an effect when a path to a local Hardhat project is specified (the second case for the --source flag).
 
+When cloning a remote hardhat repository, a temporary destination directory is used by default. Once the
+command finishes, this directory is removed. If you wish to keep the cloned project (for example, to inspect
+the compiled artifacts or to run additional commands), the --dir flag can be used to override this behavior
+and specify a persistent destination directory. In this case, the directory will not be deleted after the
+command completes.
+
 The --all flag allows deploying all found smart contracts regardless of filtering with the --select flag.
 This flag should be used when you want to deploy all smart contracts but additionally upgrade an OpenZeppelin
 proxy. For example, if we have 16 smart contracts, the following command will deploy all 16 while additionally

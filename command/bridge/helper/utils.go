@@ -87,6 +87,10 @@ func DecodePrivateKey(rawKey string) (crypto.Key, error) {
 }
 
 func GetPrivateKeyForCommand(key string) (crypto.Key, error) {
+	if key == "" {
+		return nil, fmt.Errorf("key cannot be empty")
+	}
+
 	val := strings.Split(key, ":")
 	if len(val) > 2 {
 		return nil, fmt.Errorf("invalid key format")
