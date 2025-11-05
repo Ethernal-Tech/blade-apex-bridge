@@ -578,7 +578,9 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 
 		for _, chain := range a.chains {
 			tokens := a.GetCardanoInfo(chain.ChainID()).NativeTokens
-			if err := chain.GenerateChainConfigs(serverIndx, validator, tokens, a.Config.CardanoConfig.MintableTokens); err != nil {
+			if err := chain.GenerateChainConfigs(
+				serverIndx, validator, tokens, a.Config.CardanoConfig.MintableTokens,
+			); err != nil {
 				return err
 			}
 		}

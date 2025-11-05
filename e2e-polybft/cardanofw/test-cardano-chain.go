@@ -452,6 +452,7 @@ func (ec *TestCardanoChain) CreateAddresses(
 	bladeAdmin *crypto.ECDSAKey, bridgeURL string,
 ) error {
 	custodialAddressGeneration := ec.config.CustodialAddressGeneration
+
 	bridgeAdminPk, err := bladeAdmin.MarshallPrivateKey()
 	if err != nil {
 		return err

@@ -30,7 +30,12 @@ type ITestApexChain interface {
 	FundWallets(ctx context.Context) error
 	RegisterChain(validator *TestApexValidator) error
 	InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error
-	GenerateChainConfigs(indx int, validator *TestApexValidator, tokens []sendtx.TokenExchangeConfig, mintableTokens []string) error
+	GenerateChainConfigs(
+		indx int,
+		validator *TestApexValidator,
+		tokens []sendtx.TokenExchangeConfig,
+		mintableTokens []string,
+	) error
 	PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error
 	UpdateTxSendChainConfiguration(configs map[string]sendtx.ChainConfig)
 	DeployCardanoContract() error
