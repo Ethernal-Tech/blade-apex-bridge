@@ -21,9 +21,6 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 
 		maxWaitTimeSec = 600
 		retryDelaySec  = 5
-
-		bridgingFee  = uint64(1_000_010)
-		operationFee = uint64(0)
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -78,17 +75,15 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 		}, apex.Users[:userCnt], uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
 	vectorToken, cardanoToken := tokens[0], tokens[1]
 
-	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee,
-		operationFee, "")
+	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, "")
 
-	cardanoPrimeTestConfig := newTestConfig(t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime,
-		bridgingFee, operationFee, cardanoToken.TokenName())
+	cardanoPrimeTestConfig := newTestConfig(
+		t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, cardanoToken.TokenName())
 
-	vectorTestConfig := newTestConfig(t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, bridgingFee,
-		operationFee, vectorToken.TokenName())
+	vectorTestConfig := newTestConfig(
+		t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, vectorToken.TokenName())
 
-	cardanoVectorTestConfig := newTestConfig(t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDVector,
-		bridgingFee, operationFee, "")
+	cardanoVectorTestConfig := newTestConfig(t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDVector, "")
 
 	fmt.Printf("Prime test config: %+v\n", primeTestConfig)
 	fmt.Printf("Vector test config: %+v\n", vectorTestConfig)
@@ -251,9 +246,6 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 
 		maxWaitTimeSec = 600
 		retryDelaySec  = 5
-
-		bridgingFee  = uint64(1_000_010)
-		operationFee = uint64(0)
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -299,11 +291,11 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 		}, apex.Users[:userCnt], uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
 	cardanoToken := tokens[0]
 
-	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee,
-		operationFee, "")
+	primeTestConfig := newTestConfig(
+		t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, "")
 
-	cardanoTestConfig := newTestConfig(t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, bridgingFee,
-		operationFee, cardanoToken.TokenName())
+	cardanoTestConfig := newTestConfig(
+		t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, cardanoToken.TokenName())
 
 	fmt.Printf("Cardano test config: %+v\n", cardanoToken)
 
@@ -439,7 +431,6 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 
 	var (
 		user             = apex.Users[0]
-		feeAmount        = uint64(1_000_010)
 		apexSendAmount   = cardanofw.ApexToDfm(big.NewInt(10))
 		bridgingRequests = []struct {
 			src    string
@@ -483,7 +474,9 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[idx]["lovelace"], new(big.Int).Add(apexSendAmount, new(big.Int).SetUint64(feeAmount)))
+			lowerBoundaryDfm := new(big.Int).Sub(
+				beforeSendingAmountDfm[idx]["lovelace"],
+				new(big.Int).Add(apexSendAmount, new(big.Int).SetUint64(apex.GetMinBridgingFee(br.src, false))))
 
 			fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm)
 
@@ -649,8 +642,6 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 		}
 		txHashes = make([]string, len(bridgingRequests))
 
-		feeAmount = new(big.Int).SetUint64(cardanoConfig.MinBridgingFee)
-
 		// map that contains initial balances of users that will receive refunds, per chains
 		initialBalance = map[string]map[string]*big.Int{}
 
@@ -703,7 +694,7 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 				addr := br.sender.GetAddress(br.src)
 
 				if br.requestType == sendtx.BridgingTypeCurrencyOnSource {
-					userSpending.Add(userSpending, feeAmount)
+					userSpending.Add(userSpending, new(big.Int).SetUint64(apex.GetMinBridgingFee(br.src, isNativeToken)))
 				} else {
 					tokenName = apex.GetTokenNameForChains(br.src, br.dest)
 				}

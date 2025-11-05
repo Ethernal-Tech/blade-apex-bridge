@@ -22,9 +22,6 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 		requestStateTimeoutSec = 600
 		retryDelaySec          = 5
-
-		bridgingFee  = uint64(1_000_010)
-		operationFee = uint64(0)
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -52,7 +49,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 	user := apex.Users[0]
 
-	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, bridgingFee, operationFee, "")
+	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, "")
 	bridgingType := sendtx.BridgingTypeNormal
 
 	t.Run("1. Mismatch submitted and receiver amounts", func(t *testing.T) {
@@ -70,10 +67,11 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 	t.Run("4. From prime to vector - not enough funds on destination multisig address", func(t *testing.T) {
 		const (
-			sendAmount   = uint64(100_600_000_000)
-			feeAmount    = uint64(1_100_000)
-			operationFee = uint64(0)
+			sendAmount = uint64(100_600_000_000)
 		)
+
+		operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
+		feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
 
 		beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
@@ -129,9 +127,10 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("9. Submitted with tokens to bridging addr", func(t *testing.T) {
-		sendAmount := uint64(5_000_000)
-		feeAmount := uint64(1_100_000)
-		operationFee := uint64(0)
+		sendAmount := uint64(6_000_000)
+
+		operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
+		feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, true)
 		minterUser := apex.Users[userCnt-1]
 
 		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypes(apex.Config.PrimeConfig, apex.Config.VectorConfig, nil, nil))
@@ -209,7 +208,7 @@ func TestE2E_ApexRefund_BatchRecreated(t *testing.T) {
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
 	sendAmount := uint64(1_000_000)
-	feeAmount := uint64(1_100_000)
+	feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
 
 	brSubmitterUser := apex.Users[0]
 
@@ -266,9 +265,10 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
 	const (
 		sendAmount  = uint64(100_600_000_000)
 		sendAmount2 = uint64(1_000_000)
-		feeAmount   = uint64(1_100_000)
 		instances   = 5
 	)
+
+	feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 	require.NoError(t, err)
@@ -333,8 +333,9 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxBatchTryCount(t *testing.T) {
 
 	const (
 		sendAmount = uint64(80_000_000_000)
-		feeAmount  = uint64(1_100_000)
 	)
+
+	feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 	require.NoError(t, err)
@@ -421,7 +422,6 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 
 		sendAmount     = uint64(1_000_000)
 		hugeSendAmount = uint64(100_600_000_000)
-		feeAmount      = uint64(1_100_000)
 
 		fundDefundTimeDelay = 60 * time.Second
 	)
@@ -537,7 +537,9 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 			)
 			require.NoError(t, err)
 
-			lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[infrawallet.AdaTokenName], new(big.Int).SetUint64(hugeSendAmount+feeAmount))
+			lowerBoundaryDfm := new(big.Int).Sub(
+				beforeSendingAmountDfm[infrawallet.AdaTokenName],
+				new(big.Int).SetUint64(hugeSendAmount+apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)))
 
 			fmt.Printf("\nExecutied invalid TX for sender %d from prime to vector.\nTx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n",
 				i, txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
@@ -561,12 +563,12 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 
 			// prime -> vector
 			err := sendWithoutWaitInvalidMetadataWrongType(t, ctx, apex, usr, userReceiver,
-				cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmount, feeAmount)
+				cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmount)
 			require.NoError(t, err)
 
 			// vector -> prime
 			err = sendWithoutWaitInvalidMetadataWrongType(t, ctx, apex, usr, userReceiver,
-				cardanofw.ChainIDVector, cardanofw.ChainIDPrime, sendAmount, feeAmount)
+				cardanofw.ChainIDVector, cardanofw.ChainIDPrime, sendAmount)
 			require.NoError(t, err)
 		}
 
@@ -654,12 +656,14 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 
 	fmt.Printf("\nWaiting for sender users to receive their refunds...\n")
 
+	primeFeeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
+
 	for i, usr := range apex.Users[1 : parallelInstances+1] {
 		key := chainUserKey{src: cardanofw.ChainIDPrime, dst: cardanofw.ChainIDVector, user: usr}
 
 		// minExpectedAmount = initial - (2*sendAmount+sendAmount1+3*feeAmount)
-		minExpectedAmount := new(big.Int).Sub(userInitialAmounts[key], new(big.Int).SetUint64(2*sendAmount+hugeSendAmount+3*feeAmount))
-		maxExpectedAmount := new(big.Int).Sub(userInitialAmounts[key], new(big.Int).SetUint64(sendAmount+feeAmount))
+		minExpectedAmount := new(big.Int).Sub(userInitialAmounts[key], new(big.Int).SetUint64(2*sendAmount+hugeSendAmount+3*primeFeeAmount))
+		maxExpectedAmount := new(big.Int).Sub(userInitialAmounts[key], new(big.Int).SetUint64(sendAmount+primeFeeAmount))
 
 		fmt.Printf("\nWaiting for sender %d to receive his refunds...\n\tMin expected amount: %d", i, minExpectedAmount)
 		fmt.Printf("\n\tMax expected amount: %d\n", maxExpectedAmount)
