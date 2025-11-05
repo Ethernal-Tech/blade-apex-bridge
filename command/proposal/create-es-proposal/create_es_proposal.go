@@ -66,6 +66,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 
 	if epochSize <= 0 {
 		outputter.SetError(errors.New("epoch size must be greater than zero"))
+
 		return
 	}
 
@@ -73,15 +74,21 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		err := common.ValidateFileFlag(cmd, nil)
 		if err != nil {
 			outputter.SetError(err)
+
 			return
 		}
 
-		common.StoreProposal(schema.EpochSizeProposal{Size: epochSize}, file)
+		if err := common.StoreProposal(schema.EpochSizeProposal{Size: epochSize}, file); err != nil {
+			outputter.SetError(err)
+
+			return
+		}
 	}
 
 	if submit {
 		if err := common.ValidateSubmitRelatedFlags(description, rpcURL, privateKey); err != nil {
 			outputter.SetError(err)
+
 			return
 		}
 

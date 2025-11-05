@@ -72,15 +72,21 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		err := common.ValidateFileFlag(cmd, nil)
 		if err != nil {
 			outputter.SetError(err)
+
 			return
 		}
 
-		common.StoreProposal(schema.VotingPeriodProposal{Period: period}, file)
+		if err := common.StoreProposal(schema.VotingPeriodProposal{Period: period}, file); err != nil {
+			outputter.SetError(err)
+
+			return
+		}
 	}
 
 	if submit {
 		if err := common.ValidateSubmitRelatedFlags(description, rpcURL, privateKey); err != nil {
 			outputter.SetError(err)
+
 			return
 		}
 
