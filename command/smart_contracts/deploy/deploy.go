@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
@@ -168,8 +167,6 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 		if err := gitClone(dir); err != nil {
 			return fmt.Errorf("failed to clone remote hardhat repository: %w", err)
 		}
-
-		time.Sleep(10 * time.Second)
 
 		if !isHardhatProject(dir) {
 			return fmt.Errorf("not a valid hardhat project, missing hardhat.config.ts in %s", dir)
