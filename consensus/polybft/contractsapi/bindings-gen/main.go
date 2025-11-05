@@ -429,6 +429,7 @@ func main() {
 				"setNewSprintSize",
 				"setNewBaseFeeChangeDenom",
 				"setNewBlockTime",
+				"setNewVotingPeriod",
 				"newValidatorSet",
 			},
 			[]string{

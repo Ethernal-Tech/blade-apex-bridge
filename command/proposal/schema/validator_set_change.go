@@ -17,3 +17,19 @@ type Key struct {
 func (ValidatorSetChangeProposal) Name() string {
 	return "validator set change proposal"
 }
+
+type EpochSizeProposal struct {
+	Size int64 `json:"size"`
+}
+
+func (EpochSizeProposal) Name() string {
+	return "epoch size proposal"
+}
+
+type VotingPeriodProposal struct {
+	Period int64 `json:"period"`
+}
+
+func (VotingPeriodProposal) Name() string {
+	return "voting period proposal"
+}

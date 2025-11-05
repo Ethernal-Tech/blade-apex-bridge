@@ -1936,6 +1936,22 @@ func (s *SetNewBlockTimeNetworkParamsFn) DecodeAbi(buf []byte) error {
 	return decodeMethod(NetworkParams.Abi.Methods["setNewBlockTime"], buf, s)
 }
 
+type SetNewVotingPeriodNetworkParamsFn struct {
+	NewVotingPeriod *big.Int `abi:"newVotingPeriod"`
+}
+
+func (s *SetNewVotingPeriodNetworkParamsFn) Sig() []byte {
+	return NetworkParams.Abi.Methods["setNewVotingPeriod"].ID()
+}
+
+func (s *SetNewVotingPeriodNetworkParamsFn) EncodeAbi() ([]byte, error) {
+	return NetworkParams.Abi.Methods["setNewVotingPeriod"].Encode(s)
+}
+
+func (s *SetNewVotingPeriodNetworkParamsFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(NetworkParams.Abi.Methods["setNewVotingPeriod"], buf, s)
+}
+
 type ValidatorData struct {
 	Addr         types.Address `abi:"addr"`
 	Key          [4]*big.Int   `abi:"key"`
