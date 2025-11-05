@@ -54,6 +54,8 @@ type TestEVMChainConfig struct {
 	ApexConfig             uint8
 	BurnContractInfo       *polybft.BurnContractInfo
 	MinBridgingFee         uint64
+
+	AllowedDirections []ChainID
 }
 
 func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
@@ -104,7 +106,7 @@ func (ec *TestEVMChain) GetMintableTokens() []infrawallet.Token {
 }
 
 // GetMintTokenPolicyID implements ITestApexChain.
-func (ec *TestEVMChain) GetCardanoScriptInfo() CardanoScriptInfo {
+func (ec *TestEVMChain) GetCardanoScriptInfo() *CardanoScriptInfo {
 	panic("unimplemented") //nolint:gocritic
 }
 
@@ -330,17 +332,31 @@ func (ec *TestEVMChain) RegisterChain(validator *TestApexValidator) error {
 		ec.config.ChainID, WeiToDfm(ec.config.InitialHotWalletAmount), big.NewInt(0), ChainTypeEVM)
 }
 
-func (ec *TestEVMChain) GetGenerateConfigsParams(indx int) (result []string) {
-	chainID := ec.ChainID()
-	getFlag := func(suffix string) string {
-		return fmt.Sprintf("--%s-%s", chainID, suffix)
-	}
-
+func (ec *TestEVMChain) GenerateChainConfigs(
+	indx int,
+	validator *TestApexValidator,
+	tokens []sendtx.TokenExchangeConfig,
+	mintableTokens []string,
+) error {
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
+	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
 
-	return []string{
-		getFlag("node-url"), server.JSONRPCAddr(),
+	args := []string{
+		"generate-configs", "evm-chain",
+		"--chain-id", ec.ChainID(),
+		"--evm-node-url", server.JSONRPCAddr(),
+		"--output-dir", validator.GetBridgingConfigsDir(),
+		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
+		"--output-relayer-file-name", RelayerConfigFileName,
+		"--dbs-path", dbsPath,
+		"--relayer-data-dir", validator.server.DataDir(),
 	}
+
+	for _, direction := range ec.config.AllowedDirections {
+		args = append(args, "--allowed-directions", direction)
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
 }
 
 func (ec *TestEVMChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error {

@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -105,6 +104,8 @@ func NewApexSystem(
 		opt(config)
 	}
 
+	initAllowedDirections(config, false)
+
 	nexus, err := NewTestEVMChain(config.NexusConfig)
 	if err != nil {
 		return nil, err
@@ -146,6 +147,8 @@ func NewSkylineSystem(
 
 	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee
 	config.VectorConfig.MinOperationFee = DefaultMinOperationFee
+
+	initAllowedDirections(config, true)
 
 	users := make([]*TestApexUser, config.UserCnt)
 
@@ -518,16 +521,16 @@ func (a *ApexSystem) generateReactorConfigs() error {
 			serverIndx = 0
 		}
 
-		var args []string
-
-		for _, chain := range a.chains {
-			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
-		}
-
 		err := validator.GenerateConfigs(
-			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i), args...)
+			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i))
 		if err != nil {
 			return err
+		}
+
+		for _, chain := range a.chains {
+			if err := chain.GenerateChainConfigs(serverIndx, validator, nil, nil); err != nil {
+				return err
+			}
 		}
 
 		if handler := a.Config.CustomOracleConfigHandler; handler != nil {
@@ -566,57 +569,18 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 			serverIndx = 0
 		}
 
-		var (
-			args             []string
-			relayerAddresses = make(map[string]string)
-		)
-
-		for _, chain := range a.chains {
-			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
-
-			relayerAddr := chain.GetRelayerAddress()
-			if relayerAddr != "" {
-				relayerAddresses[chain.ChainID()] = relayerAddr
-			}
-		}
-
-		cardanoConfig := a.Config.CardanoConfig
-		if len(cardanoConfig.MintableTokens) > 0 {
-			trueStr := strconv.FormatBool(true)
-
-			var scriptInfo CardanoScriptInfo
-
-			for _, chain := range a.chains {
-				if chain.ChainID() == ChainIDCardano {
-					scriptInfo = chain.GetCardanoScriptInfo()
-
-					break
-				}
-			}
-
-			cardanoConfig.ScriptTxInputHash = scriptInfo.ReferenceUtxoHash
-			cardanoConfig.ScriptTxInputIndex = scriptInfo.ReferenceUtxoIndex
-
-			args = append(args, "--cardano-minting-script-tx-input-hash",
-				cardanoConfig.ScriptTxInputHash)
-			args = append(args, "--cardano-minting-script-tx-input-index",
-				fmt.Sprintf("%d", cardanoConfig.ScriptTxInputIndex))
-
-			args = append(args, "--cardano-nft-policy-id", cardanoConfig.CustodialNFT.PolicyID)
-			args = append(args, "--cardano-nft-name", cardanoConfig.CustodialNFT.Name)
-
-			args = append(args, "--vector-cardano-mint-wrapped-token", trueStr)
-			args = append(args, "--cardano-prime-mint-wrapped-token", trueStr)
-		}
-
-		cardanoPrimeTokenName := a.CardanoInfo.NativeTokens[0].TokenName
-		vectorCardanoTokenName := a.VectorInfo.NativeTokens[0].TokenName
-
 		err := validator.GenerateSkylineConfigs(
 			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i),
-			cardanoPrimeTokenName, vectorCardanoTokenName, relayerAddresses, args...)
+		)
 		if err != nil {
 			return err
+		}
+
+		for _, chain := range a.chains {
+			tokens := a.GetCardanoInfo(chain.ChainID()).NativeTokens
+			if err := chain.GenerateChainConfigs(serverIndx, validator, tokens, a.Config.CardanoConfig.MintableTokens); err != nil {
+				return err
+			}
 		}
 
 		if handler := a.Config.CustomOracleConfigHandler; handler != nil {

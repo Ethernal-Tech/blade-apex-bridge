@@ -30,7 +30,7 @@ type ITestApexChain interface {
 	FundWallets(ctx context.Context) error
 	RegisterChain(validator *TestApexValidator) error
 	InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error
-	GetGenerateConfigsParams(indx int) []string
+	GenerateChainConfigs(indx int, validator *TestApexValidator, tokens []sendtx.TokenExchangeConfig, mintableTokens []string) error
 	PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error
 	UpdateTxSendChainConfiguration(configs map[string]sendtx.ChainConfig)
 	DeployCardanoContract() error
@@ -77,7 +77,7 @@ type ITestApexChain interface {
 	) (infrawallet.QueryStakeAddressInfo, error)
 	GetAddressToBridgeTo(ctx context.Context, bridgingType sendtx.BridgingType) (string, error)
 	GetMintableTokens() []infrawallet.Token
-	GetCardanoScriptInfo() CardanoScriptInfo
+	GetCardanoScriptInfo() *CardanoScriptInfo
 	GetRelayerAddress() string
 }
 
@@ -145,8 +145,12 @@ func (td *TestApexChainDummy) GetAddressBalance(ctx context.Context, addr string
 	return nil, nil
 }
 
-func (td *TestApexChainDummy) GetGenerateConfigsParams(indx int) []string {
-	return td.configParams
+func (td *TestApexChainDummy) GenerateChainConfigs(
+	indx int,
+	validator *TestApexValidator,
+	tokens []sendtx.TokenExchangeConfig,
+	mintableTokens []string) error {
+	return nil
 }
 
 func (td *TestApexChainDummy) InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error {
@@ -240,8 +244,8 @@ func (td *TestApexChainDummy) GetRelayerAddress() string {
 }
 
 // GetCardanoScriptInfo implements ITestApexChain.
-func (td *TestApexChainDummy) GetCardanoScriptInfo() CardanoScriptInfo {
-	return CardanoScriptInfo{}
+func (td *TestApexChainDummy) GetCardanoScriptInfo() *CardanoScriptInfo {
+	return &CardanoScriptInfo{}
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)
