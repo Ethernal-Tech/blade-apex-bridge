@@ -30,7 +30,7 @@ func executeInvalidBridgingFee(
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
 		minBridgingFee, operationFee, user, receivers, bridgingType)
 	bytesToReplace := []byte(strconv.FormatUint(feeAmount, 10))
-	metadata = bytes.Replace(metadata, bytesToReplace, []byte("1"), 1)
+	metadata = bytes.Replace(metadata, bytesToReplace, []byte(fmt.Sprintf("%d", minBridgingFee-1)), -1)
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)

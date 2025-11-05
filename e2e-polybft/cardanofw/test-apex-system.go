@@ -1352,28 +1352,26 @@ func (a *ApexSystem) UpgradeSmartContract(upgradeParams *UpgradeSCParams) error 
 	return RunCommand(ResolveApexBridgeBinary(), cmnd, os.Stdout)
 }
 
-func (a *ApexSystem) GetMinBridgingFee(chainID string, isNativeTokenBridging bool) uint64 {
+func (a *ApexSystem) GetMinBridgingFee(chainID ChainID, isNativeTokenBridging bool) uint64 {
 	switch chainID {
 	case ChainIDNexus:
 		return a.Config.NexusConfig.MinBridgingFee
 	default:
-		{
-			config := a.getCardanoConfig(chainID)
+		config := a.getCardanoConfig(chainID)
 
-			if isNativeTokenBridging {
-				return config.MinBridgingFeeForTokens
-			}
-
-			return config.DefaultMinBridgingFee
+		if isNativeTokenBridging {
+			return config.MinBridgingFeeForTokens
 		}
+
+		return config.DefaultMinBridgingFee
 	}
 }
 
-func (a *ApexSystem) GetMinOperationFee(chainID string) uint64 {
+func (a *ApexSystem) GetMinOperationFee(chainID ChainID) uint64 {
 	return a.getCardanoConfig(chainID).MinOperationFee
 }
 
-func (a *ApexSystem) getCardanoConfig(chainID string) *TestCardanoChainConfig {
+func (a *ApexSystem) getCardanoConfig(chainID ChainID) *TestCardanoChainConfig {
 	switch chainID {
 	case ChainIDPrime:
 		return a.Config.PrimeConfig
