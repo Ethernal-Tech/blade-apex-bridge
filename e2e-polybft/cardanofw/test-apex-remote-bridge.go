@@ -160,6 +160,8 @@ func SetupRemoteApexBridge(
 		opt(apexConfig)
 	}
 
+	initAllowedDirections(apexConfig)
+
 	primeChain := &TestCardanoChain{
 		config:           apexConfig.PrimeConfig,
 		multisigAddr:     remoteConfig.PrimeInfo.MultisigAddr,
