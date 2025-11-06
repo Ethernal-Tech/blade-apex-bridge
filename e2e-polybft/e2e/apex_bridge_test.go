@@ -254,6 +254,128 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(1)))
 }
 
+func TestE2E_ApexBridge_UpdateBladeSmartContract(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIValidatorID(-2),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(apex.BridgeCluster.Servers[0].JSONRPC()))
+	require.NoError(t, err)
+
+	privateKeyRaw, err := apex.GetBridgeProxyAdmin().MarshallPrivateKey()
+	require.NoError(t, err)
+
+	tmpPath, err := os.MkdirTemp("", "TestE2E_ApexBridge_UpdateBladeSmartContract")
+	require.NoError(t, err)
+
+	defer os.RemoveAll(tmpPath)
+
+	bridgeSolFilePath := filepath.Join(tmpPath, "contracts", "blade", "staking", "StakeManager.sol")
+
+	getVersion := func(t *testing.T) string {
+		t.Helper()
+
+		fn := contractsapi.StakeManager.Abi.GetMethod("version")
+
+		fncall, err := fn.Encode([]any{})
+		require.NoError(t, err)
+
+		response, err := txRelayer.Call(types.ZeroAddress, contracts.StakeManagerContract, fncall)
+		require.NoError(t, err)
+
+		byteResponse, err := hex.DecodeString(strings.TrimPrefix(response, "0x"))
+		require.NoError(t, err)
+
+		decoded, err := fn.Outputs.Decode(byteResponse)
+		require.NoError(t, err)
+
+		mp, _ := decoded.(map[string]any)
+
+		return mp["0"].(string)
+	}
+
+	var (
+		stdOutBuffer   bytes.Buffer
+		desiredVersion = "190843934374.0323.2371283182"
+		oldVersion     = getVersion(t)
+	)
+
+	fmt.Println(oldVersion)
+
+	require.NoError(t, cardanofw.RunCommand("git", []string{"submodule"}, &stdOutBuffer))
+	fmt.Printf("git submodule output:\n%s\n", stdOutBuffer.String())
+
+	lines := strings.Split(stdOutBuffer.String(), "\n")
+
+	var branchName string
+
+	for _, line := range lines {
+		if strings.Contains(line, "blade-contracts") {
+			re := regexp.MustCompile(`\((?:heads/)?([^()\s]+)\)`)
+			match := re.FindStringSubmatch(line)
+
+			if len(match) > 1 {
+				branchName = match[1]
+
+				break
+			}
+		}
+	}
+
+	require.Greater(t, len(branchName), 0, "blade-contracts branch not found")
+	fmt.Printf("blade-contracts branchName: %s\n", branchName)
+
+	// first upgrade just to clone repository
+	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveBladeBinary(), []string{
+		"sc", "deploy",
+		"--rpc-url", apex.GetBridgeDefaultJSONRPCAddr(),
+		"--private-key", hex.EncodeToString(privateKeyRaw),
+		"--dir", tmpPath,
+		"--branch", branchName,
+		"--source", "https://github.com/Ethernal-Tech/blade-contracts-apex-bridge",
+		"--select", "SM:contracts/blade/staking/StakeManager.sol",
+	}, os.Stdout))
+
+	content, err := os.ReadFile(bridgeSolFilePath)
+	require.NoError(t, err)
+
+	// Regular expression to match the version function and its return string
+	// This pattern matches the function declaration and captures the string to replace
+	pattern := `(function version\(\) public pure returns \(string memory\)\s*\{\s*return ")([^"]+)(";)`
+	re := regexp.MustCompile(pattern)
+
+	// Replace the string
+	replacePattern := fmt.Sprintf("${1}%s${3}", desiredVersion)
+	newContent := re.ReplaceAll(content, []byte(replacePattern))
+
+	require.NoError(t, os.WriteFile(bridgeSolFilePath, newContent, 0660))
+
+	// second upgrade upgrades changed contract
+	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveBladeBinary(), []string{
+		"sc", "deploy",
+		"--rpc-url", apex.GetBridgeDefaultJSONRPCAddr(),
+		"--private-key", hex.EncodeToString(privateKeyRaw),
+		"--source", tmpPath,
+		"--compile",
+		"--select", "SM:contracts/blade/staking/StakeManager.sol",
+	}, os.Stdout))
+
+	newVersion := getVersion(t)
+
+	require.NotEqual(t, oldVersion, newVersion)
+	require.Equal(t, desiredVersion, newVersion)
+}
+
 func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
