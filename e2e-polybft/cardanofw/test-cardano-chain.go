@@ -210,13 +210,6 @@ type CardanoScriptInfo struct {
 	PolicyID           string
 }
 
-type CardanoScriptInfo struct {
-	PlutusAddress      string
-	ReferenceUtxoHash  string
-	ReferenceUtxoIndex uint32
-	PolicyID           string
-}
-
 type TestCardanoChain struct {
 	config            *TestCardanoChainConfig
 	cluster           *TestCardanoCluster
