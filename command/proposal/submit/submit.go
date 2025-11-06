@@ -79,15 +79,6 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	outputter := command.InitializeOutputter(cmd)
 	defer outputter.WriteOutput()
 
-	relayer, err := txrelayer.NewTxRelayer(txrelayer.WithIPAddress(
-		params.jsonRPCAddress,
-	))
-	if err != nil {
-		outputter.SetError(err)
-
-		return
-	}
-
 	propType, err := common.GetProposalType(params.filePath)
 	if err != nil {
 		outputter.SetError(err)
@@ -95,31 +86,54 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		return
 	}
 
-	proposer, err := bridgeHelper.GetPrivateKeyForCommand(params.privateKey, "")
-	if err != nil {
-		outputter.SetError(err)
-
-		return
-	}
-
 	var (
-		validatorSetChange = &schema.ValidatorSetChangeProposal{}
+		validatorSetChangeProposal = &schema.ValidatorSetChangeProposal{}
+		votingPeriodProposal       = &schema.VotingPeriodProposal{}
+		epochSizeProposal          = &schema.EpochSizeProposal{}
 	)
 
 	switch propType {
-	case validatorSetChange.Name():
-		validatorSetChange, err = common.LoadProposal[schema.ValidatorSetChangeProposal](params.filePath)
+	case validatorSetChangeProposal.Name():
+		validatorSetChange, err := common.LoadProposal[schema.ValidatorSetChangeProposal](params.filePath)
 		if err != nil {
 			outputter.SetError(err)
 
 			return
 		}
+
+		processValidatorSetChangeProposal(outputter, validatorSetChange)
+	case votingPeriodProposal.Name():
+		votingPeriodProposal, err := common.LoadProposal[schema.VotingPeriodProposal](params.filePath)
+		if err != nil {
+			outputter.SetError(err)
+
+			return
+		}
+
+		proposal := &contractsapi.SetNewVotingPeriodNetworkParamsFn{NewVotingPeriod: big.NewInt(votingPeriodProposal.Period)}
+
+		SubmitProposal(outputter, proposal, params.description, params.jsonRPCAddress, params.privateKey)
+	case epochSizeProposal.Name():
+		epochSizeProposal, err := common.LoadProposal[schema.EpochSizeProposal](params.filePath)
+		if err != nil {
+			outputter.SetError(err)
+
+			return
+		}
+
+		proposal := &contractsapi.SetNewEpochSizeNetworkParamsFn{NewEpochSize: big.NewInt(epochSizeProposal.Size)}
+
+		SubmitProposal(outputter, proposal, params.description, params.jsonRPCAddress, params.privateKey)
 	default:
 		outputter.SetError(fmt.Errorf("type of data unknown"))
 
 		return
 	}
+}
 
+func processValidatorSetChangeProposal(
+	outputter command.OutputFormatter,
+	validatorSetChange *schema.ValidatorSetChangeProposal) {
 	var methodProposing = &contractsapi.NewValidatorSetNetworkParamsFn{
 		ValidatorDelta: &contractsapi.ValidatorDelta{
 			AddedValidators:   []*contractsapi.BridgeValidatorsData{},
@@ -164,7 +178,8 @@ func runCommand(cmd *cobra.Command, _ []string) {
 				},
 			}
 
-			methodProposing.ValidatorDelta.AddedValidators = append(methodProposing.ValidatorDelta.AddedValidators, &validator)
+			methodProposing.ValidatorDelta.AddedValidators = append(methodProposing.ValidatorDelta.AddedValidators,
+				&validator)
 		}
 	}
 
@@ -172,11 +187,39 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	for _, v := range validatorSetChange.Removed {
 		address := types.StringToAddress(v)
 
-		methodProposing.ValidatorDelta.RemovedValidators = append(methodProposing.ValidatorDelta.RemovedValidators, address)
+		methodProposing.ValidatorDelta.RemovedValidators = append(methodProposing.ValidatorDelta.RemovedValidators,
+			address)
 	}
 
-	// propose
-	input, err := methodProposing.EncodeAbi()
+	SubmitProposal(outputter, methodProposing, params.description, params.jsonRPCAddress, params.privateKey)
+}
+
+type SubmitResult struct {
+	ProposalID string `json:"proposal_id"`
+	Input      string `json:"input"`
+}
+
+func SubmitProposal(
+	outputter command.OutputFormatter,
+	proposal interface{ EncodeAbi() ([]byte, error) },
+	description,
+	rpcURL,
+	privateKey string) {
+	proposer, err := bridgeHelper.GetPrivateKeyForCommand(privateKey)
+	if err != nil {
+		outputter.SetError(err)
+
+		return
+	}
+
+	relayer, err := txrelayer.NewTxRelayer(txrelayer.WithIPAddress(rpcURL))
+	if err != nil {
+		outputter.SetError(err)
+
+		return
+	}
+
+	input, err := proposal.EncodeAbi()
 	if err != nil {
 		outputter.SetError(err)
 
@@ -186,7 +229,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	proposeFn := &contractsapi.ProposeChildGovernorFn{
 		Targets:     []types.Address{contracts.NetworkParamsContract},
 		Calldatas:   [][]byte{input},
-		Description: params.description,
+		Description: description,
 		Values:      []*big.Int{big.NewInt(0)},
 	}
 
@@ -235,11 +278,6 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	}
 
 	outputter.SetCommandResult(result)
-}
-
-type SubmitResult struct {
-	ProposalID string `json:"proposal_id"`
-	Input      string `json:"input"`
 }
 
 func (pr SubmitResult) GetOutput() string {

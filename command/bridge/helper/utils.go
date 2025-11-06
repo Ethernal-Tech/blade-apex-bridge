@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/docker/docker/api/types/container"
@@ -85,17 +86,26 @@ func DecodePrivateKey(rawKey string) (crypto.Key, error) {
 	return privateKey, nil
 }
 
-func GetPrivateKeyForCommand(key, config string) (crypto.Key, error) {
-	if config == "" {
-		return DecodePrivateKey(key)
+func GetPrivateKeyForCommand(key string) (crypto.Key, error) {
+	if key == "" {
+		return nil, fmt.Errorf("key cannot be empty")
 	}
 
-	secretsManager, err := polybftsecrets.GetSecretsManager("", config, false)
+	val := strings.Split(key, ":")
+	if len(val) > 2 {
+		return nil, fmt.Errorf("invalid key format")
+	}
+
+	if len(val) == 1 {
+		return DecodePrivateKey(strings.TrimPrefix(key, "0x"))
+	}
+
+	secretsManager, err := polybftsecrets.GetSecretsManager("", val[0], false)
 	if err != nil {
 		return nil, err
 	}
 
-	privateKeySecretsManager, err := secretsManager.GetSecret(key)
+	privateKeySecretsManager, err := secretsManager.GetSecret(val[1])
 	if err != nil {
 		return nil, err
 	}

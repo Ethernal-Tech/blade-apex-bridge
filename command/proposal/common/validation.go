@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -39,6 +40,26 @@ func ValidateFileFlag(cmd *cobra.Command, _ []string) error {
 	}
 
 	file.Close()
+
+	return nil
+}
+
+func ValidateSubmitRelatedFlags(
+	description,
+	rpcURL,
+	privateKey string,
+) error {
+	if description == "" {
+		return errors.New("submit is set: flag --description is required")
+	}
+
+	if rpcURL == "" {
+		return errors.New("submit is set: flag --rpc-url is required")
+	}
+
+	if privateKey == "" {
+		return errors.New("submit is set: flag --private-key is required")
+	}
 
 	return nil
 }
