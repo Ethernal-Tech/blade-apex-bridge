@@ -3,15 +3,19 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/bls"
+	"github.com/0xPolygon/polygon-edge/command/proposal/submit"
 	"github.com/0xPolygon/polygon-edge/command/validator/helper"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
@@ -24,6 +28,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/helper/hex"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
+	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 
@@ -109,7 +114,7 @@ func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 		)
 	}
 
-	executeValidatorChangeProposal(t, relayer, proposerAcc, []*addedValidator{
+	executeValidatorChangeProposal(t, ctx, relayer, proposerAcc, []*addedValidator{
 		{
 			Address: newValidatorAcc.Address(),
 			Key:     newValidatorAcc.Bls.PublicKey(),
@@ -236,7 +241,7 @@ func TestE2E_DynamicValidators_RemoveValidator(t *testing.T) {
 	removeValidatorKey, err := helper.GetAccountFromDir(removeValidator.DataDir())
 	require.NoError(t, err)
 
-	executeValidatorChangeProposal(t, relayer, proposerAcc, nil,
+	executeValidatorChangeProposal(t, ctx, relayer, proposerAcc, nil,
 		[]types.Address{removeValidatorKey.Address()}, cluster, polybftCfg)
 
 	t.Log("Executed validator set change")
@@ -383,7 +388,7 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 	// wait some time until funding is processed and last observed slot updated on Bridge SC
 	<-time.After(time.Minute)
 
-	executeValidatorChangeProposal(t, relayer, proposerAcc, []*addedValidator{
+	executeValidatorChangeProposal(t, ctx, relayer, proposerAcc, []*addedValidator{
 		{
 			Address: newValidatorAcc.Address(),
 			Key:     newValidatorAcc.Bls.PublicKey(),
@@ -513,7 +518,7 @@ func TestE2E_DynamicValidators_OneFeeUtxo(t *testing.T) {
 	removeValidatorKey, err := helper.GetAccountFromDir(removeValidator.DataDir())
 	require.NoError(t, err)
 
-	executeValidatorChangeProposal(t, relayer, proposerAcc, nil,
+	executeValidatorChangeProposal(t, ctx, relayer, proposerAcc, nil,
 		[]types.Address{removeValidatorKey.Address()}, cluster, polybftCfg)
 
 	t.Log("Executed validator set change")
@@ -633,7 +638,7 @@ func TestE2E_DynamicValidators_StopBladesDuringVSU(t *testing.T) {
 	// wait some time until funding is processed and last observed slot updated on Bridge SC
 	<-time.After(time.Minute)
 
-	executeValidatorChangeProposal(t, relayer, proposerAcc, nil,
+	executeValidatorChangeProposal(t, ctx, relayer, proposerAcc, nil,
 		[]types.Address{removeValidatorKey.Address()}, cluster, polybftCfg)
 
 	t.Log("Executed validator set change")
@@ -777,7 +782,7 @@ func TestE2E_DynamicValidators_StopApxBridgesDuringVSU(t *testing.T) {
 	// wait some time until funding is processed and last observed slot updated on Bridge SC
 	<-time.After(time.Minute)
 
-	executeValidatorChangeProposal(t, relayer, proposerAcc, nil,
+	executeValidatorChangeProposal(t, ctx, relayer, proposerAcc, nil,
 		[]types.Address{removeValidatorKey.Address()}, cluster, polybftCfg)
 
 	t.Log("Executed validator set change")
@@ -905,9 +910,26 @@ func checkValidatorActive(t *testing.T, address types.Address,
 	require.Equal(t, isAdded, validatorDataMap["isActive"])
 }
 
-func executeValidatorChangeProposal(t *testing.T, relayer txrelayer.TxRelayer, proposerAcc *wallet.Account,
-	addedValidators []*addedValidator, removedValidators []types.Address, cluster *framework.TestCluster, polybftCfg polybft.PolyBFTConfig) {
+func executeValidatorChangeProposal(
+	t *testing.T, ctx context.Context, relayer txrelayer.TxRelayer, proposerAcc *wallet.Account,
+	addedValidators []*addedValidator, removedValidators []types.Address,
+	cluster *framework.TestCluster, polybftCfg polybft.PolyBFTConfig,
+) {
 	t.Helper()
+	// A validator's oracle in the validator components process may send a claim transaction at the
+	// same moment it attempts to execute part of the proposal process.
+	execWithRetry := func(handler func() error) error {
+		_, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
+			err := handler()
+			if err != nil && strings.Contains(err.Error(), "replacement tx underpriced") {
+				return "", infracommon.ErrRetryTryAgain
+			}
+
+			return "", err
+		}, infracommon.WithRetryCount(20), infracommon.WithRetryWaitTime(time.Second*5))
+
+		return err
+	}
 
 	description := "validatorSetChange"
 
@@ -933,8 +955,13 @@ func executeValidatorChangeProposal(t *testing.T, relayer txrelayer.TxRelayer, p
 
 	hexKey := addressToHex(key)
 
-	submitResult, err := server.SubmitProposal(filePath, hexKey, description)
-	require.NoError(t, err)
+	var submitResult *submit.SubmitResult
+	// the proposer validator should propose validator set change
+	require.NoError(t, execWithRetry(func() error {
+		submitResult, err = server.SubmitProposal(filePath, hexKey, description)
+
+		return err
+	}))
 
 	proposalIDBig, ok := new(big.Int).SetString(submitResult.ProposalID, 10)
 	require.True(t, ok)
@@ -946,15 +973,39 @@ func executeValidatorChangeProposal(t *testing.T, relayer txrelayer.TxRelayer, p
 		return proposalState == Active
 	}))
 
-	for _, s := range cluster.Servers {
-		voterAcc, err := helper.GetAccountFromDir(s.DataDir())
-		require.NoError(t, err)
+	wg := sync.WaitGroup{}
+	errs := make([]error, len(cluster.Servers))
 
-		voteKey, err := voterAcc.Ecdsa.MarshallPrivateKey()
-		require.NoError(t, err)
+	for i, s := range cluster.Servers {
+		wg.Add(1)
 
-		require.NoError(t, server.VoteProposal(submitResult.ProposalID, addressToHex(voteKey), false))
+		go func(i int, s *framework.TestServer) {
+			defer wg.Done()
+
+			voterAcc, err := helper.GetAccountFromDir(s.DataDir())
+			if err != nil {
+				errs[i] = err
+
+				return
+			}
+
+			voteKey, err := voterAcc.Ecdsa.MarshallPrivateKey()
+			if err != nil {
+				errs[i] = err
+
+				return
+			}
+
+			// a quorum of validators is required to vote
+			errs[i] = execWithRetry(func() error {
+				return server.VoteProposal(submitResult.ProposalID, addressToHex(voteKey), false)
+			})
+		}(i, s)
 	}
+
+	wg.Wait()
+
+	require.NoError(t, errors.Join(errs...))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
 		proposalState := getProposalState(t, proposalIDBig,
@@ -962,8 +1013,10 @@ func executeValidatorChangeProposal(t *testing.T, relayer txrelayer.TxRelayer, p
 
 		return proposalState == Succeeded
 	}))
-
-	require.NoError(t, server.QueueProposal(submitResult.Input, description, hexKey))
+	// the proposer validator is responsible for queuing the proposal
+	require.NoError(t, execWithRetry(func() error {
+		return server.QueueProposal(submitResult.Input, description, hexKey)
+	}))
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
 		proposalState := getProposalState(t, proposalIDBig,
@@ -976,8 +1029,10 @@ func executeValidatorChangeProposal(t *testing.T, relayer txrelayer.TxRelayer, p
 	require.NoError(t, err)
 
 	require.NoError(t, cluster.WaitForBlock(currentBlockNumber+2, 10*time.Second))
-
-	require.NoError(t, server.ExecuteProposal(submitResult.Input, description, hexKey))
+	// the proposer validator is responsible for executing the proposal
+	require.NoError(t, execWithRetry(func() error {
+		return server.ExecuteProposal(submitResult.Input, description, hexKey)
+	}))
 }
 
 type addedValidator struct {
