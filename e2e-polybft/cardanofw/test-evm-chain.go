@@ -382,6 +382,7 @@ func (ec *TestEVMChain) BridgingRequest(
 		"--gateway-addr", ec.gatewayAddr.String(),
 		fmt.Sprintf("--%s-url", ec.config.ChainID), ec.jsonRPCAddr,
 		"--key", privateKey,
+		"--chain-src", ec.config.ChainID,
 		"--chain-dst", destChainID,
 		"--fee", feeAmount.String(),
 	}

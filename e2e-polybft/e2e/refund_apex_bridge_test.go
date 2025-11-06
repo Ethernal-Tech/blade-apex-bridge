@@ -53,6 +53,23 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, feeAmount)
 
+	t.Run("Mismatch submitted and receiver amounts", func(t *testing.T) {
+		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, true)
+	})
+
+	afterSendingAmountDfm, err := apex.GetBalance(ctx, user, primeTestConfig.srcChainID)
+	require.NoError(t, err)
+
+	fmt.Printf("\nLAST AMOUNT: %v\n", afterSendingAmountDfm)
+
+	t.Run("Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
+		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryDelaySec, true)
+	})
+
+	t.Run("Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
+		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryDelaySec, true)
+	})
+
 	t.Run("From prime to vector - not enough funds on destination multisig address", func(t *testing.T) {
 		const (
 			sendAmount = uint64(100_600_000_000)
@@ -148,18 +165,6 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 		err = apex.WaitForAmountInRange(ctx, brSubmitterUser, cardanofw.ChainIDPrime, lowerBoundaryDfm, beforeSendingAmountDfm,
 			20, time.Second*30)
 		require.NoError(t, err)
-	})
-
-	t.Run("Mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, true)
-	})
-
-	t.Run("Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryDelaySec, true)
-	})
-
-	t.Run("Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryDelaySec, true)
 	})
 }
 

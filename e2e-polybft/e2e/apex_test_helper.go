@@ -66,7 +66,7 @@ func WaitForTestResult(
 		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm,
 			beforeSendingAmountDfm)
 
-		err := apex.WaitForAmountInRange(ctx, user, config.dstChainID, lowerBoundaryDfm,
+		err := apex.WaitForAmountInRange(ctx, user, config.srcChainID, lowerBoundaryDfm,
 			beforeSendingAmountDfm, numRetries, time.Second*time.Duration(retryIntervalSec))
 		require.NoError(t, err)
 	} else {
@@ -96,8 +96,15 @@ func executeInvalidMismatchSendLovelaceAmount(
 		lovelaceAmount, nil, metadata)
 	require.NoError(t, err)
 
+	afterSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
+	require.NoError(t, err)
+
+	fmt.Printf("\nAMOUNT AFTER SENDING: %v\n", afterSendingAmountDfm)
+
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
 		refundEnabled, maxWaitTimeSec, retryIntervalSec)
+
+	require.NoError(t, err)
 }
 
 func executeInvalidMismatchSendAmountMultipleInstances(
