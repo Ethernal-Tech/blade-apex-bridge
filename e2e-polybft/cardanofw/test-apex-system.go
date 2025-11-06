@@ -18,6 +18,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/types"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
+	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
@@ -291,12 +292,20 @@ func (a *ApexSystem) InitContracts(ctx context.Context) error {
 		}
 	}
 
+	return nil
+}
+
+func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
+	t.Helper()
+
 	// after contracts have been initialized populate all the needed things into apex object
 	for _, chain := range a.chains {
 		if err := chain.PopulateApexSystem(a); err != nil {
 			return err
 		}
 	}
+
+	a.InitTxSendChainConfiguration()
 
 	return nil
 }
@@ -333,6 +342,41 @@ func (a *ApexSystem) RestartBridges(ctx context.Context, validatorsNotToStart ..
 	}
 
 	return nil
+func (a *ApexSystem) InitTxSendChainConfiguration() {
+	txSenderChainConfigs := map[string]sendtx.ChainConfig{
+		ChainIDPrime: {
+			CardanoCliBinary:     ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
+			TxProvider:           cardanowallet.NewTxProviderOgmios(a.PrimeInfo.OgmiosURL),
+			TestNetMagic:         a.Config.PrimeConfig.NetworkMagic,
+			TTLSlotNumberInc:     ttlSlotNumberInc,
+			MinUtxoValue:         MinUTxODefaultValue,
+			MinBridgingFeeAmount: a.Config.PrimeConfig.MinBridgingFee,
+			PotentialFee:         PotentialFee,
+		},
+	}
+
+	if a.Config.VectorConfig != nil && a.Config.VectorConfig.IsEnabled {
+		txSenderChainConfigs[ChainIDVector] = sendtx.ChainConfig{
+			CardanoCliBinary:     ResolveCardanoCliBinary(a.Config.VectorConfig.NetworkType),
+			TxProvider:           cardanowallet.NewTxProviderOgmios(a.VectorInfo.OgmiosURL),
+			TestNetMagic:         a.Config.VectorConfig.NetworkMagic,
+			TTLSlotNumberInc:     ttlSlotNumberInc,
+			MinUtxoValue:         MinUTxODefaultValue,
+			MinBridgingFeeAmount: a.Config.VectorConfig.MinBridgingFee,
+			PotentialFee:         PotentialFee,
+		}
+	}
+
+	if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
+		txSenderChainConfigs[ChainIDNexus] = sendtx.ChainConfig{
+			MinBridgingFeeAmount: a.Config.NexusConfig.MinBridgingFee,
+		}
+	}
+
+	// set txSenderChainConfigs configuration for each chain
+	for _, chain := range a.chains {
+		chain.UpdateTxSendChainConfiguration(txSenderChainConfigs)
+	}
 }
 
 func (a *ApexSystem) FundWallets(ctx context.Context) error {
@@ -352,8 +396,14 @@ func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, dfm
 		return err
 	}
 
-	_, err = chain.SendTx(
-		ctx, pk, chain.GetHotWalletAddress(), DfmToChainNativeTokenAmount(chainID, dfmAmount), nil)
+	receivers := []GenericTxReceiver{
+		{
+			Addr:   chain.GetHotWalletAddress(),
+			Amount: DfmToChainNativeTokenAmount(chainID, dfmAmount),
+		},
+	}
+
+	_, err = chain.SendTx(ctx, pk, nil, receivers)
 
 	return err
 }
@@ -599,7 +649,7 @@ func (a *ApexSystem) DefundHotWallet(
 
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
-	receiverAddr string, dfmAmount *big.Int, data []byte,
+	receiverAddr string, dfmAmount *big.Int, nativeTokens []cardanowallet.TokenAmount, data []byte,
 ) (string, error) {
 	const (
 		numRetries = 5
@@ -616,10 +666,16 @@ func (a *ApexSystem) SubmitTx(
 		return "", err
 	}
 
+	receivers := []GenericTxReceiver{
+		{
+			Addr:         receiverAddr,
+			Amount:       DfmToChainNativeTokenAmount(sourceChain, dfmAmount),
+			NativeTokens: nativeTokens,
+		},
+	}
+
 	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
-		txHash, err := chain.SendTx(
-			ctx, privateKey, receiverAddr,
-			DfmToChainNativeTokenAmount(sourceChain, dfmAmount), data)
+		txHash, err := chain.SendTx(ctx, privateKey, data, receivers)
 		if err != nil {
 			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
 				return "", infracommon.ErrRetryTryAgain
@@ -725,6 +781,17 @@ func (a *ApexSystem) ResetIndexers() {
 
 		return nil
 	})
+}
+
+func (a *ApexSystem) GetCardanoInfo(chainID string) CardanoChainInfo {
+	switch chainID {
+	case ChainIDPrime:
+		return a.PrimeInfo
+	case ChainIDVector:
+		return a.VectorInfo
+	default:
+		return CardanoChainInfo{}
+	}
 }
 
 func (a *ApexSystem) execForEachChain(handler func(chain ITestApexChain) error) error {

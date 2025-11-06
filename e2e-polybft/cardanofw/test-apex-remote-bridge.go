@@ -153,8 +153,8 @@ func SetupRemoteApexBridge(
 	vectorEnabled := remoteConfig.VectorInfo.MultisigAddr != ""
 
 	apexConfig := &ApexSystemConfig{
-		PrimeConfig:  NewRemotePrimeChainConfig(),
-		VectorConfig: NewRemoteVectorChainConfig(vectorEnabled),
+		PrimeConfig:  NewRemotePrimeChainConfig(0),
+		VectorConfig: NewRemoteVectorChainConfig(0),
 		NexusConfig:  NewRemoteNexusChainConfig(true),
 		APIKey:       remoteConfig.BridgingAPIKey,
 	}
