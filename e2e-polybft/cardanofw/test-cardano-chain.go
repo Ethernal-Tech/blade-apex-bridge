@@ -562,19 +562,10 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	}
 
 	if totalAmount := ec.config.FundRelayerAmount; totalAmount != 0 && ec.relayerAddr != "" {
-		txHash, err := ec.SendTx(ctx, ToCardanoPrivateKeyString(minterWallet.SigningKey, minterWallet.StakeSigningKey), nil,
-			[]GenericTxReceiver{
-				{
-					Addr:         ec.relayerAddr,
-					Amount:       new(big.Int).SetUint64(totalAmount),
-					NativeTokens: nil,
-				},
-			})
-		if err != nil {
-			return err
-		}
+		receivers = append(receivers, createTxReceiver(ec.relayerAddr, new(big.Int).SetUint64(totalAmount), nil, nil))
 
-		fmt.Printf("%s relayer addr: %s funded with %d: %s\n", ec.ChainID(), ec.relayerAddr, totalAmount, txHash)
+		outputInfo = append(outputInfo,
+			fmt.Sprintf("%s relayer addr: %s funded with %d\n", ec.ChainID(), ec.relayerAddr, totalAmount))
 	}
 
 	if ec.config.FundTokenAmount != 0 || ec.config.FundAmount != 0 {
@@ -615,15 +606,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		return nil
 	}
 
-	txHash, err := ec.SendTx(
-		ctx, ToCardanoPrivateKeyString(minterWallet.SigningKey, minterWallet.StakeSigningKey), nil, receivers)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("%s fund transaction: %s\n%s\n", ec.ChainID(), txHash, strings.Join(outputInfo, "\n"))
-
-	if ec.GetCustodialAddress() != "" {
+	if ec.config.CustodialAddress != "" && ec.config.CustodialNFT != nil {
 		minterWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
 		if err != nil {
 			return err
@@ -631,23 +614,26 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 		lovelaceFundAmount := 2 * MinUTxODefaultValue
 
-		nft, err := FundAddressWithToken(
-			ctx, ec,
-			minterWallet, ec.GetCustodialAddress(),
-			MintNFTTokenName, MintNFTAmount,
-			lovelaceFundAmount, MintNFTAmount)
-		if err != nil {
+		if err := MintToken(ec, minterWallet, MintNFTTokenName, 1); err != nil {
 			return err
 		}
 
-		fmt.Printf("%s custodial addr funded with NFT `%s` amount: %d, %d\n",
-			ec.ChainID(), nft.TokenName(), lovelaceFundAmount, MintNFTAmount)
+		receivers = append(receivers,
+			createTxReceiver(ec.config.CustodialAddress,
+				big.NewInt(0).SetUint64(lovelaceFundAmount),
+				ec.config.CustodialNFT, big.NewInt(1)))
 
-		ec.config.CustodialNFT = &infrawallet.Token{
-			PolicyID: nft.PolicyID,
-			Name:     nft.Name,
-		}
+		fmt.Printf("%s custodial addr funded with NFT `%s` amount: %d, %d\n",
+			ec.ChainID(), ec.GetCustodialNFT().String(), lovelaceFundAmount, MintNFTAmount)
 	}
+
+	txHash, err := ec.SendTx(
+		ctx, ToCardanoPrivateKeyString(minterWallet.SigningKey, minterWallet.StakeSigningKey), nil, receivers)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s fund transaction: %s\n%s\n", ec.ChainID(), txHash, strings.Join(outputInfo, "\n"))
 
 	return nil
 }
@@ -697,7 +683,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		}
 	}
 
-	if containsMintableTokens && ec.ChainID() == ChainIDCardano {
+	if containsMintableTokens {
 		scriptInfo := ec.GetCardanoScriptInfo()
 		custodialNFT := ec.GetCustodialNFT()
 
@@ -713,7 +699,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 	relayerAddr := ec.GetRelayerAddress()
 	if relayerAddr != "" {
 		args = append(args, "--relayer-address", relayerAddr)
-		args = append(args, "--relayer-data-dir", validator.server.DataDir()+"/relayer")
+		args = append(args, "--relayer-data-dir", validator.GetRelayerDataDir())
 	}
 
 	for _, direction := range ec.config.AllowedDirections {
@@ -813,6 +799,12 @@ func (ec *TestCardanoChain) GetCustodialNFT() *infrawallet.Token {
 
 func (ec *TestCardanoChain) GetCustodialAddress() string {
 	return ec.config.CustodialAddress
+}
+
+func (ec *TestCardanoChain) SetCustodialNFT(token infrawallet.Token) {
+	if ec.config.CustodialAddress != "" {
+		ec.config.CustodialNFT = &token
+	}
 }
 
 func (ec *TestCardanoChain) GetRelayerAddress() string {

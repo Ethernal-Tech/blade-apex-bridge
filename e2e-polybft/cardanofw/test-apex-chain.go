@@ -83,6 +83,7 @@ type ITestApexChain interface {
 	GetMintableTokens() []infrawallet.Token
 	GetCardanoScriptInfo() *CardanoScriptInfo
 	GetRelayerAddress() string
+	SetCustodialNFT(token infrawallet.Token)
 }
 
 type TestApexChainDummy struct {
@@ -244,6 +245,11 @@ func (td *TestApexChainDummy) GetMintableTokens() []infrawallet.Token {
 // GetRelayerAddress implements ITestApexChain.
 func (td *TestApexChainDummy) GetRelayerAddress() string {
 	return ""
+}
+
+// SetCustodialNFT implements ITestApexChain.
+func (td *TestApexChainDummy) SetCustodialNFT(token infrawallet.Token) {
+	return
 }
 
 // GetCardanoScriptInfo implements ITestApexChain.

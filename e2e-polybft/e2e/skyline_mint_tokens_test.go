@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
+func TestE2E_SkylineBridgeMBA_Minting(t *testing.T) {
 	const apiKey = "test_api_key"
 
 	var lock sync.Mutex
@@ -59,15 +59,32 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
+	// Needed for this test to avoid NotEnoughFunds error on sc
+	err := apex.UpdateChainTokenQuantity(cardanofw.ChainIDCardano, big.NewInt(100_000_000_000), true)
+	require.NoError(t, err)
+
 	fmt.Println("cardano native tokens: ", apex.CardanoInfo.NativeTokens)
+	cardanoMintTokenName := apex.CardanoInfo.NativeTokens[0].TokenName
 
 	user := apex.Users[0]
 
-	t.Run("1. full mint", func(t *testing.T) {
-		if cardanofw.ShouldSkipE2RRedundantTests() {
-			t.Skip()
+	checkAmounts := func(bridgingAddrAmount uint64, userAddrAmount uint64) {
+		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
+		require.NoError(t, err)
+
+		userBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDCardano)
+		require.NoError(t, err)
+
+		if bridgingAddrAmount == 0 {
+			require.Nil(t, addrAmounts[0][cardanoMintTokenName])
+		} else {
+			require.Equal(t, bridgingAddrAmount, addrAmounts[0][cardanoMintTokenName].Uint64())
 		}
 
+		require.Equal(t, userAddrAmount, userBalance[cardanoMintTokenName].Uint64())
+	}
+
+	t.Run("1. full mint", func(t *testing.T) {
 		t.Cleanup(func() {
 			apex.ResetIndexers()
 		})
@@ -77,13 +94,11 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
 			sendtx.BridgingTypeCurrencyOnSource)
+
+		checkAmounts(0, sendAmountDfm.Uint64())
 	})
 
 	t.Run("2. partial mint", func(t *testing.T) {
-		if cardanofw.ShouldSkipE2RRedundantTests() {
-			t.Skip()
-		}
-
 		t.Cleanup(func() {
 			apex.ResetIndexers()
 		})
@@ -92,18 +107,18 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(5_000_000),
 			sendtx.BridgingTypeNativeTokenOnSource)
 
+		checkAmounts(5_000_000, 5_000_000)
+
 		sendAmountDfm := big.NewInt(10_000_000)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
 			sendtx.BridgingTypeCurrencyOnSource)
+
+		checkAmounts(0, 15_000_000)
 	})
 
 	t.Run("3. burn", func(t *testing.T) {
-		if cardanofw.ShouldSkipE2RRedundantTests() {
-			t.Skip()
-		}
-
 		t.Cleanup(func() {
 			apex.ResetIndexers()
 		})
@@ -112,18 +127,18 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(10_000_000),
 			sendtx.BridgingTypeNativeTokenOnSource)
 
+		checkAmounts(10_000_000, 5_000_000)
+
 		sendAmountDfm := big.NewInt(5_000_000)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
 			sendtx.BridgingTypeCurrencyOnSource)
+
+		checkAmounts(0, 10_000_000)
 	})
 
 	t.Run("4. bridging to custodial addr", func(t *testing.T) {
-		if cardanofw.ShouldSkipE2RRedundantTests() {
-			t.Skip()
-		}
-
 		t.Cleanup(func() {
 			apex.ResetIndexers()
 		})

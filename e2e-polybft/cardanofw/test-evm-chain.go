@@ -96,6 +96,11 @@ type TestEVMChain struct {
 	indexer       e2eindexer.TxsExecutedComponent
 }
 
+// SetCustodialNFT implements ITestApexChain.
+func (ec *TestEVMChain) SetCustodialNFT(token infrawallet.Token) {
+	panic("unimplemented") //nolint:gocritic
+}
+
 // GetRelayerAddress implements ITestApexChain.
 func (ec *TestEVMChain) GetRelayerAddress() string {
 	panic("unimplemented") //nolint:gocritic

@@ -357,6 +357,15 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			a.CardanoInfo.GenesisWallet.VerificationKey, DefaultTokenName)
 		require.NoError(t, err)
 
+		nftToken, _, err := GetTokenAndPolicyForVerificationKey(
+			a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
+			a.CardanoInfo.GenesisWallet.VerificationKey, MintNFTTokenName)
+		require.NoError(t, err)
+
+		for _, chain := range a.chains {
+			chain.SetCustodialNFT(nftToken)
+		}
+
 		a.PrimeInfo.NativeTokens = nil
 		a.VectorInfo.NativeTokens = []sendtx.TokenExchangeConfig{
 			{
@@ -863,6 +872,31 @@ func (a *ApexSystem) WaitForRedistribution(
 	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
 
 	return err
+}
+
+func (a *ApexSystem) UpdateChainTokenQuantity(
+	chain ChainID, amount *big.Int, isWrappedToken bool,
+) error {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	pk := hex.EncodeToString(pkBytes)
+
+	args := []string{
+		"bridge-admin", "update-chain-token-quantity",
+		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--chain", chain,
+		"--amount", amount.String(),
+		"--key", pk,
+	}
+
+	if isWrappedToken {
+		args = append(args, "--is-wrapped-token")
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
 }
 
 func (a *ApexSystem) DefundHotWallet(

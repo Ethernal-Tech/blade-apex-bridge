@@ -70,6 +70,10 @@ func (cv *TestApexValidator) GetRelayerConfig() string {
 	return filepath.Join(cv.GetBridgingConfigsDir(), RelayerConfigFileName)
 }
 
+func (cv *TestApexValidator) GetRelayerDataDir() string {
+	return filepath.Join(cv.server.DataDir(), "relayer")
+}
+
 func (cv *TestApexValidator) GetNexusTestDir() string {
 	return filepath.Join(cv.dataDirPath, NexusDir)
 }
@@ -93,7 +97,7 @@ func (cv *TestApexValidator) RelayerCardanoWalletCreate(chain ChainID) (string, 
 	args := []string{
 		"wallet-create",
 		"--chain", chain,
-		"--validator-data-dir", cv.server.DataDir() + "/relayer",
+		"--validator-data-dir", cv.GetRelayerDataDir(),
 		"--show-pk",
 		"--type", "relayer-cardano",
 	}
