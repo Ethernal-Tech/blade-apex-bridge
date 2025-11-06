@@ -147,6 +147,20 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 	}
 }
 
+func initAllowedDirections(config *ApexSystemConfig) {
+	if len(config.NexusConfig.AllowedDirections) == 0 {
+		config.NexusConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
+	}
+
+	if len(config.VectorConfig.AllowedDirections) == 0 {
+		config.VectorConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDNexus}
+	}
+
+	if len(config.PrimeConfig.AllowedDirections) == 0 {
+		config.PrimeConfig.AllowedDirections = []ChainID{ChainIDVector, ChainIDNexus}
+	}
+}
+
 func (asc *ApexSystemConfig) ServiceCount() int {
 	// Prime
 	count := 1

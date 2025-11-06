@@ -22,7 +22,7 @@ type ITestApexChain interface {
 	FundWallets(ctx context.Context) error
 	RegisterChain(validator *TestApexValidator) error
 	InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error
-	GetGenerateConfigsParams(indx int) []string
+	GenerateChainConfigs(indx int, validator *TestApexValidator) error
 	PopulateApexSystem(apexSystem *ApexSystem) error
 	ChainID() string
 	GetAddressBalance(ctx context.Context, addr string) (*big.Int, error)
@@ -76,8 +76,8 @@ func (td *TestApexChainDummy) GetAddressBalance(ctx context.Context, addr string
 	return nil, nil
 }
 
-func (td *TestApexChainDummy) GetGenerateConfigsParams(indx int) []string {
-	return td.configParams
+func (td *TestApexChainDummy) GenerateChainConfigs(indx int, validator *TestApexValidator) error {
+	return nil
 }
 
 func (td *TestApexChainDummy) InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error {

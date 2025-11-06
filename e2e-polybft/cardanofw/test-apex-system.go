@@ -83,6 +83,8 @@ func NewApexSystem(
 		opt(config)
 	}
 
+	initAllowedDirections(config)
+
 	nexus, err := NewTestEVMChain(config.NexusConfig)
 	if err != nil {
 		return nil, err
@@ -409,16 +411,16 @@ func (a *ApexSystem) GenerateConfigs() error {
 			serverIndx = 0
 		}
 
-		var args []string
-
-		for _, chain := range a.chains {
-			args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
-		}
-
 		err := validator.GenerateConfigs(
-			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i), args...)
+			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i))
 		if err != nil {
 			return err
+		}
+
+		for _, chain := range a.chains {
+			if err := chain.GenerateChainConfigs(serverIndx, validator); err != nil {
+				return err
+			}
 		}
 
 		if handler := a.Config.CustomOracleConfigHandler; handler != nil {
