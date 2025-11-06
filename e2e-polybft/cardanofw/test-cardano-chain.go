@@ -687,8 +687,6 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		scriptInfo := ec.GetCardanoScriptInfo()
 		custodialNFT := ec.GetCustodialNFT()
 
-		args = append(args, "--mint-native-token", strconv.FormatBool(true))
-
 		args = append(args, "--minting-script-tx-input-hash",
 			scriptInfo.ReferenceUtxoHash)
 		args = append(args, "--minting-script-tx-input-index",

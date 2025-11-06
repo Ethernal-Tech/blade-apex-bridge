@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sync"
 	"testing"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
@@ -14,6 +15,8 @@ import (
 
 func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 	const apiKey = "test_api_key"
+
+	var lock sync.Mutex
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
@@ -26,6 +29,32 @@ func TestE2E_SkylineBridgeMint_Test1(t *testing.T) {
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithCustomConfigHandlers(func(a *cardanofw.ApexSystem, mp map[string]any) {
+			t.Helper()
+
+			lock.Lock()
+			defer lock.Unlock()
+
+			vcCfg := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDCardano)
+
+			// Get nativeTokens slice
+			nativeTokensInterface, ok := vcCfg["nativeTokens"].([]any)
+			if !ok || len(nativeTokensInterface) == 0 {
+				t.Fatalf("no native tokens found in config")
+
+				return
+			}
+
+			// Get first token as a map
+			firstToken, ok := nativeTokensInterface[0].(map[string]any)
+			if !ok {
+				t.Fatalf("invalid native token format")
+
+				return
+			}
+
+			firstToken["mint"] = true
+		}, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
