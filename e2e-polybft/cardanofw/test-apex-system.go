@@ -222,7 +222,7 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 
 	for idx := range a.validators {
 		a.validators[idx] = NewTestApexValidator(
-			a.dataDirPath, idx+1, a.BridgeCluster, a.BridgeCluster.Servers[idx])
+			a.dataDirPath, idx+1, a.BridgeCluster.Servers[idx])
 	}
 
 	a.BridgeCluster.WaitForReady(t)
@@ -236,10 +236,11 @@ func (a *ApexSystem) GetBridgeNode(t *testing.T, idx int) *framework.TestServer 
 	return a.BridgeCluster.Servers[idx]
 }
 
-func (a *ApexSystem) GenerateForNonValidator(t *testing.T, ctx context.Context, idx int) {
+func (a *ApexSystem) GenerateForNonValidator(t *testing.T, ctx context.Context, bladeNode *framework.TestServer) {
 	t.Helper()
 
-	validator := NewTestApexValidator(a.dataDirPath, idx+1, a.BridgeCluster, a.BridgeCluster.Servers[idx])
+	idx := len(a.validators)
+	validator := NewTestApexValidator(a.dataDirPath, idx+1, bladeNode)
 
 	a.validators = append(a.validators, validator)
 
@@ -248,35 +249,7 @@ func (a *ApexSystem) GenerateForNonValidator(t *testing.T, ctx context.Context, 
 		require.NoError(t, chain.CreateAddresses(a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr()))
 	}
 
-	serverIndx := idx
-	if a.Config.TargetOneClusterServer {
-		serverIndx = 0
-	}
-
-	require.NoError(t, validator.GenerateConfigs(
-		a.Config.APIPortStart+idx+1, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(idx+1)))
-
-	for _, chain := range a.chains {
-		require.NoError(t, chain.GenerateChainConfigs(serverIndx, validator))
-	}
-
-	getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
-		return func(data map[string]any) {
-			callback(a, data)
-		}
-	}
-
-	if handler := a.Config.CustomOracleConfigHandler; handler != nil {
-		fileName := validator.GetValidatorComponentsConfig()
-		require.NoError(t, UpdateJSONFile(fileName, fileName, getHandler(handler), false))
-	}
-
-	if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
-		fileName := validator.GetRelayerConfig()
-		require.NoError(t, UpdateJSONFile(fileName, fileName, getHandler(handler), false))
-	}
-
-	require.NoError(t, a.setBridgingAPIs())
+	require.NoError(t, a.generateConfigForValidator(idx))
 	require.NoError(t, validator.Start(ctx, false))
 }
 
@@ -393,45 +366,8 @@ func (a *ApexSystem) RegisterChains() error {
 }
 
 func (a *ApexSystem) GenerateConfigs() error {
-	getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
-		return func(data map[string]any) {
-			callback(a, data)
-		}
-	}
-
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
-		serverIndx := i
-		if a.Config.TargetOneClusterServer {
-			serverIndx = 0
-		}
-
-		err := validator.GenerateConfigs(
-			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i))
-		if err != nil {
-			return err
-		}
-
-		for _, chain := range a.chains {
-			if err := chain.GenerateChainConfigs(serverIndx, validator); err != nil {
-				return err
-			}
-		}
-
-		if handler := a.Config.CustomOracleConfigHandler; handler != nil {
-			fileName := validator.GetValidatorComponentsConfig()
-			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
-				return err
-			}
-		}
-
-		if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
-			fileName := validator.GetRelayerConfig()
-			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
-				return err
-			}
-		}
-
-		return nil
+		return a.generateConfigForValidator(i)
 	})
 	if err != nil {
 		return err
@@ -835,4 +771,46 @@ func (a *ApexSystem) getChain(chainID string) (ITestApexChain, error) {
 	}
 
 	return nil, fmt.Errorf("unknown chain: %s", chainID)
+}
+
+func (a *ApexSystem) generateConfigForValidator(i int) error {
+	validator := a.validators[i]
+	getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
+		return func(data map[string]any) {
+			callback(a, data)
+		}
+	}
+
+	serverIndx := i
+	if a.Config.TargetOneClusterServer {
+		serverIndx = 0
+	}
+
+	err := validator.GenerateConfigs(
+		a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i))
+	if err != nil {
+		return err
+	}
+
+	for _, chain := range a.chains {
+		if err := chain.GenerateChainConfigs(serverIndx, validator); err != nil {
+			return err
+		}
+	}
+
+	if handler := a.Config.CustomOracleConfigHandler; handler != nil {
+		fileName := validator.GetValidatorComponentsConfig()
+		if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
+			return err
+		}
+	}
+
+	if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
+		fileName := validator.GetRelayerConfig()
+		if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -92,7 +94,7 @@ func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	// generate for non validator
-	apex.GenerateForNonValidator(t, ctx, 4)
+	apex.GenerateForNonValidator(t, ctx, newValidatorSrv)
 
 	primeKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "prime")
 	vectorKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "vector")
@@ -363,7 +365,7 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	// generate for non validator
-	apex.GenerateForNonValidator(t, ctx, 4)
+	apex.GenerateForNonValidator(t, ctx, newValidatorSrv)
 
 	primeKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "prime")
 	vectorKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "vector")
@@ -909,7 +911,12 @@ func executeValidatorChangeProposal(t *testing.T, relayer txrelayer.TxRelayer, p
 
 	description := "validatorSetChange"
 
-	filePath := fmt.Sprintf("test_proposal_%d", time.Now().UTC().UnixMilli())
+	tmpDir, err := os.MkdirTemp("", "validator-change-proposal")
+	require.NoError(t, err)
+
+	defer os.RemoveAll(tmpDir)
+
+	filePath := filepath.Join(tmpDir, "proposal.json")
 
 	server := cluster.Servers[0]
 

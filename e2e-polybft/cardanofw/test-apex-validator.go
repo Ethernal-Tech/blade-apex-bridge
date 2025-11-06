@@ -39,18 +39,16 @@ type TestApexValidator struct {
 	ID          int
 	APIPort     int
 	dataDirPath string
-	cluster     *framework.TestCluster
 	server      *framework.TestServer
 	node        *framework.Node
 }
 
 func NewTestApexValidator(
-	dataDirPath string, id int, cluster *framework.TestCluster, server *framework.TestServer,
+	dataDirPath string, id int, server *framework.TestServer,
 ) *TestApexValidator {
 	return &TestApexValidator{
 		dataDirPath: filepath.Join(dataDirPath, fmt.Sprintf("validator_%d", id)),
 		ID:          id,
-		cluster:     cluster,
 		server:      server,
 	}
 }
