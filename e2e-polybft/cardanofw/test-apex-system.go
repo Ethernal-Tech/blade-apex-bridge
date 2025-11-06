@@ -239,15 +239,25 @@ func (a *ApexSystem) GetBridgeNode(t *testing.T, idx int) *framework.TestServer 
 func (a *ApexSystem) GenerateForNonValidator(t *testing.T, ctx context.Context, idx int) {
 	t.Helper()
 
-	a.validators = append(a.validators,
-		NewTestApexValidator(a.dataDirPath, idx+1, a.BridgeCluster, a.BridgeCluster.Servers[idx]))
+	validator := NewTestApexValidator(a.dataDirPath, idx+1, a.BridgeCluster, a.BridgeCluster.Servers[idx])
 
-	validator := a.validators[idx]
+	a.validators = append(a.validators, validator)
 
 	for _, chain := range a.chains {
 		require.NoError(t, chain.CreateWallets(validator))
-		// require.NoError(t, chain.RegisterChain(validator))
 		require.NoError(t, chain.CreateAddresses(a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr()))
+	}
+
+	serverIndx := idx
+	if a.Config.TargetOneClusterServer {
+		serverIndx = 0
+	}
+
+	require.NoError(t, validator.GenerateConfigs(
+		a.Config.APIPortStart+idx+1, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(idx+1)))
+
+	for _, chain := range a.chains {
+		require.NoError(t, chain.GenerateChainConfigs(serverIndx, validator))
 	}
 
 	getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
@@ -256,33 +266,17 @@ func (a *ApexSystem) GenerateForNonValidator(t *testing.T, ctx context.Context, 
 		}
 	}
 
-	serverIndx := idx + 1
-
-	var args []string
-
-	for _, chain := range a.chains {
-		args = append(args, chain.GetGenerateConfigsParams(serverIndx)...)
-	}
-
-	err := validator.GenerateConfigs(
-		a.Config.APIPortStart+serverIndx, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(serverIndx), args...)
-	require.NoError(t, err)
-
 	if handler := a.Config.CustomOracleConfigHandler; handler != nil {
 		fileName := validator.GetValidatorComponentsConfig()
-		err := UpdateJSONFile(fileName, fileName, getHandler(handler), false)
-		require.NoError(t, err)
+		require.NoError(t, UpdateJSONFile(fileName, fileName, getHandler(handler), false))
 	}
 
 	if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
 		fileName := validator.GetRelayerConfig()
-		err := UpdateJSONFile(fileName, fileName, getHandler(handler), false)
-		require.NoError(t, err)
+		require.NoError(t, UpdateJSONFile(fileName, fileName, getHandler(handler), false))
 	}
 
-	err = a.setBridgingAPIs()
-	require.NoError(t, err)
-
+	require.NoError(t, a.setBridgingAPIs())
 	require.NoError(t, validator.Start(ctx, false))
 }
 
