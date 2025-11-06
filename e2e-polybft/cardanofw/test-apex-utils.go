@@ -35,13 +35,14 @@ const (
 	BatchStateExecuted                  = "ExecutedOnDestination"
 	BridgingRequestStatusInvalidRequest = "InvalidRequest"
 
-	MinUTxODefaultValue           = uint64(1_000_000)
-	ttlSlotNumberInc              = 500
-	PotentialFee                  = 500_000
-	maxInputs                     = 40
-	defaultMinBridgingFeeAmount   = uint64(1_000_010)
-	DefaultMinOperationFee        = uint64(0)
-	DefaultRequestStateTimeoutSec = 300
+	MinUTxODefaultValue                  = uint64(1_000_000)
+	ttlSlotNumberInc                     = 500
+	PotentialFee                         = 500_000
+	maxInputs                            = 40
+	defaultMinBridgingFeeAmount          = uint64(4_000_000)
+	defaultMinBridgingFeeAmountForTokens = uint64(2_860_000)
+	DefaultMinOperationFee               = uint64(0)
+	DefaultRequestStateTimeoutSec        = 300
 
 	DefaultTokenName       = "test1"
 	DefaultTokenMintAmount = uint64(1_000_000_000)

@@ -17,6 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	oldMinBridgingFee = 1_000_010
+)
+
 func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
@@ -50,6 +54,8 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 	cardanoConfig.FundTokenAmount = fundFactor * minValue * fundUtxoCount
 	cardanoConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
 	cardanoConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
+	cardanoConfig.DefaultMinBridgingFee = oldMinBridgingFee
+	cardanoConfig.MinBridgingFeeForTokens = oldMinBridgingFee
 	cardanoConfig.UseIndexer = true
 
 	primeConfig := cardanofw.NewPrimeChainConfig()
@@ -58,6 +64,8 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 	primeConfig.FundAmount = fundFactor * minValue * fundUtxoCount
 	primeConfig.InitialHotWalletAmount = new(big.Int).SetUint64(cardanoConfig.FundAmount)
 	primeConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(cardanoConfig.FundTokenAmount)
+	primeConfig.DefaultMinBridgingFee = oldMinBridgingFee
+	primeConfig.MinBridgingFeeForTokens = oldMinBridgingFee
 	primeConfig.UseIndexer = true
 
 	sendAmountTokens := minValue*sendMinValueFactor*fundFactor + sendMinValueIncrement   // when we send tokens, this amount of currency will be released from multisig address
@@ -327,6 +335,10 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
 	cardanoConfig.FundTokenAmount = 1_000_000_000
+	primeConfig.DefaultMinBridgingFee = oldMinBridgingFee
+	primeConfig.MinBridgingFeeForTokens = oldMinBridgingFee
+	cardanoConfig.DefaultMinBridgingFee = oldMinBridgingFee
+	cardanoConfig.MinBridgingFeeForTokens = oldMinBridgingFee
 
 	apex := cardanofw.SetupAndRunSkylineBridge(
 		t, ctx,
@@ -530,6 +542,10 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 
 	// Combined configuration for both currency and native token tests
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig.DefaultMinBridgingFee = oldMinBridgingFee
+	primeConfig.MinBridgingFeeForTokens = oldMinBridgingFee
+	cardanoConfig.DefaultMinBridgingFee = oldMinBridgingFee
+	cardanoConfig.MinBridgingFeeForTokens = oldMinBridgingFee
 	primeConfig.FundAmount = 0
 	primeConfig.FundTokenAmount = 0
 	cardanoConfig.FundTokenAmount = 1_000_000_000
@@ -752,6 +768,12 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses_Native(t *testing.T) {
 
 	// Combined configuration for both currency and native token tests
 	primeConfig, cardanoConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true), cardanofw.NewVectorChainConfig()
+	primeConfig.DefaultMinBridgingFee = oldMinBridgingFee
+	primeConfig.MinBridgingFeeForTokens = oldMinBridgingFee
+	cardanoConfig.DefaultMinBridgingFee = oldMinBridgingFee
+	cardanoConfig.MinBridgingFeeForTokens = oldMinBridgingFee
+	vectorConfig.DefaultMinBridgingFee = oldMinBridgingFee
+	vectorConfig.MinBridgingFeeForTokens = oldMinBridgingFee
 	primeConfig.FundAmount = 1_000_000_000
 	primeConfig.FundTokenAmount = 1_000_000_000
 	cardanoConfig.FundTokenAmount = 10_000_000
@@ -928,6 +950,10 @@ func TestE2E_SkylineBridgeMBA_RedistributeTokens(t *testing.T) {
 	defer cncl()
 
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig.DefaultMinBridgingFee = oldMinBridgingFee
+	primeConfig.MinBridgingFeeForTokens = oldMinBridgingFee
+	cardanoConfig.DefaultMinBridgingFee = oldMinBridgingFee
+	cardanoConfig.MinBridgingFeeForTokens = oldMinBridgingFee
 	primeConfig.BridgingAddressCnt = bridgeAddCnt
 	cardanoConfig.FundTokenAmount = 1_000_000_000
 

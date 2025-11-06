@@ -321,15 +321,16 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	const (
 		requestStateTimeoutSec = 1500
 		retryIntervalSec       = 5
-		bridgingFee            = uint64(1_000_010)
-		operationFee           = uint64(0)
 	)
 
 	vectorCardanoTokenName := apex.GetTokenNameForChains(cardanofw.ChainIDVector, cardanofw.ChainIDCardano)
 
-	primeCardanoTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, bridgingFee, operationFee, "")
-	cardanoVectorTestConfig := newTestConfig(t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDVector, bridgingFee, operationFee, "")
-	vectorCardanoTestConfig := newTestConfig(t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, bridgingFee, operationFee, vectorCardanoTokenName)
+	primeCardanoTestConfig := newTestConfig(
+		t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, "")
+	cardanoVectorTestConfig := newTestConfig(
+		t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDVector, "")
+	vectorCardanoTestConfig := newTestConfig(
+		t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, vectorCardanoTokenName)
 	bridgingType := sendtx.BridgingTypeCurrencyOnSource
 
 	t.Run("1. Mismatch submitted and receiver amounts", func(t *testing.T) {

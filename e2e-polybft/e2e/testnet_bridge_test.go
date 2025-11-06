@@ -362,15 +362,10 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	const (
 		requestStateTimeoutSec = 1500
 		retryDelaySec          = 5
-
-		bridgingFee  = uint64(1_000_010)
-		operationFee = uint64(0)
 	)
 
-	feeAmount := uint64(1_100_000)
-
-	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, bridgingFee,
-		operationFee, "")
+	primeTestConfig := newTestConfig(
+		t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, "")
 	bridgingType := sendtx.BridgingTypeNormal
 
 	srcChain := cardanofw.ChainIDPrime
@@ -409,37 +404,37 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	t.Run("Prime to Nexus submitter not enough funds", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(500_000))
 
-		DstNexusSubmitterNotEnoughFunds(t, ctx, apex, srcChain, apex.Users[6], sendAmountDfm, feeAmount)
+		DstNexusSubmitterNotEnoughFunds(t, ctx, apex, srcChain, apex.Users[6], sendAmountDfm)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - sliced off", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		DstNexusInvalidMetadataSlicedOff(t, ctx, apex, srcChain, apex.Users[7], sendAmountDfm, feeAmount)
+		DstNexusInvalidMetadataSlicedOff(t, ctx, apex, srcChain, apex.Users[7], sendAmountDfm)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - wrong type", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		DstNexusInvalidMetadataWrongType(t, ctx, apex, srcChain, apex.Users[8], requestStateTimeoutSec, sendAmountDfm, feeAmount)
+		DstNexusInvalidMetadataWrongType(t, ctx, apex, srcChain, apex.Users[8], requestStateTimeoutSec, sendAmountDfm)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - invalid destination", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		DstNexusInvalidMetadataInvalidDestination(t, ctx, apex, srcChain, apex.Users[9], requestStateTimeoutSec, sendAmountDfm, feeAmount)
+		DstNexusInvalidMetadataInvalidDestination(t, ctx, apex, srcChain, apex.Users[9], requestStateTimeoutSec, sendAmountDfm)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - invalid sender", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		DstNexusInvalidMetadataInvalidSender(t, ctx, apex, srcChain, apex.Users[0], requestStateTimeoutSec, sendAmountDfm, feeAmount)
+		DstNexusInvalidMetadataInvalidSender(t, ctx, apex, srcChain, apex.Users[0], requestStateTimeoutSec, sendAmountDfm)
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - empty tx", func(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
-		DstNexusInvalidMetadataInvalidTransactions(t, ctx, apex, srcChain, apex.Users[1], requestStateTimeoutSec, sendAmountDfm, feeAmount)
+		DstNexusInvalidMetadataInvalidTransactions(t, ctx, apex, srcChain, apex.Users[1], requestStateTimeoutSec, sendAmountDfm)
 	})
 
 	t.Run("Nexus to Prime submitter not enough funds", func(t *testing.T) {
