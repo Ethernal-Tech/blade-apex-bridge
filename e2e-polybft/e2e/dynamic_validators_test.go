@@ -139,6 +139,8 @@ func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 	t.Log("Finished VSC")
 
 	checkValidatorActive(t, newValidatorAcc.Address(), relayer, true)
+	// check stake amount to be equal to staked amount on the 1st validator
+	checkValidatorStake(t, newValidatorAcc.Address(), relayer, cluster.Config.StakeAmounts[0])
 
 	t.Logf("Added new validator")
 
@@ -258,6 +260,7 @@ func TestE2E_DynamicValidators_RemoveValidator(t *testing.T) {
 	t.Log("Finished VSC")
 
 	checkValidatorActive(t, removeValidatorKey.Address(), relayer, false)
+	checkValidatorStake(t, removeValidatorKey.Address(), relayer, big.NewInt(0))
 
 	t.Logf("Removed validator")
 
@@ -414,6 +417,9 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 
 	checkValidatorActive(t, newValidatorAcc.Address(), relayer, true)
 	checkValidatorActive(t, removeValidatorKey.Address(), relayer, false)
+	// check stake amount to be equal to staked amount on the 1st validator
+	checkValidatorStake(t, newValidatorAcc.Address(), relayer, cluster.Config.StakeAmounts[0])
+	checkValidatorStake(t, removeValidatorKey.Address(), relayer, big.NewInt(0))
 
 	t.Logf("Added new validator")
 
@@ -535,6 +541,7 @@ func TestE2E_DynamicValidators_OneFeeUtxo(t *testing.T) {
 	t.Log("Finished VSC")
 
 	checkValidatorActive(t, removeValidatorKey.Address(), relayer, false)
+	checkValidatorStake(t, removeValidatorKey.Address(), relayer, big.NewInt(0))
 
 	t.Logf("Removed validator")
 
@@ -666,6 +673,7 @@ func TestE2E_DynamicValidators_StopBladesDuringVSU(t *testing.T) {
 	t.Log("Finished VSC")
 
 	checkValidatorActive(t, removeValidatorKey.Address(), relayer, false)
+	checkValidatorStake(t, removeValidatorKey.Address(), relayer, big.NewInt(0))
 
 	t.Logf("Removed validator")
 
@@ -810,6 +818,7 @@ func TestE2E_DynamicValidators_StopApxBridgesDuringVSU(t *testing.T) {
 	t.Log("Finished VSC")
 
 	checkValidatorActive(t, removeValidatorKey.Address(), relayer, false)
+	checkValidatorStake(t, removeValidatorKey.Address(), relayer, big.NewInt(0))
 
 	t.Logf("Removed validator")
 
@@ -908,6 +917,25 @@ func checkValidatorActive(t *testing.T, address types.Address,
 	require.True(t, ok)
 
 	require.Equal(t, isAdded, validatorDataMap["isActive"])
+}
+
+func checkValidatorStake(t *testing.T, address types.Address, relayer txrelayer.TxRelayer, expected *big.Int) {
+	t.Helper()
+
+	stakeOfFn := contractsapi.StakeOfStakeManagerFn{
+		Validator: address,
+	}
+
+	input, err := stakeOfFn.EncodeAbi()
+	require.NoError(t, err)
+
+	data, err := relayer.Call(types.ZeroAddress, contracts.StakeManagerContract, input)
+	require.NoError(t, err)
+
+	stake := new(big.Int)
+	stake.SetString(data[2:], 16)
+
+	require.Equal(t, 0, expected.Cmp(stake))
 }
 
 func executeValidatorChangeProposal(

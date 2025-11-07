@@ -19,6 +19,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/types"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -217,7 +218,7 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 		framework.WithNonValidators(a.Config.BladeNonValidatorCount),
 		framework.WithSecretsCallback(func(addresses []types.Address, config *framework.TestClusterConfig) {
 			for range addresses {
-				config.StakeAmounts = append(config.StakeAmounts, big.NewInt(1))
+				config.StakeAmounts = append(config.StakeAmounts, ethgo.Ether(1000))
 			}
 		}),
 	)

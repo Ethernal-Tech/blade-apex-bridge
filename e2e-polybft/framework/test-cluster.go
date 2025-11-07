@@ -600,7 +600,6 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 			"--trieroot", cluster.Config.InitialStateRoot.String(),
 			"--vote-delay", fmt.Sprint(cluster.Config.VotingDelay),
 			"--vote-period", fmt.Sprintf("%d", 3*config.EpochSize),
-			"--vote-proposal-threshold", "1",
 		}
 
 		bladeAdmin := cluster.Config.BladeAdmin
