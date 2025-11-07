@@ -20,6 +20,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/contracts"
+	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
@@ -260,20 +261,19 @@ func TestE2E_ApexBridge_UpdateBladeSmartContract(t *testing.T) {
 		t.Skip()
 	}
 
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	apex := cardanofw.SetupAndRunApexBridge(
-		t, ctx,
-		cardanofw.WithAPIValidatorID(-2),
-	)
-
-	defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(apex.BridgeCluster.Servers[0].JSONRPC()))
+	bladeProxyAdmin, err := crypto.GenerateECDSAKey()
 	require.NoError(t, err)
 
-	privateKeyRaw, err := apex.GetBridgeProxyAdmin().MarshallPrivateKey()
+	cluster := framework.NewTestCluster(t, 10,
+		framework.WithProxyContractsAdmin(bladeProxyAdmin.Address().String()))
+	defer cluster.Stop()
+
+	cluster.WaitForReady(t)
+
+	txRelayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(cluster.Servers[0].JSONRPC()))
+	require.NoError(t, err)
+
+	privateKeyRaw, err := bladeProxyAdmin.MarshallPrivateKey()
 	require.NoError(t, err)
 
 	tmpPath, err := os.MkdirTemp("", "TestE2E_ApexBridge_UpdateBladeSmartContract")
@@ -340,7 +340,7 @@ func TestE2E_ApexBridge_UpdateBladeSmartContract(t *testing.T) {
 	// first upgrade just to clone repository
 	require.NoError(t, cardanofw.RunCommand(bladeBinary, []string{
 		"sc", "deploy",
-		"--rpc-url", apex.GetBridgeDefaultJSONRPCAddr(),
+		"--rpc-url", cluster.Servers[0].JSONRPCAddr(),
 		"--private-key", hex.EncodeToString(privateKeyRaw),
 		"--dir", tmpPath,
 		"--branch", branchName,
@@ -365,7 +365,7 @@ func TestE2E_ApexBridge_UpdateBladeSmartContract(t *testing.T) {
 	// second upgrade upgrades changed contract
 	require.NoError(t, cardanofw.RunCommand(bladeBinary, []string{
 		"sc", "deploy",
-		"--rpc-url", apex.GetBridgeDefaultJSONRPCAddr(),
+		"--rpc-url", cluster.Servers[0].JSONRPCAddr(),
 		"--private-key", hex.EncodeToString(privateKeyRaw),
 		"--source", tmpPath,
 		"--compile",
