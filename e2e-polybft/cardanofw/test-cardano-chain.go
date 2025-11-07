@@ -623,8 +623,9 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 				big.NewInt(0).SetUint64(lovelaceFundAmount),
 				ec.config.CustodialNFT, big.NewInt(1)))
 
-		fmt.Printf("%s custodial addr funded with NFT `%s` amount: %d, %d\n",
-			ec.ChainID(), ec.GetCustodialNFT().String(), lovelaceFundAmount, MintNFTAmount)
+		outputInfo = append(outputInfo,
+			fmt.Sprintf("%s custodial addr funded with NFT `%s` amount: %d, %d\n",
+				ec.ChainID(), ec.GetCustodialNFT().String(), lovelaceFundAmount, MintNFTAmount))
 	}
 
 	txHash, err := ec.SendTx(

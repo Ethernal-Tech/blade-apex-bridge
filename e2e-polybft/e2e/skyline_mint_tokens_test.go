@@ -10,6 +10,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
+	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -68,11 +69,11 @@ func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 
 	user := apex.Users[0]
 
-	checkAmounts := func(bridgingAddrAmount uint64, userAddrAmount uint64) {
+	checkAmounts := func(bridgingAddrAmount uint64, apexUser *cardanofw.TestApexUser, userAddrAmount uint64) {
 		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
 		require.NoError(t, err)
 
-		userBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDCardano)
+		userBalance, err := apex.GetBalance(ctx, apexUser, cardanofw.ChainIDCardano)
 		require.NoError(t, err)
 
 		if bridgingAddrAmount == 0 {
@@ -95,7 +96,7 @@ func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
 			sendtx.BridgingTypeCurrencyOnSource)
 
-		checkAmounts(0, sendAmountDfm.Uint64())
+		checkAmounts(0, user, sendAmountDfm.Uint64())
 	})
 
 	t.Run("2. partial mint", func(t *testing.T) {
@@ -107,7 +108,7 @@ func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(5_000_000),
 			sendtx.BridgingTypeNativeTokenOnSource)
 
-		checkAmounts(5_000_000, 5_000_000)
+		checkAmounts(5_000_000, user, 5_000_000)
 
 		sendAmountDfm := big.NewInt(10_000_000)
 
@@ -115,7 +116,7 @@ func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
 			sendtx.BridgingTypeCurrencyOnSource)
 
-		checkAmounts(0, 15_000_000)
+		checkAmounts(0, user, 15_000_000)
 	})
 
 	t.Run("3. burn", func(t *testing.T) {
@@ -127,7 +128,7 @@ func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(10_000_000),
 			sendtx.BridgingTypeNativeTokenOnSource)
 
-		checkAmounts(10_000_000, 5_000_000)
+		checkAmounts(10_000_000, user, 5_000_000)
 
 		sendAmountDfm := big.NewInt(5_000_000)
 
@@ -135,25 +136,40 @@ func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
 			sendtx.BridgingTypeCurrencyOnSource)
 
-		checkAmounts(0, 10_000_000)
+		checkAmounts(0, user, 10_000_000)
 	})
 
-	t.Run("4. bridging to custodial addr", func(t *testing.T) {
+	t.Run("4. bridging to custodial, relayer and cardano script addrs", func(t *testing.T) {
 		t.Cleanup(func() {
 			apex.ResetIndexers()
 		})
 
-		custodialUser, err := cardanofw.NewApexUserTesting(apex.Config.CardanoConfig.CustodialAddress)
-		require.NoError(t, err)
-
+		cardanoChain := apex.GetChainMust(t, cardanofw.ChainIDCardano)
 		sendAmountDfm := big.NewInt(5_000_000)
+		doubleAmount := new(big.Int).Mul(sendAmountDfm, big.NewInt(2)).Uint64()
 
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, custodialUser, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
-			sendtx.BridgingTypeCurrencyOnSource)
+		addresses := []string{
+			cardanoChain.GetCustodialAddress(),
+			cardanoChain.GetRelayerAddress(),
+			cardanoChain.GetCardanoScriptInfo().PlutusAddress,
+		}
 
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, custodialUser, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
-			sendtx.BridgingTypeCurrencyOnSource)
+		for _, addr := range addresses {
+			cardanoAddr, err := cardanowallet.NewCardanoAddressFromString(addr)
+			require.NoError(t, err)
+
+			apexUser := &cardanofw.TestApexUser{
+				HasCardanoWallet: true,
+				CardanoAddress:   cardanoAddr,
+			}
+
+			for range 2 {
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, user, apexUser, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
+					sendtx.BridgingTypeCurrencyOnSource)
+			}
+
+			checkAmounts(0, apexUser, doubleAmount)
+		}
 	})
 }
