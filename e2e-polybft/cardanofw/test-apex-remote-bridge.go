@@ -140,8 +140,8 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 					},
 					FeeAddr: "addr_test1xr06xce9aq6atg0hwuucxe7eu5g6nx8mmnvw2d2e848cz4y93epqj6zxan4pykvt4ux34uzwcwnts4akrfrus070ntss82juq8", //nolint:lll
 				},
-				DefaultMinBridgingFee:   1_000_010,
-				MinBridgingFeeForTokens: 1_000_010,
+				DefaultMinBridgingFee:   4_000_000,
+				MinBridgingFeeForTokens: 2_860_000,
 				MinOperationFee:         0,
 			},
 			ChainIDVector: {
@@ -160,8 +160,8 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						},
 					},
 				},
-				DefaultMinBridgingFee:   1_000_010,
-				MinBridgingFeeForTokens: 1_000_010,
+				DefaultMinBridgingFee:   4_000_000,
+				MinBridgingFeeForTokens: 2_860_000,
 				MinOperationFee:         0,
 			},
 			ChainIDCardano: {
@@ -178,8 +178,8 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						},
 					},
 				},
-				DefaultMinBridgingFee:   1_000_010,
-				MinBridgingFeeForTokens: 1_000_010,
+				DefaultMinBridgingFee:   4_000_000,
+				MinBridgingFeeForTokens: 2_860_000,
 				MinOperationFee:         0,
 			},
 		},
