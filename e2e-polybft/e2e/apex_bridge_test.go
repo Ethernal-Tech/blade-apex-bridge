@@ -345,7 +345,7 @@ func TestE2E_ApexBridge_UpdateBladeSmartContract(t *testing.T) {
 		"--dir", tmpPath,
 		"--branch", branchName,
 		"--source", "https://github.com/Ethernal-Tech/blade-contracts-apex-bridge",
-		"--select", "SM:contracts/blade/staking/StakeManager.sol",
+		"--select", "SM->contracts/blade/staking/StakeManager.sol",
 	}, os.Stdout))
 
 	content, err := os.ReadFile(bridgeSolFilePath)
@@ -369,7 +369,7 @@ func TestE2E_ApexBridge_UpdateBladeSmartContract(t *testing.T) {
 		"--private-key", hex.EncodeToString(privateKeyRaw),
 		"--source", tmpPath,
 		"--compile",
-		"--select", "SM:contracts/blade/staking/StakeManager.sol",
+		"--select", "SM->contracts/blade/staking/StakeManager.sol",
 	}, os.Stdout))
 
 	newVersion := getVersion(t)
