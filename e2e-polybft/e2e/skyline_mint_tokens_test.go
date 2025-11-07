@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestE2E_SkylineBridgeMBA_Minting(t *testing.T) {
+func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 	const apiKey = "test_api_key"
 
 	var lock sync.Mutex
