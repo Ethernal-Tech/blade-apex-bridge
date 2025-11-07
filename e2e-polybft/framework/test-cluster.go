@@ -80,7 +80,7 @@ func init() {
 	startTime = time.Now().UTC().UnixMilli()
 }
 
-func resolveBinary() string {
+func ResolveBladeBinary() string {
 	bin := os.Getenv("EDGE_BINARY")
 	if bin != "" {
 		return bin
@@ -521,7 +521,7 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 		t:             t,
 		WithLogs:      isTrueEnv(envLogsEnabled),
 		WithStdout:    isTrueEnv(envStdoutEnabled),
-		Binary:        resolveBinary(),
+		Binary:        ResolveBladeBinary(),
 		EpochSize:     10,
 		EpochReward:   1,
 		BlockGasLimit: command.DefaultGenesisGasLimit,
@@ -1016,7 +1016,7 @@ func runCommand(binary string, args []string, stdout io.Writer) error {
 
 // RunEdgeCommand - calls a command line edge function
 func RunEdgeCommand(args []string, stdout io.Writer) error {
-	return runCommand(resolveBinary(), args, stdout)
+	return runCommand(ResolveBladeBinary(), args, stdout)
 }
 
 // InitSecrets initializes account(s) secrets with given prefix.

@@ -22,6 +22,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
@@ -308,6 +309,7 @@ func TestE2E_ApexBridge_UpdateBladeSmartContract(t *testing.T) {
 		stdOutBuffer   bytes.Buffer
 		desiredVersion = "190843934374.0323.2371283182"
 		oldVersion     = getVersion(t)
+		bladeBinary    = framework.ResolveBladeBinary()
 	)
 
 	fmt.Println(oldVersion)
@@ -336,7 +338,7 @@ func TestE2E_ApexBridge_UpdateBladeSmartContract(t *testing.T) {
 	fmt.Printf("blade-contracts branchName: %s\n", branchName)
 
 	// first upgrade just to clone repository
-	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveBladeBinary(), []string{
+	require.NoError(t, cardanofw.RunCommand(bladeBinary, []string{
 		"sc", "deploy",
 		"--rpc-url", apex.GetBridgeDefaultJSONRPCAddr(),
 		"--private-key", hex.EncodeToString(privateKeyRaw),
@@ -361,7 +363,7 @@ func TestE2E_ApexBridge_UpdateBladeSmartContract(t *testing.T) {
 	require.NoError(t, os.WriteFile(bridgeSolFilePath, newContent, 0660))
 
 	// second upgrade upgrades changed contract
-	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveBladeBinary(), []string{
+	require.NoError(t, cardanofw.RunCommand(bladeBinary, []string{
 		"sc", "deploy",
 		"--rpc-url", apex.GetBridgeDefaultJSONRPCAddr(),
 		"--private-key", hex.EncodeToString(privateKeyRaw),
