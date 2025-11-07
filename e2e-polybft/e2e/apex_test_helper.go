@@ -96,11 +96,6 @@ func executeInvalidMismatchSendLovelaceAmount(
 		lovelaceAmount, nil, metadata)
 	require.NoError(t, err)
 
-	afterSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
-	require.NoError(t, err)
-
-	fmt.Printf("\nAMOUNT AFTER SENDING: %v\n", afterSendingAmountDfm)
-
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
 		refundEnabled, maxWaitTimeSec, retryIntervalSec)
 

@@ -1336,7 +1336,7 @@ func DstNexusSubmitterNotEnoughFunds(
 		ctx, srcChain, user, receiverAddr, sendAmountDfm, nil, metadata)
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "not enough funds")
+	require.ErrorContains(t, err, "couldn't select UTXOs")
 }
 
 func DstNexusInvalidMetadataSlicedOff(
@@ -1572,6 +1572,7 @@ func sendTxParamsNPInvalidScenarios(txType, gatewayAddr, nexusURL, privateKey, c
 		"--gateway-addr", gatewayAddr,
 		"--nexus-url", nexusURL,
 		"--key", privateKey,
+		"--chain-src", cardanofw.ChainIDNexus,
 		"--chain-dst", chainDst,
 		"--receiver", fmt.Sprintf("%s:%s", receiver, amount.String()),
 		"--fee", fee.String(),

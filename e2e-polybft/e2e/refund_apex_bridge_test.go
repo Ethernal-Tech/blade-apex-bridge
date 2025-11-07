@@ -57,11 +57,6 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, true)
 	})
 
-	afterSendingAmountDfm, err := apex.GetBalance(ctx, user, primeTestConfig.srcChainID)
-	require.NoError(t, err)
-
-	fmt.Printf("\nLAST AMOUNT: %v\n", afterSendingAmountDfm)
-
 	t.Run("Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
 		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, requestStateTimeoutSec, retryDelaySec, true)
 	})
