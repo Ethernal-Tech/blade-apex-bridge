@@ -215,6 +215,11 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 		framework.WithNativeTokenConfig("Blade:BLADE:18:true"),
 		framework.WithProxyContractsAdmin(bladeProxyAdmin.Address().String()),
 		framework.WithNonValidators(a.Config.BladeNonValidatorCount),
+		framework.WithSecretsCallback(func(addresses []types.Address, config *framework.TestClusterConfig) {
+			for _, _ = range addresses {
+				config.StakeAmounts = append(config.StakeAmounts, big.NewInt(1))
+			}
+		}),
 	)
 
 	// create validators
