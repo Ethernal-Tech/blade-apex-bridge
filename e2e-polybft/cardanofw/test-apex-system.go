@@ -216,7 +216,7 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 		framework.WithProxyContractsAdmin(bladeProxyAdmin.Address().String()),
 		framework.WithNonValidators(a.Config.BladeNonValidatorCount),
 		framework.WithSecretsCallback(func(addresses []types.Address, config *framework.TestClusterConfig) {
-			for _, _ = range addresses {
+			for range addresses {
 				config.StakeAmounts = append(config.StakeAmounts, big.NewInt(1))
 			}
 		}),
