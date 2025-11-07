@@ -73,7 +73,7 @@ func GetCommand() *cobra.Command {
 
 	_ = cmd.MarkFlagRequired("private-key")
 
-	cmd.Flags().StringSliceVar(
+	cmd.Flags().StringArrayVar(
 		&selected,
 		"select",
 		nil,
@@ -360,8 +360,8 @@ func isSelected(path string, artifactsPath string, selected []string) (bool, str
 	proxy := ""
 
 	for _, s := range selected {
-		if strings.Contains(s, ":") {
-			splited := strings.Split(s, ":")
+		if strings.Contains(s, "->") {
+			splited := strings.Split(s, "->")
 			proxy = splited[0]
 			s = splited[1]
 		}
@@ -417,8 +417,13 @@ func deploySmartContract(name, rawBytecode string) (string, error) {
 
 var knownProxies = map[string]types.Address{"SM": contracts.StakeManagerContract}
 
-func upgradeContract(proxyAddr, newImplAddr string) error {
-	fmt.Printf("🔧 Upgrading %s proxy to %s...\n", proxyAddr, newImplAddr)
+func upgradeContract(proxy, newImplAddr string) error {
+	proxyParams := strings.Split(proxy, ":")
+	fmt.Printf("🔧 Upgrading %s proxy to %s...\n", proxyParams[0], newImplAddr)
+
+	if len(proxyParams) != 1 && len(proxyParams) != 3 {
+		return fmt.Errorf("failed to decode proxy")
+	}
 
 	relayer, err := txrelayer.NewTxRelayer(txrelayer.WithIPAddress(rpcURL))
 	if err != nil {
@@ -436,20 +441,36 @@ func upgradeContract(proxyAddr, newImplAddr string) error {
 		return err
 	}
 
-	method := abi.MustNewMethod("function upgradeTo(address newImplementation)")
-
 	newImpl := types.StringToAddress(newImplAddr)
 
-	input, err := method.Encode([]interface{}{newImpl})
-	if err != nil {
-		return fmt.Errorf("failed to encode ABI input: %w", err)
+	var input []byte
+
+	if len(proxyParams) == 1 {
+		method := abi.MustNewMethod("function upgradeTo(address newImplementation)")
+
+		input, err = method.Encode([]interface{}{newImpl})
+		if err != nil {
+			return fmt.Errorf("failed to encode ABI input: %w", err)
+		}
+	} else {
+		methodCall, err := parseProxy(proxyParams[1], proxyParams[2])
+		if err != nil {
+			return err
+		}
+
+		method := abi.MustNewMethod("function upgradeToAndCall(address, bytes)")
+		input, err = method.Encode([]interface{}{newImpl, methodCall})
+
+		if err != nil {
+			return fmt.Errorf("failed to encode ABI input: %w", err)
+		}
 	}
 
 	var addr types.Address
-	if a, ok := knownProxies[proxyAddr]; ok {
+	if a, ok := knownProxies[proxyParams[0]]; ok {
 		addr = a
 	} else {
-		addr = types.StringToAddress(proxyAddr)
+		addr = types.StringToAddress(proxyParams[0])
 	}
 
 	txn := types.NewTx(types.NewLegacyTx(
@@ -466,9 +487,86 @@ func upgradeContract(proxyAddr, newImplAddr string) error {
 		return errors.New("upgrade transaction failed")
 	}
 
-	fmt.Printf("✅ Proxy %s upgraded to: %s\n", proxyAddr, newImplAddr)
+	fmt.Printf("✅ Proxy %s upgraded to: %s\n", proxyParams[0], newImplAddr)
 
 	return nil
+}
+
+func parseProxy(funcSignature, arguments string) ([]byte, error) {
+	first := strings.Index(funcSignature, "(")
+	last := strings.LastIndex(funcSignature, ")")
+	typeList := funcSignature[first+1 : last]
+
+	if strings.Contains(typeList, "(") || strings.Contains(typeList, ")") {
+		return nil, fmt.Errorf("tuple not supported")
+	}
+
+	argTypes := splitTopLevel(typeList)
+	argValues := splitTopLevel(arguments)
+
+	if len(argTypes) != len(argValues) {
+		fmt.Println("value for all arguments must be provided")
+	}
+
+	method := abi.MustNewMethod(funcSignature)
+	data := make([]any, 0, len(argTypes))
+
+	for i, argType := range argTypes {
+		t := abi.MustNewType(argType)
+
+		var argValue any
+		if t.Kind() == abi.KindSlice {
+			argValue = parseStringSlice(argValues[i])
+		} else {
+			argValue = argValues[i]
+		}
+
+		data = append(data, argValue)
+	}
+
+	return method.Encode(data)
+}
+
+func parseStringSlice(s string) []string {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "[")
+	s = strings.TrimSuffix(s, "]")
+
+	if s == "" {
+		return []string{}
+	}
+
+	parts := strings.Split(s, ",")
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+
+	return parts
+}
+
+func splitTopLevel(s string) []string {
+	var parts []string
+
+	start := 0
+	depth := 0
+
+	for i, r := range s {
+		switch r {
+		case '[', '(':
+			depth++
+		case ']', ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				parts = append(parts, strings.TrimSpace(s[start:i]))
+				start = i + 1
+			}
+		}
+	}
+
+	parts = append(parts, strings.TrimSpace(s[start:]))
+
+	return parts
 }
 
 func resolveArtifactsPath(dir string) (string, error) {

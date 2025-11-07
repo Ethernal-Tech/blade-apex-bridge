@@ -47,24 +47,35 @@ The last required flag is --rpc-url. Example: "http://something:5757".
 
 All flags described below are optional.
 
-Filtering which smart contracts will be deployed is done using the optional --select flag. Additionally,
-this flag is used to optionally define which OpenZeppelin proxy will be upgraded with which of the deployed
-smart contracts. The --select flag only has an effect for Hardhat projects, not for local .json files
-(the first described case for the --source flag). There are two formats: "<smart-contract-path>" and
-"<proxy-address>:<smart-contract-path>" (":<smart-contract-path>" is equivalent to the first format).
-<smart-contract-path> represents the relative path to the desired smart contract from the Hardhat project
-root (for example: "contracts/blade/staking/StakeManager.sol" or "./contracts/blade/staking/StakeManager.sol").
-<proxy-address> represents the address of the OpenZeppelin Transparent Proxy that will be upgraded with
-the smart contract on the right side of ":". The upgrade is performed by calling the "upgradeTo" method of
-the proxy smart contract (note: newer versions - >= v5.0.0 - of OpenZeppelin for Transparent Proxies do not
-support "upgradeTo"). Proxy addresses may or may not be prefixed with "0x". Also, instead of concrete addresses,
-aliases can be used. Currently, only "SM" is available, which is equivalent to "0x107". For example, if we
-have 16 smart contracts, the following command deploys only the selected 3 while additionally upgrading the
-SM proxy smart contract with "contracts/dir2/Random2.sol":
+Filtering which smart contracts will be deployed is performed using the optional --select flag. Additionally,
+this flag can be used to specify which OpenZeppelin proxy should be upgraded with which of the deployed
+smart contracts. The --select flag only has an effect when the --source flag points to a Hardhat project,
+not when deploying from local .json files (the first case described for the --source flag). There are three
+formats:
+    1. "<smart-contract-path>"
+    2. "<proxy-address>-><smart-contract-path>"
+    (Note: "-><smart-contract-path>" without a proxy address is equivalent to the first format.)
+    3. "<proxy-address>:<function-signature>:<arg1>,<arg2>,...-><smart-contract-path>"
+
+<smart-contract-path> represents the relative path to the desired smart contract from the root of the Hardhat
+project (for example: "contracts/blade/staking/StakeManager.sol" or "./contracts/blade/staking/StakeManager.sol").
+<proxy-address> represents the address of the OpenZeppelin Transparent Proxy that will be upgraded with the
+smart contract on the right side of "->". The upgrade is performed by calling the "upgradeTo" function on the
+proxy smart contract (note: newer versions - >= v5.0.0 - of OpenZeppelin for Transparent Proxies do not support
+"upgradeTo"). Proxy addresses may or may not be prefixed with "0x". Also, instead of concrete addresses, aliases
+can be used. Currently, only "SM" is available, which is equivalent to "0x10022". If you want to call a function
+on the new implementation immediately after the upgrade, you can use the third format which also includes a
+<function-signature> and the corresponding arguments (<arg1>,<arg2>,...). In this case, the upgradeToAndCall
+function of the OpenZeppelin Transparent Proxy is called. The number of argument types specified in the signature
+must match the number of provided arguments. Currently, array and tuple types in arguments are not supported.
+Arguments are separated by commas. For example, if we have 16 smart contracts, the following command deploys only
+the selected 3 while additionally upgrading the SM proxy smart contract with "contracts/dir2/Random2.sol" and
+calling its "sync" method with the provided arguments (after the second ":")
 
 blade sc deploy --source "<path-to-hardhat-project>" --private-key ... --rpc-url ... \
 --select contracts/dir1/Random1.sol \
---select SM:contracts/dir2/Random2.sol \
+--select SM:function sync(uint,address[]): \
+25,[0x0000000000000000000000000000000000000011,0x0000000000000000000000000000000000000011]->contracts/dir2/Random2.sol \
 --select :contracts/Random3.sol
 
 The next optional flag is --branch. It allows defining which branch will be cloned in the case of a remote
