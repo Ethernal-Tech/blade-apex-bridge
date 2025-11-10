@@ -110,17 +110,7 @@ func GetPrivateKeyForCommand(key string) (crypto.Key, error) {
 		return nil, err
 	}
 
-	pkBytes, err := hex.DecodeHex(string(privateKeySecretsManager))
-	if err != nil {
-		return nil, err
-	}
-
-	privateKey, err = crypto.NewECDSAKeyFromRawPrivECDSA(pkBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize key from provided config: %w", err)
-	}
-
-	return privateKey, nil
+	return DecodePrivateKey(strings.TrimPrefix(string(privateKeySecretsManager), "0x"))
 }
 
 func GetRootchainID() (string, error) {
