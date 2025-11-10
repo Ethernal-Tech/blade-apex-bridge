@@ -83,7 +83,7 @@ jobs:
       - name: Check certificate key permissions
         run: ls -l /etc/ssl/private/localhost.key
       - name: Run Mint tests
-        run: make test-e2e-skyline-mint
+        run: make test-e2e-skyline-bridge-mint
         env: 
           SKIP_E2E_REDUNDANT_TESTS: ${{ inputs.e2e_apex_skip_redundant_tests }}
       - name: Run Mint tests failed
