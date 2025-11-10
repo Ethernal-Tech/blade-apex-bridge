@@ -317,22 +317,12 @@ func TestE2E_ApexBridge_UpdateBladeSmartContract(t *testing.T) {
 	require.NoError(t, cardanofw.RunCommand("git", []string{"submodule"}, &stdOutBuffer))
 	fmt.Printf("git submodule output:\n%s\n", stdOutBuffer.String())
 
-	lines := strings.Split(stdOutBuffer.String(), "\n")
+	re := regexp.MustCompile(`(?m)[- ]?([a-f0-9]{40})\s+(?:\./|\.\./)*` + regexp.QuoteMeta("blade-contracts") + `(?:\s+\(.*\))?`)
 
-	var branchName string
+	match := re.FindStringSubmatch(stdOutBuffer.String())
+	require.Greater(t, len(match), 1)
 
-	for _, line := range lines {
-		if strings.Contains(line, "blade-contracts") {
-			re := regexp.MustCompile(`\((?:heads/)?([^()\s]+)\)`)
-			match := re.FindStringSubmatch(line)
-
-			if len(match) > 1 {
-				branchName = match[1]
-
-				break
-			}
-		}
-	}
+	branchName := match[1]
 
 	require.Greater(t, len(branchName), 0, "blade-contracts branch not found")
 	fmt.Printf("blade-contracts branchName: %s\n", branchName)
@@ -343,7 +333,7 @@ func TestE2E_ApexBridge_UpdateBladeSmartContract(t *testing.T) {
 		"--rpc-url", cluster.Servers[0].JSONRPCAddr(),
 		"--private-key", hex.EncodeToString(privateKeyRaw),
 		"--dir", tmpPath,
-		"--branch", branchName,
+		"--revision", branchName,
 		"--source", "https://github.com/Ethernal-Tech/blade-contracts-apex-bridge",
 		"--select", "SM->contracts/blade/staking/StakeManager.sol",
 	}, os.Stdout))
@@ -354,7 +344,7 @@ func TestE2E_ApexBridge_UpdateBladeSmartContract(t *testing.T) {
 	// Regular expression to match the version function and its return string
 	// This pattern matches the function declaration and captures the string to replace
 	pattern := `(function version\(\) public pure returns \(string memory\)\s*\{\s*return ")([^"]+)(";)`
-	re := regexp.MustCompile(pattern)
+	re = regexp.MustCompile(pattern)
 
 	// Replace the string
 	replacePattern := fmt.Sprintf("${1}%s${3}", desiredVersion)

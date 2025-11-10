@@ -28,7 +28,7 @@ var (
 	privateKey           string
 	selected             []string
 	dir                  string
-	branch               string
+	revision             string
 	compile              bool
 	all                  bool
 	verbose              bool
@@ -91,11 +91,11 @@ func GetCommand() *cobra.Command {
 	)
 
 	cmd.Flags().StringVarP(
-		&branch,
-		"branch",
-		"b",
-		"main",
-		"Git branch to be cloned. Defaults to main.",
+		&revision,
+		"revision",
+		"r",
+		"",
+		"After cloning, checks out the given revision. It can be specified via a branch name, tag or hash.",
 	)
 
 	cmd.Flags().BoolVarP(
@@ -168,6 +168,12 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 			return fmt.Errorf("failed to clone remote hardhat repository: %w", err)
 		}
 
+		if revision != "" {
+			if err := gitCheckout(dir); err != nil {
+				return fmt.Errorf("failed to checkout: %w", err)
+			}
+		}
+
 		if !isHardhatProject(dir) {
 			return fmt.Errorf("not a valid hardhat project, missing hardhat.config.ts in %s", dir)
 		}
@@ -205,11 +211,25 @@ func gitClone(dest string) error {
 	cmd := exec.Command(
 		"git",
 		"clone",
-		"--depth=1",
-		"--branch",
-		branch,
 		source,
 		dest)
+
+	if verbose {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+
+	return cmd.Run()
+}
+
+func gitCheckout(wd string) error {
+	fmt.Printf("🔀 Checking out %q...\n", revision)
+	cmd := exec.Command(
+		"git",
+		"checkout",
+		revision)
+
+	cmd.Dir = wd
 
 	if verbose {
 		cmd.Stdout = os.Stdout

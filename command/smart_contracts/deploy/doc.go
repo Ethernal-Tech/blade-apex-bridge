@@ -78,11 +78,14 @@ blade sc deploy --source "<path-to-hardhat-project>" --private-key ... --rpc-url
 25,[0x0000000000000000000000000000000000000011,0x0000000000000000000000000000000000000011]->contracts/dir2/Random2.sol \
 --select :contracts/Random3.sol
 
-The next optional flag is --branch. It allows defining which branch will be cloned in the case of a remote
-Hardhat repository. The default is "main". When dealing with a Hardhat project, there is sometimes a need to
-compile before "searching" for smart contracts to deploy. For instance, in the third described case for the
---source flag. The flag essentially represents calling "npm install && npx hardhat compile". This flag only
-has an effect when a path to a local Hardhat project is specified (the second case for the --source flag).
+The next optional flag is --revision. It allows you to specify the revision to check out after the remote Hardhat
+repository has been cloned. The revision can be given as a branch name, tag, or hash. By default, the revision
+pointed to by the remote HEAD is used.
+
+When dealing with a Hardhat project, there is sometimes a need to compile before "searching" for smart contracts
+to deploy. For instance, in the third described case for the --source flag. The flag --compile essentially
+represents calling "npm install && npx hardhat compile". This flag only has an effect when a path to a local
+Hardhat project is specified (the second case for the --source flag).
 
 When cloning a remote hardhat repository, a temporary destination directory is used by default. Once the
 command finishes, this directory is removed. If you wish to keep the cloned project (for example, to inspect
