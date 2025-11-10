@@ -49,14 +49,6 @@ on: # yamllint disable-line rule:truthy
         default: main
   workflow_call:
     inputs:
-      lint:
-        description: Lint
-        type: boolean
-        required: true
-      unit_test:
-        description: Unit Tests
-        type: boolean
-        required: true
       e2e_apex_test:
         description: E2E ApexBridge Tests
         type: boolean

@@ -39,6 +39,7 @@ jobs:
       e2e_apex_with_nexus_test_output: ${{ needs.skyline_ci.outputs.e2e_apex_with_nexus_test }}
       e2e_skyline_test_output: ${{ needs.skyline_ci.outputs.e2e_skyline_test }}
       e2e_skyline_mba_test_output: ${{ needs.skyline_ci.outputs.e2e_skyline_mba_test }}
+      e2e_skyline_mint_test_output: ${{ needs.skyline_ci.outputs.e2e_skyline_mint_test }}
       e2e_refund_test_output: ${{ needs.skyline_ci.outputs.e2e_refund_test }}
       e2e_refund_skyline_bridge_test_output: ${{ needs.skyline_ci.outputs.e2e_refund_skyline_bridge_test }}
     secrets:
