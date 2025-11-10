@@ -112,7 +112,12 @@ func GetPrivateKeyForCommand(key string) (crypto.Key, error) {
 
 	fmt.Printf("got secret for key: %s, string(secret): %s, hex.EncodeToString(secret): %s\n\n", val[1], string(privateKeySecretsManager), hex.EncodeToString(privateKeySecretsManager))
 
-	privateKey, err = crypto.NewECDSAKeyFromRawPrivECDSA(privateKeySecretsManager)
+	pkBytes, err := hex.DecodeHex(string(privateKeySecretsManager))
+	if err != nil {
+		return nil, err
+	}
+
+	privateKey, err = crypto.NewECDSAKeyFromRawPrivECDSA(pkBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize key from provided config: %w", err)
 	}
@@ -123,18 +128,6 @@ func GetPrivateKeyForCommand(key string) (crypto.Key, error) {
 	}
 
 	fmt.Printf("marshaling created crypto.ECDSAKey. string(privateKeyBytes): %s, hex.EncodeToString(privateKeyBytes): %s\n\n", string(privateKeyBytes), hex.EncodeToString(privateKeyBytes))
-
-	privateKeyNew, err := crypto.BytesToECDSAPrivateKey(privateKeySecretsManager)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize key from provided config: %w", err)
-	}
-
-	privateKeyNewBytes, err := crypto.MarshalECDSAPrivateKey(privateKeyNew)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal privateKeyNew: %w", err)
-	}
-
-	fmt.Printf("marshaling created ecdsa.PrivateKey. string(privateKeyNewBytes): %s, hex.EncodeToString(privateKeyNewBytes): %s\n\n", string(privateKeyNewBytes), hex.EncodeToString(privateKeyNewBytes))
 
 	return privateKey, nil
 }
