@@ -117,6 +117,7 @@ func (cv *TestApexValidator) GenerateConfigs(
 		"--output-relayer-file-name", RelayerConfigFileName,
 		"--bridge-node-url", cv.server.JSONRPCAddr(),
 		"--bridge-sc-address", contracts.Bridge.String(),
+		"--admin-sc-address", contracts.ApexBridgeAdmin.String(),
 		"--logs-path", logsPath,
 		"--dbs-path", dbsPath,
 		"--api-port", fmt.Sprint(apiPort),
