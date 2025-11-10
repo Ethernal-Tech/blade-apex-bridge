@@ -172,4 +172,41 @@ func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 			checkAmounts(0, apexUser, doubleAmount)
 		}
 	})
+
+	t.Run("send invalid token to to special addrs then bridge", func(t *testing.T) {
+		cardanoChain := apex.GetChainMust(t, cardanofw.ChainIDCardano).(*cardanofw.TestCardanoChain)
+
+		invalidTokenAmount := uint64(1000)
+		invalidTokenName := "invalid-token"
+		err = cardanofw.MintToken(cardanoChain, apex.CardanoInfo.GenesisWallet, invalidTokenName, invalidTokenAmount*3)
+		require.NoError(t, err)
+
+		addresses := []string{
+			cardanoChain.GetCustodialAddress(),
+			cardanoChain.GetRelayerAddress(),
+			cardanoChain.GetCardanoScriptInfo().PlutusAddress,
+		}
+
+		for _, addr := range addresses {
+			cardanoAddr, err := cardanowallet.NewCardanoAddressFromString(addr)
+			require.NoError(t, err)
+
+			apexUser := &cardanofw.TestApexUser{
+				HasCardanoWallet: true,
+				CardanoAddress:   cardanoAddr,
+			}
+
+			_, err = cardanofw.FundUsersWithToken(ctx, cardanoChain, apex.CardanoInfo.GenesisWallet,
+				[]*cardanofw.TestApexUser{apexUser}, invalidTokenName, 2_000_000, invalidTokenAmount)
+			require.NoError(t, err)
+
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(2_000_000),
+				sendtx.BridgingTypeNativeTokenOnSource)
+
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, big.NewInt(5_000_000),
+				sendtx.BridgingTypeCurrencyOnSource)
+		}
+	})
 }

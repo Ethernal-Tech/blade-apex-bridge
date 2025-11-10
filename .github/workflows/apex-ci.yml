@@ -11,14 +11,6 @@ on: # yamllint disable-line rule:truthy
   pull_request:
   workflow_dispatch:
     inputs:
-      lint:
-        description: Lint
-        type: boolean
-        default: true
-      unit_test:
-        description: Unit Tests
-        type: boolean
-        default: true
       e2e_apex_test:
         description: E2E ApexBridge Tests
         type: boolean
@@ -195,20 +187,12 @@ jobs:
     name: Lint
     uses: ./.github/workflows/lint.yml
     needs: [inputs_check, build_blade]
-    if: |
-      inputs.lint || 
-      github.event_name == 'pull_request' || 
-      (github.event_name == 'push' && (github.ref == 'refs/heads/feat/skyline' || github.ref == 'refs/heads/develop'))
     with:
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
   unit_test:
     name: Unit Tests
     uses: ./.github/workflows/unit-test.yml
     needs: [inputs_check, build_blade]
-    if: |
-      inputs.unit_test || 
-      github.event_name == 'pull_request' || 
-      (github.event_name == 'push' && (github.ref == 'refs/heads/feat/skyline' || github.ref == 'refs/heads/develop'))
     with:
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
   e2e_apex_test:
