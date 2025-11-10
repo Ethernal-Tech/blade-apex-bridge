@@ -100,20 +100,45 @@ func GetPrivateKeyForCommand(key string) (crypto.Key, error) {
 		return DecodePrivateKey(strings.TrimPrefix(key, "0x"))
 	}
 
+	fmt.Printf("getting secrets manager for config.json: %s\n", val[0])
+
 	secretsManager, err := polybftsecrets.GetSecretsManager("", val[0], false)
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Printf("getting secret for key: %s\n", val[1])
 
 	privateKeySecretsManager, err := secretsManager.GetSecret(val[1])
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Printf("got secret for key: %s, string(secret): %s\n, hex.EncodeToString(secret)", val[1], string(privateKeySecretsManager), hex.EncodeToString(privateKeySecretsManager))
+
 	privateKey, err = crypto.NewECDSAKeyFromRawPrivECDSA(privateKeySecretsManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize key from provided config: %w", err)
 	}
+
+	privateKeyBytes, err := privateKey.MarshallPrivateKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal privateKey: %w", err)
+	}
+
+	fmt.Printf("marshaling created crypto.ECDSAKey. hex.EncodeToString(privateKeyBytes): %s\n", hex.EncodeToString(privateKeyBytes))
+
+	privateKeyNew, err := crypto.BytesToECDSAPrivateKey(privateKeySecretsManager)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize key from provided config: %w", err)
+	}
+
+	privateKeyNewBytes, err := crypto.MarshalECDSAPrivateKey(privateKeyNew)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal privateKeyNew: %w", err)
+	}
+
+	fmt.Printf("marshaling created ecdsa.PrivateKey. hex.EncodeToString(privateKeyNewBytes): %s\n", hex.EncodeToString(privateKeyNewBytes))
 
 	return privateKey, nil
 }
