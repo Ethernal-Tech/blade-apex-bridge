@@ -105,9 +105,10 @@ test-e2e-skyline-bridge-mba: check-go
 	go test -v -timeout=7h ./e2e-polybft/e2e/... -run 'SkylineBridgeMBA_'
 
 .PHONY: test-e2e-skyline-bridge-mint
-test-e2e-skyline-bridge-mint: check-go update-cardano-contracts
+test-e2e-skyline-bridge-mint: check-go check-npm
 	go build -o artifacts/blade .
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	cd cardano-smart-contracts/ && npm i && cd .. \
 	go test -v -timeout=7h ./e2e-polybft/e2e/... -run 'SkylineBridgeMint_'
 
 .PHONY: test-e2e-refund-apex-bridge
