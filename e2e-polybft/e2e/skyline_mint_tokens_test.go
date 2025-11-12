@@ -173,7 +173,7 @@ func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 		}
 	})
 
-	t.Run("send invalid token to to special addrs then bridge", func(t *testing.T) {
+	t.Run("5. send invalid token to to special addrs then bridge", func(t *testing.T) {
 		cardanoChain := apex.GetChainMust(t, cardanofw.ChainIDCardano).(*cardanofw.TestCardanoChain)
 
 		invalidTokenAmount := uint64(1000)

@@ -500,6 +500,16 @@ func (a *ApexSystem) DeployCardanoContracts() error {
 						a.CardanoInfo.NativeTokens[i].TokenName = mintableToken.String()
 						a.CardanoInfo.NativeTokens[i].Mint = true
 					}
+				case ChainIDPrime:
+					for i, mintableToken := range mintableTokens {
+						a.PrimeInfo.NativeTokens[i].TokenName = mintableToken.String()
+						a.PrimeInfo.NativeTokens[i].Mint = true
+					}
+				case ChainIDVector:
+					for i, mintableToken := range mintableTokens {
+						a.VectorInfo.NativeTokens[i].TokenName = mintableToken.String()
+						a.VectorInfo.NativeTokens[i].Mint = true
+					}
 				default:
 					return fmt.Errorf("unimplemented cardano contract setup for chain %s", chain.ChainID())
 				}
