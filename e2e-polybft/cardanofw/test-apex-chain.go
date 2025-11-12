@@ -30,9 +30,14 @@ type ITestApexChain interface {
 	FundWallets(ctx context.Context) error
 	RegisterChain(validator *TestApexValidator) error
 	InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error
-	GenerateChainConfigs(indx int, validator *TestApexValidator, tokens []sendtx.TokenExchangeConfig) error
+	GenerateChainConfigs(
+		indx int,
+		validator *TestApexValidator,
+		tokens []sendtx.TokenExchangeConfig,
+	) error
 	PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error
 	UpdateTxSendChainConfiguration(configs map[string]sendtx.ChainConfig)
+	DeployCardanoContract() error
 	ChainID() string
 	GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error)
 	BridgingRequest(
@@ -75,6 +80,11 @@ type ITestApexChain interface {
 		expectError bool,
 	) (infrawallet.QueryStakeAddressInfo, error)
 	GetAddressToBridgeTo(ctx context.Context, bridgingType sendtx.BridgingType) (string, error)
+	GetMintableTokens() []infrawallet.Token
+	GetCardanoScriptInfo() *CardanoScriptInfo
+	GetRelayerAddress() string
+	GetCustodialAddress() string
+	SetCustodialNFT(token infrawallet.Token)
 }
 
 type TestApexChainDummy struct {
@@ -126,6 +136,10 @@ func (td *TestApexChainDummy) CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridg
 }
 
 func (td *TestApexChainDummy) CreateWallets(validator *TestApexValidator) error {
+	return nil
+}
+
+func (td *TestApexChainDummy) DeployCardanoContract() error {
 	return nil
 }
 
@@ -222,6 +236,29 @@ func (td *TestApexChainDummy) GetAddressToBridgeTo(
 	bridgingType sendtx.BridgingType,
 ) (string, error) {
 	return "", nil
+}
+
+// GetMintableTokens implements ITestApexChain.
+func (td *TestApexChainDummy) GetMintableTokens() []infrawallet.Token {
+	return []infrawallet.Token{}
+}
+
+// GetRelayerAddress implements ITestApexChain.
+func (td *TestApexChainDummy) GetRelayerAddress() string {
+	return ""
+}
+
+// GetCustodialAddress implements ITestApexChain.
+func (td *TestApexChainDummy) GetCustodialAddress() string {
+	return ""
+}
+
+// SetCustodialNFT implements ITestApexChain.
+func (td *TestApexChainDummy) SetCustodialNFT(token infrawallet.Token) {}
+
+// GetCardanoScriptInfo implements ITestApexChain.
+func (td *TestApexChainDummy) GetCardanoScriptInfo() *CardanoScriptInfo {
+	return &CardanoScriptInfo{}
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)

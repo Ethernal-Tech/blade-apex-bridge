@@ -299,7 +299,8 @@ func (a *ApexSystem) GetBridgeNode(t *testing.T, idx int) *framework.TestServer 
 func (a *ApexSystem) CreateWallets() (err error) {
 	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		for _, chain := range a.chains {
-			if err := chain.CreateWallets(validator); err != nil {
+			err := chain.CreateWallets(validator)
+			if err != nil {
 				return fmt.Errorf("operation failed for validator = %d and chain = %s: %w",
 					i, chain.ChainID(), err)
 			}
@@ -355,6 +356,15 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
 			a.CardanoInfo.GenesisWallet.VerificationKey, DefaultTokenName)
 		require.NoError(t, err)
+
+		nftToken, _, err := GetTokenAndPolicyForVerificationKey(
+			a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
+			a.CardanoInfo.GenesisWallet.VerificationKey, MintNFTTokenName)
+		require.NoError(t, err)
+
+		for _, chain := range a.chains {
+			chain.SetCustodialNFT(nftToken)
+		}
 
 		a.PrimeInfo.NativeTokens = nil
 		a.VectorInfo.NativeTokens = []sendtx.TokenExchangeConfig{
@@ -474,6 +484,44 @@ func (a *ApexSystem) RegisterChains() error {
 	})
 }
 
+func (a *ApexSystem) DeployCardanoContracts() error {
+	if a.IsSkyline {
+		return a.execForEachChain(func(chain ITestApexChain) error {
+			err := chain.DeployCardanoContract()
+			if err != nil {
+				return err
+			}
+
+			mintableTokens := chain.GetMintableTokens()
+			if len(mintableTokens) > 0 {
+				switch chain.ChainID() {
+				case ChainIDCardano:
+					for i, mintableToken := range mintableTokens {
+						a.CardanoInfo.NativeTokens[i].TokenName = mintableToken.String()
+						a.CardanoInfo.NativeTokens[i].Mint = true
+					}
+				case ChainIDPrime:
+					for i, mintableToken := range mintableTokens {
+						a.PrimeInfo.NativeTokens[i].TokenName = mintableToken.String()
+						a.PrimeInfo.NativeTokens[i].Mint = true
+					}
+				case ChainIDVector:
+					for i, mintableToken := range mintableTokens {
+						a.VectorInfo.NativeTokens[i].TokenName = mintableToken.String()
+						a.VectorInfo.NativeTokens[i].Mint = true
+					}
+				default:
+					return fmt.Errorf("unimplemented cardano contract setup for chain %s", chain.ChainID())
+				}
+			}
+
+			return nil
+		})
+	}
+
+	return nil
+}
+
 func (a *ApexSystem) GenerateConfigs() error {
 	if a.IsSkyline {
 		return a.generateSkylineConfigs()
@@ -552,7 +600,9 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 
 		for _, chain := range a.chains {
 			tokens := a.GetCardanoInfo(chain.ChainID()).NativeTokens
-			if err := chain.GenerateChainConfigs(serverIndx, validator, tokens); err != nil {
+			if err := chain.GenerateChainConfigs(
+				serverIndx, validator, tokens,
+			); err != nil {
 				return err
 			}
 		}
@@ -832,6 +882,31 @@ func (a *ApexSystem) WaitForRedistribution(
 	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
 
 	return err
+}
+
+func (a *ApexSystem) UpdateChainTokenQuantity(
+	chain ChainID, amount *big.Int, isWrappedToken bool,
+) error {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	pk := hex.EncodeToString(pkBytes)
+
+	args := []string{
+		"bridge-admin", "update-chain-token-quantity",
+		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--chain", chain,
+		"--amount", amount.String(),
+		"--key", pk,
+	}
+
+	if isWrappedToken {
+		args = append(args, "--is-wrapped-token")
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
 }
 
 func (a *ApexSystem) DefundHotWallet(

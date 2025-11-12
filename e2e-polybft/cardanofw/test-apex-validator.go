@@ -1,13 +1,16 @@
 package cardanofw
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
@@ -67,6 +70,10 @@ func (cv *TestApexValidator) GetRelayerConfig() string {
 	return filepath.Join(cv.GetBridgingConfigsDir(), RelayerConfigFileName)
 }
 
+func (cv *TestApexValidator) GetRelayerDataDir() string {
+	return filepath.Join(cv.server.DataDir(), "relayer")
+}
+
 func (cv *TestApexValidator) GetNexusTestDir() string {
 	return filepath.Join(cv.dataDirPath, NexusDir)
 }
@@ -84,6 +91,36 @@ func (cv *TestApexValidator) CardanoWalletCreate(chain ChainID, walletType strin
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
+}
+
+func (cv *TestApexValidator) RelayerCardanoWalletCreate(chain ChainID) (string, error) {
+	args := []string{
+		"wallet-create",
+		"--chain", chain,
+		"--validator-data-dir", cv.GetRelayerDataDir(),
+		"--show-pk",
+		"--type", "relayer-cardano",
+	}
+
+	var outb bytes.Buffer
+
+	err := RunCommand(ResolveApexBridgeBinary(), args, io.MultiWriter(os.Stdout, &outb))
+	if err != nil {
+		return "", err
+	}
+
+	output := outb.String()
+
+	// Regular expressions for parsing the output
+	reRelayerAddress := regexp.MustCompile(`Address\s*=\s*([^\s]+)`)
+
+	relayerAddressMatches := reRelayerAddress.FindAllStringSubmatch(output, -1)
+
+	if len(relayerAddressMatches) == 0 {
+		return "", fmt.Errorf("no relayer addresses found in output")
+	}
+
+	return relayerAddressMatches[0][1], nil
 }
 
 func (cv *TestApexValidator) RegisterChain(

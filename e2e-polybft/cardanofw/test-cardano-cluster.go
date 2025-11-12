@@ -139,7 +139,7 @@ func NewCardanoTestCluster(opts ...CardanoClusterOption) (cluster *TestCardanoCl
 	config := &TestCardanoClusterConfig{
 		NetworkType:    wallet.TestNetNetwork,
 		ChainType:      ChainIDPrime,
-		SecurityParam:  10,
+		SecurityParam:  100,
 		NodesCount:     3,
 		InitialSupply:  new(big.Int).SetUint64(11_111_111_112_000_000),
 		StartTimeDelay: time.Second * 30,

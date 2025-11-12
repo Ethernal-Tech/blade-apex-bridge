@@ -46,6 +46,9 @@ const (
 
 	DefaultTokenName       = "test1"
 	DefaultTokenMintAmount = uint64(1_000_000_000)
+
+	MintNFTTokenName = "custodial_nft_token"
+	MintNFTAmount    = uint64(1)
 )
 
 type BatchTypes uint8

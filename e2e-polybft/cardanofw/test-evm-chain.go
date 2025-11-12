@@ -96,6 +96,31 @@ type TestEVMChain struct {
 	indexer       e2eindexer.TxsExecutedComponent
 }
 
+// GetCustodialAddress implements ITestApexChain.
+func (ec *TestEVMChain) GetCustodialAddress() string {
+	panic("unimplemented") //nolint:gocritic
+}
+
+// SetCustodialNFT implements ITestApexChain.
+func (ec *TestEVMChain) SetCustodialNFT(token infrawallet.Token) {
+	panic("unimplemented") //nolint:gocritic
+}
+
+// GetRelayerAddress implements ITestApexChain.
+func (ec *TestEVMChain) GetRelayerAddress() string {
+	panic("unimplemented") //nolint:gocritic
+}
+
+// GetMintableTokens implements ITestApexChain.
+func (ec *TestEVMChain) GetMintableTokens() []infrawallet.Token {
+	panic("unimplemented") //nolint:gocritic
+}
+
+// GetMintTokenPolicyID implements ITestApexChain.
+func (ec *TestEVMChain) GetCardanoScriptInfo() *CardanoScriptInfo {
+	panic("unimplemented") //nolint:gocritic
+}
+
 // GetBridgingStakeAddressInfo implements ITestApexChain.
 func (ec *TestEVMChain) GetBridgingStakeAddressInfo(
 	t *testing.T, ctx context.Context, indx uint8, expectError bool,
@@ -199,6 +224,10 @@ func (ec *TestEVMChain) CreateWallets(validator *TestApexValidator) error {
 		}
 	}
 
+	return nil
+}
+
+func (ec *TestEVMChain) DeployCardanoContract() error {
 	return nil
 }
 

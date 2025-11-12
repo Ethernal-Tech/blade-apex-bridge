@@ -1,6 +1,7 @@
 #!/bin/bash
 
 BRANCH=feat/skyline
+CARDANO_SC_BRANCH=main
 
 # build Apex-bridge smartcontracts
 cd ./apex-bridge-smartcontracts
@@ -19,3 +20,14 @@ cd ..
 go run consensus/polybft/contractsapi/apex-artifacts-gen/main.go
 go run consensus/polybft/contractsapi/bindings-gen/main.go
 ./scripts/buildb.sh
+
+# Cardano smart contracts
+cd ./cardano-smart-contracts
+if [ "$CARDANO_SC_BRANCH" != "main" ]; then
+    echo "SWITCHING TO ${CARDANO_SC_BRANCH}"
+    git branch -D ${CARDANO_SC_BRANCH}
+    git switch ${CARDANO_SC_BRANCH}
+    git pull origin
+fi
+npm i
+cd ..

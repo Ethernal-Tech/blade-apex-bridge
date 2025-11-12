@@ -33,6 +33,8 @@ const (
 	defaultFundTokenAmount   = uint64(100_000_000_000)
 	defaultPremineAmount     = uint64(20_000_000_000)
 	defaultNativeTokenAmount = uint64(0)
+
+	cardanoSmartContractDir = "cardano-smart-contracts"
 )
 
 type TestCardanoChainConfig struct {
@@ -62,6 +64,19 @@ type TestCardanoChainConfig struct {
 	BridgingAddressCnt          int
 	UseIndexer                  bool
 	AllowedDirections           []ChainID
+
+	// Minting
+	FundRelayerAmount          uint64
+	CustodialAddressGeneration bool
+	CustodialAddress           string
+
+	// Minting script info after deploying the Cardano smart contract
+	CardanoScriptInfo CardanoScriptInfo
+
+	// Human readable names of tokens that should be mintable on this chain
+	MintableTokens []string
+	// Custodial NFT
+	CustodialNFT *infrawallet.Token
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -132,6 +147,17 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 	}
 }
 
+func NewCardanoChainConfigWithMinting(isEnabled bool) *TestCardanoChainConfig {
+	config := NewCardanoChainConfig(isEnabled)
+
+	config.FundTokenAmount = 0
+	config.FundRelayerAmount = 100_000_000
+	config.CustodialAddressGeneration = true
+	config.MintableTokens = []string{DefaultTokenName}
+
+	return config
+}
+
 func NewRemotePrimeChainConfig(
 	defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee uint64,
 ) *TestCardanoChainConfig {
@@ -177,6 +203,13 @@ func NewRemoteCardanoChainConfig(
 	}
 }
 
+type CardanoScriptInfo struct {
+	PlutusAddress      string
+	ReferenceUtxoHash  string
+	ReferenceUtxoIndex uint32
+	PolicyID           string
+}
+
 type TestCardanoChain struct {
 	config            *TestCardanoChainConfig
 	cluster           *TestCardanoCluster
@@ -186,6 +219,7 @@ type TestCardanoChain struct {
 	multisigAddr      []string
 	multisigStakeAddr []string
 	multisigFeeAddr   string
+	relayerAddr       string
 	txSender          *sendtx.TxSender
 	indexer           e2eindexer.TxsExecutedComponent
 }
@@ -333,7 +367,18 @@ func (ec *TestCardanoChain) Stop() error {
 }
 
 func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) error {
-	walletType := ""
+	var (
+		walletType = ""
+		err        error
+	)
+
+	if RunRelayerOnValidatorID == validator.ID {
+		ec.relayerAddr, err = validator.RelayerCardanoWalletCreate(ec.ChainID())
+		if err != nil {
+			return err
+		}
+	}
+
 	if ec.config.BridgeAddrHasStake {
 		walletType = "stake"
 	}
@@ -341,9 +386,86 @@ func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) error {
 	return validator.CardanoWalletCreate(ec.ChainID(), walletType)
 }
 
+func (ec *TestCardanoChain) DeployCardanoContract() error {
+	custodialNFT := ec.config.CustodialNFT
+	if custodialNFT == nil {
+		return nil
+	}
+
+	fmt.Printf("Deploying Cardano contract on chain %s\n", ec.ChainID())
+
+	minterWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
+	if err != nil {
+		return err
+	}
+
+	args := []string{
+		"bridge-admin", "deploy-cardano-script",
+		"--key", hex.EncodeToString(minterWallet.SigningKey),
+		"--ogmios", ec.ogmiosURL,
+		"--network-id", fmt.Sprint(ec.config.NetworkType),
+		"--testnet-magic", fmt.Sprint(ec.config.NetworkMagic),
+		"--nft-policy-id", custodialNFT.PolicyID,
+		"--nft-name-hex", hex.EncodeToString([]byte(custodialNFT.Name)),
+		"--plutus-script-dir", filepath.Join("..", "..", cardanoSmartContractDir),
+	}
+
+	var outb bytes.Buffer
+
+	err = RunCommand(ResolveApexBridgeBinary(), args, io.MultiWriter(os.Stdout, &outb))
+	if err != nil {
+		return err
+	}
+
+	output := outb.String()
+
+	// Regular expressions for parsing the output
+	rePlutusAddr := regexp.MustCompile(`Plutus script address\s*=\s*([^\s]+)`)
+	reUtxoHash := regexp.MustCompile(`Reference Script Utxo Hash\s*=\s*([^\s]+)`)
+	reUtxoIdx := regexp.MustCompile(`Reference Script Utxo Index\s*=\s*([^\s]+)`)
+	rePolicyID := regexp.MustCompile(`Policy Id\s*=\s*([^\s]+)`)
+
+	// Find all matches
+	plutusAddr := rePlutusAddr.FindStringSubmatch(output)
+	if plutusAddr == nil {
+		return fmt.Errorf("failed to find plutus address in output")
+	}
+
+	utxoHash := reUtxoHash.FindStringSubmatch(output)
+	if utxoHash == nil {
+		return fmt.Errorf("failed to find UTXO hash in output")
+	}
+
+	utxoIdxStr := reUtxoIdx.FindStringSubmatch(output)
+	if utxoIdxStr == nil {
+		return fmt.Errorf("failed to find UTXO index in output")
+	}
+
+	policyID := rePolicyID.FindStringSubmatch(output)
+	if policyID == nil {
+		return fmt.Errorf("failed to find policy ID in output")
+	}
+
+	utxoIdx, err := strconv.ParseUint(utxoIdxStr[1], 10, 32)
+	if err != nil {
+		return fmt.Errorf("failed to parse UTXO index: %w", err)
+	}
+
+	ec.config.CardanoScriptInfo = CardanoScriptInfo{
+		PlutusAddress:      plutusAddr[1],
+		ReferenceUtxoHash:  utxoHash[1],
+		ReferenceUtxoIndex: uint32(utxoIdx),
+		PolicyID:           policyID[1],
+	}
+
+	return nil
+}
+
 func (ec *TestCardanoChain) CreateAddresses(
 	bladeAdmin *crypto.ECDSAKey, bridgeURL string,
 ) error {
+	custodialAddressGeneration := ec.config.CustodialAddressGeneration
+
 	bridgeAdminPk, err := bladeAdmin.MarshallPrivateKey()
 	if err != nil {
 		return err
@@ -359,6 +481,10 @@ func (ec *TestCardanoChain) CreateAddresses(
 		"--chain", ec.ChainID(),
 	}
 
+	if custodialAddressGeneration {
+		args = append(args, "--generate-custodial-address")
+	}
+
 	var outb bytes.Buffer
 
 	err = RunCommand(ResolveApexBridgeBinary(), args, io.MultiWriter(os.Stdout, &outb))
@@ -367,6 +493,17 @@ func (ec *TestCardanoChain) CreateAddresses(
 	}
 
 	output := outb.String()
+
+	if custodialAddressGeneration {
+		reCustodial := regexp.MustCompile(`Custodial Address\s*=\s*([^\s]+)`)
+		custodialMatches := reCustodial.FindStringSubmatch(output)
+
+		if custodialMatches == nil {
+			return fmt.Errorf("no custodial addresses found in output")
+		}
+
+		ec.config.CustodialAddress = custodialMatches[1]
+	}
 
 	// Regular expressions for parsing the output
 	reMultisig := regexp.MustCompile(`Multisig Address\s*=\s*([^\s]+)`)
@@ -424,6 +561,13 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		outputInfo = append(outputInfo, fmt.Sprintf("fee (%d): %s", max(ec.config.FundFeeUTxOCount, 1), amount))
 	}
 
+	if totalAmount := ec.config.FundRelayerAmount; totalAmount != 0 && ec.relayerAddr != "" {
+		receivers = append(receivers, createTxReceiver(ec.relayerAddr, new(big.Int).SetUint64(totalAmount), nil, nil))
+
+		outputInfo = append(outputInfo,
+			fmt.Sprintf("%s relayer addr: %s funded with %d\n", ec.ChainID(), ec.relayerAddr, totalAmount))
+	}
+
 	if ec.config.FundTokenAmount != 0 || ec.config.FundAmount != 0 {
 		addr := ec.multisigAddr[0]
 		amount := new(big.Int).SetUint64(max(2*MinUTxODefaultValue, ec.config.FundAmount))
@@ -460,6 +604,28 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 	if len(receivers) == 0 {
 		return nil
+	}
+
+	if ec.config.CustodialAddress != "" && ec.config.CustodialNFT != nil {
+		minterWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
+		if err != nil {
+			return err
+		}
+
+		lovelaceFundAmount := 2 * MinUTxODefaultValue
+
+		if err := MintToken(ec, minterWallet, MintNFTTokenName, 1); err != nil {
+			return err
+		}
+
+		receivers = append(receivers,
+			createTxReceiver(ec.config.CustodialAddress,
+				big.NewInt(0).SetUint64(lovelaceFundAmount),
+				ec.config.CustodialNFT, big.NewInt(1)))
+
+		outputInfo = append(outputInfo,
+			fmt.Sprintf("%s custodial addr funded with NFT `%s` amount: %d, %d\n",
+				ec.ChainID(), ec.GetCustodialNFT().String(), lovelaceFundAmount, MintNFTAmount))
 	}
 
 	txHash, err := ec.SendTx(
@@ -505,11 +671,36 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		"--min-fee-for-bridging", fmt.Sprint(ec.config.DefaultMinBridgingFee),
 	}
 
+	containsMintableTokens := false
+
 	for _, token := range tokens {
 		args = append(args,
 			"--native-token-name", token.TokenName,
 			"--native-token-destination-chain-id", token.DstChainID,
 		)
+
+		if token.Mint {
+			containsMintableTokens = true
+		}
+	}
+
+	if containsMintableTokens {
+		scriptInfo := ec.GetCardanoScriptInfo()
+		custodialNFT := ec.GetCustodialNFT()
+
+		args = append(args, "--minting-script-tx-input-hash",
+			scriptInfo.ReferenceUtxoHash)
+		args = append(args, "--minting-script-tx-input-index",
+			fmt.Sprintf("%d", scriptInfo.ReferenceUtxoIndex))
+
+		args = append(args, "--nft-policy-id", custodialNFT.PolicyID)
+		args = append(args, "--nft-name", custodialNFT.Name)
+	}
+
+	relayerAddr := ec.GetRelayerAddress()
+	if relayerAddr != "" {
+		args = append(args, "--relayer-address", relayerAddr)
+		args = append(args, "--relayer-data-dir", validator.GetRelayerDataDir())
 	}
 
 	for _, direction := range ec.config.AllowedDirections {
@@ -587,6 +778,38 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 	}
 
 	return balanceTransformed, nil
+}
+
+func (ec *TestCardanoChain) GetMintableTokens() []infrawallet.Token {
+	tokens := make([]infrawallet.Token, len(ec.config.MintableTokens))
+
+	for i, tokenName := range ec.config.MintableTokens {
+		tokens[i] = infrawallet.NewToken(ec.GetCardanoScriptInfo().PolicyID, tokenName)
+	}
+
+	return tokens
+}
+
+func (ec *TestCardanoChain) GetCardanoScriptInfo() *CardanoScriptInfo {
+	return &ec.config.CardanoScriptInfo
+}
+
+func (ec *TestCardanoChain) GetCustodialNFT() *infrawallet.Token {
+	return ec.config.CustodialNFT
+}
+
+func (ec *TestCardanoChain) GetCustodialAddress() string {
+	return ec.config.CustodialAddress
+}
+
+func (ec *TestCardanoChain) SetCustodialNFT(token infrawallet.Token) {
+	if ec.config.CustodialAddress != "" {
+		ec.config.CustodialNFT = &token
+	}
+}
+
+func (ec *TestCardanoChain) GetRelayerAddress() string {
+	return ec.relayerAddr
 }
 
 func (ec *TestCardanoChain) GetBridgingFee(
