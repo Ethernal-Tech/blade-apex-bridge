@@ -63,7 +63,7 @@ type TestCardanoChainConfig struct {
 	BridgeAddrHasStake          bool
 	BridgingAddressCnt          int
 	UseIndexer                  bool
-	AllowedDirections           []ChainID
+	AllowedDirections           AllowedDirections
 
 	// Minting
 	FundRelayerAmount          uint64
@@ -77,6 +77,30 @@ type TestCardanoChainConfig struct {
 	MintableTokens []string
 	// Custodial NFT
 	CustodialNFT *infrawallet.Token
+}
+
+type AllowedDirections = map[ChainID]map[ChainID]AllowedDirection
+
+type AllowedDirection struct {
+	CurrencyBirdgingAllowed bool
+	WrappedBridgingAllowed  bool
+	ColoredCoins            []uint64
+}
+
+func (a AllowedDirection) String() string {
+	args := make([]string, 3)
+
+	args[0] = strconv.FormatBool(a.CurrencyBirdgingAllowed)
+	args[1] = strconv.FormatBool(a.WrappedBridgingAllowed)
+
+	if len(a.ColoredCoins) == 0 {
+		args[2] = ""
+	} else {
+		//nolint
+		// TODO: Impl
+	}
+
+	return strings.Join(args, ":")
 }
 
 func NewPrimeChainConfig() *TestCardanoChainConfig {
@@ -703,8 +727,8 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		args = append(args, "--relayer-data-dir", validator.GetRelayerDataDir())
 	}
 
-	for _, direction := range ec.config.AllowedDirections {
-		args = append(args, "--allowed-directions", direction)
+	for chain, direction := range ec.config.AllowedDirections[ec.ChainID()] {
+		args = append(args, "--allowed-directions", fmt.Sprintf("%s:%s", chain, direction.String()))
 	}
 
 	if ec.config.TTLInc > 0 {

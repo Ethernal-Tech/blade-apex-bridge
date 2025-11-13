@@ -186,27 +186,52 @@ func getDefaultSkylinexSystemConfig() *ApexSystemConfig {
 func initAllowedDirections(config *ApexSystemConfig, isSkyline bool) {
 	if isSkyline {
 		if len(config.CardanoConfig.AllowedDirections) == 0 {
-			config.CardanoConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
+			config.CardanoConfig.AllowedDirections = AllowedDirections{
+				ChainIDCardano: {
+					ChainIDPrime:  {false, true, []uint64{}},
+					ChainIDVector: {true, false, []uint64{}},
+				},
+			}
 		}
 
 		if len(config.VectorConfig.AllowedDirections) == 0 {
-			config.VectorConfig.AllowedDirections = []ChainID{ChainIDCardano}
+			config.VectorConfig.AllowedDirections = AllowedDirections{
+				ChainIDVector: {
+					ChainIDCardano: {false, true, []uint64{}},
+				},
+			}
 		}
 
 		if len(config.PrimeConfig.AllowedDirections) == 0 {
-			config.PrimeConfig.AllowedDirections = []ChainID{ChainIDCardano}
+			config.PrimeConfig.AllowedDirections = AllowedDirections{
+				ChainIDPrime: {
+					ChainIDCardano: {true, false, []uint64{}},
+				},
+			}
 		}
 	} else {
+		//nolint
+		// TODO: Fix this up for reactor
 		if len(config.NexusConfig.AllowedDirections) == 0 {
 			config.NexusConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
 		}
 
 		if len(config.VectorConfig.AllowedDirections) == 0 {
-			config.VectorConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDNexus}
+			config.VectorConfig.AllowedDirections = AllowedDirections{
+				ChainIDVector: {
+					ChainIDPrime: {true, false, []uint64{}},
+					ChainIDNexus: {true, false, []uint64{}},
+				},
+			}
 		}
 
 		if len(config.PrimeConfig.AllowedDirections) == 0 {
-			config.PrimeConfig.AllowedDirections = []ChainID{ChainIDVector, ChainIDNexus}
+			config.PrimeConfig.AllowedDirections = AllowedDirections{
+				ChainIDPrime: {
+					ChainIDVector: {true, false, []uint64{}},
+					ChainIDNexus:  {true, false, []uint64{}},
+				},
+			}
 		}
 	}
 }
