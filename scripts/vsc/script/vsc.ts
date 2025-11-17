@@ -227,7 +227,7 @@ async function execute() {
     await sleep(10000); // wait for 10 seconds before checking again
     await executeCommand(`cast call --rpc-url ${rpcUrl} 0xaBef000000000000000000000000000000000000 "function isNewValidatorSetPending()"`).then((output) => {
       console.log("VSC state:", output);
-      if (output == 'true') {
+      if (output.includes('1')) {
         console.log("VSC started...");
         loop = false;
       } else {
@@ -242,7 +242,7 @@ async function execute() {
     await sleep(10000); // wait for 10 seconds before checking again
     await executeCommand(`cast call --rpc-url ${rpcUrl} 0xaBef000000000000000000000000000000000000 "function isNewValidatorSetPending()"`).then((output) => {
       console.log("VSC state:", output);
-      if (output == 'false') {
+      if (!output.includes('1')) {
         console.log("VSC finished...");
         loop = false;
       } else {
