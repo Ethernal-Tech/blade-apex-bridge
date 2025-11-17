@@ -203,10 +203,13 @@ func SetupRemoteApexBridge(
 		return nil, fmt.Errorf("cannot fetch bridging addresses for prime")
 	}
 
+	remoteConfig.PrimeInfo.MultisigAddr = addrs["prime"].Address
+	remoteConfig.PrimeInfo.FeeAddr = addrs["prime"].FeeAddress
+
 	primeChain := &TestCardanoChain{
 		config:           apexConfig.PrimeConfig,
-		multisigAddr:     addrs["prime"].Address,
-		multisigFeeAddr:  addrs["prime"].FeeAddress,
+		multisigAddr:     remoteConfig.PrimeInfo.MultisigAddr,
+		multisigFeeAddr:  remoteConfig.PrimeInfo.FeeAddr,
 		ogmiosURL:        remoteConfig.PrimeInfo.OgmiosURL,
 		blockfrostURL:    remoteConfig.PrimeInfo.BlockfrostURL,
 		blockfrostAPIKey: remoteConfig.PrimeInfo.BlockfrostAPIKey,
@@ -222,10 +225,13 @@ func SetupRemoteApexBridge(
 			return nil, fmt.Errorf("cannot fetch bridging addresses for vector")
 		}
 
+		remoteConfig.VectorInfo.MultisigAddr = addrs["vector"].Address
+		remoteConfig.VectorInfo.FeeAddr = addrs["vector"].FeeAddress
+
 		vectorChain = &TestCardanoChain{
 			config:           apexConfig.VectorConfig,
-			multisigAddr:     addrs["vector"].Address,
-			multisigFeeAddr:  addrs["vector"].FeeAddress,
+			multisigAddr:     remoteConfig.VectorInfo.MultisigAddr,
+			multisigFeeAddr:  remoteConfig.VectorInfo.FeeAddr,
 			ogmiosURL:        remoteConfig.VectorInfo.OgmiosURL,
 			blockfrostURL:    remoteConfig.VectorInfo.BlockfrostURL,
 			blockfrostAPIKey: remoteConfig.VectorInfo.BlockfrostAPIKey,
