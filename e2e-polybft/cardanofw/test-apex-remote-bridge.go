@@ -144,6 +144,7 @@ func GetTestnetApexUsers(
 
 func SetupRemoteApexBridge(
 	t *testing.T,
+	ctx context.Context,
 	remoteConfig *RemoteApexBridgeConfig,
 	apexOpts ...ApexSystemOptions,
 ) (*ApexSystem, error) {
@@ -173,19 +174,19 @@ func SetupRemoteApexBridge(
 		BridgingAddress map[string]bridgingAddrs `json:"bridgingAddress"`
 	}
 
-	resp, err := GetAPIRequestGeneric[response](context.TODO(), fmt.Sprintf("%s/api/Settings/GetMultiSigBridgingAddr",
+	resp, err := GetAPIRequestGeneric[response](ctx, fmt.Sprintf("%s/api/Settings/GetMultiSigBridgingAddr",
 		remoteConfig.BridgingAPIs[0]),
 		remoteConfig.BridgingAPIKey)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, ok := resp.BridgingAddress["prime"]; !ok {
+	if _, ok := resp.BridgingAddress[ChainIDPrime]; !ok {
 		return nil, fmt.Errorf("cannot fetch bridging addresses for prime")
 	}
 
-	remoteConfig.PrimeInfo.MultisigAddr = resp.BridgingAddress["prime"].Address
-	remoteConfig.PrimeInfo.FeeAddr = resp.BridgingAddress["prime"].FeeAddress
+	remoteConfig.PrimeInfo.MultisigAddr = resp.BridgingAddress[ChainIDPrime].Address
+	remoteConfig.PrimeInfo.FeeAddr = resp.BridgingAddress[ChainIDPrime].FeeAddress
 
 	primeChain := &TestCardanoChain{
 		config:           apexConfig.PrimeConfig,
@@ -202,12 +203,12 @@ func SetupRemoteApexBridge(
 	var vectorChain *TestCardanoChain
 
 	if vectorEnabled {
-		if _, ok := resp.BridgingAddress["vector"]; !ok {
+		if _, ok := resp.BridgingAddress[ChainIDVector]; !ok {
 			return nil, fmt.Errorf("cannot fetch bridging addresses for vector")
 		}
 
-		remoteConfig.VectorInfo.MultisigAddr = resp.BridgingAddress["vector"].Address
-		remoteConfig.VectorInfo.FeeAddr = resp.BridgingAddress["vector"].FeeAddress
+		remoteConfig.VectorInfo.MultisigAddr = resp.BridgingAddress[ChainIDVector].Address
+		remoteConfig.VectorInfo.FeeAddr = resp.BridgingAddress[ChainIDVector].FeeAddress
 
 		vectorChain = &TestCardanoChain{
 			config:           apexConfig.VectorConfig,
