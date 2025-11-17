@@ -3,6 +3,8 @@ package cardanofw
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 	"os"
 	"testing"
 
@@ -140,6 +142,36 @@ func GetTestnetApexUsers(
 	}, nil
 }
 
+type bridgingAddrs struct {
+	Address    string `json:"address"`
+	FeeAddress string `json:"feeAddress"`
+}
+
+func FetchBridgingAddresses(url, apiKey string) (map[string]bridgingAddrs, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/Settings/GetMultiSigBridgingAddr", url), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("X-API-Key", apiKey)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var r struct {
+		BridgingAddress map[string]bridgingAddrs `json:"bridgingAddress"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		return nil, err
+	}
+
+	return r.BridgingAddress, nil
+}
+
 func SetupRemoteApexBridge(
 	t *testing.T,
 	remoteConfig *RemoteApexBridgeConfig,
@@ -162,10 +194,19 @@ func SetupRemoteApexBridge(
 
 	initAllowedDirections(apexConfig)
 
+	addrs, err := FetchBridgingAddresses(remoteConfig.BridgingAPIs[0], remoteConfig.BridgingAPIKey)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := addrs["prime"]; !ok {
+		return nil, fmt.Errorf("cannot fetch bridging addresses for prime")
+	}
+
 	primeChain := &TestCardanoChain{
 		config:           apexConfig.PrimeConfig,
-		multisigAddr:     remoteConfig.PrimeInfo.MultisigAddr,
-		multisigFeeAddr:  remoteConfig.PrimeInfo.FeeAddr,
+		multisigAddr:     addrs["prime"].Address,
+		multisigFeeAddr:  addrs["prime"].FeeAddress,
 		ogmiosURL:        remoteConfig.PrimeInfo.OgmiosURL,
 		blockfrostURL:    remoteConfig.PrimeInfo.BlockfrostURL,
 		blockfrostAPIKey: remoteConfig.PrimeInfo.BlockfrostAPIKey,
@@ -175,11 +216,16 @@ func SetupRemoteApexBridge(
 	enabledChains := []ITestApexChain{primeChain}
 
 	var vectorChain *TestCardanoChain
+
 	if vectorEnabled {
+		if _, ok := addrs["vector"]; !ok {
+			return nil, fmt.Errorf("cannot fetch bridging addresses for vector")
+		}
+
 		vectorChain = &TestCardanoChain{
 			config:           apexConfig.VectorConfig,
-			multisigAddr:     remoteConfig.VectorInfo.MultisigAddr,
-			multisigFeeAddr:  remoteConfig.VectorInfo.FeeAddr,
+			multisigAddr:     addrs["vector"].Address,
+			multisigFeeAddr:  addrs["vector"].FeeAddress,
 			ogmiosURL:        remoteConfig.VectorInfo.OgmiosURL,
 			blockfrostURL:    remoteConfig.VectorInfo.BlockfrostURL,
 			blockfrostAPIKey: remoteConfig.VectorInfo.BlockfrostAPIKey,
