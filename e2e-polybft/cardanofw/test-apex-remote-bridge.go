@@ -1,10 +1,10 @@
 package cardanofw
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"testing"
 
@@ -142,36 +142,6 @@ func GetTestnetApexUsers(
 	}, nil
 }
 
-type bridgingAddrs struct {
-	Address    string `json:"address"`
-	FeeAddress string `json:"feeAddress"`
-}
-
-func FetchBridgingAddresses(url, apiKey string) (map[string]bridgingAddrs, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/Settings/GetMultiSigBridgingAddr", url), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("X-API-Key", apiKey)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var r struct {
-		BridgingAddress map[string]bridgingAddrs `json:"bridgingAddress"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
-		return nil, err
-	}
-
-	return r.BridgingAddress, nil
-}
-
 func SetupRemoteApexBridge(
 	t *testing.T,
 	remoteConfig *RemoteApexBridgeConfig,
@@ -194,17 +164,28 @@ func SetupRemoteApexBridge(
 
 	initAllowedDirections(apexConfig)
 
-	addrs, err := FetchBridgingAddresses(remoteConfig.BridgingAPIs[0], remoteConfig.BridgingAPIKey)
+	type bridgingAddrs struct {
+		Address    string `json:"address"`
+		FeeAddress string `json:"feeAddress"`
+	}
+
+	type response struct {
+		BridgingAddress map[string]bridgingAddrs `json:"bridgingAddress"`
+	}
+
+	resp, err := GetAPIRequestGeneric[response](context.TODO(), fmt.Sprintf("%s/api/Settings/GetMultiSigBridgingAddr",
+		remoteConfig.BridgingAPIs[0]),
+		remoteConfig.BridgingAPIKey)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, ok := addrs["prime"]; !ok {
+	if _, ok := resp.BridgingAddress["prime"]; !ok {
 		return nil, fmt.Errorf("cannot fetch bridging addresses for prime")
 	}
 
-	remoteConfig.PrimeInfo.MultisigAddr = addrs["prime"].Address
-	remoteConfig.PrimeInfo.FeeAddr = addrs["prime"].FeeAddress
+	remoteConfig.PrimeInfo.MultisigAddr = resp.BridgingAddress["prime"].Address
+	remoteConfig.PrimeInfo.FeeAddr = resp.BridgingAddress["prime"].FeeAddress
 
 	primeChain := &TestCardanoChain{
 		config:           apexConfig.PrimeConfig,
@@ -221,12 +202,12 @@ func SetupRemoteApexBridge(
 	var vectorChain *TestCardanoChain
 
 	if vectorEnabled {
-		if _, ok := addrs["vector"]; !ok {
+		if _, ok := resp.BridgingAddress["vector"]; !ok {
 			return nil, fmt.Errorf("cannot fetch bridging addresses for vector")
 		}
 
-		remoteConfig.VectorInfo.MultisigAddr = addrs["vector"].Address
-		remoteConfig.VectorInfo.FeeAddr = addrs["vector"].FeeAddress
+		remoteConfig.VectorInfo.MultisigAddr = resp.BridgingAddress["vector"].Address
+		remoteConfig.VectorInfo.FeeAddr = resp.BridgingAddress["vector"].FeeAddress
 
 		vectorChain = &TestCardanoChain{
 			config:           apexConfig.VectorConfig,
