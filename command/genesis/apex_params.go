@@ -62,7 +62,7 @@ func getApexProxyAddresses() (retVal []types.Address) {
 func (p *genesisParams) processConfigApex(chainConfig *chain.Chain) {
 	switch p.apexConfig {
 	case ApexConfigDefault:
-		chainConfig.Params.Forks.RemoveFork(chain.Governance).RemoveFork(chain.London)
+		chainConfig.Params.Forks.RemoveFork(chain.London)
 		chainConfig.Params.BurnContract = nil
 	case ApexConfigNexus:
 		chainConfig.Genesis.GasLimit = 0x500000

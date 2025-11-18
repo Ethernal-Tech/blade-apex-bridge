@@ -187,6 +187,7 @@ func (g *governanceManager) PostEpoch(req *PostEpochRequest) error {
 		proposalThresholdEvent   contractsapi.NewProposalThresholdEvent
 		sprintSizeEvent          contractsapi.NewSprintSizeEvent
 		baseFeeChangeDenomEvent  contractsapi.NewBaseFeeChangeDenomEvent
+		newValidatorSetEvent     contractsapi.NewValidatorSetEvent
 	)
 
 	// unmarshal events that happened in previous epoch and update last saved config
@@ -321,6 +322,10 @@ func (g *governanceManager) PostEpoch(req *PostEpochRequest) error {
 			latestChainParams.BaseFeeChangeDenom = event.BaseFeeChangeDenom.Uint64()
 			g.logger.Debug("Post epoch - Base fee change denominator changed in governance",
 				"epoch", previousEpoch, "baseFeeChangeDenom", latestChainParams.BaseFeeChangeDenom)
+
+		case newValidatorSetEvent.Sig():
+			// just log the event, actual validator set change
+			g.logger.Debug("Post epoch - New validator set in governance", "epoch", previousEpoch)
 
 		default:
 			return errUnknownGovernanceEvent
