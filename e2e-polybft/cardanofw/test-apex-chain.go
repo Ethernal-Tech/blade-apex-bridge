@@ -80,7 +80,7 @@ type ITestApexChain interface {
 		expectError bool,
 	) (infrawallet.QueryStakeAddressInfo, error)
 	GetAddressToBridgeTo(ctx context.Context, bridgingType sendtx.BridgingType) (string, error)
-	GetMintableTokens() []infrawallet.Token
+	GetColoredCoins() []ColoredCoin
 	GetCardanoScriptInfo() *CardanoScriptInfo
 	GetRelayerAddress() string
 	GetCustodialAddress() string
@@ -239,8 +239,8 @@ func (td *TestApexChainDummy) GetAddressToBridgeTo(
 }
 
 // GetMintableTokens implements ITestApexChain.
-func (td *TestApexChainDummy) GetMintableTokens() []infrawallet.Token {
-	return []infrawallet.Token{}
+func (td *TestApexChainDummy) GetColoredCoins() []ColoredCoin {
+	return []ColoredCoin{}
 }
 
 // GetRelayerAddress implements ITestApexChain.

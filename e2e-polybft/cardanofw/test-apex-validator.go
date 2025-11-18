@@ -180,6 +180,7 @@ func (cv *TestApexValidator) GenerateSkylineConfigs(
 	apiPort int,
 	apiKey string,
 	telemetryConfig string,
+	coloredCoins []ColoredCoinConfig,
 ) error {
 	cv.APIPort = apiPort
 	logsPath := filepath.Join(cv.dataDirPath, BridgingLogsDir)
@@ -198,6 +199,10 @@ func (cv *TestApexValidator) GenerateSkylineConfigs(
 		"--api-port", fmt.Sprint(apiPort),
 		"--api-keys", apiKey,
 		"--telemetry", telemetryConfig,
+	}
+
+	for _, coloredCoin := range coloredCoins {
+		args = append(args, "--colored-coins", coloredCoin.String())
 	}
 
 	if err := RunCommand(ResolveApexBridgeBinary(), args, os.Stdout); err != nil {

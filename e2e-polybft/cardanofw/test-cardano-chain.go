@@ -74,7 +74,7 @@ type TestCardanoChainConfig struct {
 	CardanoScriptInfo CardanoScriptInfo
 
 	// Human readable names of tokens that should be mintable on this chain
-	MintableTokens []string
+	ColoredCoins []ColoredCoin
 	// Custodial NFT
 	CustodialNFT *infrawallet.Token
 }
@@ -84,7 +84,17 @@ type AllowedDirections = map[ChainID]map[ChainID]AllowedDirection
 type AllowedDirection struct {
 	CurrencyBirdgingAllowed bool
 	WrappedBridgingAllowed  bool
-	ColoredCoins            []uint64
+	ColoredCoins            []uint16
+}
+
+// ColoredCoinCardano is a struct that represents a colored coin on the Cardano chain
+// It contains the human readable token name and the colored coin ID
+type ColoredCoin struct {
+	TokenName     string
+	ColoredCoinID uint16
+	// The contract address of the colored coin for evm chains
+	ContractAddress string
+	OriginChainID   ChainID
 }
 
 func (a AllowedDirection) String() string {
@@ -96,8 +106,12 @@ func (a AllowedDirection) String() string {
 	if len(a.ColoredCoins) == 0 {
 		args[2] = ""
 	} else {
-		//nolint
-		// TODO: Impl
+		formattedCCs := make([]string, 0)
+		for _, cc := range a.ColoredCoins {
+			formattedCCs = append(formattedCCs, strconv.FormatUint(uint64(cc), 10))
+		}
+
+		args[2] = strings.Join(formattedCCs, ",")
 	}
 
 	return strings.Join(args, ":")
@@ -127,8 +141,8 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 	}
 }
 
-func NewVectorChainConfig() *TestCardanoChainConfig {
-	return &TestCardanoChainConfig{
+func NewVectorChainConfig(coloredCoins ...ColoredCoin) *TestCardanoChainConfig {
+	config := &TestCardanoChainConfig{
 		IsEnabled:                   true,
 		ID:                          1,
 		NetworkType:                 infrawallet.TestNetNetwork,
@@ -147,11 +161,24 @@ func NewVectorChainConfig() *TestCardanoChainConfig {
 		MinBridgingFeeForTokens:     defaultMinBridgingFeeAmountForTokens,
 		MinOperationFee:             uint64(0),
 		BridgingAddressCnt:          1,
+		ColoredCoins:                append([]ColoredCoin(nil), coloredCoins...),
 	}
+
+	for _, cc := range coloredCoins {
+		// We have colored coin that should be minted
+		if cc.OriginChainID != config.ChainType {
+			config.FundRelayerAmount = 100_000_000
+			config.CustodialAddressGeneration = true
+
+			break
+		}
+	}
+
+	return config
 }
 
-func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
-	return &TestCardanoChainConfig{
+func NewCardanoChainConfig(isEnabled bool, coloredCoins ...ColoredCoin) *TestCardanoChainConfig {
+	config := &TestCardanoChainConfig{
 		IsEnabled:                   isEnabled,
 		ID:                          4,
 		NetworkType:                 infrawallet.TestNetNetwork,
@@ -168,7 +195,20 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		MinBridgingFeeForTokens:     defaultMinBridgingFeeAmountForTokens,
 		MinOperationFee:             DefaultMinOperationFee,
 		BridgingAddressCnt:          1,
+		ColoredCoins:                append([]ColoredCoin(nil), coloredCoins...),
 	}
+
+	for _, cc := range coloredCoins {
+		// We have colored coin that should be minted
+		if cc.OriginChainID != config.ChainType {
+			config.FundRelayerAmount = 100_000_000
+			config.CustodialAddressGeneration = true
+
+			break
+		}
+	}
+
+	return config
 }
 
 func NewCardanoChainConfigWithMinting(isEnabled bool) *TestCardanoChainConfig {
@@ -177,7 +217,24 @@ func NewCardanoChainConfigWithMinting(isEnabled bool) *TestCardanoChainConfig {
 	config.FundTokenAmount = 0
 	config.FundRelayerAmount = 100_000_000
 	config.CustodialAddressGeneration = true
-	config.MintableTokens = []string{DefaultTokenName}
+	config.ColoredCoins = []ColoredCoin{
+		{
+			TokenName:     DefaultTokenName,
+			ColoredCoinID: 1,
+		},
+	}
+
+	return config
+}
+
+func NewVectorChainConfigWithColoredCoins(
+	coloredCoins []ColoredCoin,
+) *TestCardanoChainConfig {
+	config := NewVectorChainConfig()
+
+	config.FundRelayerAmount = 100_000_000
+	config.CustodialAddressGeneration = true
+	config.ColoredCoins = coloredCoins
 
 	return config
 }
@@ -731,6 +788,10 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		args = append(args, "--allowed-directions", fmt.Sprintf("%s:%s", chain, direction.String()))
 	}
 
+	for _, coloredCoin := range ec.GetColoredCoins() {
+		args = append(args, "--colored-coins", fmt.Sprintf("%s:%d", coloredCoin.TokenName, coloredCoin.ColoredCoinID))
+	}
+
 	if ec.config.TTLInc > 0 {
 		args = append(args, "--ttl-slot-inc", fmt.Sprint(ec.config.TTLInc))
 	}
@@ -804,14 +865,26 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 	return balanceTransformed, nil
 }
 
-func (ec *TestCardanoChain) GetMintableTokens() []infrawallet.Token {
-	tokens := make([]infrawallet.Token, len(ec.config.MintableTokens))
+func (ec *TestCardanoChain) GetColoredCoins() []ColoredCoin {
+	coloredCoins := make([]ColoredCoin, len(ec.config.ColoredCoins))
 
-	for i, tokenName := range ec.config.MintableTokens {
-		tokens[i] = infrawallet.NewToken(ec.GetCardanoScriptInfo().PolicyID, tokenName)
+	for i, coloredCoin := range ec.config.ColoredCoins {
+		tokenName := coloredCoin.TokenName
+
+		// If the colored coin is not originated from this chain that means we mint/burn it
+		if coloredCoin.OriginChainID != ec.ChainID() {
+			token := infrawallet.NewToken(ec.GetCardanoScriptInfo().PolicyID, coloredCoin.TokenName)
+			tokenName = token.String()
+		}
+
+		coloredCoins[i] = ColoredCoin{
+			TokenName:       tokenName,
+			ColoredCoinID:   coloredCoin.ColoredCoinID,
+			ContractAddress: coloredCoin.ContractAddress,
+		}
 	}
 
-	return tokens
+	return coloredCoins
 }
 
 func (ec *TestCardanoChain) GetCardanoScriptInfo() *CardanoScriptInfo {

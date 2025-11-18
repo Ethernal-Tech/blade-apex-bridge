@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"testing"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
@@ -13,6 +16,61 @@ import (
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_SkylineBridgeMint_ColoredCoins(t *testing.T) {
+	const apiKey = "test_api_key"
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	coloredCoins := []cardanofw.ColoredCoin{{
+		TokenName:     "DJED",
+		ColoredCoinID: 5,
+		OriginChainID: cardanofw.ChainIDCardano,
+	}}
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true, coloredCoins...)
+
+	vectorConfig := cardanofw.NewVectorChainConfig(coloredCoins...)
+
+	// Needs expanding of skyline setup to use nexus
+	// nexusConfig := cardanofw.NewNexusChainConfig(true)
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		// cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithColoredCoins([]cardanofw.ColoredCoinConfig{
+			// {
+			// 	ID:                     1,
+			// 	Name:                   "USDT",
+			// 	EcosystemOriginChainID: cardanofw.ChainIDNexus,
+			// },
+			{
+				ID:                     2,
+				Name:                   "wADA",
+				EcosystemOriginChainID: cardanofw.ChainIDVector,
+				DestinationChainID:     cardanofw.ChainIDNexus,
+			},
+			{
+				ID:                     5,
+				Name:                   "DJED",
+				EcosystemOriginChainID: cardanofw.ChainIDCardano,
+				DestinationChainID:     cardanofw.ChainIDVector,
+			},
+		}))
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	signalChannel := make(chan os.Signal, 1)
+	// Notify the signalChannel when the interrupt signal is received (Ctrl+C)
+	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
+
+	<-signalChannel
+}
 
 func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 	const apiKey = "test_api_key"

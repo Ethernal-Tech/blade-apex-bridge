@@ -111,8 +111,8 @@ func (ec *TestEVMChain) GetRelayerAddress() string {
 	panic("unimplemented") //nolint:gocritic
 }
 
-// GetMintableTokens implements ITestApexChain.
-func (ec *TestEVMChain) GetMintableTokens() []infrawallet.Token {
+// GetColoredCoins implements ITestApexChain.
+func (ec *TestEVMChain) GetColoredCoins() []ColoredCoin {
 	panic("unimplemented") //nolint:gocritic
 }
 

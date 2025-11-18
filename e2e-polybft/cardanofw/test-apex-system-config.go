@@ -45,6 +45,19 @@ type ApexSystemConfig struct {
 
 	UserCnt                  uint
 	UpdateAddressCountChains []ChainID
+
+	ColoredCoins []ColoredCoinConfig
+}
+
+type ColoredCoinConfig struct {
+	ID                     uint16
+	Name                   string
+	EcosystemOriginChainID ChainID
+	DestinationChainID     ChainID
+}
+
+func (c ColoredCoinConfig) String() string {
+	return fmt.Sprintf("%d:%s:%s", c.ID, c.Name, c.EcosystemOriginChainID)
 }
 
 type ApexSystemOptions func(*ApexSystemConfig)
@@ -149,6 +162,12 @@ func WithBridgingAddrCnt(chainID ChainID, addressCnt int) ApexSystemOptions {
 	}
 }
 
+func WithColoredCoins(coloredCoins []ColoredCoinConfig) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.ColoredCoins = coloredCoins
+	}
+}
+
 func getDefaultApexSystemConfig() *ApexSystemConfig {
 	return &ApexSystemConfig{
 		APIValidatorID: 1,
@@ -185,11 +204,40 @@ func getDefaultSkylinexSystemConfig() *ApexSystemConfig {
 
 func initAllowedDirections(config *ApexSystemConfig, isSkyline bool) {
 	if isSkyline {
+		coloredCoinsMap := make(map[ChainID]map[ChainID][]uint16)
+		chains := []ChainID{ChainIDCardano, ChainIDVector, ChainIDPrime, ChainIDNexus}
+
+		for _, originChain := range chains {
+			coloredCoinsMap[originChain] = make(map[ChainID][]uint16)
+			for _, destinationChain := range chains {
+				coloredCoinsMap[originChain][destinationChain] = make([]uint16, 0)
+			}
+		}
+
+		for _, cc := range config.ColoredCoins {
+			switch cc.EcosystemOriginChainID {
+			case ChainIDCardano:
+				coloredCoinsMap[cc.EcosystemOriginChainID][cc.DestinationChainID] =
+					append(coloredCoinsMap[cc.EcosystemOriginChainID][cc.DestinationChainID], cc.ID)
+			case ChainIDVector:
+				if cc.ID != 2 {
+					coloredCoinsMap[cc.EcosystemOriginChainID][cc.DestinationChainID] =
+						append(coloredCoinsMap[cc.EcosystemOriginChainID][cc.DestinationChainID], cc.ID)
+				}
+			}
+
+			switch cc.DestinationChainID {
+			case ChainIDVector:
+				coloredCoinsMap[cc.DestinationChainID][cc.EcosystemOriginChainID] =
+					append(coloredCoinsMap[cc.DestinationChainID][cc.EcosystemOriginChainID], cc.ID)
+			}
+		}
+
 		if len(config.CardanoConfig.AllowedDirections) == 0 {
 			config.CardanoConfig.AllowedDirections = AllowedDirections{
 				ChainIDCardano: {
-					ChainIDPrime:  {false, true, []uint64{}},
-					ChainIDVector: {true, false, []uint64{}},
+					ChainIDPrime:  {false, true, coloredCoinsMap[ChainIDCardano][ChainIDPrime]},
+					ChainIDVector: {true, false, coloredCoinsMap[ChainIDCardano][ChainIDVector]},
 				},
 			}
 		}
@@ -197,7 +245,7 @@ func initAllowedDirections(config *ApexSystemConfig, isSkyline bool) {
 		if len(config.VectorConfig.AllowedDirections) == 0 {
 			config.VectorConfig.AllowedDirections = AllowedDirections{
 				ChainIDVector: {
-					ChainIDCardano: {false, true, []uint64{}},
+					ChainIDCardano: {false, true, coloredCoinsMap[ChainIDVector][ChainIDCardano]},
 				},
 			}
 		}
@@ -205,7 +253,7 @@ func initAllowedDirections(config *ApexSystemConfig, isSkyline bool) {
 		if len(config.PrimeConfig.AllowedDirections) == 0 {
 			config.PrimeConfig.AllowedDirections = AllowedDirections{
 				ChainIDPrime: {
-					ChainIDCardano: {true, false, []uint64{}},
+					ChainIDCardano: {true, false, coloredCoinsMap[ChainIDPrime][ChainIDCardano]},
 				},
 			}
 		}
@@ -219,8 +267,8 @@ func initAllowedDirections(config *ApexSystemConfig, isSkyline bool) {
 		if len(config.VectorConfig.AllowedDirections) == 0 {
 			config.VectorConfig.AllowedDirections = AllowedDirections{
 				ChainIDVector: {
-					ChainIDPrime: {true, false, []uint64{}},
-					ChainIDNexus: {true, false, []uint64{}},
+					ChainIDPrime: {true, false, []uint16{}},
+					ChainIDNexus: {true, false, []uint16{}},
 				},
 			}
 		}
@@ -228,8 +276,8 @@ func initAllowedDirections(config *ApexSystemConfig, isSkyline bool) {
 		if len(config.PrimeConfig.AllowedDirections) == 0 {
 			config.PrimeConfig.AllowedDirections = AllowedDirections{
 				ChainIDPrime: {
-					ChainIDVector: {true, false, []uint64{}},
-					ChainIDNexus:  {true, false, []uint64{}},
+					ChainIDVector: {true, false, []uint16{}},
+					ChainIDNexus:  {true, false, []uint16{}},
 				},
 			}
 		}

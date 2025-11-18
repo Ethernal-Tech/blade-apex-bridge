@@ -34,6 +34,7 @@ type CardanoChainInfo struct {
 	SocketPath       string
 
 	NativeTokens  []sendtx.TokenExchangeConfig
+	ColoredCoins  []ColoredCoin
 	GenesisWallet *cardanowallet.Wallet
 }
 
@@ -357,15 +358,6 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			a.CardanoInfo.GenesisWallet.VerificationKey, DefaultTokenName)
 		require.NoError(t, err)
 
-		nftToken, _, err := GetTokenAndPolicyForVerificationKey(
-			a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
-			a.CardanoInfo.GenesisWallet.VerificationKey, MintNFTTokenName)
-		require.NoError(t, err)
-
-		for _, chain := range a.chains {
-			chain.SetCustodialNFT(nftToken)
-		}
-
 		a.PrimeInfo.NativeTokens = nil
 		a.VectorInfo.NativeTokens = []sendtx.TokenExchangeConfig{
 			{
@@ -378,6 +370,60 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 				DstChainID: ChainIDPrime,
 				TokenName:  tokenCardano.String(),
 			},
+		}
+
+		var coloredCoinToken cardanowallet.Token
+
+		// Configure native colored coin token names
+		// Previously human readable names -> cardano policyID.hex_name
+		// Non native (mint/burn) tokens are renamed/configured later
+		for _, cc := range a.Config.ColoredCoins {
+			switch cc.EcosystemOriginChainID {
+			case ChainIDCardano:
+				coloredCoinToken, _, err = GetTokenAndPolicyForVerificationKey(
+					a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
+					a.CardanoInfo.GenesisWallet.VerificationKey, cc.Name)
+				require.NoError(t, err)
+
+				for i, cardanoCC := range a.Config.CardanoConfig.ColoredCoins {
+					if cardanoCC.ColoredCoinID == cc.ID {
+						a.Config.CardanoConfig.ColoredCoins[i].TokenName = coloredCoinToken.String()
+
+						break
+					}
+				}
+			case ChainIDVector:
+				// skip wADA since that is already set as wrapped currency
+				if cc.ID == 2 {
+					continue
+				}
+			}
+		}
+
+		var nftToken cardanowallet.Token
+
+		for _, chain := range a.chains {
+			if chain.GetCustodialAddress() != "" {
+				switch chain.ChainID() {
+				case ChainIDCardano:
+					nftToken, _, err = GetTokenAndPolicyForVerificationKey(
+						a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
+						a.CardanoInfo.GenesisWallet.VerificationKey, MintNFTTokenName)
+					require.NoError(t, err)
+				case ChainIDVector:
+					nftToken, _, err = GetTokenAndPolicyForVerificationKey(
+						a.Config.VectorConfig.ChainType, a.Config.VectorConfig.NetworkType,
+						a.VectorInfo.GenesisWallet.VerificationKey, MintNFTTokenName)
+					require.NoError(t, err)
+				case ChainIDPrime:
+					nftToken, _, err = GetTokenAndPolicyForVerificationKey(
+						a.Config.PrimeConfig.ChainType, a.Config.PrimeConfig.NetworkType,
+						a.PrimeInfo.GenesisWallet.VerificationKey, MintNFTTokenName)
+					require.NoError(t, err)
+				}
+
+				chain.SetCustodialNFT(nftToken)
+			}
 		}
 	}
 
@@ -492,24 +538,15 @@ func (a *ApexSystem) DeployCardanoContracts() error {
 				return err
 			}
 
-			mintableTokens := chain.GetMintableTokens()
-			if len(mintableTokens) > 0 {
+			coloredCoins := chain.GetColoredCoins()
+			if len(coloredCoins) > 0 {
 				switch chain.ChainID() {
 				case ChainIDCardano:
-					for i, mintableToken := range mintableTokens {
-						a.CardanoInfo.NativeTokens[i].TokenName = mintableToken.String()
-						a.CardanoInfo.NativeTokens[i].Mint = true
-					}
+					a.CardanoInfo.ColoredCoins = coloredCoins
 				case ChainIDPrime:
-					for i, mintableToken := range mintableTokens {
-						a.PrimeInfo.NativeTokens[i].TokenName = mintableToken.String()
-						a.PrimeInfo.NativeTokens[i].Mint = true
-					}
+					a.PrimeInfo.ColoredCoins = coloredCoins
 				case ChainIDVector:
-					for i, mintableToken := range mintableTokens {
-						a.VectorInfo.NativeTokens[i].TokenName = mintableToken.String()
-						a.VectorInfo.NativeTokens[i].Mint = true
-					}
+					a.VectorInfo.ColoredCoins = coloredCoins
 				default:
 					return fmt.Errorf("unimplemented cardano contract setup for chain %s", chain.ChainID())
 				}
@@ -592,7 +629,9 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 		}
 
 		err := validator.GenerateSkylineConfigs(
-			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i),
+			a.Config.APIPortStart+i, a.Config.APIKey,
+			a.Config.GetTelemetryForValidatorIdx(i),
+			a.Config.ColoredCoins,
 		)
 		if err != nil {
 			return err
