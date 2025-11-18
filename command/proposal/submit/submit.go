@@ -158,11 +158,15 @@ func processValidatorSetChangeProposal(
 			)
 
 			for i := range key.Key {
-				blsKey[i], ok = new(big.Int).SetString(key.Key[i], 16)
-				if !ok {
-					outputter.SetError(fmt.Errorf("cannot convert string to big int in public key"))
+				if key.Key[i] == "" {
+					blsKey[i] = big.NewInt(0)
+				} else {
+					blsKey[i], ok = new(big.Int).SetString(key.Key[i], 16)
+					if !ok {
+						outputter.SetError(fmt.Errorf("cannot convert string to big int in public key"))
 
-					return
+						return
+					}
 				}
 			}
 
