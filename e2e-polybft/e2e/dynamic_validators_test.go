@@ -864,6 +864,201 @@ func TestE2E_DynamicValidators_StopApxBridgesDuringVSU(t *testing.T) {
 		sendAmountDfm)
 }
 
+// The test starts 5 validators (0-4), in the first VSU operation removes validator #3
+// and adds a new validator, in the second VSU operation removes previously added validator.
+func TestE2E_DynamicValidators_AddRemoveAndRemoveValidator(t *testing.T) {
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 40
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
+	primeConfig.BridgeAddrHasStake = true
+	primeConfig.PremineAmount = 500_000_000
+	vectorConfig.BridgeAddrHasStake = true
+	vectorConfig.PremineAmount = 500_000_000
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithAPIValidatorID(-1),
+		cardanofw.WithValidators(5),
+		cardanofw.WithNonValidators(1),
+		cardanofw.WithNexusEnabled(true),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	t.Log("Cluster started")
+
+	cluster := apex.BridgeCluster
+
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
+
+		return multisig == primeConfig.FundAmount && fee == primeConfig.FundFeeAmount
+	}))
+
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
+
+		return multisig == vectorConfig.FundAmount && fee == vectorConfig.FundFeeAmount
+	}))
+
+	newValidatorSrv := cluster.Servers[5]
+
+	proposer := cluster.Servers[0]
+
+	proposerAcc, err := helper.GetAccountFromDir(proposer.DataDir())
+	require.NoError(t, err)
+
+	relayer, err := txrelayer.NewTxRelayer(txrelayer.WithClient(proposer.JSONRPC()))
+	require.NoError(t, err)
+
+	polybftCfg, err := polybft.LoadPolyBFTConfig(path.Join(cluster.Config.TmpDir, chainConfigFileName))
+	require.NoError(t, err)
+
+	newValidatorAcc, err := helper.GetAccountFromDir(newValidatorSrv.DataDir())
+	require.NoError(t, err)
+
+	removeValidator := cluster.Servers[3]
+	removeValidatorKey, err := helper.GetAccountFromDir(removeValidator.DataDir())
+	require.NoError(t, err)
+
+	// generate for non validator
+	apex.GenerateForNonValidator(t, ctx, newValidatorSrv)
+
+	primeKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "prime")
+	vectorKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "vector")
+
+	keysToStr := func(chain string, keys *cardanofw.CardanoWallet) string {
+		return fmt.Sprintf("%s:%s:%s:%s:%s",
+			chain,
+			addressToHex(keys.Multisig.VerificationKey),
+			addressToHex(keys.MultisigFee.VerificationKey),
+			addressToHex(keys.Multisig.StakeVerificationKey),
+			addressToHex(keys.MultisigFee.StakeVerificationKey),
+		)
+	}
+
+	// wait some time until funding is processed and last observed slot updated on Bridge SC
+	<-time.After(time.Minute)
+
+	executeValidatorChangeProposal(t, ctx, relayer, proposerAcc, []*addedValidator{
+		{
+			Address: newValidatorAcc.Address(),
+			Key:     newValidatorAcc.Bls.PublicKey(),
+			CardanoLikeChains: []string{
+				keysToStr("prime", &primeKeys),
+				keysToStr("vector", &vectorKeys),
+			},
+		},
+	}, []types.Address{removeValidatorKey.Address()}, cluster, polybftCfg)
+
+	t.Log("Executed validator set change")
+
+	// wait for vsc to be sent for sure
+	currentBlock, err := proposer.JSONRPC().BlockNumber()
+	require.NoError(t, err)
+
+	require.NoError(t, cluster.WaitForBlock(currentBlock+10, time.Minute))
+
+	// wait for validator set change to finish
+	waitUntilValidatorSetUpdateIsFinished(t, cluster, relayer, 10*time.Minute, 10*time.Second)
+
+	t.Log("Finished VSC")
+
+	checkValidatorActive(t, newValidatorAcc.Address(), relayer, true)
+	checkValidatorActive(t, removeValidatorKey.Address(), relayer, false)
+	// check stake amount to be equal to staked amount on the 1st validator
+	checkValidatorStake(t, newValidatorAcc.Address(), relayer, cluster.Config.StakeAmounts[0])
+	checkValidatorStake(t, removeValidatorKey.Address(), relayer, big.NewInt(0))
+
+	t.Logf("Added new validator")
+
+	// stop removed validator
+	require.NoError(t, removeValidator.Stop())
+
+	// create new multisig and fee addresses
+	require.NoError(t, apex.UpdateConfigs())
+
+	// restart validators & stop ones not used
+	require.NoError(t, apex.RestartBridges(ctx, 3))
+
+	// check on new multisig
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
+
+		t.Log("prime multisig", multisig)
+
+		return multisig == primeConfig.FundAmount && fee > 0 && fee < primeConfig.FundFeeAmount
+	}))
+
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
+
+		t.Log("vector multisig", multisig)
+
+		return multisig == vectorConfig.FundAmount && fee > 0 && fee < vectorConfig.FundFeeAmount
+	}))
+
+	t.Log("Removing previously added validator")
+
+	// now remove the previously added validator
+	executeValidatorChangeProposal(t, ctx, relayer, proposerAcc, nil,
+		[]types.Address{newValidatorAcc.Address()}, cluster, polybftCfg)
+
+	t.Log("Executed validator set change")
+
+	// wait for vsc to be sent for sure
+	currentBlock, err = proposer.JSONRPC().BlockNumber()
+	require.NoError(t, err)
+
+	require.NoError(t, cluster.WaitForBlock(currentBlock+10, time.Minute))
+
+	// wait for validator set change to finish
+	waitUntilValidatorSetUpdateIsFinished(t, cluster, relayer, 5*time.Minute, 10*time.Second)
+
+	t.Log("Finished VSC")
+
+	checkValidatorActive(t, newValidatorAcc.Address(), relayer, false)
+	checkValidatorStake(t, newValidatorAcc.Address(), relayer, big.NewInt(0))
+
+	t.Logf("Removed validator")
+
+	// stop removed validator
+	require.NoError(t, newValidatorSrv.Stop())
+
+	// create new multisig and fee addresses
+	require.NoError(t, apex.UpdateConfigs())
+
+	// restart validators & stop ones not used
+	require.NoError(t, apex.RestartBridges(ctx, 3, 5))
+
+	// check on new multisig
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
+
+		t.Log("prime multisig", multisig)
+
+		return multisig == primeConfig.FundAmount && fee > 0 && fee < primeConfig.FundFeeAmount
+	}))
+
+	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
+		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDVector)
+
+		t.Log("vector multisig", multisig)
+
+		return multisig == vectorConfig.FundAmount && fee > 0 && fee < vectorConfig.FundFeeAmount
+	}))
+}
+
 func addressToHex(address []byte) string {
 	return hex.EncodeToHex(address)[2:]
 }
