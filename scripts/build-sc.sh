@@ -32,5 +32,6 @@ npm install && npm run compile
 cd ..
 
 go run consensus/polybft/contractsapi/apex-artifacts-gen/main.go
+go run consensus/polybft/contractsapi/artifacts-gen/main.go
 go run consensus/polybft/contractsapi/bindings-gen/main.go
 ./scripts/buildb.sh
