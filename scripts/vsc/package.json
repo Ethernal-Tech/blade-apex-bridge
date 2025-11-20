@@ -1,5 +1,12 @@
 {
   "devDependencies": {
     "@types/node": "^24.7.2"
+  },
+  "dependencies": {
+    "child_process": "^1.0.2",
+    "fs": "^0.0.1-security",
+    "path": "^0.12.7",
+    "typescript": "^5.9.3",
+    "util": "^0.12.5"
   }
 }

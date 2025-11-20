@@ -1,0 +1,33 @@
+{
+    "validatorsRemove": [
+        "0x742D35CC6634C0532925A3B844BC454E4438F44E"
+    ],
+    "validatorsAdd": [
+        {
+            "address": "0x1234567890abcdef1234567890abcdef12345678",
+            "cardano_like_chains": [
+                {
+                    "chain_name": "prime",
+                    "multisig_verification": "f6b167a444402c7f42c6445d5f629f0a9b7944b29b7766ae1991b554ccdaba7a",
+                    "fee_verification": "f6b167a444402c7f42c6445d5f629f0a9b7944b29b7766ae1991b554ccdaba7a",
+                    "multisig_stake_verification": "f6b167a444402c7f42c6445d5f629f0a9b7944b29b7766ae1991b554ccdaba7a",
+                    "fee_stake_verification": "f6b167a444402c7f42c6445d5f629f0a9b7944b29b7766ae1991b554ccdaba7a"
+                },
+                {
+                    "chain_name": "vector",
+                    "multisig_verification": "f6b167a444402c7f42c6445d5f629f0a9b7944b29b7766ae1991b554ccdaba7a",
+                    "fee_verification": "f6b167a444402c7f42c6445d5f629f0a9b7944b29b7766ae1991b554ccdaba7a",
+                    "multisig_stake_verification": "f6b167a444402c7f42c6445d5f629f0a9b7944b29b7766ae1991b554ccdaba7a",
+                    "fee_stake_verification": "f6b167a444402c7f42c6445d5f629f0a9b7944b29b7766ae1991b554ccdaba7a"
+                }
+            ],
+            "blade_bls": "03516badf21abb14e32d2577118459f298d395f6d8ad451bb73097997d670f912c248ba7ddb029b0a440a56ed7c3c623f16c59fe19f1bbbafe311c9ed9c1f1342796f24214228f21b0ad5b1aafa94a12ed85790f873fa6229f3bee1672b4a69608050ea872196734ca37599493a1e165cf98f3ad1b6e9e390595adaa637730ef",
+            "nexus": true
+        }
+    ],
+    "proposalFilePath": "./proposal.json",
+    "proposalDesc": "proposal desc",
+    "rpcUrl": "http://localhost:10002",
+    "validatorPk": "e5340e34447909cf64e6206a923810425e114b5534097658c0085729fd027e52",
+    "bladeBinPath": "blade"
+}
