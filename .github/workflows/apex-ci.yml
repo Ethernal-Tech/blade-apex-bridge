@@ -31,6 +31,10 @@ on: # yamllint disable-line rule:truthy
         description: E2E ApexBridge Big Tests
         type: boolean
         default: false
+      e2e_dynamic_validators_test:
+        description: E2E Dynamic Validators Tests
+        type: boolean
+        default: false
       e2e_skyline_mba_test:
         description: E2E Skyline MBA Tests
         type: boolean
@@ -411,5 +415,15 @@ jobs:
     with:
       apex_bridge_ref: feat/validator_set_2
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_dynamic_validators_test_push:
+    name: E2E Dynamic Validators Tests (push on develop branch)
+    uses: ./.github/workflows/e2e-dynamic-validators-test.yml
+    needs: build_blade
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/develop')
+    with:
+      apex_bridge_ref: main
+      blade_apex_bridge_ref: develop
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
