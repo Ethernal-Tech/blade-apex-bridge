@@ -1,7 +1,7 @@
 #!/bin/bash
 
-BRANCH=feat/new_validator_set
-BLADE_BRANCH=new-governance-change-validator-set
+BRANCH=main
+BLADE_BRANCH=main
 
 # build Apex-bridge smartcontracts
 cd ./apex-bridge-smartcontracts
