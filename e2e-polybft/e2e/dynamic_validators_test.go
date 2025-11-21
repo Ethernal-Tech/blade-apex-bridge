@@ -578,6 +578,10 @@ func TestE2E_DynamicValidators_OneFeeUtxo(t *testing.T) {
 // signal for VSU and it was able to receive all new multisig utxos through the sync during VSU because apex
 // bridge was up all the time. It is expected old multisig utxos to be deleted entirely from all nodes.
 func TestE2E_DynamicValidators_StopBladesDuringVSU(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 40
@@ -723,6 +727,10 @@ func TestE2E_DynamicValidators_StopBladesDuringVSU(t *testing.T) {
 // we start the 2nd one and checking if bridge continues with batching with 2nd one apex bridge included in
 // consensus. It is expected to continue working and that new multisig utxos are transferred entirely to all nodes.
 func TestE2E_DynamicValidators_StopApxBridgesDuringVSU(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 40
@@ -867,6 +875,10 @@ func TestE2E_DynamicValidators_StopApxBridgesDuringVSU(t *testing.T) {
 // The test starts 5 validators (0-4), in the first VSU operation removes validator #3
 // and adds a new validator, in the second VSU operation removes previously added validator.
 func TestE2E_DynamicValidators_AddRemoveAndRemoveValidator(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 40
