@@ -80,7 +80,7 @@ func init() {
 	startTime = time.Now().UTC().UnixMilli()
 }
 
-func resolveBinary() string {
+func ResolveBladeBinary() string {
 	bin := os.Getenv("EDGE_BINARY")
 	if bin != "" {
 		return bin
@@ -521,13 +521,14 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 		t:             t,
 		WithLogs:      isTrueEnv(envLogsEnabled),
 		WithStdout:    isTrueEnv(envStdoutEnabled),
-		Binary:        resolveBinary(),
+		Binary:        ResolveBladeBinary(),
 		EpochSize:     10,
 		EpochReward:   1,
 		BlockGasLimit: command.DefaultGenesisGasLimit,
 		StakeAmounts:  []*big.Int{},
 		HasBridge:     false,
-		VotingDelay:   10,
+		VotingDelay:   1,
+		VotingPeriod:  30,
 		ApexConfig:    genesis.ApexConfigDefault,
 		InitialPort:   30300,
 	}
@@ -598,6 +599,7 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 			"--premine", "0x0000000000000000000000000000000000000000",
 			"--trieroot", cluster.Config.InitialStateRoot.String(),
 			"--vote-delay", fmt.Sprint(cluster.Config.VotingDelay),
+			"--vote-period", fmt.Sprintf("%d", 3*config.EpochSize),
 		}
 
 		bladeAdmin := cluster.Config.BladeAdmin
@@ -818,7 +820,11 @@ func NewTestCluster(t *testing.T, validatorsCount int, opts ...ClusterOption) *T
 	}
 
 	for i := 1; i <= cluster.Config.NonValidatorCount; i++ {
-		dir := nonValidatorPrefix + strconv.Itoa(i)
+		dir := nonValidatorPrefix
+		if cluster.Config.NonValidatorCount > 1 {
+			dir += strconv.Itoa(i)
+		}
+
 		cluster.InitTestServer(t, dir, cluster.Bridge.JSONRPCAddr(), None)
 	}
 
@@ -1009,7 +1015,7 @@ func runCommand(binary string, args []string, stdout io.Writer) error {
 
 // RunEdgeCommand - calls a command line edge function
 func RunEdgeCommand(args []string, stdout io.Writer) error {
-	return runCommand(resolveBinary(), args, stdout)
+	return runCommand(ResolveBladeBinary(), args, stdout)
 }
 
 // InitSecrets initializes account(s) secrets with given prefix.

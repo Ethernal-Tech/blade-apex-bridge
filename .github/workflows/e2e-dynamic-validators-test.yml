@@ -10,6 +10,10 @@ on: # yamllint disable-line rule:truthy
       blade_apex_bridge_ref:
         description: The branch/commit from the Blade Apex Bridge
         type: string
+      e2e_apex_skip_redundant_tests:
+        description: E2E ApexBridge Skip Redundant Tests
+        type: string
+        required: true
     outputs:
       workflow_output:
         description: E2E Dynamic Validators Tests output
@@ -75,6 +79,8 @@ jobs:
         run: ls -l /etc/ssl/private/localhost.key
       - name: Run tests
         run: make test-e2e-dynamic-validators-apex-bridge
+        env: 
+          SKIP_E2E_REDUNDANT_TESTS: ${{ inputs.e2e_apex_skip_redundant_tests }}
       - name: Run tests failed
         if: failure()
         id: run_e2e_dynamic_validators_failure

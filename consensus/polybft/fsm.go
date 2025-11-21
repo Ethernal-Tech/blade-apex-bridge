@@ -49,6 +49,10 @@ var (
 	errValidatorSetDeltaMismatch           = errors.New("validator set delta mismatch")
 	errValidatorsUpdateInNonEpochEnding    = errors.New("trying to update validator set in a non epoch ending block")
 	errValidatorDeltaNilInEpochEndingBlock = errors.New("validator set delta is nil in epoch ending block")
+	errNewValidatorSetTxDoesNotExist       = errors.New("missing new validator set tx")
+	errValidatorSetUpdatedTxDoesNotExist   = errors.New("missing validator set updated tx")
+	errTwoValidatorSetUpdatedTxInSameBlock = errors.New("found 2 validator set updated transactions in same block")
+	errValidatorSetUpdatedButNoDelta       = errors.New("found validator set updated tx but no delta")
 )
 
 type fsm struct {
@@ -111,6 +115,9 @@ type fsm struct {
 
 	// newValidatorsDelta carries the updates of validator set on epoch ending block
 	newValidatorsDelta *validator.ValidatorSetDelta
+
+	// state persists consensus data off-chain
+	state *State
 }
 
 // BuildProposal builds a proposal for the current round (used if proposer)
@@ -132,6 +139,49 @@ func (f *fsm) BuildProposal(currentRound uint64) ([]byte, error) {
 
 	if err := f.blockBuilder.Reset(); err != nil {
 		return nil, fmt.Errorf("failed to initialize block builder: %w", err)
+	}
+
+	if f.isFirstBlockOfEpoch && f.epochNumber > 1 {
+		events, err := f.state.GovernanceStore.getGovernanceEventsByType(
+			f.epochNumber-1,
+			(&contractsapi.NewValidatorSetEvent{}).Sig(),
+			nil)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, event := range events {
+			event, err := unmarshalGovernanceEvent[*contractsapi.NewValidatorSetEvent](event)
+			if err != nil {
+				return nil, err
+			}
+
+			tx, err := f.createNewValidatorSetTx(event)
+			if err != nil {
+				return nil, err
+			}
+
+			if err := f.blockBuilder.WriteTx(tx); err != nil {
+				return nil, fmt.Errorf("failed to apply new validator set transaction: %w", err)
+			}
+		}
+
+		lastDelta, err := f.state.StakeStore.getLastDelta(nil)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't get last delta: %w", err)
+		}
+
+		// sending new validator set to Bridge contract
+		if !lastDelta.IsEmpty() {
+			tx, err := f.createBridgeUpdateValidatorsTx()
+			if err != nil {
+				return nil, fmt.Errorf("failed to create bridge update validators transaction: %w", err)
+			}
+
+			if err := f.blockBuilder.WriteTx(tx); err != nil {
+				return nil, fmt.Errorf("failed to apply bridge update validators transaction: %w", err)
+			}
+		}
 	}
 
 	if f.isEndOfEpoch {
@@ -275,6 +325,42 @@ func (f *fsm) getValidatorsTransition(delta *validator.ValidatorSetDelta) (valid
 	return nextValidators, nil
 }
 
+// createNewValidatorSetTx create a StateTransaction, which invokes Bridge (Apex) smart contract
+// and sends all the necessary metadata to it.
+func (f *fsm) createNewValidatorSetTx(validatorSet *contractsapi.NewValidatorSetEvent) (*types.Transaction, error) {
+	vs := make([]*contractsapi.ValidatorSet, 0, len(validatorSet.ValidatorDelta.AddedValidators))
+
+	for _, v := range validatorSet.ValidatorDelta.AddedValidators {
+		vd := make([]*contractsapi.ValidatorAddressChainData, 0, len(v.ValidatorData))
+
+		for _, v := range v.ValidatorData {
+			vd = append(vd, &contractsapi.ValidatorAddressChainData{
+				Addr:            v.Addr,
+				Data:            &contractsapi.ValidatorChainData{Key: v.Key},
+				KeySignature:    v.Signature,
+				KeyFeeSignature: v.FeeSignature,
+			})
+		}
+
+		vs = append(vs, &contractsapi.ValidatorSet{
+			ChainID:    v.ChainID,
+			Validators: vd,
+		})
+	}
+
+	input, err := (&contractsapi.SubmitNewValidatorSetApexBridgeContractsBridgeFn{
+		NewValidatorSetDelta: &contractsapi.NewValidatorSetDelta{
+			AddedValidators:   vs,
+			RemovedValidators: validatorSet.ValidatorDelta.RemovedValidators,
+		},
+	}).EncodeAbi()
+	if err != nil {
+		return nil, err
+	}
+
+	return createStateTransactionWithData(contracts.Bridge, input), nil
+}
+
 // createCommitEpochTx create a StateTransaction, which invokes ValidatorSet smart contract
 // and sends all the necessary metadata to it.
 func (f *fsm) createCommitEpochTx() (*types.Transaction, error) {
@@ -284,6 +370,16 @@ func (f *fsm) createCommitEpochTx() (*types.Transaction, error) {
 	}
 
 	return createStateTransactionWithData(contracts.EpochManagerContract, input), nil
+}
+
+func (f *fsm) createBridgeUpdateValidatorsTx() (*types.Transaction, error) {
+	// create bridge update validators transaction
+	input, err := (&contractsapi.ValidatorSetUpdatedApexBridgeContractsBridgeFn{}).EncodeAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode input data for bridge update validators: %w", err)
+	}
+
+	return createStateTransactionWithData(contracts.Bridge, input), nil
 }
 
 // createDistributeRewardsTx create a StateTransaction, which invokes RewardPool smart contract
@@ -454,8 +550,44 @@ func (f *fsm) VerifyStateTransactions(transactions []*types.Transaction) error {
 	var (
 		commitmentTxExists        bool
 		commitEpochTxExists       bool
+		updatedValidatorSetExists bool
 		distributeRewardsTxExists bool
+		newValidatorSetTxs        map[types.Hash]struct{}
+		newValidatorSetDelta      *validator.ValidatorSetDelta
 	)
+
+	if f.isFirstBlockOfEpoch && f.epochNumber > 1 {
+		events, err := f.state.GovernanceStore.getGovernanceEventsByType(
+			f.epochNumber-1,
+			(&contractsapi.NewValidatorSetEvent{}).Sig(),
+			nil)
+		if err != nil {
+			return err
+		}
+
+		if len(events) > 0 {
+			newValidatorSetTxs = map[types.Hash]struct{}{}
+
+			for _, event := range events {
+				event, err := unmarshalGovernanceEvent[*contractsapi.NewValidatorSetEvent](event)
+				if err != nil {
+					return err
+				}
+
+				tx, err := f.createNewValidatorSetTx(event)
+				if err != nil {
+					return err
+				}
+
+				newValidatorSetTxs[tx.Hash()] = struct{}{}
+			}
+		}
+
+		newValidatorSetDelta, err = f.state.StakeStore.getLastDelta(nil)
+		if err != nil {
+			return fmt.Errorf("couldn't get last delta: %w", err)
+		}
+	}
 
 	for _, tx := range transactions {
 		if tx.Type() != types.StateTxType {
@@ -508,9 +640,58 @@ func (f *fsm) VerifyStateTransactions(transactions []*types.Transaction) error {
 			if err := f.verifyDistributeRewardsTx(tx); err != nil {
 				return fmt.Errorf("error while verifying distribute rewards transaction. error: %w", err)
 			}
+		case *contractsapi.SubmitNewValidatorSetApexBridgeContractsBridgeFn:
+			if f.epochNumber == 1 {
+				return fmt.Errorf("found new validator set tx in first epoch")
+			}
+
+			if !f.isFirstBlockOfEpoch {
+				return fmt.Errorf(
+					"only first block of epoch can contain new validator set tx (tx hash=%s)", tx.Hash())
+			}
+
+			if newValidatorSetTxs == nil {
+				return fmt.Errorf("found new validator set tx even though"+
+					"there weren't any requests for it in the previous epoch. (tx hash=%s)", tx.Hash())
+			}
+
+			if _, ok := newValidatorSetTxs[tx.Hash()]; !ok {
+				return fmt.Errorf("found unexpected new validator set tx")
+			}
+
+			delete(newValidatorSetTxs, tx.Hash())
+		case *contractsapi.ValidatorSetUpdatedApexBridgeContractsBridgeFn:
+			if updatedValidatorSetExists {
+				return errTwoValidatorSetUpdatedTxInSameBlock
+			}
+
+			updatedValidatorSetExists = true
+
+			if f.epochNumber == 1 {
+				return fmt.Errorf("found validator set updated tx in first epoch")
+			}
+
+			if !f.isFirstBlockOfEpoch {
+				return fmt.Errorf(
+					"only first block of epoch can contain validator set updated tx")
+			}
+
+			if newValidatorSetDelta.IsEmpty() {
+				return errValidatorSetUpdatedButNoDelta
+			}
 		default:
 			return fmt.Errorf("invalid state transaction data type: %v", stateTxData)
 		}
+	}
+
+	if f.isFirstBlockOfEpoch && f.epochNumber > 1 &&
+		!newValidatorSetDelta.IsEmpty() && !updatedValidatorSetExists {
+		return errValidatorSetUpdatedTxDoesNotExist
+	}
+
+	if f.isFirstBlockOfEpoch && f.epochNumber > 1 &&
+		newValidatorSetTxs != nil && len(newValidatorSetTxs) != 0 {
+		return errNewValidatorSetTxDoesNotExist
 	}
 
 	if f.isEndOfEpoch {

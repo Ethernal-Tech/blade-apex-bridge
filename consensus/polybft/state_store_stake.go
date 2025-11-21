@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/0xPolygon/polygon-edge/consensus/polybft/validator"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -12,6 +13,10 @@ var (
 	validatorSetBucket = []byte("fullValidatorSetBucket")
 	// key of the full validator set in bucket
 	fullValidatorSetKey = []byte("fullValidatorSet")
+	// last delta bucket
+	lastDeltaBucket = []byte("lastDeltaBucket")
+	// last delta
+	lastDeltaKey = []byte("lastDelta")
 	// error returned if full validator set does not exists in db
 	errNoFullValidatorSet = errors.New("full validator set not in db")
 )
@@ -24,6 +29,10 @@ type StakeStore struct {
 func (s *StakeStore) initialize(tx *bolt.Tx) error {
 	if _, err := tx.CreateBucketIfNotExists(validatorSetBucket); err != nil {
 		return fmt.Errorf("failed to create bucket=%s: %w", string(epochsBucket), err)
+	}
+
+	if _, err := tx.CreateBucketIfNotExists(lastDeltaBucket); err != nil {
+		return fmt.Errorf("failed to create bucket=%s: %w", string(lastDeltaBucket), err)
 	}
 
 	return nil
@@ -78,4 +87,51 @@ func (s *StakeStore) getFullValidatorSet(dbTx *bolt.Tx) (validatorSetState, erro
 	}
 
 	return fullValidatorSet, err
+}
+
+func (s *StakeStore) getLastDelta(dbTx *bolt.Tx) (*validator.ValidatorSetDelta, error) {
+	var (
+		delta = &validator.ValidatorSetDelta{}
+		err   error
+	)
+
+	getFn := func(tx *bolt.Tx) error {
+		raw := tx.Bucket(lastDeltaBucket).Get(lastDeltaKey)
+		if raw == nil {
+			delta = &validator.ValidatorSetDelta{}
+
+			return nil
+		}
+
+		return delta.Unmarshal(raw)
+	}
+
+	if dbTx == nil {
+		err = s.db.View(func(tx *bolt.Tx) error {
+			return getFn(tx)
+		})
+	} else {
+		err = getFn(dbTx)
+	}
+
+	return delta, err
+}
+
+func (s *StakeStore) insertLastDelta(delta *validator.ValidatorSetDelta, dbTx *bolt.Tx) error {
+	insertFn := func(tx *bolt.Tx) error {
+		raw, err := delta.Marshal()
+		if err != nil {
+			return err
+		}
+
+		return tx.Bucket(lastDeltaBucket).Put(lastDeltaKey, raw)
+	}
+
+	if dbTx == nil {
+		return s.db.Update(func(tx *bolt.Tx) error {
+			return insertFn(tx)
+		})
+	}
+
+	return insertFn(dbTx)
 }

@@ -61,10 +61,6 @@ func ResolveApexBridgeBinary() string {
 	return tryResolveFromEnv("APEX_BRIDGE_BINARY", "apex-bridge")
 }
 
-func ResolveBladeBinary() string {
-	return tryResolveFromEnv("BLADE_BINARY", "blade")
-}
-
 func RunCommandContext(
 	ctx context.Context, binary string, args []string, stdout io.Writer, envVariables ...string,
 ) error {

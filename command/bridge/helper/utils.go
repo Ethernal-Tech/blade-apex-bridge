@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/docker/docker/api/types/container"
@@ -49,7 +50,7 @@ var (
 	ErrNoAddressesProvided = errors.New("no addresses provided")
 	ErrInconsistentLength  = errors.New("addresses and amounts must be equal length")
 
-	rootchainAccountKey *crypto.ECDSAKey
+	privateKey *crypto.ECDSAKey
 )
 
 type MessageResult struct {
@@ -77,12 +78,39 @@ func DecodePrivateKey(rawKey string) (crypto.Key, error) {
 		return nil, fmt.Errorf("failed to decode private key string '%s': %w", privateKeyRaw, err)
 	}
 
-	rootchainAccountKey, err = crypto.NewECDSAKeyFromRawPrivECDSA(dec)
+	privateKey, err = crypto.NewECDSAKeyFromRawPrivECDSA(dec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize key from provided private key '%s': %w", privateKeyRaw, err)
 	}
 
-	return rootchainAccountKey, nil
+	return privateKey, nil
+}
+
+func GetPrivateKeyForCommand(key string) (crypto.Key, error) {
+	if key == "" {
+		return nil, fmt.Errorf("key cannot be empty")
+	}
+
+	val := strings.Split(key, ":")
+	if len(val) > 2 {
+		return nil, fmt.Errorf("invalid key format")
+	}
+
+	if len(val) == 1 {
+		return DecodePrivateKey(strings.TrimPrefix(key, "0x"))
+	}
+
+	secretsManager, err := polybftsecrets.GetSecretsManager("", val[0], false)
+	if err != nil {
+		return nil, err
+	}
+
+	privateKeySecretsManager, err := secretsManager.GetSecret(val[1])
+	if err != nil {
+		return nil, err
+	}
+
+	return DecodePrivateKey(strings.TrimPrefix(string(privateKeySecretsManager), "0x"))
 }
 
 func GetRootchainID() (string, error) {

@@ -1936,6 +1936,85 @@ func (s *SetNewBlockTimeNetworkParamsFn) DecodeAbi(buf []byte) error {
 	return decodeMethod(NetworkParams.Abi.Methods["setNewBlockTime"], buf, s)
 }
 
+type SetNewVotingPeriodNetworkParamsFn struct {
+	NewVotingPeriod *big.Int `abi:"newVotingPeriod"`
+}
+
+func (s *SetNewVotingPeriodNetworkParamsFn) Sig() []byte {
+	return NetworkParams.Abi.Methods["setNewVotingPeriod"].ID()
+}
+
+func (s *SetNewVotingPeriodNetworkParamsFn) EncodeAbi() ([]byte, error) {
+	return NetworkParams.Abi.Methods["setNewVotingPeriod"].Encode(s)
+}
+
+func (s *SetNewVotingPeriodNetworkParamsFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(NetworkParams.Abi.Methods["setNewVotingPeriod"], buf, s)
+}
+
+type ValidatorData struct {
+	Addr         types.Address `abi:"addr"`
+	Key          [4]*big.Int   `abi:"key"`
+	Signature    []byte        `abi:"signature"`
+	FeeSignature []byte        `abi:"feeSignature"`
+}
+
+var ValidatorDataABIType = abi.MustNewType("tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)")
+
+func (v *ValidatorData) EncodeAbi() ([]byte, error) {
+	return ValidatorDataABIType.Encode(v)
+}
+
+func (v *ValidatorData) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorDataABIType, buf, &v)
+}
+
+type BridgeValidatorsData struct {
+	ChainID       uint8            `abi:"chainID"`
+	ValidatorData []*ValidatorData `abi:"validatorData"`
+}
+
+var BridgeValidatorsDataABIType = abi.MustNewType("tuple(uint8 chainID,tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)[] validatorData)")
+
+func (b *BridgeValidatorsData) EncodeAbi() ([]byte, error) {
+	return BridgeValidatorsDataABIType.Encode(b)
+}
+
+func (b *BridgeValidatorsData) DecodeAbi(buf []byte) error {
+	return decodeStruct(BridgeValidatorsDataABIType, buf, &b)
+}
+
+type ValidatorDelta struct {
+	AddedValidators   []*BridgeValidatorsData `abi:"addedValidators"`
+	RemovedValidators []types.Address         `abi:"removedValidators"`
+}
+
+var ValidatorDeltaABIType = abi.MustNewType("tuple(tuple(uint8 chainID,tuple(address addr,uint256[4] key,bytes signature,bytes feeSignature)[] validatorData)[] addedValidators,address[] removedValidators)")
+
+func (v *ValidatorDelta) EncodeAbi() ([]byte, error) {
+	return ValidatorDeltaABIType.Encode(v)
+}
+
+func (v *ValidatorDelta) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorDeltaABIType, buf, &v)
+}
+
+type NewValidatorSetNetworkParamsFn struct {
+	ValidatorDelta *ValidatorDelta `abi:"validatorDelta"`
+}
+
+func (n *NewValidatorSetNetworkParamsFn) Sig() []byte {
+	return NetworkParams.Abi.Methods["newValidatorSet"].ID()
+}
+
+func (n *NewValidatorSetNetworkParamsFn) EncodeAbi() ([]byte, error) {
+	return NetworkParams.Abi.Methods["newValidatorSet"].Encode(n)
+}
+
+func (n *NewValidatorSetNetworkParamsFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(NetworkParams.Abi.Methods["newValidatorSet"], buf, n)
+}
+
 type NewCheckpointBlockIntervalEvent struct {
 	CheckpointInterval *big.Int `abi:"checkpointInterval"`
 }
@@ -2248,6 +2327,30 @@ func (n *NewBaseFeeChangeDenomEvent) Decode(input []byte) error {
 	return NetworkParams.Abi.Events["NewBaseFeeChangeDenom"].Inputs.DecodeStruct(input, &n)
 }
 
+type NewValidatorSetEvent struct {
+	ValidatorDelta *ValidatorDelta `abi:"validatorDelta"`
+}
+
+func (*NewValidatorSetEvent) Sig() ethgo.Hash {
+	return NetworkParams.Abi.Events["NewValidatorSet"].ID()
+}
+
+func (n *NewValidatorSetEvent) Encode() ([]byte, error) {
+	return NetworkParams.Abi.Events["NewValidatorSet"].Inputs.Encode(n)
+}
+
+func (n *NewValidatorSetEvent) ParseLog(log *ethgo.Log) (bool, error) {
+	if !NetworkParams.Abi.Events["NewValidatorSet"].Match(log) {
+		return false, nil
+	}
+
+	return true, decodeEvent(NetworkParams.Abi.Events["NewValidatorSet"], log, n)
+}
+
+func (n *NewValidatorSetEvent) Decode(input []byte) error {
+	return NetworkParams.Abi.Events["NewValidatorSet"].Inputs.DecodeStruct(input, &n)
+}
+
 type InitializeForkParamsFn struct {
 	NewOwner types.Address `abi:"newOwner"`
 }
@@ -2421,6 +2524,22 @@ func (q *QueueChildGovernorFn) EncodeAbi() ([]byte, error) {
 
 func (q *QueueChildGovernorFn) DecodeAbi(buf []byte) error {
 	return decodeMethod(ChildGovernor.Abi.Methods["queue"], buf, q)
+}
+
+type GetActionsChildGovernorFn struct {
+	ProposalID *big.Int `abi:"proposalId"`
+}
+
+func (g *GetActionsChildGovernorFn) Sig() []byte {
+	return ChildGovernor.Abi.Methods["getActions"].ID()
+}
+
+func (g *GetActionsChildGovernorFn) EncodeAbi() ([]byte, error) {
+	return ChildGovernor.Abi.Methods["getActions"].Encode(g)
+}
+
+func (g *GetActionsChildGovernorFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(ChildGovernor.Abi.Methods["getActions"], buf, g)
 }
 
 type ProposalCreatedEvent struct {

@@ -1,7 +1,9 @@
 package framework
 
 import (
+	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -12,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygon/polygon-edge/command/proposal/submit"
 	polybftsecrets "github.com/0xPolygon/polygon-edge/command/secrets/init"
 	validatorHelper "github.com/0xPolygon/polygon-edge/command/validator/helper"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft"
@@ -423,4 +426,102 @@ func (t *TestServer) WaitForNonZeroBalance(address types.Address, dur time.Durat
 			}
 		}
 	}
+}
+
+func (t *TestServer) SubmitProposal(filePath, privateKey, description string) (*submit.SubmitResult, error) {
+	args := []string{
+		"proposal", "submit",
+		"--json-rpc", t.JSONRPCAddr(),
+		"--private-key", privateKey,
+		"--path", filePath,
+		"--description", description,
+	}
+
+	var stdout bytes.Buffer
+
+	if err := runCommand(t.clusterConfig.Binary, args, &stdout); err != nil {
+		return nil, err
+	}
+
+	var result submit.SubmitResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (t *TestServer) VoteProposal(proposalID, privateKey string, against bool) error {
+	args := []string{
+		"proposal", "vote",
+		"--json-rpc", t.JSONRPCAddr(),
+		"--private-key", privateKey,
+		"--proposal-id", proposalID,
+	}
+
+	if against {
+		args = append(args, "--against")
+	}
+
+	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("vote"))
+}
+
+func (t *TestServer) QueueProposal(input, description, privateKey string) error {
+	args := []string{
+		"proposal", "queue",
+		"--json-rpc", t.JSONRPCAddr(),
+		"--private-key", privateKey,
+		"--input", input,
+		"--description", description,
+	}
+
+	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("queue"))
+}
+
+func (t *TestServer) ExecuteProposal(input, description, privateKey string) error {
+	args := []string{
+		"proposal", "execute",
+		"--json-rpc", t.JSONRPCAddr(),
+		"--private-key", privateKey,
+		"--input", input,
+		"--description", description,
+	}
+
+	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("execute"))
+}
+
+func (t *TestServer) AddValidatorToVSCProposal(
+	path string,
+	address types.Address,
+	keysForCardanoLikeChains []string,
+	bladeBlsKey string,
+	nexus bool) error {
+	args := []string{
+		"proposal", "create-vsc-proposal", "add-validator",
+		"--address", address.String(),
+		"--file", path,
+	}
+	for _, v := range keysForCardanoLikeChains {
+		args = append(args, "--cardano-like-chain", v)
+	}
+
+	args = append(args, "--blade", bladeBlsKey)
+
+	if nexus {
+		args = append(args, "--nexus")
+	}
+
+	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("execute"))
+}
+
+func (t *TestServer) RemoveValidatorToVSCProposal(
+	path string,
+	address types.Address) error {
+	args := []string{
+		"proposal", "create-vsc-proposal", "remove-validator",
+		"--address", address.String(),
+		"--file", path,
+	}
+
+	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("execute"))
 }

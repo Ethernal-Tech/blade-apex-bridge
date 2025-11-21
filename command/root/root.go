@@ -15,11 +15,14 @@ import (
 	"github.com/0xPolygon/polygon-edge/command/mint"
 	"github.com/0xPolygon/polygon-edge/command/monitor"
 	"github.com/0xPolygon/polygon-edge/command/peers"
+	"github.com/0xPolygon/polygon-edge/command/proposal"
 	"github.com/0xPolygon/polygon-edge/command/regenesis"
 	"github.com/0xPolygon/polygon-edge/command/sanitycheck"
 	"github.com/0xPolygon/polygon-edge/command/secrets"
 	"github.com/0xPolygon/polygon-edge/command/server"
+	smartcontract "github.com/0xPolygon/polygon-edge/command/smart_contracts"
 	"github.com/0xPolygon/polygon-edge/command/status"
+
 	"github.com/0xPolygon/polygon-edge/command/triestorageanalysis"
 	"github.com/0xPolygon/polygon-edge/command/txpool"
 	"github.com/0xPolygon/polygon-edge/command/validator"
@@ -63,6 +66,8 @@ func (rc *RootCommand) registerSubCommands() {
 		loadtest.GetCommand(),
 		sanitycheck.GetCommand(),
 		accounts.GetCommand(),
+		proposal.GetCommand(),
+		smartcontract.GetCommand(),
 	)
 }
 

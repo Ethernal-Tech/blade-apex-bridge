@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/types"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -213,6 +215,12 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 		framework.WithEpochReward(0),
 		framework.WithNativeTokenConfig("Blade:BLADE:18:true"),
 		framework.WithProxyContractsAdmin(bladeProxyAdmin.Address().String()),
+		framework.WithNonValidators(a.Config.BladeNonValidatorCount),
+		framework.WithSecretsCallback(func(addresses []types.Address, config *framework.TestClusterConfig) {
+			for range addresses {
+				config.StakeAmounts = append(config.StakeAmounts, ethgo.Ether(1000))
+			}
+		}),
 	)
 
 	// create validators
@@ -220,7 +228,7 @@ func (a *ApexSystem) StartBridgeChain(t *testing.T) {
 
 	for idx := range a.validators {
 		a.validators[idx] = NewTestApexValidator(
-			a.dataDirPath, idx+1, a.BridgeCluster, a.BridgeCluster.Servers[idx])
+			a.dataDirPath, idx+1, a.BridgeCluster.Servers[idx])
 	}
 
 	a.BridgeCluster.WaitForReady(t)
@@ -232,6 +240,23 @@ func (a *ApexSystem) GetBridgeNode(t *testing.T, idx int) *framework.TestServer 
 	require.True(t, idx >= 0 && idx < len(a.BridgeCluster.Servers))
 
 	return a.BridgeCluster.Servers[idx]
+}
+
+func (a *ApexSystem) GenerateForNonValidator(t *testing.T, ctx context.Context, bladeNode *framework.TestServer) {
+	t.Helper()
+
+	idx := len(a.validators)
+	validator := NewTestApexValidator(a.dataDirPath, idx+1, bladeNode)
+
+	a.validators = append(a.validators, validator)
+
+	for _, chain := range a.chains {
+		require.NoError(t, chain.CreateWallets(validator))
+		require.NoError(t, chain.CreateAddresses(a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr()))
+	}
+
+	require.NoError(t, a.generateConfigForValidator(idx))
+	require.NoError(t, validator.Start(ctx, false))
 }
 
 func (a *ApexSystem) CreateWallets() (err error) {
@@ -276,6 +301,40 @@ func (a *ApexSystem) InitContracts(ctx context.Context) error {
 	return nil
 }
 
+func (a *ApexSystem) UpdateConfigs() error {
+	if err := a.CreateAddresses(); err != nil {
+		return err
+	}
+
+	for _, chain := range a.chains {
+		if err := chain.PopulateApexSystem(a); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (a *ApexSystem) RestartBridges(ctx context.Context, validatorsNotToStart ...int) error {
+	for _, validator := range a.validators {
+		if err := validator.Stop(); err != nil {
+			return err
+		}
+	}
+
+	for i, validator := range a.validators {
+		hasAPI := a.Config.APIValidatorID == -1 || validator.ID == a.Config.APIValidatorID
+
+		if !slices.Contains(validatorsNotToStart, i) {
+			if err := validator.Start(ctx, hasAPI); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func (a *ApexSystem) FundWallets(ctx context.Context) error {
 	return a.execForEachChain(func(chain ITestApexChain) error {
 		return chain.FundWallets(ctx)
@@ -313,45 +372,8 @@ func (a *ApexSystem) RegisterChains() error {
 }
 
 func (a *ApexSystem) GenerateConfigs() error {
-	getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
-		return func(data map[string]any) {
-			callback(a, data)
-		}
-	}
-
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
-		serverIndx := i
-		if a.Config.TargetOneClusterServer {
-			serverIndx = 0
-		}
-
-		err := validator.GenerateConfigs(
-			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i))
-		if err != nil {
-			return err
-		}
-
-		for _, chain := range a.chains {
-			if err := chain.GenerateChainConfigs(serverIndx, validator); err != nil {
-				return err
-			}
-		}
-
-		if handler := a.Config.CustomOracleConfigHandler; handler != nil {
-			fileName := validator.GetValidatorComponentsConfig()
-			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
-				return err
-			}
-		}
-
-		if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
-			fileName := validator.GetRelayerConfig()
-			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
-				return err
-			}
-		}
-
-		return nil
+		return a.generateConfigForValidator(i)
 	})
 	if err != nil {
 		return err
@@ -755,4 +777,46 @@ func (a *ApexSystem) getChain(chainID string) (ITestApexChain, error) {
 	}
 
 	return nil, fmt.Errorf("unknown chain: %s", chainID)
+}
+
+func (a *ApexSystem) generateConfigForValidator(i int) error {
+	validator := a.validators[i]
+	getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
+		return func(data map[string]any) {
+			callback(a, data)
+		}
+	}
+
+	serverIndx := i
+	if a.Config.TargetOneClusterServer {
+		serverIndx = 0
+	}
+
+	err := validator.GenerateConfigs(
+		a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i))
+	if err != nil {
+		return err
+	}
+
+	for _, chain := range a.chains {
+		if err := chain.GenerateChainConfigs(serverIndx, validator); err != nil {
+			return err
+		}
+	}
+
+	if handler := a.Config.CustomOracleConfigHandler; handler != nil {
+		fileName := validator.GetValidatorComponentsConfig()
+		if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
+			return err
+		}
+	}
+
+	if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
+		fileName := validator.GetRelayerConfig()
+		if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

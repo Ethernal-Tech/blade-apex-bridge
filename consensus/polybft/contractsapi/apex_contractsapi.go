@@ -2,7 +2,10 @@
 package contractsapi
 
 import (
+	"math/big"
+
 	"github.com/0xPolygon/polygon-edge/types"
+	"github.com/Ethernal-Tech/ethgo/abi"
 )
 
 type InitializeApexBridgeContractsBridgeFn struct {
@@ -39,6 +42,113 @@ func (s *SetDependenciesApexBridgeContractsBridgeFn) EncodeAbi() ([]byte, error)
 
 func (s *SetDependenciesApexBridgeContractsBridgeFn) DecodeAbi(buf []byte) error {
 	return decodeMethod(ApexBridgeContracts.Bridge.Abi.Methods["setDependencies"], buf, s)
+}
+
+type ValidatorChainData struct {
+	Key [4]*big.Int `abi:"key"`
+}
+
+var ValidatorChainDataABIType = abi.MustNewType("tuple(uint256[4] key)")
+
+func (v *ValidatorChainData) EncodeAbi() ([]byte, error) {
+	return ValidatorChainDataABIType.Encode(v)
+}
+
+func (v *ValidatorChainData) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorChainDataABIType, buf, &v)
+}
+
+type ValidatorAddressChainData struct {
+	Addr            types.Address       `abi:"addr"`
+	Data            *ValidatorChainData `abi:"data"`
+	KeySignature    []byte              `abi:"keySignature"`
+	KeyFeeSignature []byte              `abi:"keyFeeSignature"`
+}
+
+var ValidatorAddressChainDataABIType = abi.MustNewType("tuple(address addr,tuple(uint256[4] key) data,bytes keySignature,bytes keyFeeSignature)")
+
+func (v *ValidatorAddressChainData) EncodeAbi() ([]byte, error) {
+	return ValidatorAddressChainDataABIType.Encode(v)
+}
+
+func (v *ValidatorAddressChainData) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorAddressChainDataABIType, buf, &v)
+}
+
+type ValidatorSet struct {
+	ChainID    uint8                        `abi:"chainId"`
+	Validators []*ValidatorAddressChainData `abi:"validators"`
+}
+
+var ValidatorSetABIType = abi.MustNewType("tuple(uint8 chainId,tuple(address addr,tuple(uint256[4] key) data,bytes keySignature,bytes keyFeeSignature)[] validators)")
+
+func (v *ValidatorSet) EncodeAbi() ([]byte, error) {
+	return ValidatorSetABIType.Encode(v)
+}
+
+func (v *ValidatorSet) DecodeAbi(buf []byte) error {
+	return decodeStruct(ValidatorSetABIType, buf, &v)
+}
+
+type NewValidatorSetDelta struct {
+	AddedValidators   []*ValidatorSet `abi:"addedValidators"`
+	RemovedValidators []types.Address `abi:"removedValidators"`
+}
+
+var NewValidatorSetDeltaABIType = abi.MustNewType("tuple(tuple(uint8 chainId,tuple(address addr,tuple(uint256[4] key) data,bytes keySignature,bytes keyFeeSignature)[] validators)[] addedValidators,address[] removedValidators)")
+
+func (n *NewValidatorSetDelta) EncodeAbi() ([]byte, error) {
+	return NewValidatorSetDeltaABIType.Encode(n)
+}
+
+func (n *NewValidatorSetDelta) DecodeAbi(buf []byte) error {
+	return decodeStruct(NewValidatorSetDeltaABIType, buf, &n)
+}
+
+type SubmitNewValidatorSetApexBridgeContractsBridgeFn struct {
+	NewValidatorSetDelta *NewValidatorSetDelta `abi:"_newValidatorSetDelta"`
+}
+
+func (s *SubmitNewValidatorSetApexBridgeContractsBridgeFn) Sig() []byte {
+	return ApexBridgeContracts.Bridge.Abi.Methods["submitNewValidatorSet"].ID()
+}
+
+func (s *SubmitNewValidatorSetApexBridgeContractsBridgeFn) EncodeAbi() ([]byte, error) {
+	return ApexBridgeContracts.Bridge.Abi.Methods["submitNewValidatorSet"].Encode(s)
+}
+
+func (s *SubmitNewValidatorSetApexBridgeContractsBridgeFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(ApexBridgeContracts.Bridge.Abi.Methods["submitNewValidatorSet"], buf, s)
+}
+
+type ValidatorSetUpdatedApexBridgeContractsBridgeFn struct {
+}
+
+func (v *ValidatorSetUpdatedApexBridgeContractsBridgeFn) Sig() []byte {
+	return ApexBridgeContracts.Bridge.Abi.Methods["validatorSetUpdated"].ID()
+}
+
+func (v *ValidatorSetUpdatedApexBridgeContractsBridgeFn) EncodeAbi() ([]byte, error) {
+	return ApexBridgeContracts.Bridge.Abi.Methods["validatorSetUpdated"].Encode(v)
+}
+
+func (v *ValidatorSetUpdatedApexBridgeContractsBridgeFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(ApexBridgeContracts.Bridge.Abi.Methods["validatorSetUpdated"], buf, v)
+}
+
+type IsNewValidatorSetPendingApexBridgeContractsBridgeFn struct {
+}
+
+func (i *IsNewValidatorSetPendingApexBridgeContractsBridgeFn) Sig() []byte {
+	return ApexBridgeContracts.Bridge.Abi.Methods["isNewValidatorSetPending"].ID()
+}
+
+func (i *IsNewValidatorSetPendingApexBridgeContractsBridgeFn) EncodeAbi() ([]byte, error) {
+	return ApexBridgeContracts.Bridge.Abi.Methods["isNewValidatorSetPending"].Encode(i)
+}
+
+func (i *IsNewValidatorSetPendingApexBridgeContractsBridgeFn) DecodeAbi(buf []byte) error {
+	return decodeMethod(ApexBridgeContracts.Bridge.Abi.Methods["isNewValidatorSetPending"], buf, i)
 }
 
 type InitializeApexBridgeContractsClaimsHelperFn struct {

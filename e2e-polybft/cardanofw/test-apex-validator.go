@@ -39,18 +39,16 @@ type TestApexValidator struct {
 	ID          int
 	APIPort     int
 	dataDirPath string
-	cluster     *framework.TestCluster
 	server      *framework.TestServer
 	node        *framework.Node
 }
 
 func NewTestApexValidator(
-	dataDirPath string, id int, cluster *framework.TestCluster, server *framework.TestServer,
+	dataDirPath string, id int, server *framework.TestServer,
 ) *TestApexValidator {
 	return &TestApexValidator{
 		dataDirPath: filepath.Join(dataDirPath, fmt.Sprintf("validator_%d", id)),
 		ID:          id,
-		cluster:     cluster,
 		server:      server,
 	}
 }
@@ -119,6 +117,7 @@ func (cv *TestApexValidator) GenerateConfigs(
 		"--output-relayer-file-name", RelayerConfigFileName,
 		"--bridge-node-url", cv.server.JSONRPCAddr(),
 		"--bridge-sc-address", contracts.Bridge.String(),
+		"--admin-sc-address", contracts.ApexBridgeAdmin.String(),
 		"--logs-path", logsPath,
 		"--dbs-path", dbsPath,
 		"--api-port", fmt.Sprint(apiPort),

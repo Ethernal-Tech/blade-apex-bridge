@@ -181,7 +181,7 @@ func IsValidAddress(address string, zeroAddressAllowed bool) (Address, error) {
 
 	// check if the address has the correct length
 	if len(decodedAddress) != AddressLength {
-		return ZeroAddress, fmt.Errorf("address %s has invalid length", string(decodedAddress))
+		return ZeroAddress, fmt.Errorf("address %s has invalid length", address)
 	}
 
 	addr := StringToAddress(address)

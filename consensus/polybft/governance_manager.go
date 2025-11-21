@@ -187,6 +187,7 @@ func (g *governanceManager) PostEpoch(req *PostEpochRequest) error {
 		proposalThresholdEvent   contractsapi.NewProposalThresholdEvent
 		sprintSizeEvent          contractsapi.NewSprintSizeEvent
 		baseFeeChangeDenomEvent  contractsapi.NewBaseFeeChangeDenomEvent
+		newValidatorSetEvent     contractsapi.NewValidatorSetEvent
 	)
 
 	// unmarshal events that happened in previous epoch and update last saved config
@@ -322,6 +323,10 @@ func (g *governanceManager) PostEpoch(req *PostEpochRequest) error {
 			g.logger.Debug("Post epoch - Base fee change denominator changed in governance",
 				"epoch", previousEpoch, "baseFeeChangeDenom", latestChainParams.BaseFeeChangeDenom)
 
+		case newValidatorSetEvent.Sig():
+			// just log the event, actual validator set change
+			g.logger.Debug("Post epoch - New validator set in governance", "epoch", previousEpoch)
+
 		default:
 			return errUnknownGovernanceEvent
 		}
@@ -455,6 +460,7 @@ func parseGovernanceEvent(log *ethgo.Log) (contractsapi.EventAbi, bool, error) {
 		newFeatureEvent          contractsapi.NewFeatureEvent
 		updatedFeatureEvent      contractsapi.UpdatedFeatureEvent
 		baseFeeChangeDenomEvent  contractsapi.NewBaseFeeChangeDenomEvent
+		newValidatorSetEvent     contractsapi.NewValidatorSetEvent
 	)
 
 	parseEvent := func(event contractsapi.EventAbi) (contractsapi.EventAbi, bool, error) {
@@ -490,6 +496,8 @@ func parseGovernanceEvent(log *ethgo.Log) (contractsapi.EventAbi, bool, error) {
 		return parseEvent(&sprintSizeEvent)
 	case baseFeeChangeDenomEvent.Sig():
 		return parseEvent(&baseFeeChangeDenomEvent)
+	case newValidatorSetEvent.Sig():
+		return parseEvent(&newValidatorSetEvent)
 	case newFeatureEvent.Sig():
 		return parseEvent(&newFeatureEvent)
 	case updatedFeatureEvent.Sig():
@@ -516,6 +524,7 @@ func (g *governanceManager) GetLogFilters() map[types.Address][]types.Hash {
 			types.Hash(new(contractsapi.NewProposalThresholdEvent).Sig()),
 			types.Hash(new(contractsapi.NewSprintSizeEvent).Sig()),
 			types.Hash(new(contractsapi.NewBaseFeeChangeDenomEvent).Sig()),
+			types.Hash(new(contractsapi.NewValidatorSetEvent).Sig()),
 		},
 		contracts.ForkParamsContract: {
 			types.Hash(new(contractsapi.NewFeatureEvent).Sig()),

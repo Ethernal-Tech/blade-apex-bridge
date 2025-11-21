@@ -2,6 +2,7 @@ package validator
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
@@ -141,4 +142,16 @@ func (d *ValidatorSetDelta) Copy() *ValidatorSetDelta {
 // fmt.Stringer interface implementation
 func (d *ValidatorSetDelta) String() string {
 	return fmt.Sprintf("Added: \n%v Removed: %v\n Updated: \n%v", d.Added, d.Removed, d.Updated)
+}
+
+func (d *ValidatorSetDelta) Marshal() ([]byte, error) {
+	return json.Marshal(d)
+}
+
+func (d *ValidatorSetDelta) Unmarshal(data []byte) error {
+	if err := json.Unmarshal(data, d); err != nil {
+		return err
+	}
+
+	return nil
 }

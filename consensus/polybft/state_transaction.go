@@ -17,10 +17,12 @@ func decodeStateTransaction(txData []byte) (contractsapi.StateTransactionInput, 
 	sig := txData[:abiMethodIDLength]
 
 	var (
-		commitBridgeTxFn    contractsapi.CommitStateReceiverFn
-		commitEpochFn       contractsapi.CommitEpochEpochManagerFn
-		distributeRewardsFn contractsapi.DistributeRewardForEpochManagerFn
-		obj                 contractsapi.StateTransactionInput
+		commitBridgeTxFn        contractsapi.CommitStateReceiverFn
+		commitEpochFn           contractsapi.CommitEpochEpochManagerFn
+		distributeRewardsFn     contractsapi.DistributeRewardForEpochManagerFn
+		submitNewValidatorSetFn contractsapi.SubmitNewValidatorSetApexBridgeContractsBridgeFn
+		validatorSetUpdatedFn   contractsapi.ValidatorSetUpdatedApexBridgeContractsBridgeFn
+		obj                     contractsapi.StateTransactionInput
 	)
 
 	switch {
@@ -36,8 +38,18 @@ func decodeStateTransaction(txData []byte) (contractsapi.StateTransactionInput, 
 		// distribute rewards
 		obj = &contractsapi.DistributeRewardForEpochManagerFn{}
 
+	case bytes.Equal(sig, submitNewValidatorSetFn.Sig()):
+		// submit new validator set
+		obj = &contractsapi.SubmitNewValidatorSetApexBridgeContractsBridgeFn{}
+	case bytes.Equal(sig, validatorSetUpdatedFn.Sig()):
+		// validator set updated
+		obj = &contractsapi.ValidatorSetUpdatedApexBridgeContractsBridgeFn{}
 	default:
 		return nil, fmt.Errorf("unknown state transaction")
+	}
+
+	if len(txData) == abiMethodIDLength {
+		return obj, nil
 	}
 
 	if err := obj.DecodeAbi(txData); err != nil {

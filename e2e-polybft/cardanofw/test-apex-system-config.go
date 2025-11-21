@@ -31,7 +31,8 @@ type ApexSystemConfig struct {
 	TelemetryConfig        TelemetryConfig
 	TargetOneClusterServer bool
 
-	BladeValidatorCount int
+	BladeValidatorCount    int
+	BladeNonValidatorCount int
 
 	PrimeConfig  *TestCardanoChainConfig
 	VectorConfig *TestCardanoChainConfig
@@ -115,6 +116,18 @@ func WithCustomConfigHandlers(callbackOracle, callbackRelayer CustomConfigHandle
 func WithUserCnt(userCnt uint) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.UserCnt = userCnt
+	}
+}
+
+func WithNonValidators(count int) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.BladeNonValidatorCount = count
+	}
+}
+
+func WithValidators(count int) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.BladeValidatorCount = count
 	}
 }
 
