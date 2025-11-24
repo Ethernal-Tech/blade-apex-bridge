@@ -413,9 +413,9 @@ jobs:
       inputs.e2e_dynamic_validators_test ||
       (github.event_name == 'pull_request' && github.base_ref == 'develop')
     with:
-      apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
+      apex_bridge_ref: feat/AD-902_tx-sender-and-mint-command
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
-      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+      e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_dynamic_validators_test_push:
