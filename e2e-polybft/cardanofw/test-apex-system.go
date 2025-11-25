@@ -31,6 +31,7 @@ type CardanoChainInfo struct {
 	BlockfrostAPIKey string
 	MultisigAddr     []string
 	FeeAddr          string
+	TreasuryAddress  string
 	SocketPath       string
 
 	NativeTokens  []sendtx.TokenExchangeConfig
@@ -398,6 +399,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinFeeForBridgingTokens:  a.Config.PrimeConfig.MinBridgingFeeForTokens,
 			MinOperationFeeAmount:    a.Config.PrimeConfig.MinOperationFee,
 			PotentialFee:             PotentialFee,
+			TreasuryAddress:          a.Config.PrimeConfig.TreasuryAddress,
 		},
 	}
 
@@ -412,6 +414,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinFeeForBridgingTokens:  a.Config.VectorConfig.MinBridgingFeeForTokens,
 			NativeTokens:             a.VectorInfo.NativeTokens,
 			PotentialFee:             PotentialFee,
+			TreasuryAddress:          a.Config.VectorConfig.TreasuryAddress,
 		}
 	}
 
@@ -427,6 +430,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinOperationFeeAmount:    a.Config.CardanoConfig.MinOperationFee,
 			NativeTokens:             a.CardanoInfo.NativeTokens,
 			PotentialFee:             PotentialFee,
+			TreasuryAddress:          a.Config.CardanoConfig.TreasuryAddress,
 		}
 	}
 

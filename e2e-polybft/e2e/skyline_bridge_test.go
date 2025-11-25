@@ -172,6 +172,12 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDVector, sender: apex.Users[3], requestType: sendtx.BridgingTypeCurrencyOnSource, isValid: true, srcMinterWallet: apex.CardanoInfo.GenesisWallet},
 			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[4], requestType: sendtx.BridgingTypeNativeTokenOnSource, isValid: true, srcMinterWallet: apex.CardanoInfo.GenesisWallet},
 		}
+
+		chainConfigs = map[string]*cardanofw.TestCardanoChainConfig{
+			cardanofw.ChainIDPrime:   primeConfig,
+			cardanofw.ChainIDVector:  vectorConfig,
+			cardanofw.ChainIDCardano: cardanoConfig,
+		}
 	)
 
 	testConfigPrime := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, "")
@@ -191,9 +197,24 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := big.NewInt(1_500_000)
 
+		primeTreasuryBalanceBefore, err := apex.GetChainMust(
+			t, primeConfig.ChainType).GetAddressBalance(ctx, primeConfig.TreasuryAddress)
+		require.NoError(t, err)
+
+		lovelaceBalanceBefore := primeTreasuryBalanceBefore[wallet.AdaTokenName]
+		if lovelaceBalanceBefore == nil {
+			lovelaceBalanceBefore = big.NewInt(0)
+		}
+
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
 			sendtx.BridgingTypeCurrencyOnSource)
+
+		validateTreasuryAddressAmount(t, ctx, apex,
+			[]*cardanofw.TestCardanoChainConfig{primeConfig},
+			map[string]uint64{
+				primeConfig.ChainType: lovelaceBalanceBefore.Uint64(),
+			}, 1, 1)
 	})
 
 	t.Run("2. vector -> cardano - native token on src", func(t *testing.T) {
@@ -217,9 +238,24 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			uint64(1_100_000_000), uint64(2_500_000))
 		require.NoError(t, err)
 
+		vectorTreasuryBalanceBefore, err := apex.GetChainMust(
+			t, vectorConfig.ChainType).GetAddressBalance(ctx, vectorConfig.TreasuryAddress)
+		require.NoError(t, err)
+
+		lovelaceBalanceBefore := vectorTreasuryBalanceBefore[wallet.AdaTokenName]
+		if lovelaceBalanceBefore == nil {
+			lovelaceBalanceBefore = big.NewInt(0)
+		}
+
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, sendAmountDfm,
 			sendtx.BridgingTypeNativeTokenOnSource)
+
+		validateTreasuryAddressAmount(t, ctx, apex,
+			[]*cardanofw.TestCardanoChainConfig{chainConfigs[cardanofw.ChainIDVector]},
+			map[string]uint64{
+				vectorConfig.ChainType: lovelaceBalanceBefore.Uint64(),
+			}, 1, 1)
 	})
 
 	t.Run("3. cardano -> vector - currency on src", func(t *testing.T) {
@@ -233,9 +269,24 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		sendAmountDfm := big.NewInt(1_500_000)
 
+		cardanoTreasuryBalanceBefore, err := apex.GetChainMust(
+			t, cardanoConfig.ChainType).GetAddressBalance(ctx, cardanoConfig.TreasuryAddress)
+		require.NoError(t, err)
+
+		lovelaceBalanceBefore := cardanoTreasuryBalanceBefore[wallet.AdaTokenName]
+		if lovelaceBalanceBefore == nil {
+			lovelaceBalanceBefore = big.NewInt(0)
+		}
+
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmountDfm,
 			sendtx.BridgingTypeCurrencyOnSource)
+
+		validateTreasuryAddressAmount(t, ctx, apex,
+			[]*cardanofw.TestCardanoChainConfig{chainConfigs[cardanofw.ChainIDCardano]},
+			map[string]uint64{
+				vectorConfig.ChainType: lovelaceBalanceBefore.Uint64(),
+			}, 1, 1)
 	})
 
 	t.Run("4. cardano -> prime - native token on src", func(t *testing.T) {
@@ -259,12 +310,31 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			uint64(1_100_000_000), uint64(2_500_000))
 		require.NoError(t, err)
 
+		cardanoTreasuryBalanceBefore, err := apex.GetChainMust(
+			t, cardanoConfig.ChainType).GetAddressBalance(ctx, cardanoConfig.TreasuryAddress)
+		require.NoError(t, err)
+
+		lovelaceBalanceBefore := cardanoTreasuryBalanceBefore[wallet.AdaTokenName]
+		if lovelaceBalanceBefore == nil {
+			lovelaceBalanceBefore = big.NewInt(0)
+		}
+
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
 			sendtx.BridgingTypeNativeTokenOnSource)
+
+		validateTreasuryAddressAmount(t, ctx, apex,
+			[]*cardanofw.TestCardanoChainConfig{cardanoConfig},
+			map[string]uint64{
+				cardanoConfig.ChainType: lovelaceBalanceBefore.Uint64(),
+			}, 1, 1)
 	})
 
 	t.Run("5. Submitter has tokens", func(t *testing.T) {
+		var treasuryAmountAfter map[string]uint64
+
+		treasuryAmountBefore := getTreasuryAmountForChains(t, ctx, apex, chainConfigs)
+
 		for idx, br := range bridgingRequests {
 			fmt.Printf("5.%d %s -> %s - %s", idx+1, br.src, br.dest, br.requestType)
 
@@ -301,10 +371,23 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				t, ctx, apex, brSubmitterUser, br.sender, br.src, br.dest, sendAmountDfm,
 				br.requestType)
 		}
+
+		treasuryAmountAfter = getTreasuryAmountForChains(t, ctx, apex, chainConfigs)
+
+		require.Equal(t, treasuryAmountBefore[cardanofw.ChainIDPrime]+primeConfig.MinOperationFee,
+			treasuryAmountAfter[cardanofw.ChainIDPrime])
+		require.Equal(t, treasuryAmountBefore[cardanofw.ChainIDVector]+vectorConfig.MinOperationFee,
+			treasuryAmountAfter[cardanofw.ChainIDVector])
+		require.Equal(t, treasuryAmountBefore[cardanofw.ChainIDCardano]+2*cardanoConfig.MinOperationFee,
+			treasuryAmountAfter[cardanofw.ChainIDCardano])
 	})
 
 	//nolint:dupl
 	t.Run("6. Wait for each submit", func(t *testing.T) {
+		var treasuryAmountAfter map[string]uint64
+
+		treasuryAmountBefore := getTreasuryAmountForChains(t, ctx, apex, chainConfigs)
+
 		for idx, br := range bridgingRequests {
 			fmt.Printf("6.%d %s -> %s - %s\n", idx+1, br.src, br.dest, br.requestType)
 
@@ -335,10 +418,23 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				t, ctx, apex, instances, brSubmitterUser, br.src, br.dest, new(big.Int).SetUint64(sendAmount),
 				br.requestType)
 		}
+
+		treasuryAmountAfter = getTreasuryAmountForChains(t, ctx, apex, chainConfigs)
+
+		require.Equal(t, treasuryAmountBefore[cardanofw.ChainIDPrime]+5*primeConfig.MinOperationFee,
+			treasuryAmountAfter[cardanofw.ChainIDPrime])
+		require.Equal(t, treasuryAmountBefore[cardanofw.ChainIDVector]+5*vectorConfig.MinOperationFee,
+			treasuryAmountAfter[cardanofw.ChainIDVector])
+		require.Equal(t, treasuryAmountBefore[cardanofw.ChainIDCardano]+2*5*cardanoConfig.MinOperationFee,
+			treasuryAmountAfter[cardanofw.ChainIDCardano])
 	})
 
 	//nolint:dupl
 	t.Run("7. One by one", func(t *testing.T) {
+		var treasuryAmountAfter map[string]uint64
+
+		treasuryAmountBefore := getTreasuryAmountForChains(t, ctx, apex, chainConfigs)
+
 		for idx, br := range bridgingRequests {
 			fmt.Printf("7.%d %s -> %s - %s\n", idx+1, br.src, br.dest, br.requestType)
 
@@ -369,9 +465,20 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				t, ctx, apex, instances, brSubmitterUser, br.src, br.dest, new(big.Int).SetUint64(sendAmount),
 				br.requestType)
 		}
+
+		treasuryAmountAfter = getTreasuryAmountForChains(t, ctx, apex, chainConfigs)
+
+		require.Equal(t, treasuryAmountBefore[cardanofw.ChainIDPrime]+5*primeConfig.MinOperationFee,
+			treasuryAmountAfter[cardanofw.ChainIDPrime])
+		require.Equal(t, treasuryAmountBefore[cardanofw.ChainIDVector]+5*vectorConfig.MinOperationFee,
+			treasuryAmountAfter[cardanofw.ChainIDVector])
+		require.Equal(t, treasuryAmountBefore[cardanofw.ChainIDCardano]+2*5*cardanoConfig.MinOperationFee,
+			treasuryAmountAfter[cardanofw.ChainIDCardano])
 	})
 	t.Run("8. Parallel", func(t *testing.T) {
 		for idx, br := range bridgingRequests {
+			treasuryAmountBefore := getTreasuryAmountForChains(t, ctx, apex, chainConfigs)
+
 			fmt.Printf("8.%d %s -> %s - %s\n", idx+1, br.src, br.dest, br.requestType)
 
 			if cardanofw.ShouldSkipE2RRedundantTests() {
@@ -407,11 +514,17 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 					e2ehelper.NewChainPair(br.src, br.dest): br.requestType,
 				},
 				new(big.Int).SetUint64(sendAmount))
+
+			validateTreasuryAddressAmount(t, ctx, apex,
+				[]*cardanofw.TestCardanoChainConfig{chainConfigs[br.src]},
+				treasuryAmountBefore, instances, 1)
 		}
 	})
 
 	t.Run("9. Sequential and parallel", func(t *testing.T) {
 		for idx, br := range bridgingRequests {
+			treasuryAmountBefore := getTreasuryAmountForChains(t, ctx, apex, chainConfigs)
+
 			fmt.Printf("9.%d %s -> %s - %s\n", idx+1, br.src, br.dest, br.requestType)
 
 			if cardanofw.ShouldSkipE2RRedundantTests() {
@@ -452,6 +565,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				},
 				new(big.Int).SetUint64(sendAmount),
 			)
+
+			validateTreasuryAddressAmount(t, ctx, apex,
+				[]*cardanofw.TestCardanoChainConfig{chainConfigs[br.src]},
+				treasuryAmountBefore, sequentialInstances, parallelInstances)
 		}
 	})
 	t.Run("10. Both directions sequential", func(t *testing.T) {
@@ -467,6 +584,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			sendAmount = uint64(1_000_000)
 			instances  = 5
 		)
+
+		treasuryAmountBefore := getTreasuryAmountForChains(t, ctx, apex, chainConfigs)
 
 		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
@@ -490,6 +609,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			},
 			new(big.Int).SetUint64(sendAmount),
 		)
+
+		validateTreasuryAddressAmount(t, ctx, apex,
+			[]*cardanofw.TestCardanoChainConfig{primeConfig, cardanoConfig},
+			treasuryAmountBefore, instances, 1)
 	})
 
 	t.Run("11. Both directions sequential and parallel", func(t *testing.T) {
@@ -502,6 +625,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			sequentialInstances = 5
 			parallelInstances   = 6
 		)
+
+		treasuryAmountBefore := getTreasuryAmountForChains(t, ctx, apex, chainConfigs)
 
 		fundTestUsersWithToken(
 			t, ctx, apex, testConfigs, apex.Users[:parallelInstances],
@@ -522,6 +647,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			},
 			new(big.Int).SetUint64(sendAmount),
 			e2ehelper.WithWaitForUnexpectedBridges(true))
+
+		validateTreasuryAddressAmount(t, ctx, apex,
+			[]*cardanofw.TestCardanoChainConfig{primeConfig, cardanoConfig},
+			treasuryAmountBefore, sequentialInstances, parallelInstances)
 	})
 
 	t.Run("12. Both directions sequential and parallel - one node goes offline midway", func(t *testing.T) {
@@ -539,6 +668,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			_ = apex.GetValidator(t, validatorStoppingIdx).Stop() // make sure it was stopped
 			require.NoError(t, apex.GetValidator(t, validatorStoppingIdx).Start(ctx, false))
 		})
+
+		treasuryAmountBefore := getTreasuryAmountForChains(t, ctx, apex, chainConfigs)
 
 		fundTestUsersWithToken(
 			t, ctx, apex, testConfigs, apex.Users[:parallelInstances],
@@ -562,6 +693,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
 			}))
+
+		validateTreasuryAddressAmount(t, ctx, apex,
+			[]*cardanofw.TestCardanoChainConfig{primeConfig, cardanoConfig},
+			treasuryAmountBefore, sequentialInstances, parallelInstances)
 	})
 
 	t.Run("13. Both directions sequential and parallel — two nodes go offline midway, one node recovers", func(t *testing.T) {
@@ -581,6 +716,8 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			_ = apex.GetValidator(t, validatorStoppingIdx2).Stop() // make sure it was stopped
 			require.NoError(t, apex.GetValidator(t, validatorStoppingIdx2).Start(ctx, false))
 		})
+
+		treasuryAmountBefore := getTreasuryAmountForChains(t, ctx, apex, chainConfigs)
 
 		fundTestUsersWithToken(
 			t, ctx, apex, testConfigs, apex.Users[:parallelInstances],
@@ -605,6 +742,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx1, validatorStoppingIdx2}},
 				{WaitTime: startAgainAfter, StartIndxs: []int{validatorStoppingIdx1}},
 			}))
+
+		validateTreasuryAddressAmount(t, ctx, apex,
+			[]*cardanofw.TestCardanoChainConfig{primeConfig, cardanoConfig},
+			treasuryAmountBefore, sequentialInstances, parallelInstances)
 	})
 }
 
