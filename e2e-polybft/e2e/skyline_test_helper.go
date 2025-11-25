@@ -25,7 +25,7 @@ func executeInvalidBridgingFee(
 	receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount, bridgingType)
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
-	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
 		minBridgingFee, operationFee, user, receivers, bridgingType)
@@ -57,7 +57,7 @@ func executeInvalidFeeReceiverAddr(
 	t.Helper()
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
-	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)
 
 	user := apex.Users[len(apex.Users)-1]
 	receivers := []sendtx.BridgingTxReceiver{
@@ -116,7 +116,7 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 		},
 	}
 
-	if bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
+	if bridgingType == sendtx.BridgingTypeWrappedTokenOnSource {
 		_, err := cardanofw.FundUserWithToken(
 			ctx, apex, config.srcChainID,
 			config.srcMinterWallet, user,
@@ -128,7 +128,7 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 	multisigAddr := apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex]
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
-	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)
 
 	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
 		ctx, config.dstChainID, receivers, minBridgingFee, operationFee, multisigAddr)
@@ -155,7 +155,7 @@ func executeInvalidMismatchSendNativeTokenAmount(
 ) {
 	t.Helper()
 
-	bridgingType := sendtx.BridgingTypeNativeTokenOnSource
+	bridgingType := sendtx.BridgingTypeWrappedTokenOnSource
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
@@ -166,7 +166,7 @@ func executeInvalidMismatchSendNativeTokenAmount(
 	}
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
-	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)
 
 	metadata, feeAmount := createMetadata(
 		t, ctx, apex, config.srcChainID, config.dstChainID,
@@ -211,12 +211,12 @@ func executeInvalidSendNativeToken(
 		{
 			Addr:         user.GetAddress(config.dstChainID),
 			Amount:       defaultSendAmount,
-			BridgingType: sendtx.BridgingTypeNativeTokenOnSource,
+			BridgingType: sendtx.BridgingTypeWrappedTokenOnSource,
 		},
 	}
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
-	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)
 
 	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
 		ctx, config.dstChainID, receiversForFeeCalculation, minBridgingFee,

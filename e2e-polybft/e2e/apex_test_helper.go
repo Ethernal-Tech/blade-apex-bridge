@@ -64,7 +64,7 @@ func WaitForTestResult(
 	if refundEnabled {
 		tokeName := wallet.AdaTokenName
 
-		if bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
+		if bridgingType == sendtx.BridgingTypeWrappedTokenOnSource {
 			tokeName = config.srcTokenName
 		}
 
@@ -75,7 +75,7 @@ func WaitForTestResult(
 
 		err := apex.WaitForAmountInRange(ctx, user, config.srcChainID, config.dstChainID, lowerBoundaryDfm,
 			beforeSendingAmountDfm[tokeName], numRetries, time.Second*time.Duration(retryIntervalSec),
-			bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+			bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)
 		require.NoError(t, err)
 	} else {
 		cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)
@@ -94,7 +94,7 @@ func executeInvalidMismatchSendLovelaceAmount(
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource),
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
 		operationFee,
 		user, receivers, bridgingType)
 
@@ -127,7 +127,7 @@ func executeInvalidMismatchSendAmountMultipleInstances(
 		operationFee := apex.GetMinOperationFee(config.srcChainID)
 
 		metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-			apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource),
+			apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
 			operationFee,
 			apex.Users[i], receivers, bridgingType)
 
@@ -169,7 +169,7 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 			operationFee := apex.GetMinOperationFee(config.srcChainID)
 
 			metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-				apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource),
+				apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
 				operationFee,
 				apex.Users[i], receivers, bridgingType)
 
@@ -203,7 +203,7 @@ func executeInvalidMetadataType(
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource),
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
 		operationFee,
 		user, receivers, bridgingType)
 	metadata = bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
@@ -251,7 +251,7 @@ func executeInvalidDestination(
 
 	feeAmount, err := srcTestChain.GetBridgingFee(
 		ctx, config.dstChainID, receiversForFeeCalculation,
-		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource),
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
 		operationFee,
 		config.srcMultiSigAddr)
 	require.NoError(t, err)
@@ -293,7 +293,7 @@ func executeInvalidMetadataInvalidSender(
 
 	feeAmount, err := srcTestChain.GetBridgingFee(
 		ctx, config.dstChainID, receivers,
-		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource),
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
 		operationFee,
 		config.srcMultiSigAddr)
 	require.NoError(t, err)
@@ -339,7 +339,7 @@ func executeInvalidEmptyReceivers(
 
 	feeAmount, err := srcTestChain.GetBridgingFee(
 		ctx, config.dstChainID, receiversForFeeCalculation,
-		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource),
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
 		operationFee,
 		config.srcMultiSigAddr)
 	require.NoError(t, err)
@@ -375,7 +375,7 @@ func executeInvalidTokenDirection(
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource),
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
 		operationFee,
 		user, receivers, bridgingType)
 
@@ -405,7 +405,7 @@ func getDefaultSendAmounts(
 
 	tokens := []wallet.TokenAmount(nil)
 
-	if bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
+	if bridgingType == sendtx.BridgingTypeWrappedTokenOnSource {
 		waitForAmount = defaultSendAmount
 		lovelaceAmount = feeAmount + operationFee
 

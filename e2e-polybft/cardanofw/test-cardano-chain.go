@@ -789,7 +789,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 	}
 
 	for _, coloredCoin := range ec.GetColoredCoins() {
-		args = append(args, "--colored-coins", fmt.Sprintf("%s:%d", coloredCoin.TokenName, coloredCoin.ColoredCoinID))
+		args = append(args, "--colored-coins", fmt.Sprintf("%d:%s", coloredCoin.ColoredCoinID, coloredCoin.TokenName))
 	}
 
 	if ec.config.TTLInc > 0 {
@@ -1012,7 +1012,7 @@ func (ec *TestCardanoChain) GetAddressToBridgeTo(
 		return "", err
 	}
 
-	if len(ec.multisigAddr) == 1 || bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
+	if len(ec.multisigAddr) == 1 || bridgingType == sendtx.BridgingTypeWrappedTokenOnSource {
 		return ec.multisigAddr[0], nil
 	}
 

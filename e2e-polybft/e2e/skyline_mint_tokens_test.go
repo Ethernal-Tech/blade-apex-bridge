@@ -4,10 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"testing"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
@@ -23,8 +20,10 @@ func Test_SkylineBridgeMint_ColoredCoins(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
+	cardanoColoredCoinName := "DJED"
+
 	coloredCoins := []cardanofw.ColoredCoin{{
-		TokenName:     "DJED",
+		TokenName:     cardanoColoredCoinName,
 		ColoredCoinID: 5,
 		OriginChainID: cardanofw.ChainIDCardano,
 	}}
@@ -32,6 +31,7 @@ func Test_SkylineBridgeMint_ColoredCoins(t *testing.T) {
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true, coloredCoins...)
 
 	vectorConfig := cardanofw.NewVectorChainConfig(coloredCoins...)
+	vectorConfig.FundTokenAmount = 45_000_000_000_000_000
 
 	// Needs expanding of skyline setup to use nexus
 	// nexusConfig := cardanofw.NewNexusChainConfig(true)
@@ -49,15 +49,15 @@ func Test_SkylineBridgeMint_ColoredCoins(t *testing.T) {
 			// 	Name:                   "USDT",
 			// 	EcosystemOriginChainID: cardanofw.ChainIDNexus,
 			// },
-			{
-				ID:                     2,
-				Name:                   "wADA",
-				EcosystemOriginChainID: cardanofw.ChainIDVector,
-				DestinationChainID:     cardanofw.ChainIDNexus,
-			},
+			// {
+			// 	ID:                     2,
+			// 	Name:                   "wADA",
+			// 	EcosystemOriginChainID: cardanofw.ChainIDVector,
+			// 	DestinationChainID:     cardanofw.ChainIDNexus,
+			// },
 			{
 				ID:                     5,
-				Name:                   "DJED",
+				Name:                   cardanoColoredCoinName,
 				EcosystemOriginChainID: cardanofw.ChainIDCardano,
 				DestinationChainID:     cardanofw.ChainIDVector,
 			},
@@ -65,11 +65,43 @@ func Test_SkylineBridgeMint_ColoredCoins(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	signalChannel := make(chan os.Signal, 1)
-	// Notify the signalChannel when the interrupt signal is received (Ctrl+C)
-	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
+	t.Run("1. cardano ADA <-> vector wADA", func(t *testing.T) {
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
 
-	<-signalChannel
+		user := apex.Users[0]
+		sendAmountDfm := big.NewInt(10_000_000)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmountDfm,
+			sendtx.BridgingTypeCurrencyOnSource)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, sendAmountDfm,
+			sendtx.BridgingTypeWrappedTokenOnSource)
+	})
+
+	t.Run("2. cardano DJED <-> vector wDJED", func(t *testing.T) {
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
+		user := apex.Users[0]
+		sendAmountDfm := big.NewInt(123)
+		cardanoChain := apex.GetChainMust(t, cardanofw.ChainIDCardano).(*cardanofw.TestCardanoChain)
+
+		err := cardanofw.MintToken(cardanoChain, apex.CardanoInfo.GenesisWallet, cardanoColoredCoinName, sendAmountDfm.Uint64())
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUsersWithToken(ctx, cardanoChain, apex.CardanoInfo.GenesisWallet,
+			[]*cardanofw.TestApexUser{user}, cardanoColoredCoinName, 2_000_000, sendAmountDfm.Uint64())
+		require.NoError(t, err)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmountDfm,
+			sendtx.BridgingTypeColoredCoinOnSource)
+	})
 }
 
 func TestE2E_SkylineBridgeMint_General(t *testing.T) {
@@ -164,7 +196,7 @@ func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(5_000_000),
-			sendtx.BridgingTypeNativeTokenOnSource)
+			sendtx.BridgingTypeWrappedTokenOnSource)
 
 		checkAmounts(5_000_000, user, 5_000_000)
 
@@ -184,7 +216,7 @@ func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(10_000_000),
-			sendtx.BridgingTypeNativeTokenOnSource)
+			sendtx.BridgingTypeWrappedTokenOnSource)
 
 		checkAmounts(10_000_000, user, 5_000_000)
 
@@ -260,7 +292,7 @@ func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 
 			e2ehelper.ExecuteSingleBridging(
 				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(2_000_000),
-				sendtx.BridgingTypeNativeTokenOnSource)
+				sendtx.BridgingTypeWrappedTokenOnSource)
 
 			e2ehelper.ExecuteSingleBridging(
 				t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, big.NewInt(5_000_000),

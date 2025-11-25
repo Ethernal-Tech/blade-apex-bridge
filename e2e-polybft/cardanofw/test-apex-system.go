@@ -97,6 +97,14 @@ type UpgradeSCParams struct {
 	gasLimit       uint64
 }
 
+type SetDependenciesSCParams struct {
+	contractName string
+	contractsDir string
+	proxyAddress string
+	dependencies []string
+	gasLimit     uint64
+}
+
 func NewApexSystem(
 	dataDirPath string, opts ...ApexSystemOptions,
 ) (*ApexSystem, error) {
@@ -393,9 +401,17 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					}
 				}
 			case ChainIDVector:
-				// skip wADA since that is already set as wrapped currency
-				if cc.ID == 2 {
-					continue
+				coloredCoinToken, _, err = GetTokenAndPolicyForVerificationKey(
+					a.Config.VectorConfig.ChainType, a.Config.VectorConfig.NetworkType,
+					a.VectorInfo.GenesisWallet.VerificationKey, cc.Name)
+				require.NoError(t, err)
+
+				for i, vectorCC := range a.Config.VectorConfig.ColoredCoins {
+					if vectorCC.ColoredCoinID == cc.ID {
+						a.Config.VectorConfig.ColoredCoins[i].TokenName = coloredCoinToken.String()
+
+						break
+					}
 				}
 			}
 		}
@@ -1266,7 +1282,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 	feeAmount := DfmToChainNativeTokenAmount(
 		sourceChain, new(big.Int).SetUint64(
-			a.GetMinBridgingFee(sourceChain, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)))
+			a.GetMinBridgingFee(sourceChain, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)))
 
 	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
 		txHash, err := srcChain.BridgingRequest(
@@ -1457,6 +1473,29 @@ func (a *ApexSystem) UpgradeSmartContract(upgradeParams *UpgradeSCParams) error 
 		}
 
 		cmnd = append(cmnd, "--contract", strings.Join(parts, ":"))
+	}
+
+	if upgradeParams.gasLimit > 0 {
+		cmnd = append(cmnd, "--gas-limit", fmt.Sprintf("%d", upgradeParams.gasLimit))
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), cmnd, os.Stdout)
+}
+
+func (a *ApexSystem) SetDependencies(upgradeParams *SetDependenciesSCParams) error {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	cmnd := []string{
+		"deploy-evm", "set-dependencies",
+		"--contract-dir", upgradeParams.contractsDir,
+		"--contract-name", upgradeParams.contractName,
+		"--proxy-addr", upgradeParams.proxyAddress,
+		"--dependencies", strings.Join(upgradeParams.dependencies, ";"),
+		"--key", hex.EncodeToString(pkBytes),
+		"--url", a.GetBridgeDefaultJSONRPCAddr(),
 	}
 
 	if upgradeParams.gasLimit > 0 {

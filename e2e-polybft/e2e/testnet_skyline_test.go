@@ -205,8 +205,8 @@ func Test_E2E_SkylineSanityCheck(t *testing.T) {
 		bridgingType sendtx.BridgingType
 	}{
 		{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, bridgingType: sendtx.BridgingTypeCurrencyOnSource},
-		{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, bridgingType: sendtx.BridgingTypeNativeTokenOnSource},
-		{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDCardano, bridgingType: sendtx.BridgingTypeNativeTokenOnSource},
+		{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, bridgingType: sendtx.BridgingTypeWrappedTokenOnSource},
+		{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDCardano, bridgingType: sendtx.BridgingTypeWrappedTokenOnSource},
 		{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDVector, bridgingType: sendtx.BridgingTypeCurrencyOnSource},
 	}
 
@@ -239,7 +239,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 	t.Run("Cardano -> Prime - native token on src", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			sendAmountDfm, sendtx.BridgingTypeNativeTokenOnSource)
+			sendAmountDfm, sendtx.BridgingTypeWrappedTokenOnSource)
 	})
 
 	t.Run("Prime -> Cardano sequential currency on source", func(t *testing.T) {
@@ -253,7 +253,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
 			t, ctx, apex, numOfInstanceForSequentialTests, user,
 			cardanofw.ChainIDVector, cardanofw.ChainIDCardano,
-			sendAmountDfm, sendtx.BridgingTypeNativeTokenOnSource, bridgingOpts...)
+			sendAmountDfm, sendtx.BridgingTypeWrappedTokenOnSource, bridgingOpts...)
 	})
 
 	t.Run("Cardano -> Vector sequential currency on source", func(t *testing.T) {
@@ -267,7 +267,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
 			t, ctx, apex, numOfInstanceForSequentialTests, user,
 			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			sendAmountDfm, sendtx.BridgingTypeNativeTokenOnSource, bridgingOpts...)
+			sendAmountDfm, sendtx.BridgingTypeWrappedTokenOnSource, bridgingOpts...)
 	})
 
 	executeAllDirectionsMulReceiversTest := func(t *testing.T, chainsDst map[string][]string, txTypes map[e2ehelper.SrcDstChainPair]sendtx.BridgingType) {
@@ -305,7 +305,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 		executeAllDirectionsMulReceiversTest(t, map[string][]string{
 			cardanofw.ChainIDCardano: {cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
 		}, map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
-			e2ehelper.NewChainPair(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime):  sendtx.BridgingTypeNativeTokenOnSource,
+			e2ehelper.NewChainPair(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime):  sendtx.BridgingTypeWrappedTokenOnSource,
 			e2ehelper.NewChainPair(cardanofw.ChainIDCardano, cardanofw.ChainIDVector): sendtx.BridgingTypeCurrencyOnSource,
 		})
 	})

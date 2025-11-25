@@ -220,10 +220,8 @@ func initAllowedDirections(config *ApexSystemConfig, isSkyline bool) {
 				coloredCoinsMap[cc.EcosystemOriginChainID][cc.DestinationChainID] =
 					append(coloredCoinsMap[cc.EcosystemOriginChainID][cc.DestinationChainID], cc.ID)
 			case ChainIDVector:
-				if cc.ID != 2 {
-					coloredCoinsMap[cc.EcosystemOriginChainID][cc.DestinationChainID] =
-						append(coloredCoinsMap[cc.EcosystemOriginChainID][cc.DestinationChainID], cc.ID)
-				}
+				coloredCoinsMap[cc.EcosystemOriginChainID][cc.DestinationChainID] =
+					append(coloredCoinsMap[cc.EcosystemOriginChainID][cc.DestinationChainID], cc.ID)
 			}
 
 			switch cc.DestinationChainID {
