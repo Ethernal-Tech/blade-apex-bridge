@@ -32,7 +32,7 @@ func ExecuteSingleBridging(
 	prevAmount := cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
 
 	txHash, err := apex.SubmitBridgingRequest(
-		ctx, srcChain, dstChain, senderUser, sendAmount, bridgingType, receiverUser)
+		ctx, srcChain, dstChain, senderUser, sendAmount, bridgingType, config.coloredCoinID, receiverUser)
 	require.NoError(t, err)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -85,7 +85,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 		prevAmount := cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
 
 		txHash, err := apex.SubmitBridgingRequest(
-			ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, receiverUser)
+			ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, config.coloredCoinID, receiverUser)
 		require.NoError(t, err)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -119,7 +119,7 @@ func ExecuteBridgingWaitAfterSubmits(
 
 	for i := 0; i < txCountPerSender; i++ {
 		txHash, err := apex.SubmitBridgingRequest(
-			ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, receiverUser)
+			ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, config.coloredCoinID, receiverUser)
 		require.NoError(t, err)
 
 		fmt.Printf("Tx[%d] sent. hash: %s\n", i, txHash)

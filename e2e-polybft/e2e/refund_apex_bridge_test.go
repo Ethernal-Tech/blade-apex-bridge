@@ -217,7 +217,7 @@ func TestE2E_ApexRefund_BatchRecreated(t *testing.T) {
 
 	txHash, err := apex.SubmitBridgingRequest(ctx,
 		cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-		brSubmitterUser, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, brSubmitterUser,
+		brSubmitterUser, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, 0, brSubmitterUser,
 	)
 	require.NoError(t, err)
 
@@ -275,7 +275,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
 
 	txHash, err := apex.SubmitBridgingRequest(ctx,
 		cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-		user, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, user,
+		user, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, 0, user,
 	)
 	require.NoError(t, err)
 
@@ -342,7 +342,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxBatchTryCount(t *testing.T) {
 
 	txHash, err := apex.SubmitBridgingRequest(ctx,
 		cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-		user, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, user,
+		user, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, 0, user,
 	)
 	require.NoError(t, err)
 
@@ -395,7 +395,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxRefundTryCount(t *testing.T) {
 
 	txHash, err := apex.SubmitBridgingRequest(ctx,
 		cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-		user, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, user,
+		user, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, 0, user,
 	)
 	require.NoError(t, err)
 
@@ -533,7 +533,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 
 			txHash, err := apex.SubmitBridgingRequest(ctx,
 				cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-				usr, new(big.Int).SetUint64(hugeSendAmount), sendtx.BridgingTypeNormal, userReceiver,
+				usr, new(big.Int).SetUint64(hugeSendAmount), sendtx.BridgingTypeNormal, 0, userReceiver,
 			)
 			require.NoError(t, err)
 

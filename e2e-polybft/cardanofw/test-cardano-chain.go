@@ -832,6 +832,11 @@ func (ec *TestCardanoChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSys
 }
 
 func (ec *TestCardanoChain) UpdateTxSendChainConfiguration(configs map[string]sendtx.ChainConfig) {
+	fmt.Println("UpdateTxSendChainConfiguration", ec.ChainID())
+	for chainID, config := range configs {
+		fmt.Println("chainID", chainID)
+		fmt.Println("colored coins", config.ColoredCoins)
+	}
 	ec.txSender = sendtx.NewTxSender(configs)
 }
 
@@ -949,7 +954,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 	ctx context.Context,
 	dstChainID ChainID,
 	privateKey string,
-	receiversMap map[string]*big.Int,
+	receiversMap map[string]CoinAndAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
 	bridgingTypes ...sendtx.BridgingType,
@@ -967,11 +972,12 @@ func (ec *TestCardanoChain) BridgingRequest(
 		bridgingType = bridgingTypes[0]
 	}
 
-	for receiverAddress, receiverAmount := range receiversMap {
+	for receiverAddress, receiverCoinAmount := range receiversMap {
 		receivers = append(receivers, sendtx.BridgingTxReceiver{
-			Addr:         receiverAddress,
-			Amount:       DfmToChainNativeTokenAmount(ec.ChainID(), receiverAmount).Uint64(),
-			BridgingType: bridgingType,
+			Addr:          receiverAddress,
+			Amount:        DfmToChainNativeTokenAmount(ec.ChainID(), receiverCoinAmount.Amount).Uint64(),
+			BridgingType:  bridgingType,
+			ColoredCoinID: receiverCoinAmount.CoinID,
 		})
 	}
 

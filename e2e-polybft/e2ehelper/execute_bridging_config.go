@@ -101,6 +101,7 @@ type executeBridgingConfig struct {
 	restartValidatorStrategy RestartValidatorStrategyFn
 	timeoutConfig            TimeoutConfig
 	logger                   hclog.Logger
+	coloredCoinID            uint16
 }
 
 func newExecuteBridgingConfig(opts ...ExecuteBridgingOption) *executeBridgingConfig {
@@ -119,6 +120,12 @@ func newExecuteBridgingConfig(opts ...ExecuteBridgingOption) *executeBridgingCon
 }
 
 type ExecuteBridgingOption func(config *executeBridgingConfig)
+
+func WithColoredCoinID(coloredCoinID uint16) ExecuteBridgingOption {
+	return func(config *executeBridgingConfig) {
+		config.coloredCoinID = coloredCoinID
+	}
+}
 
 func WithWaitForUnexpectedBridges(waitForUnexpectedBridges bool) ExecuteBridgingOption {
 	return func(config *executeBridgingConfig) {
@@ -174,7 +181,7 @@ var (
 						for _, dstChain := range dstChains {
 							txHash, err := apex.SubmitBridgingRequest(
 								ctx, srcChain, dstChain, senderUser, sendAmountDfm,
-								bridgingTypes[NewChainPair(srcChain, dstChain)], receivers...)
+								bridgingTypes[NewChainPair(srcChain, dstChain)], 0, receivers...) // TODO: add colored coin id
 							require.NoError(t, err)
 
 							fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",

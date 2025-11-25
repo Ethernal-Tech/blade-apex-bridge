@@ -404,8 +404,11 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	expectedAmount := new(big.Int).Add(prevAmount, sendAmountDfm)
 
 	txHash, err := apex.GetChainMust(t, srcChain).BridgingRequest(
-		ctx, dstChain, senderUserBuilder.String(), map[string]*big.Int{
-			apex.Users[0].VectorAddress.String(): sendAmountDfm,
+		ctx, dstChain, senderUserBuilder.String(), map[string]cardanofw.CoinAndAmount{
+			apex.Users[0].VectorAddress.String(): {
+				CoinID: 0,
+				Amount: sendAmountDfm,
+			},
 		}, new(big.Int).SetUint64(apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)), 0, sendtx.BridgingTypeNormal)
 	require.NoError(t, err)
 
@@ -451,7 +454,7 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 	// Initiate bridging PRIME -> VECTOR
 	txHash, err := apex.SubmitBridgingRequest(ctx,
 		cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-		user, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, user,
+		user, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, 0, user,
 	)
 	require.NoError(t, err)
 
@@ -516,7 +519,7 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			beforeSendingAmountDfm[i], err = apex.GetBalance(ctx, user, src)
 			require.NoError(t, err)
 
-			txHashes[i], err = apex.SubmitBridgingRequest(ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNormal, user)
+			txHashes[i], err = apex.SubmitBridgingRequest(ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNormal, 0, user)
 			require.NoError(t, err)
 
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
@@ -612,7 +615,7 @@ func TestE2E_FundAmount(t *testing.T) {
 
 			txHash, err := apex.SubmitBridgingRequest(ctx,
 				tc.fromChain, tc.toChain,
-				user, tc.sendAmount, sendtx.BridgingTypeNormal, user,
+				user, tc.sendAmount, sendtx.BridgingTypeNormal, 0, user,
 			)
 			require.NoError(t, err)
 
@@ -625,7 +628,7 @@ func TestE2E_FundAmount(t *testing.T) {
 
 			txHash, err = apex.SubmitBridgingRequest(ctx,
 				tc.fromChain, tc.toChain,
-				user, tc.sendAmount, sendtx.BridgingTypeNormal, user,
+				user, tc.sendAmount, sendtx.BridgingTypeNormal, 0, user,
 			)
 			require.NoError(t, err)
 
@@ -1314,7 +1317,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			go func(src string, dest string, sender *cardanofw.TestApexUser, receiver *cardanofw.TestApexUser, amount *big.Int) {
 				defer wg.Done()
 
-				txHash, err := apex.SubmitBridgingRequest(ctx, src, dest, sender, amount, sendtx.BridgingTypeNormal, receiver)
+				txHash, err := apex.SubmitBridgingRequest(ctx, src, dest, sender, amount, sendtx.BridgingTypeNormal, 0, receiver)
 				require.NoError(t, err)
 
 				fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHash)
@@ -1703,7 +1706,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 					if valid {
 						time.Sleep(time.Second * time.Duration(r.Intn(maxWaitTime)))
 
-						_, err := apex.SubmitBridgingRequest(ctx, src, dest, apex.Users[idx], sendAmount, sendtx.BridgingTypeNormal, user)
+						_, err := apex.SubmitBridgingRequest(ctx, src, dest, apex.Users[idx], sendAmount, sendtx.BridgingTypeNormal, 0, user)
 						require.NoError(t, err)
 					} else if src != cardanofw.ChainIDNexus {
 						submitInvalidSendAmountTransaction(t, ctx, apex, src, dest, apex.Users[idx], sendAmount, user.GetAddress(dest))

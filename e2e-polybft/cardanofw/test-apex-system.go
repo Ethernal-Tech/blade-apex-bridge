@@ -460,6 +460,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinFeeForBridgingTokens:  a.Config.PrimeConfig.MinBridgingFeeForTokens,
 			MinOperationFeeAmount:    a.Config.PrimeConfig.MinOperationFee,
 			PotentialFee:             PotentialFee,
+			ColoredCoins:             convertColoredCoinsToSendtxColoredCoins(a.Config.PrimeConfig.ColoredCoins),
 		},
 	}
 
@@ -474,6 +475,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinFeeForBridgingTokens:  a.Config.VectorConfig.MinBridgingFeeForTokens,
 			NativeTokens:             a.VectorInfo.NativeTokens,
 			PotentialFee:             PotentialFee,
+			ColoredCoins:             convertColoredCoinsToSendtxColoredCoins(a.Config.VectorConfig.ColoredCoins),
 		}
 	}
 
@@ -489,6 +491,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinOperationFeeAmount:    a.Config.CardanoConfig.MinOperationFee,
 			NativeTokens:             a.CardanoInfo.NativeTokens,
 			PotentialFee:             PotentialFee,
+			ColoredCoins:             convertColoredCoinsToSendtxColoredCoins(a.Config.CardanoConfig.ColoredCoins),
 		}
 	}
 
@@ -502,6 +505,17 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 	for _, chain := range a.chains {
 		chain.UpdateTxSendChainConfiguration(txSenderChainConfigs)
 	}
+}
+
+func convertColoredCoinsToSendtxColoredCoins(coloredCoin []ColoredCoin) []sendtx.ColoredCoin {
+	sendtxColoredCoins := make([]sendtx.ColoredCoin, len(coloredCoin))
+	for i, cc := range coloredCoin {
+		sendtxColoredCoins[i] = sendtx.ColoredCoin{
+			TokenName:     cc.TokenName,
+			ColoredCoinID: cc.ColoredCoinID,
+		}
+	}
+	return sendtxColoredCoins
 }
 
 func (a *ApexSystem) FundWallets(ctx context.Context) error {
@@ -1169,7 +1183,7 @@ func (a *ApexSystem) SubmitTx(
 func (a *ApexSystem) SubmitBridgingRequest(
 	ctx context.Context,
 	sourceChain ChainID, destinationChain ChainID,
-	sender *TestApexUser, dfmAmount *big.Int, bridgingType sendtx.BridgingType, receivers ...*TestApexUser,
+	sender *TestApexUser, dfmAmount *big.Int, bridgingType sendtx.BridgingType, coloredCoinID uint16, receivers ...*TestApexUser,
 ) (string, error) {
 	const (
 		numRetries = 5
@@ -1233,7 +1247,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		return "", fmt.Errorf("invalid number of receivers")
 	}
 
-	receiversMap := make(map[string]*big.Int, len(receivers))
+	receiversMap := make(map[string]CoinAndAmount, len(receivers))
 
 	// check if receivers are valid for the bridging - do they have necessary wallets
 	for i, receiver := range receivers {
@@ -1249,7 +1263,10 @@ func (a *ApexSystem) SubmitBridgingRequest(
 			return "", fmt.Errorf("receiver %d does not have a cardano wallet for cardano chain transfer", i)
 		}
 
-		receiversMap[receiver.GetAddress(destinationChain)] = DfmToChainNativeTokenAmount(sourceChain, dfmAmount)
+		receiversMap[receiver.GetAddress(destinationChain)] = CoinAndAmount{
+			CoinID: coloredCoinID,
+			Amount: DfmToChainNativeTokenAmount(sourceChain, dfmAmount),
+		}
 	}
 
 	// check if users are valid for the bridging - do they have necessary wallets

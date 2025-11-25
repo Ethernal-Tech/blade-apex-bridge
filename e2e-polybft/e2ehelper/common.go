@@ -17,7 +17,7 @@ type IApexSystem interface {
 		ctx context.Context,
 		sourceChain cardanofw.ChainID, destinationChain cardanofw.ChainID,
 		sender *cardanofw.TestApexUser, dfmAmount *big.Int, bridgingType sendtx.BridgingType,
-		receivers ...*cardanofw.TestApexUser,
+		coloredCoinID uint16, receivers ...*cardanofw.TestApexUser,
 	) (string, error)
 	WaitForGreaterAmount(
 		ctx context.Context, user *cardanofw.TestApexUser, dstChain cardanofw.ChainID, srcChain cardanofw.ChainID,

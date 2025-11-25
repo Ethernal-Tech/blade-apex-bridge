@@ -434,7 +434,7 @@ func (ec *TestEVMChain) BridgingRequest(
 	ctx context.Context,
 	destChainID ChainID,
 	privateKey string,
-	receivers map[string]*big.Int,
+	receivers map[string]CoinAndAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
 	bridgingTypes ...sendtx.BridgingType,
@@ -450,9 +450,9 @@ func (ec *TestEVMChain) BridgingRequest(
 		"--fee", feeAmount.String(),
 	}
 
-	for addr, amount := range receivers {
+	for addr, coinAmount := range receivers {
 		params = append(params,
-			"--receiver", fmt.Sprintf("%s:%s", addr, amount),
+			"--receiver", fmt.Sprintf("%s:%s", addr, coinAmount.Amount),
 		)
 	}
 

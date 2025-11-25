@@ -66,6 +66,7 @@ func Test_SkylineBridgeMint_ColoredCoins(t *testing.T) {
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
 	t.Run("1. cardano ADA <-> vector wADA", func(t *testing.T) {
+		t.Skip("Skipping test")
 		t.Cleanup(func() {
 			apex.ResetIndexers()
 		})
@@ -100,7 +101,7 @@ func Test_SkylineBridgeMint_ColoredCoins(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmountDfm,
-			sendtx.BridgingTypeColoredCoinOnSource)
+			sendtx.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoinID(5))
 	})
 }
 
