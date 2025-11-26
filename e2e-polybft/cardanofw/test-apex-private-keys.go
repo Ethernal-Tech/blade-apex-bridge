@@ -12,6 +12,7 @@ type ApexPrivateKeys struct {
 	PrimePaymentSigningKeyCborHex   string `json:"primePaymentSKCborHex"`
 	PrimeStakeSigningKeyCborHex     string `json:"primeStakeSKCborHex"`
 	VectorPaymentSigningKeyCborHex  string `json:"vectorPaymentSKCborHex"`
+	VectorStakeSigningKeyCborHex    string `json:"vectorStakeSKCborHex"`
 	NexusPrivateKey                 string `json:"nexusPK"`
 	CardanoPaymentSigningKeyCborHex string `json:"cardanoPaymentSKCborHex"`
 	CardanoStakeSigningKeyCborHex   string `json:"cardanoStakeSKCborHex"`
@@ -30,7 +31,7 @@ func (keys *ApexPrivateKeys) Wallets() (*apexUserWallets, error) {
 	)
 
 	if len(keys.VectorPaymentSigningKeyCborHex) > 0 {
-		vector, err = newCardanoWalletFromCborHex(keys.VectorPaymentSigningKeyCborHex, "")
+		vector, err = newCardanoWalletFromCborHex(keys.VectorPaymentSigningKeyCborHex, keys.VectorStakeSigningKeyCborHex)
 		if err != nil {
 			return nil, err
 		}
