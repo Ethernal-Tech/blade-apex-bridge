@@ -25,7 +25,9 @@ func ExecuteSingleBridging(
 	prevAmountDfm, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	require.NoError(t, err)
 
-	txHash := apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, senderUser, sendAmountDfm, receiverUser)
+	txHash, err := apex.SubmitBridgingRequest(ctx, srcChain, dstChain, senderUser, sendAmountDfm, receiverUser)
+	require.NoError(t, err)
+
 	expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -48,7 +50,11 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 		prevAmountDfm, err := apex.GetBalance(ctx, user, dstChain)
 		require.NoError(t, err)
 
-		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, user)
+		txHash, err := apex.SubmitBridgingRequest(ctx, srcChain, dstChain, user, sendAmountDfm, user)
+		require.NoError(t, err)
+
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
+
 		expectedAmountDfm := new(big.Int).Add(prevAmountDfm, sendAmountDfm)
 
 		err = apex.WaitForExactAmount(ctx, user, dstChain, expectedAmountDfm,
@@ -71,7 +77,11 @@ func ExecuteBridgingWaitAfterSubmits(
 	expectedAmountDfm := new(big.Int).Set(prevAmountDfm)
 
 	for i := 0; i < txCountPerSender; i++ {
-		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, user)
+		txHash, err := apex.SubmitBridgingRequest(ctx, srcChain, dstChain, user, sendAmountDfm, user)
+		require.NoError(t, err)
+
+		fmt.Printf("Tx[%d] sent. hash: %s\n", i, txHash)
+
 		expectedAmountDfm = expectedAmountDfm.Add(expectedAmountDfm, sendAmountDfm)
 	}
 

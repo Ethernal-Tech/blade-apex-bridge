@@ -201,10 +201,11 @@ func TestE2E_ApexRefund_BatchRecreated(t *testing.T) {
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, brSubmitterUser, cardanofw.ChainIDPrime)
 	require.NoError(t, err)
 
-	txHash := apex.SubmitBridgingRequest(t, ctx,
+	txHash, err := apex.SubmitBridgingRequest(ctx,
 		cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
 		brSubmitterUser, new(big.Int).SetUint64(sendAmount), brSubmitterUser,
 	)
+	require.NoError(t, err)
 
 	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
 
@@ -257,10 +258,11 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 	require.NoError(t, err)
 
-	txHash := apex.SubmitBridgingRequest(t, ctx,
+	txHash, err := apex.SubmitBridgingRequest(ctx,
 		cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
 		user, new(big.Int).SetUint64(sendAmount), user,
 	)
+	require.NoError(t, err)
 
 	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
 
@@ -318,10 +320,11 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxBatchTryCount(t *testing.T) {
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 	require.NoError(t, err)
 
-	txHash := apex.SubmitBridgingRequest(t, ctx,
+	txHash, err := apex.SubmitBridgingRequest(ctx,
 		cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
 		user, new(big.Int).SetUint64(sendAmount), user,
 	)
+	require.NoError(t, err)
 
 	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
 
@@ -370,10 +373,11 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxRefundTryCount(t *testing.T) {
 		sendAmount = uint64(100_000_000)
 	)
 
-	txHash := apex.SubmitBridgingRequest(t, ctx,
+	txHash, err := apex.SubmitBridgingRequest(ctx,
 		cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
 		user, new(big.Int).SetUint64(sendAmount), user,
 	)
+	require.NoError(t, err)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
@@ -492,10 +496,11 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 			beforeSendingAmountDfm, err := apex.GetBalance(ctx, usr, cardanofw.ChainIDPrime)
 			require.NoError(t, err)
 
-			txHash := apex.SubmitBridgingRequest(t, ctx,
+			txHash, err := apex.SubmitBridgingRequest(ctx,
 				cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
 				usr, new(big.Int).SetUint64(hugeSendAmount), userReceiver,
 			)
+			require.NoError(t, err)
 
 			lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(hugeSendAmount+feeAmount))
 
