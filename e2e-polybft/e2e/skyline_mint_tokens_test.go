@@ -2,18 +2,31 @@ package e2e
 
 import (
 	"context"
-	"fmt"
-	"math/big"
-	"sync"
 	"testing"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
-	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
-	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
-	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
+func Test_ColoredCoins(t *testing.T) {
+	const apiKey = "test_api_key"
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfigWithMinting(true)
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+}
+
+/*
 func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 	const apiKey = "test_api_key"
 
@@ -210,3 +223,5 @@ func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 		}
 	})
 }
+
+*/

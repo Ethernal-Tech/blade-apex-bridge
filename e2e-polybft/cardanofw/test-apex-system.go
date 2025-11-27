@@ -96,6 +96,14 @@ type UpgradeSCParams struct {
 	gasLimit       uint64
 }
 
+type SetDependenciesSCParams struct {
+	contractName string
+	contractsDir string
+	proxyAddress string
+	dependencies []string
+	gasLimit     uint64
+}
+
 func NewApexSystem(
 	dataDirPath string, opts ...ApexSystemOptions,
 ) (*ApexSystem, error) {
@@ -1418,6 +1426,29 @@ func (a *ApexSystem) UpgradeSmartContract(upgradeParams *UpgradeSCParams) error 
 		}
 
 		cmnd = append(cmnd, "--contract", strings.Join(parts, ":"))
+	}
+
+	if upgradeParams.gasLimit > 0 {
+		cmnd = append(cmnd, "--gas-limit", fmt.Sprintf("%d", upgradeParams.gasLimit))
+	}
+
+	return RunCommand(ResolveApexBridgeBinary(), cmnd, os.Stdout)
+}
+
+func (a *ApexSystem) SetDependencies(upgradeParams *SetDependenciesSCParams) error {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	cmnd := []string{
+		"deploy-evm", "set-dependencies",
+		"--contract-dir", upgradeParams.contractsDir,
+		"--contract-name", upgradeParams.contractName,
+		"--proxy-addr", upgradeParams.proxyAddress,
+		"--dependencies", strings.Join(upgradeParams.dependencies, ";"),
+		"--key", hex.EncodeToString(pkBytes),
+		"--url", a.GetBridgeDefaultJSONRPCAddr(),
 	}
 
 	if upgradeParams.gasLimit > 0 {

@@ -137,29 +137,76 @@ func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSm
 	dir, err := filepath.Abs(bridgeSmartContractsDirPath)
 	require.NoError(t, err)
 
+	claimsProcessorAddress, err := apexSystem.DeploySmartContract(
+		dir, "ClaimsProcessor", []string{})
+	require.NoError(t, err)
+
+	registrationAddress, err := apexSystem.DeploySmartContract(
+		dir, "Registration", []string{})
+	require.NoError(t, err)
+
+	chainTokensContractAddr, err := apexSystem.DeploySmartContract(
+		dir, "ChainTokens", []string{contracts.ApexBridgeAdmin.String(), contracts.Bridge.String(),
+			contracts.Claims.String(), claimsProcessorAddress, registrationAddress})
+	require.NoError(t, err)
+
 	bridgingAddressesContractAddr, err := apexSystem.DeploySmartContract(
 		dir, "BridgingAddresses", []string{contracts.Bridge.String(),
 			contracts.Claims.String(), contracts.ApexBridgeAdmin.String()})
 	require.NoError(t, err)
 
+	require.NoError(t, apexSystem.SetDependencies(&SetDependenciesSCParams{
+		contractsDir: dir,
+		contractName: "ClaimsProcessor",
+		dependencies: []string{contracts.ApexBridgeAdmin.String(), contracts.Bridge.String(), chainTokensContractAddr,
+			contracts.Claims.String(), contracts.ClaimsHelper.String(), registrationAddress, contracts.Validators.String()},
+		proxyAddress: claimsProcessorAddress,
+	}))
+
+	require.NoError(t, apexSystem.SetDependencies(&SetDependenciesSCParams{
+		contractsDir: dir,
+		contractName: "Registration",
+		dependencies: []string{contracts.Bridge.String(), bridgingAddressesContractAddr, chainTokensContractAddr,
+			contracts.Claims.String(), contracts.ClaimsHelper.String(), contracts.Validators.String()},
+		proxyAddress: registrationAddress,
+	}))
+
 	contractParams := []ContractParams{
 		{
 			contractName:    "Admin",
 			contractAddress: contracts.ApexBridgeAdmin.String(),
-			functionName:    "setBridgingAddrsDependency",
-			functionArgs:    []string{bridgingAddressesContractAddr},
+			functionName:    "setAdditionalDependenciesAndSync",
+			functionArgs:    []string{bridgingAddressesContractAddr, chainTokensContractAddr, "true"},
 		},
 		{
 			contractName:    "Bridge",
 			contractAddress: contracts.Bridge.String(),
-			functionName:    "setBridgingAddrsDependencyAndSync",
-			functionArgs:    []string{bridgingAddressesContractAddr},
+			functionName:    "setAdditionalDependenciesAndSync",
+			functionArgs:    []string{bridgingAddressesContractAddr, chainTokensContractAddr, contracts.ClaimsHelper.String(), registrationAddress, "true"},
+		},
+		{
+			contractName:    "BridgingAddresses",
+			contractAddress: bridgingAddressesContractAddr,
+			functionName:    "setAdditionalDependenciesAndSync",
+			functionArgs:    []string{claimsProcessorAddress, registrationAddress},
 		},
 		{
 			contractName:    "Claims",
 			contractAddress: contracts.Claims.String(),
-			functionName:    "setBridgingAddrsDependencyAndSync",
-			functionArgs:    []string{bridgingAddressesContractAddr},
+			functionName:    "setAdditionalDependenciesAndSync",
+			functionArgs:    []string{bridgingAddressesContractAddr, chainTokensContractAddr, claimsProcessorAddress, registrationAddress, "true"},
+		},
+		{
+			contractName:    "ClaimsHelper",
+			contractAddress: contracts.ClaimsHelper.String(),
+			functionName:    "setAdditionalDependenciesAndSync",
+			functionArgs:    []string{claimsProcessorAddress, registrationAddress},
+		},
+		{
+			contractName:    "Validators",
+			contractAddress: contracts.Validators.String(),
+			functionName:    "setAdditionalDependenciesAndSync",
+			functionArgs:    []string{registrationAddress},
 		},
 	}
 

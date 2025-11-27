@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BRANCH=feat/skyline
+BRANCH=feat/AD-789_SIMPLE_colored_coins_bridging
 CARDANO_SC_BRANCH=main
 
 # build Apex-bridge smartcontracts
