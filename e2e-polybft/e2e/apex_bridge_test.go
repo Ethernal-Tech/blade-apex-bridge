@@ -713,6 +713,36 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 	txProviderPrime, err := apex.PrimeInfo.GetTxProvider()
 	require.NoError(t, err)
 
+	t.Run("Submitted invalid metadata - wrong label", func(t *testing.T) {
+		sendAmount := uint64(1_000_000)
+		feeAmount := uint64(1_100_000)
+
+		beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
+		fmt.Println("beforeSendingAmountDfm", beforeSendingAmountDfm)
+
+		metadata := map[string]interface{}{
+			"0": map[string]interface{}{"whatever": "2"},
+		}
+
+		bridgingRequestMetadata, err := json.Marshal(metadata)
+		require.NoError(t, err)
+
+		txHash, err := cardanofw.SendTx(
+			ctx, txProviderPrime, user.PrimeWallet, sendAmount+feeAmount, apex.PrimeInfo.MultisigAddr,
+			apex.Config.PrimeConfig.NetworkType, apex.Config.PrimeConfig.NetworkMagic, bridgingRequestMetadata, nil)
+		require.NoError(t, err)
+
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+		_, err = cardanofw.WaitForRequestStates(
+			ctx, apex, cardanofw.ChainIDPrime, txHash,
+			apex.Config.APIKey, nil, cardanofw.DefaultRequestStateTimeoutSec)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "timeout")
+	})
+
 	t.Run("Submitted invalid metadata - sliced off", func(t *testing.T) {
 		PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, user)
 	})
