@@ -148,7 +148,7 @@ jobs:
         id: redudant_test_input_check
         run: |
           if [[ "${{ inputs.e2e_apex_skip_redundant_tests }}" != "false" ]]; then
-            echo "skip_redundant_tests=false" >> $GITHUB_OUTPUT
+            echo "skip_redundant_tests=true" >> $GITHUB_OUTPUT
           else
             echo "skip_redundant_tests=false" >> $GITHUB_OUTPUT
           fi
@@ -160,7 +160,7 @@ jobs:
               if [[ "${{ github.base_ref }}" == "feat/skyline" ]]; then
                 echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
               else
-                echo "apex_bridge_ref=feat/cover_metadata_edge_case" >> $GITHUB_OUTPUT
+                echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
               fi
             else
               if [[ "${{ github.ref }}" == "refs/heads/feat/skyline" ]]; then
