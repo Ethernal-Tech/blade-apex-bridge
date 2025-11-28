@@ -3,6 +3,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -241,4 +242,36 @@ func executeInvalidSendNativeToken(
 
 	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, lovelaceAmount,
 		bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
+}
+
+func executeInvalidMetadataWrongLabel(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
+) {
+	t.Helper()
+
+	sendAmount := uint64(1_000_000)
+
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+
+	fmt.Println("beforeSendingAmountDfm", beforeSendingAmountDfm)
+
+	metadata := map[string]interface{}{
+		"0": map[string]interface{}{"whatever": "2"},
+	}
+
+	bridgingRequestMetadata, err := json.Marshal(metadata)
+	require.NoError(t, err)
+
+	txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr[0],
+		new(big.Int).SetUint64(sendAmount), nil, bridgingRequestMetadata)
+	require.NoError(t, err)
+
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+	_, err = cardanofw.WaitForRequestStates(
+		ctx, apex, cardanofw.ChainIDPrime, txHash,
+		apex.Config.APIKey, nil, cardanofw.DefaultRequestStateTimeoutSec)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "timeout")
 }
