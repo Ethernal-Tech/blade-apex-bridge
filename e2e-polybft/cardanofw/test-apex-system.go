@@ -342,6 +342,8 @@ func (a *ApexSystem) RestartBridges(ctx context.Context, validatorsNotToStart ..
 	}
 
 	return nil
+}
+
 func (a *ApexSystem) InitTxSendChainConfiguration() {
 	txSenderChainConfigs := map[string]sendtx.ChainConfig{
 		ChainIDPrime: {
