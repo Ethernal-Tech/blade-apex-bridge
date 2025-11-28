@@ -858,6 +858,10 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0)
 	})
+
+	t.Run("14. Submitted invalid metadata - wrong label", func(t *testing.T) {
+		executeInvalidMetadataWrongLabel(t, ctx, apex, user)
+	})
 }
 
 func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
