@@ -22,7 +22,7 @@ func executeInvalidBridgingFee(
 	t.Helper()
 
 	user := apex.Users[len(apex.Users)-1]
-	receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount, bridgingType)
+	receivers := createReceivers(apex, 1, config.srcChainID, config.dstChainID, defaultSendAmount, bridgingType)
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)

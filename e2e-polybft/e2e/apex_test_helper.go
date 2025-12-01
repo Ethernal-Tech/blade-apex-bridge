@@ -89,7 +89,7 @@ func executeInvalidMismatchSendLovelaceAmount(
 ) {
 	t.Helper()
 
-	receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount*10, bridgingType)
+	receivers := createReceivers(apex, 1, config.srcChainID, config.dstChainID, defaultSendAmount*10, bridgingType)
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 
@@ -122,7 +122,7 @@ func executeInvalidMismatchSendAmountMultipleInstances(
 	const instances = 5
 
 	for i := 0; i < instances; i++ {
-		receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount*10, bridgingType)
+		receivers := createReceivers(apex, 1, config.srcChainID, config.dstChainID, defaultSendAmount*10, bridgingType)
 
 		operationFee := apex.GetMinOperationFee(config.srcChainID)
 
@@ -164,7 +164,7 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 		go func(idx int) {
 			defer wg.Done()
 
-			receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount*10, bridgingType)
+			receivers := createReceivers(apex, 1, config.srcChainID, config.dstChainID, defaultSendAmount*10, bridgingType)
 
 			operationFee := apex.GetMinOperationFee(config.srcChainID)
 
@@ -198,7 +198,7 @@ func executeInvalidMetadataType(
 ) {
 	t.Helper()
 
-	receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount, bridgingType)
+	receivers := createReceivers(apex, 1, config.srcChainID, config.dstChainID, defaultSendAmount, bridgingType)
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 
@@ -236,13 +236,14 @@ func executeInvalidDestination(
 ) {
 	t.Helper()
 
-	receivers := createReceivers(apex, 0, config.dstChainID, defaultSendAmount, bridgingType)
+	tokenID := apex.GetTokenIDForChain(config.dstChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+
+	receivers := createReceivers(apex, 0, config.srcChainID, config.dstChainID, defaultSendAmount, bridgingType)
 	receiversForFeeCalculation := []sendtx.BridgingTxReceiver{
 		{
 			Addr:   user.GetAddress(config.dstChainID),
 			Amount: defaultSendAmount,
-			// TODO: FIX THIS UP WITH ID
-			//BridgingType: bridgingType,
+			Token:  tokenID,
 		},
 	}
 
@@ -286,7 +287,7 @@ func executeInvalidMetadataInvalidSender(
 ) {
 	t.Helper()
 
-	receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount, bridgingType)
+	receivers := createReceivers(apex, 1, config.srcChainID, config.dstChainID, defaultSendAmount, bridgingType)
 
 	srcTestChain := apex.GetChainMust(t, config.srcChainID)
 
@@ -326,12 +327,13 @@ func executeInvalidEmptyReceivers(
 
 	receivers := []sendtx.BridgingTxReceiver{}
 
+	tokenID := apex.GetTokenIDForChain(config.dstChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+
 	receiversForFeeCalculation := []sendtx.BridgingTxReceiver{
 		{
 			Addr:   user.GetAddress(config.dstChainID),
 			Amount: defaultSendAmount,
-			// TODO: FIX THIS UP WITH ID
-			// BridgingType: bridgingType,
+			Token:  tokenID,
 		},
 	}
 
@@ -372,7 +374,7 @@ func executeInvalidTokenDirection(
 ) {
 	t.Helper()
 
-	receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount, bridgingType)
+	receivers := createReceivers(apex, 1, config.srcChainID, config.dstChainID, defaultSendAmount, bridgingType)
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 
@@ -446,16 +448,17 @@ func createMetadata(
 }
 
 func createReceivers(
-	apex *cardanofw.ApexSystem, receiversCount int, dstChain string, sendAmount uint64, bridgingType sendtx.BridgingType,
+	apex *cardanofw.ApexSystem, receiversCount int, srcChain string, dstChain string, sendAmount uint64, bridgingType sendtx.BridgingType,
 ) []sendtx.BridgingTxReceiver {
 	receivers := make([]sendtx.BridgingTxReceiver, receiversCount)
+
+	tokenID := apex.GetTokenIDForChain(srcChain, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
 
 	for i := range receivers {
 		receivers[i] = sendtx.BridgingTxReceiver{
 			Addr:   apex.Users[len(apex.Users)-1-i].GetAddress(dstChain),
 			Amount: sendAmount,
-			// TODO: FIX THIS UP WITH ID
-			// BridgingType: bridgingType,
+			Token:  tokenID,
 		}
 	}
 

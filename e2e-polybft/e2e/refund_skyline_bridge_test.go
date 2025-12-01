@@ -27,7 +27,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	defer cncl()
 
 	primeConfig, vectorConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(), cardanofw.NewCardanoChainConfig(true)
-	primeConfig.FundTokenAmount = 1_000_000_000
+	primeConfig.FundAmount = 1_000_000_000
 	vectorConfig.FundAmount = 1_000_000_000
 	cardanoConfig.FundTokenAmount = 1_000_000_000
 
