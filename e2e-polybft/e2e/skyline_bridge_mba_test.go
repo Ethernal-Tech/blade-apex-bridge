@@ -775,7 +775,6 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses_Native(t *testing.T) {
 	vectorConfig.DefaultMinBridgingFee = oldMinBridgingFee
 	vectorConfig.MinBridgingFeeForTokens = oldMinBridgingFee
 	primeConfig.FundAmount = 1_000_000_000
-	primeConfig.FundTokenAmount = 1_000_000_000
 	cardanoConfig.FundTokenAmount = 10_000_000
 	cardanoConfig.FundAmount = 6_000_000
 	vectorConfig.FundAmount = 1_000_000_000
