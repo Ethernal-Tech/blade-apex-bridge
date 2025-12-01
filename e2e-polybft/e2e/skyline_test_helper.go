@@ -25,7 +25,7 @@ func executeInvalidBridgingFee(
 	receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount, bridgingType)
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
-	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
 		minBridgingFee, operationFee, user, receivers, bridgingType)
@@ -57,14 +57,16 @@ func executeInvalidFeeReceiverAddr(
 	t.Helper()
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
-	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)
+	tokenID := apex.GetTokenIDForChain(config.dstChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+	require.NotZero(t, tokenID)
 
 	user := apex.Users[len(apex.Users)-1]
 	receivers := []sendtx.BridgingTxReceiver{
 		{
-			Addr:         apex.GetCardanoInfo(config.dstChainID).FeeAddr,
-			Amount:       minBridgingFee,
-			BridgingType: bridgingType,
+			Addr:   apex.GetCardanoInfo(config.dstChainID).FeeAddr,
+			Amount: minBridgingFee,
+			Token:  tokenID,
 		},
 	}
 
@@ -107,16 +109,18 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 	sendAmount := uint64(1_000_000)
 
 	user := apex.Users[len(apex.Users)-1]
+	tokenID := apex.GetTokenIDForChain(config.dstChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+	require.NotZero(t, tokenID)
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
-			Addr:         user.GetAddress(config.dstChainID),
-			Amount:       sendAmount,
-			BridgingType: bridgingType,
+			Addr:   user.GetAddress(config.dstChainID),
+			Amount: sendAmount,
+			Token:  tokenID,
 		},
 	}
 
-	if bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
+	if bridgingType == sendtx.BridgingTypeWrappedTokenOnSource {
 		_, err := cardanofw.FundUserWithToken(
 			ctx, apex, config.srcChainID,
 			config.srcMinterWallet, user,
@@ -128,7 +132,7 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 	multisigAddr := apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex]
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
-	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)
 
 	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
 		ctx, config.dstChainID, receivers, minBridgingFee, operationFee, multisigAddr)
@@ -155,18 +159,21 @@ func executeInvalidMismatchSendNativeTokenAmount(
 ) {
 	t.Helper()
 
-	bridgingType := sendtx.BridgingTypeNativeTokenOnSource
+	bridgingType := sendtx.BridgingTypeWrappedTokenOnSource
+
+	tokenID := apex.GetTokenIDForChain(config.dstChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+	require.NotZero(t, tokenID)
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
-			Addr:         user.GetAddress(config.dstChainID),
-			Amount:       nativeTokenAmount.Amount,
-			BridgingType: bridgingType,
+			Addr:   user.GetAddress(config.dstChainID),
+			Amount: nativeTokenAmount.Amount,
+			Token:  tokenID,
 		},
 	}
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
-	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)
 
 	metadata, feeAmount := createMetadata(
 		t, ctx, apex, config.srcChainID, config.dstChainID,
@@ -198,25 +205,28 @@ func executeInvalidSendNativeToken(
 ) {
 	t.Helper()
 
+	tokenID := apex.GetTokenIDForChain(config.dstChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+	require.NotZero(t, tokenID)
+
 	receivers := []sendtx.BridgingTxReceiver{
 		{
-			Addr:         user.GetAddress(config.dstChainID),
-			Amount:       defaultSendAmount,
-			BridgingType: bridgingType,
+			Addr:   user.GetAddress(config.dstChainID),
+			Amount: defaultSendAmount,
+			Token:  tokenID,
 		},
 	}
 
 	// for fee calculation, because of unknown token
 	receiversForFeeCalculation := []sendtx.BridgingTxReceiver{
 		{
-			Addr:         user.GetAddress(config.dstChainID),
-			Amount:       defaultSendAmount,
-			BridgingType: sendtx.BridgingTypeNativeTokenOnSource,
+			Addr:   user.GetAddress(config.dstChainID),
+			Amount: defaultSendAmount,
+			Token:  tokenID,
 		},
 	}
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
-	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)
 
 	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
 		ctx, config.dstChainID, receiversForFeeCalculation, minBridgingFee,

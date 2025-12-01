@@ -403,10 +403,14 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	prevAmount := cardanofw.SetOrDefault(balance[infrawallet.AdaTokenName], big.NewInt(0))
 	expectedAmount := new(big.Int).Add(prevAmount, sendAmountDfm)
 
+	receiversMap := make(map[string]cardanofw.ReceiverAmount, 1)
+	receiversMap[apex.Users[0].VectorAddress.String()] = cardanofw.ReceiverAmount{
+		TokenID: apex.GetTokenIDForChain(srcChain, false),
+		Amount:  sendAmountDfm,
+	}
+
 	txHash, err := apex.GetChainMust(t, srcChain).BridgingRequest(
-		ctx, dstChain, senderUserBuilder.String(), map[string]*big.Int{
-			apex.Users[0].VectorAddress.String(): sendAmountDfm,
-		}, new(big.Int).SetUint64(apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)), 0, sendtx.BridgingTypeNormal)
+		ctx, dstChain, senderUserBuilder.String(), receiversMap, new(big.Int).SetUint64(apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)), 0, sendtx.BridgingTypeNormal)
 	require.NoError(t, err)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -1837,9 +1841,10 @@ func sendWithoutWaitInvalidMetadataWrongType(
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
-			Addr:         receiver.GetAddress(destinationChainID),
-			BridgingType: sendtx.BridgingTypeNormal,
-			Amount:       sendAmount,
+			Addr: receiver.GetAddress(destinationChainID),
+			// TODO: FIX THIS UP WITH ID
+			//BridgingType: sendtx.BridgingTypeNormal,
+			Amount: sendAmount,
 		},
 	}
 
@@ -2083,9 +2088,10 @@ func submitInvalidSendAmountTransaction(
 	bridgingRequestMetadata, err := srcTestChain.CreateMetadata(
 		senderUser.GetAddress(src), dest, []sendtx.BridgingTxReceiver{
 			{
-				Addr:         receiverUserAddr,
-				Amount:       sendAmount.Uint64() * 10,
-				BridgingType: sendtx.BridgingTypeNormal,
+				Addr:   receiverUserAddr,
+				Amount: sendAmount.Uint64() * 10,
+				// TODO: FIX THIS UP WITH ID
+				//BridgingType: sendtx.BridgingTypeNormal,
 			},
 		}, feeAmount, operationFee)
 	require.NoError(t, err)
@@ -2107,9 +2113,10 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
-			Addr:         user.GetAddress(cardanofw.ChainIDVector),
-			Amount:       sendAmount,
-			BridgingType: sendtx.BridgingTypeNormal,
+			Addr:   user.GetAddress(cardanofw.ChainIDVector),
+			Amount: sendAmount,
+			// TODO: FIX THIS UP WITH ID
+			//BridgingType: sendtx.BridgingTypeNormal,
 		},
 	}
 

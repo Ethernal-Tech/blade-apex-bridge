@@ -82,9 +82,10 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
-					Addr:         user.GetAddress(cardanofw.ChainIDVector),
-					Amount:       sendAmount,
-					BridgingType: sendtx.BridgingTypeNormal,
+					Addr:   user.GetAddress(cardanofw.ChainIDVector),
+					Amount: sendAmount,
+					// TODO: FIX THIS UP WITH ID
+					// BridgingType: sendtx.BridgingTypeNormal,
 				},
 			}, feeAmount, operationFee)
 		require.NoError(t, err)

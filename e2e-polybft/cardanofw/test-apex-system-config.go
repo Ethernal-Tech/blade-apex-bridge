@@ -25,6 +25,22 @@ const (
 	PrometheusAndDataDogTelemetry
 )
 
+// Token IDs
+const (
+	AP3XTokenID  uint16 = 1
+	ADATokenID   uint16 = 2
+	CAP3XTokenID uint16 = 3
+	XADATokenID  uint16 = 4
+)
+
+// Human readable token names
+const (
+	AP3XTokenName  = "AP3X"
+	ADATokenName   = "ADA"
+	CAP3XTokenName = "cAP3X"
+	XADATokenName  = "xADA"
+)
+
 type ApexSystemConfig struct {
 	APIValidatorID int // -1 all validators
 	APIPortStart   int

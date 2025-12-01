@@ -346,7 +346,6 @@ func (ec *TestEVMChain) RegisterChain(validator *TestApexValidator) error {
 func (ec *TestEVMChain) GenerateChainConfigs(
 	indx int,
 	validator *TestApexValidator,
-	tokens []sendtx.TokenExchangeConfig,
 ) error {
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
@@ -434,7 +433,7 @@ func (ec *TestEVMChain) BridgingRequest(
 	ctx context.Context,
 	destChainID ChainID,
 	privateKey string,
-	receivers map[string]*big.Int,
+	receivers map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
 	bridgingTypes ...sendtx.BridgingType,
@@ -452,7 +451,7 @@ func (ec *TestEVMChain) BridgingRequest(
 
 	for addr, amount := range receivers {
 		params = append(params,
-			"--receiver", fmt.Sprintf("%s:%s", addr, amount),
+			"--receiver", fmt.Sprintf("%s:%s:%d", addr, amount.Amount.String(), amount.TokenID),
 		)
 	}
 

@@ -28,8 +28,10 @@ func ExecuteSingleBridging(
 	balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	require.NoError(t, err)
 
-	tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
-	prevAmount := cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, expectNativeTokens)
+	fmt.Printf("Tokens Info: %+v\n", tokensInfo)
+
+	prevAmount := cardanofw.SetOrDefault(balance[tokensInfo.DstTokenName], big.NewInt(0))
 
 	txHash, err := apex.SubmitBridgingRequest(
 		ctx, srcChain, dstChain, senderUser, sendAmount, bridgingType, receiverUser)
@@ -335,9 +337,15 @@ func ExecuteBridging(
 	require.NoError(t, errors.Join(errs...))
 }
 
+// Return token name of destination chain token from source chain and if it's native token on dest
 func getTokenNameForChains(apex IApexSystem, dstChain, srcChain string, expectNativeTokens bool) string {
 	if expectNativeTokens {
-		return apex.GetTokenNameForChains(dstChain, srcChain)
+		srcTokenID := apex.GetTokenIDForChain(srcChain, true)
+		if srcTokenID == 0 {
+			return ""
+		}
+
+		return apex.GetTokenNameForChains(dstChain, srcChain, srcTokenID)
 	}
 
 	return cardanowallet.AdaTokenName

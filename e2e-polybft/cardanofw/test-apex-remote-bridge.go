@@ -139,6 +139,23 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						"addr_test1xp4vckvhx0y6tlrkapcpyryyjlk5yhw0n3pwd9jqv4t6t0hhsap3pamhjvarygggn5rxsn96yauc40w4y0cezm6dk62s6qlcfy",
 					},
 					FeeAddr: "addr_test1xr06xce9aq6atg0hwuucxe7eu5g6nx8mmnvw2d2e848cz4y93epqj6zxan4pykvt4ux34uzwcwnts4akrfrus070ntss82juq8", //nolint:lll
+					Tokens: map[uint16]sendtx.ApexToken{
+						AP3XTokenID: {
+							ChainSpecific:     cardanowallet.AdaTokenName,
+							LockUnlock:        true,
+							IsWrappedCurrency: false,
+						},
+					},
+					DestChain: map[ChainID][]Direction{
+						ChainIDVector: {
+							{
+								SourceTokenID:      AP3XTokenID,
+								DestinationTokenID: CAP3XTokenID,
+								TrackSource:        true,
+								TrackDestination:   true,
+							},
+						},
+					},
 				},
 				DefaultMinBridgingFee:   4_000_000,
 				MinBridgingFeeForTokens: 2_860_000,
@@ -152,11 +169,22 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						"addr1xypy8dp8q9seraqws8ncjnl4wmtctrqu6phcnacke5cuaz2w22ds0zvg63ejvfhrq8ngsyxzfpl2rhqgvpl4qm3uescsuwwf68",
 					},
 					FeeAddr: "addr1x8m2clera4ucuj9hwvmux6k4g9mdplqna0ezg0fkd5u3r3ngx8nt5azu82cqd0plerhpg38a8wg6rwtj5jvz3epyh3sq42gx85",
-					NativeTokens: []sendtx.TokenExchangeConfig{
-						{
-							DstChainID: ChainIDCardano,
-							TokenName: cardanowallet.NewToken(
+					Tokens: map[uint16]sendtx.ApexToken{
+						XADATokenID: {
+							ChainSpecific: cardanowallet.NewToken(
 								"e243e802ff88962c9084a13de96fa875c8a6bb3ef2d1d29b0a0a7e90", "wADA").String(),
+							LockUnlock:        true,
+							IsWrappedCurrency: true,
+						},
+					},
+					DestChain: map[ChainID][]Direction{
+						ChainIDCardano: {
+							{
+								SourceTokenID:      XADATokenID,
+								DestinationTokenID: ADATokenID,
+								TrackSource:        true,
+								TrackDestination:   true,
+							},
 						},
 					},
 				},
@@ -170,11 +198,34 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 					OgmiosURL:      "https://preview-ogmios.onprem.ethernal.work",
 					MultisigAddr:   []string{"addr_test1xp3g6ayyt3e0m9w3jtxr84mf877nhqh4snt2g7ww43yf6lx4w8kmdszpx27e3wpawvkcqcrhrl9ra09stpe8ahtznzesm8x8rk"}, //nolint:lll
 					FeeAddr:        "addr_test1xz429ta7d8akqvk6rtkavja8kshy4m3dplm2sgx60rp0fk3pmuk902u7lh609tzz54f32s49s5uf6sphu2zer00a2k4qkq40f9",           //nolint:lll
-					NativeTokens: []sendtx.TokenExchangeConfig{
-						{
-							DstChainID: ChainIDPrime,
-							TokenName: cardanowallet.NewToken(
+					Tokens: map[uint16]sendtx.ApexToken{
+						ADATokenID: {
+							ChainSpecific: cardanowallet.AdaTokenName,
+							LockUnlock:    true,
+						},
+						CAP3XTokenID: {
+							ChainSpecific: cardanowallet.NewToken(
 								"64c6ea243c3133d44f2022299e74b027f02b1c13397324819e8465c7", "WAPEX").String(),
+							LockUnlock:        true,
+							IsWrappedCurrency: true,
+						},
+					},
+					DestChain: map[ChainID][]Direction{
+						ChainIDPrime: {
+							{
+								SourceTokenID:      CAP3XTokenID,
+								DestinationTokenID: AP3XTokenID,
+								TrackSource:        true,
+								TrackDestination:   true,
+							},
+						},
+						ChainIDVector: {
+							{
+								SourceTokenID:      ADATokenID,
+								DestinationTokenID: XADATokenID,
+								TrackSource:        true,
+								TrackDestination:   true,
+							},
 						},
 					},
 				},

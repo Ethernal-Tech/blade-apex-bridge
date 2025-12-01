@@ -1462,9 +1462,10 @@ func DstNexusSubmitterNotEnoughFunds(
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
-			Addr:         user.GetAddress(dstChain),
-			Amount:       sendAmountDfm.Uint64(),
-			BridgingType: sendtx.BridgingTypeNormal,
+			Addr:   user.GetAddress(dstChain),
+			Amount: sendAmountDfm.Uint64(),
+			// TODO: FIX THIS UP WITH ID
+			// BridgingType: sendtx.BridgingTypeNormal,
 		},
 	}
 
@@ -1494,9 +1495,10 @@ func DstNexusInvalidMetadataSlicedOff(
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
-			Addr:         user.GetAddress(dstChain),
-			Amount:       sendAmountDfm.Uint64() * 10,
-			BridgingType: sendtx.BridgingTypeNormal,
+			Addr:   user.GetAddress(dstChain),
+			Amount: sendAmountDfm.Uint64() * 10,
+			// TODO: FIX THIS UP WITH ID
+			// BridgingType: sendtx.BridgingTypeNormal,
 		},
 	}
 

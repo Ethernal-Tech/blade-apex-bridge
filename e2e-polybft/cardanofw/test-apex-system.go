@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strings"
 	"sync"
@@ -33,8 +35,19 @@ type CardanoChainInfo struct {
 	FeeAddr          string
 	SocketPath       string
 
-	NativeTokens  []sendtx.TokenExchangeConfig
+	// Bridging directions
+	DestChain map[ChainID][]Direction
+	// Tokens config
+	Tokens map[uint16]sendtx.ApexToken
+
 	GenesisWallet *cardanowallet.Wallet
+}
+
+type Direction struct {
+	SourceTokenID      uint16 `json:"srcTokenID"`
+	DestinationTokenID uint16 `json:"dstTokenID"`
+	TrackSource        bool   `json:"trackSource"`
+	TrackDestination   bool   `json:"trackDestination"`
 }
 
 func (ci *CardanoChainInfo) GetTxProvider() (cardanowallet.ITxProvider, error) {
@@ -72,6 +85,8 @@ type ApexSystem struct {
 	VectorInfo  CardanoChainInfo
 	CardanoInfo CardanoChainInfo
 	NexusInfo   EVMChainInfo
+
+	EcosystemTokens map[string]uint16
 
 	dataDirPath string
 
@@ -355,14 +370,14 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 		require.NotNil(t, a.VectorInfo.GenesisWallet)
 		require.NotNil(t, a.CardanoInfo.GenesisWallet)
 
-		tokenVector, _, err := GetTokenAndPolicyForVerificationKey(
+		xadaToken, _, err := GetTokenAndPolicyForVerificationKey(
 			a.Config.VectorConfig.ChainType, a.Config.VectorConfig.NetworkType,
-			a.VectorInfo.GenesisWallet.VerificationKey, DefaultTokenName)
+			a.VectorInfo.GenesisWallet.VerificationKey, XADATokenName)
 		require.NoError(t, err)
 
-		tokenCardano, _, err := GetTokenAndPolicyForVerificationKey(
+		capexToken, _, err := GetTokenAndPolicyForVerificationKey(
 			a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
-			a.CardanoInfo.GenesisWallet.VerificationKey, DefaultTokenName)
+			a.CardanoInfo.GenesisWallet.VerificationKey, CAP3XTokenName)
 		require.NoError(t, err)
 
 		nftToken, _, err := GetTokenAndPolicyForVerificationKey(
@@ -374,19 +389,92 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			chain.SetCustodialNFT(nftToken)
 		}
 
-		a.PrimeInfo.NativeTokens = nil
-		a.VectorInfo.NativeTokens = []sendtx.TokenExchangeConfig{
-			{
-				DstChainID: ChainIDCardano,
-				TokenName:  tokenVector.String(),
+		// By default we have the following directions:
+		// - Prime <-> Cardano = AP3X <-> cAP3X
+		// - Cardano <-> Vector = ADA <-> xADA
+		// And tokens: AP3X, cAP3X, ADA, xADA
+
+		a.PrimeInfo.DestChain = map[ChainID][]Direction{
+			ChainIDCardano: {
+				{
+					SourceTokenID:      AP3XTokenID,
+					DestinationTokenID: CAP3XTokenID,
+					TrackSource:        true,
+					TrackDestination:   true,
+				},
 			},
 		}
-		a.CardanoInfo.NativeTokens = []sendtx.TokenExchangeConfig{
-			{
-				DstChainID: ChainIDPrime,
-				TokenName:  tokenCardano.String(),
+
+		a.PrimeInfo.Tokens = map[uint16]sendtx.ApexToken{
+			AP3XTokenID: {
+				ChainSpecific:     cardanowallet.AdaTokenName,
+				LockUnlock:        true,
+				IsWrappedCurrency: false,
 			},
 		}
+
+		a.CardanoInfo.DestChain = map[ChainID][]Direction{
+			ChainIDPrime: {
+				{
+					SourceTokenID:      CAP3XTokenID,
+					DestinationTokenID: AP3XTokenID,
+					TrackSource:        true,
+					TrackDestination:   true,
+				},
+			},
+			ChainIDVector: {
+				{
+					SourceTokenID:      ADATokenID,
+					DestinationTokenID: XADATokenID,
+					TrackSource:        true,
+					TrackDestination:   true,
+				},
+			},
+		}
+
+		a.CardanoInfo.Tokens = map[uint16]sendtx.ApexToken{
+			ADATokenID: {
+				ChainSpecific:     cardanowallet.AdaTokenName,
+				LockUnlock:        true,
+				IsWrappedCurrency: false,
+			},
+			CAP3XTokenID: {
+				ChainSpecific:     capexToken.String(),
+				LockUnlock:        true,
+				IsWrappedCurrency: true,
+			},
+		}
+
+		a.VectorInfo.DestChain = map[ChainID][]Direction{
+			ChainIDCardano: {
+				{
+					SourceTokenID:      XADATokenID,
+					DestinationTokenID: ADATokenID,
+					TrackSource:        true,
+					TrackDestination:   true,
+				},
+			},
+		}
+
+		a.VectorInfo.Tokens = map[uint16]sendtx.ApexToken{
+			XADATokenID: {
+				ChainSpecific:     xadaToken.String(),
+				LockUnlock:        true,
+				IsWrappedCurrency: true,
+			},
+			AP3XTokenID: {
+				ChainSpecific:     cardanowallet.AdaTokenName,
+				LockUnlock:        true,
+				IsWrappedCurrency: false,
+			},
+		}
+	}
+
+	a.EcosystemTokens = map[string]uint16{
+		AP3XTokenName:  AP3XTokenID,
+		ADATokenName:   ADATokenID,
+		CAP3XTokenName: CAP3XTokenID,
+		XADATokenName:  XADATokenID,
 	}
 
 	a.InitTxSendChainConfiguration()
@@ -406,6 +494,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinFeeForBridgingTokens:  a.Config.PrimeConfig.MinBridgingFeeForTokens,
 			MinOperationFeeAmount:    a.Config.PrimeConfig.MinOperationFee,
 			PotentialFee:             PotentialFee,
+			Tokens:                   a.PrimeInfo.Tokens,
 		},
 	}
 
@@ -418,8 +507,8 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinUtxoValue:             MinUTxODefaultValue,
 			DefaultMinFeeForBridging: a.Config.VectorConfig.DefaultMinBridgingFee,
 			MinFeeForBridgingTokens:  a.Config.VectorConfig.MinBridgingFeeForTokens,
-			NativeTokens:             a.VectorInfo.NativeTokens,
 			PotentialFee:             PotentialFee,
+			Tokens:                   a.VectorInfo.Tokens,
 		}
 	}
 
@@ -433,7 +522,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			DefaultMinFeeForBridging: a.Config.CardanoConfig.DefaultMinBridgingFee,
 			MinFeeForBridgingTokens:  a.Config.CardanoConfig.MinBridgingFeeForTokens,
 			MinOperationFeeAmount:    a.Config.CardanoConfig.MinOperationFee,
-			NativeTokens:             a.CardanoInfo.NativeTokens,
+			Tokens:                   a.CardanoInfo.Tokens,
 			PotentialFee:             PotentialFee,
 		}
 	}
@@ -500,23 +589,31 @@ func (a *ApexSystem) DeployCardanoContracts() error {
 				return err
 			}
 
+			tokenName := ""
 			mintableTokens := chain.GetMintableTokens()
+
 			if len(mintableTokens) > 0 {
 				switch chain.ChainID() {
 				case ChainIDCardano:
-					for i, mintableToken := range mintableTokens {
-						a.CardanoInfo.NativeTokens[i].TokenName = mintableToken.String()
-						a.CardanoInfo.NativeTokens[i].Mint = true
+					for _, mintableToken := range mintableTokens {
+						tokenID := a.EcosystemTokens[tokenName]
+						token := a.CardanoInfo.Tokens[tokenID]
+						token.ChainSpecific = mintableToken.String()
+						a.CardanoInfo.Tokens[tokenID] = token
 					}
 				case ChainIDPrime:
-					for i, mintableToken := range mintableTokens {
-						a.PrimeInfo.NativeTokens[i].TokenName = mintableToken.String()
-						a.PrimeInfo.NativeTokens[i].Mint = true
+					for _, mintableToken := range mintableTokens {
+						tokenID := a.EcosystemTokens[tokenName]
+						token := a.PrimeInfo.Tokens[tokenID]
+						token.ChainSpecific = mintableToken.String()
+						a.PrimeInfo.Tokens[tokenID] = token
 					}
 				case ChainIDVector:
-					for i, mintableToken := range mintableTokens {
-						a.VectorInfo.NativeTokens[i].TokenName = mintableToken.String()
-						a.VectorInfo.NativeTokens[i].Mint = true
+					for _, mintableToken := range mintableTokens {
+						tokenID := a.EcosystemTokens[tokenName]
+						token := a.VectorInfo.Tokens[tokenID]
+						token.ChainSpecific = mintableToken.String()
+						a.VectorInfo.Tokens[tokenID] = token
 					}
 				default:
 					return fmt.Errorf("unimplemented cardano contract setup for chain %s", chain.ChainID())
@@ -558,7 +655,7 @@ func (a *ApexSystem) generateReactorConfigs() error {
 		}
 
 		for _, chain := range a.chains {
-			if err := chain.GenerateChainConfigs(serverIndx, validator, nil); err != nil {
+			if err := chain.GenerateChainConfigs(serverIndx, validator); err != nil {
 				return err
 			}
 		}
@@ -607,10 +704,8 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 		}
 
 		for _, chain := range a.chains {
-			tokens := a.GetCardanoInfo(chain.ChainID()).NativeTokens
 			if err := chain.GenerateChainConfigs(
-				serverIndx, validator, tokens,
-			); err != nil {
+				serverIndx, validator); err != nil {
 				return err
 			}
 		}
@@ -635,7 +730,60 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 		return err
 	}
 
+	err = a.GenerateDirectionsConfig()
+	if err != nil {
+		return err
+	}
+
 	return a.setBridgingAPIs()
+}
+
+func (a *ApexSystem) GenerateDirectionsConfig() error {
+	// TODO: Potential refactor to place this config structs on infra
+	type EcosystemToken struct {
+		ID   uint16 `json:"id"`
+		Name string `json:"name"`
+	}
+
+	type DirectionConfig struct {
+		DestinationChain map[ChainID][]Direction     `json:"destChain"`
+		Tokens           map[uint16]sendtx.ApexToken `json:"tokens"`
+	}
+
+	type DirectionConfigFile struct {
+		Directions      map[string]DirectionConfig `json:"directions"`
+		EcosystemTokens []EcosystemToken           `json:"ecosystemTokens"`
+	}
+
+	ecosystemTokens := make([]EcosystemToken, 0, len(a.EcosystemTokens))
+	for name, id := range a.EcosystemTokens {
+		ecosystemTokens = append(ecosystemTokens, EcosystemToken{ID: id, Name: name})
+	}
+
+	directionConfigFile := DirectionConfigFile{
+		Directions: map[string]DirectionConfig{
+			ChainIDPrime:   {DestinationChain: a.PrimeInfo.DestChain, Tokens: a.PrimeInfo.Tokens},
+			ChainIDVector:  {DestinationChain: a.VectorInfo.DestChain, Tokens: a.VectorInfo.Tokens},
+			ChainIDCardano: {DestinationChain: a.CardanoInfo.DestChain, Tokens: a.CardanoInfo.Tokens},
+		},
+		EcosystemTokens: ecosystemTokens,
+	}
+
+	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
+		fileName := path.Join(validator.GetBridgingConfigsDir(), DirectionsConfigFileName)
+
+		json, err := json.Marshal(directionConfigFile)
+		if err != nil {
+			return err
+		}
+
+		err = os.WriteFile(fileName, json, 0600)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 func (a *ApexSystem) GetBridgeDefaultJSONRPCAddr() string {
@@ -771,10 +919,23 @@ func (a *ApexSystem) GetBalance(
 	return balance, err
 }
 
-func (a *ApexSystem) GetTokenNameForChains(chainID, dstChainID ChainID) string {
-	for _, token := range a.GetCardanoInfo(chainID).NativeTokens {
-		if token.DstChainID == dstChainID {
-			return token.TokenName
+func (a *ApexSystem) GetTokenNameForChain(chainID ChainID, tokenID uint16) string {
+	cardanoInfo := a.GetCardanoInfo(chainID)
+	for id, token := range cardanoInfo.Tokens {
+		if id == tokenID {
+			return token.ChainSpecific
+		}
+	}
+
+	return ""
+}
+
+// Returns token name for the given dest chain
+func (a *ApexSystem) GetTokenNameForChains(chainID, dstChainID ChainID, srcTokenID uint16) string {
+	cardanoInfo := a.GetCardanoInfo(chainID)
+	for _, direction := range cardanoInfo.DestChain[dstChainID] {
+		if direction.SourceTokenID == srcTokenID {
+			return cardanoInfo.Tokens[direction.DestinationTokenID].ChainSpecific
 		}
 	}
 
@@ -854,7 +1015,8 @@ func (a *ApexSystem) WaitForAmount(
 		currency := cardanowallet.AdaTokenName
 
 		if len(isNativeToken) > 0 && isNativeToken[0] {
-			currency = a.GetTokenNameForChains(dstChain, srcChain)
+			tokensInfo := a.GetBridgingTokensInfo(srcChain, dstChain, true)
+			currency = tokensInfo.DstTokenName
 		}
 
 		newBalance := amounts[currency]
@@ -1186,7 +1348,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		return "", fmt.Errorf("invalid number of receivers")
 	}
 
-	receiversMap := make(map[string]*big.Int, len(receivers))
+	receiversMap := make(map[string]ReceiverAmount, len(receivers))
 
 	// check if receivers are valid for the bridging - do they have necessary wallets
 	for i, receiver := range receivers {
@@ -1202,7 +1364,25 @@ func (a *ApexSystem) SubmitBridgingRequest(
 			return "", fmt.Errorf("receiver %d does not have a cardano wallet for cardano chain transfer", i)
 		}
 
-		receiversMap[receiver.GetAddress(destinationChain)] = DfmToChainNativeTokenAmount(sourceChain, dfmAmount)
+		switch sourceChain {
+		case ChainIDCardano, ChainIDPrime, ChainIDVector:
+			// Figure out source token ID
+			tokenID := a.GetTokenIDForChain(sourceChain, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+			if tokenID == 0 {
+				return "", fmt.Errorf("source token ID not found for chain %s", sourceChain)
+			}
+
+			receiversMap[receiver.GetAddress(destinationChain)] = ReceiverAmount{
+				TokenID: tokenID,
+				Amount:  DfmToChainNativeTokenAmount(sourceChain, dfmAmount),
+			}
+		default:
+			// TODO: Implement for nexus
+			receiversMap[receiver.GetAddress(destinationChain)] = ReceiverAmount{
+				TokenID: 0,
+				Amount:  DfmToChainNativeTokenAmount(sourceChain, dfmAmount),
+			}
+		}
 	}
 
 	// check if users are valid for the bridging - do they have necessary wallets
@@ -1235,7 +1415,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 	feeAmount := DfmToChainNativeTokenAmount(
 		sourceChain, new(big.Int).SetUint64(
-			a.GetMinBridgingFee(sourceChain, bridgingType == sendtx.BridgingTypeNativeTokenOnSource)))
+			a.GetMinBridgingFee(sourceChain, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)))
 
 	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
 		txHash, err := srcChain.BridgingRequest(
@@ -1255,6 +1435,51 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	}
 
 	return txHash, nil
+}
+
+func (a *ApexSystem) GetTokenIDForChain(sourceChain ChainID, isCurrencyBridging bool) uint16 {
+	if isCurrencyBridging {
+		switch sourceChain {
+		case ChainIDCardano:
+			return ADATokenID
+		case ChainIDPrime:
+			return AP3XTokenID
+		case ChainIDVector:
+			return AP3XTokenID
+		default:
+			return 0
+		}
+	}
+
+	switch sourceChain {
+	case ChainIDCardano:
+		return CAP3XTokenID
+	case ChainIDVector:
+		return XADATokenID
+	default:
+		return 0
+	}
+}
+
+type BridgingTokensInfo struct {
+	SrcTokenID   uint16
+	DstTokenID   uint16
+	SrcTokenName string
+	DstTokenName string
+}
+
+func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, expectNativeTokens bool) *BridgingTokensInfo {
+	srcTokenID := a.GetTokenIDForChain(srcChain, expectNativeTokens)
+	dstTokenID := a.GetTokenIDForChain(dstChain, !expectNativeTokens)
+	srcTokenName := a.GetTokenNameForChain(srcChain, srcTokenID)
+	dstTokenName := a.GetTokenNameForChain(dstChain, dstTokenID)
+
+	return &BridgingTokensInfo{
+		SrcTokenID:   srcTokenID,
+		DstTokenID:   dstTokenID,
+		SrcTokenName: srcTokenName,
+		DstTokenName: dstTokenName,
+	}
 }
 
 func (a *ApexSystem) GetChainMust(t *testing.T, chainID ChainID) ITestApexChain {

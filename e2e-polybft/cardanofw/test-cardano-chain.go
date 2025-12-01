@@ -51,6 +51,7 @@ type TestCardanoChainConfig struct {
 	FundAmount                  uint64
 	FundFeeAmount               uint64
 	FundTokenAmount             uint64
+	FundTokenName               string
 	FundUTxOCount               int
 	FundFeeUTxOCount            int
 	PreminesAddresses           []string
@@ -117,6 +118,7 @@ func NewVectorChainConfig() *TestCardanoChainConfig {
 		FundAmount:                  defaultFundTokenAmount,
 		FundFeeAmount:               defaultFundTokenAmount,
 		FundTokenAmount:             defaultNativeTokenAmount,
+		FundTokenName:               XADATokenName,
 		FundUTxOCount:               1,
 		FundFeeUTxOCount:            1,
 		DefaultMinBridgingFee:       defaultMinBridgingFeeAmount,
@@ -140,6 +142,7 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		FundAmount:                  defaultFundTokenAmount,
 		FundFeeAmount:               defaultFundTokenAmount,
 		FundTokenAmount:             defaultNativeTokenAmount,
+		FundTokenName:               CAP3XTokenName,
 		DefaultMinBridgingFee:       defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens:     defaultMinBridgingFeeAmountForTokens,
 		MinOperationFee:             DefaultMinOperationFee,
@@ -574,13 +577,13 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		tokenAmount := new(big.Int).SetUint64(ec.config.FundTokenAmount)
 
 		token, _, err := GetTokenAndPolicyForVerificationKey(
-			ec.ChainID(), ec.config.NetworkType, minterWallet.VerificationKey, DefaultTokenName)
+			ec.ChainID(), ec.config.NetworkType, minterWallet.VerificationKey, ec.config.FundTokenName)
 		if err != nil {
 			return err
 		}
 
 		if ta := ec.config.FundTokenAmount; ta != 0 {
-			if err := MintToken(ec, minterWallet, DefaultTokenName, ta); err != nil {
+			if err := MintToken(ec, minterWallet, ec.config.FundTokenName, ta); err != nil {
 				return err
 			}
 		}
@@ -651,7 +654,6 @@ func (ec *TestCardanoChain) RegisterChain(validator *TestApexValidator) error {
 func (ec *TestCardanoChain) GenerateChainConfigs(
 	indx int,
 	validator *TestApexValidator,
-	tokens []sendtx.TokenExchangeConfig,
 ) error {
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
@@ -671,20 +673,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		"--min-fee-for-bridging", fmt.Sprint(ec.config.DefaultMinBridgingFee),
 	}
 
-	containsMintableTokens := false
-
-	for _, token := range tokens {
-		args = append(args,
-			"--native-token-name", token.TokenName,
-			"--native-token-destination-chain-id", token.DstChainID,
-		)
-
-		if token.Mint {
-			containsMintableTokens = true
-		}
-	}
-
-	if containsMintableTokens {
+	if ec.config.CustodialNFT != nil {
 		scriptInfo := ec.GetCardanoScriptInfo()
 		custodialNFT := ec.GetCustodialNFT()
 
@@ -852,7 +841,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 	ctx context.Context,
 	dstChainID ChainID,
 	privateKey string,
-	receiversMap map[string]*big.Int,
+	receiversMap map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
 	bridgingTypes ...sendtx.BridgingType,
@@ -872,9 +861,9 @@ func (ec *TestCardanoChain) BridgingRequest(
 
 	for receiverAddress, receiverAmount := range receiversMap {
 		receivers = append(receivers, sendtx.BridgingTxReceiver{
-			Addr:         receiverAddress,
-			Amount:       DfmToChainNativeTokenAmount(ec.ChainID(), receiverAmount).Uint64(),
-			BridgingType: bridgingType,
+			Addr:   receiverAddress,
+			Amount: DfmToChainNativeTokenAmount(ec.ChainID(), receiverAmount.Amount).Uint64(),
+			Token:  receiverAmount.TokenID,
 		})
 	}
 
@@ -915,7 +904,7 @@ func (ec *TestCardanoChain) GetAddressToBridgeTo(
 		return "", err
 	}
 
-	if len(ec.multisigAddr) == 1 || bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
+	if len(ec.multisigAddr) == 1 || bridgingType == sendtx.BridgingTypeWrappedTokenOnSource {
 		return ec.multisigAddr[0], nil
 	}
 

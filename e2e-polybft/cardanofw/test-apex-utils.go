@@ -629,7 +629,8 @@ func GetAllTokensForChainWithAmounts(
 
 	for _, otherChain := range chains {
 		if otherChain != chain {
-			tokenName := apex.GetTokenNameForChains(chain, otherChain)
+			// TODO: FIX THIS UP WITH ID
+			tokenName := apex.GetTokenNameForChains(chain, otherChain, 0)
 			if tokenName == "" {
 				continue
 			}

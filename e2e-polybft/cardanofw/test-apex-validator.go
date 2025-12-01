@@ -31,6 +31,7 @@ const (
 
 	ValidatorComponentsConfigFileName = "vc_config.json"
 	RelayerConfigFileName             = "relayer_config.json"
+	DirectionsConfigFileName          = "directions_config.json"
 )
 
 type CardanoWallet struct {
@@ -68,6 +69,10 @@ func (cv *TestApexValidator) GetValidatorComponentsConfig() string {
 
 func (cv *TestApexValidator) GetRelayerConfig() string {
 	return filepath.Join(cv.GetBridgingConfigsDir(), RelayerConfigFileName)
+}
+
+func (cv *TestApexValidator) GetDirectionsConfig() string {
+	return filepath.Join(cv.GetBridgingConfigsDir(), DirectionsConfigFileName)
 }
 
 func (cv *TestApexValidator) GetRelayerDataDir() string {
@@ -215,6 +220,7 @@ func (cv *TestApexValidator) Start(ctx context.Context, runAPI bool) (err error)
 	args := []string{
 		"run-validator-components",
 		"--config", cv.GetValidatorComponentsConfig(),
+		"--direction-config", cv.GetDirectionsConfig(),
 	}
 
 	if runAPI {

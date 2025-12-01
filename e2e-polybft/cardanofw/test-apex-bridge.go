@@ -84,9 +84,11 @@ func SetupAndRunApexBridge(
 
 	require.NoError(t, apexSystem.CreateWallets())
 
+	fmt.Printf("Wallets have been created.\n")
+
 	bridgeSmartContractsUpgrades(t, apexSystem, filepath.Join("..", "..", "apex-bridge-smartcontracts"))
 
-	fmt.Printf("Wallets have been created.\n")
+	fmt.Printf("Bridge smart contracts have been upgraded.\n")
 
 	require.NoError(t, apexSystem.RegisterChains())
 
@@ -158,8 +160,9 @@ func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSm
 	require.NoError(t, apexSystem.SetDependencies(&SetDependenciesSCParams{
 		contractsDir: dir,
 		contractName: "ClaimsProcessor",
-		dependencies: []string{contracts.ApexBridgeAdmin.String(), contracts.Bridge.String(), chainTokensContractAddr,
-			contracts.Claims.String(), contracts.ClaimsHelper.String(), registrationAddress, contracts.Validators.String()},
+		dependencies: []string{contracts.Bridge.String(), contracts.ApexBridgeAdmin.String(),
+			contracts.Bridge.String(), chainTokensContractAddr, contracts.Claims.String(),
+			contracts.ClaimsHelper.String(), registrationAddress, contracts.Validators.String()},
 		proxyAddress: claimsProcessorAddress,
 	}))
 
@@ -182,7 +185,8 @@ func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSm
 			contractName:    "Bridge",
 			contractAddress: contracts.Bridge.String(),
 			functionName:    "setAdditionalDependenciesAndSync",
-			functionArgs:    []string{bridgingAddressesContractAddr, chainTokensContractAddr, contracts.ClaimsHelper.String(), registrationAddress, "true"},
+			functionArgs: []string{bridgingAddressesContractAddr, chainTokensContractAddr,
+				claimsProcessorAddress, registrationAddress, "true"},
 		},
 		{
 			contractName:    "BridgingAddresses",
@@ -194,7 +198,8 @@ func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSm
 			contractName:    "Claims",
 			contractAddress: contracts.Claims.String(),
 			functionName:    "setAdditionalDependenciesAndSync",
-			functionArgs:    []string{bridgingAddressesContractAddr, chainTokensContractAddr, claimsProcessorAddress, registrationAddress, "true"},
+			functionArgs: []string{bridgingAddressesContractAddr, chainTokensContractAddr,
+				claimsProcessorAddress, registrationAddress, "true"},
 		},
 		{
 			contractName:    "ClaimsHelper",

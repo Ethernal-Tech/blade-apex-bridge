@@ -22,6 +22,11 @@ type GenericTxReceiver struct {
 	NativeTokens []infrawallet.TokenAmount
 }
 
+type ReceiverAmount struct {
+	TokenID uint16
+	Amount  *big.Int
+}
+
 type ITestApexChain interface {
 	RunChain(t *testing.T) error
 	Stop() error
@@ -33,7 +38,6 @@ type ITestApexChain interface {
 	GenerateChainConfigs(
 		indx int,
 		validator *TestApexValidator,
-		tokens []sendtx.TokenExchangeConfig,
 	) error
 	PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error
 	UpdateTxSendChainConfiguration(configs map[string]sendtx.ChainConfig)
@@ -44,7 +48,7 @@ type ITestApexChain interface {
 		ctx context.Context,
 		destChainID ChainID,
 		privateKey string,
-		receivers map[string]*big.Int,
+		receivers map[string]ReceiverAmount,
 		feeAmount *big.Int,
 		operationFee uint64,
 		bridgingTypes ...sendtx.BridgingType,
@@ -119,7 +123,7 @@ func (td *TestApexChainDummy) BridgingRequest(
 	ctx context.Context,
 	destChainID string,
 	privateKey string,
-	receivers map[string]*big.Int,
+	receivers map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
 	bridgingTypes ...sendtx.BridgingType,
@@ -153,8 +157,7 @@ func (td *TestApexChainDummy) GetAddressBalance(ctx context.Context, addr string
 
 func (td *TestApexChainDummy) GenerateChainConfigs(
 	indx int,
-	validator *TestApexValidator,
-	tokens []sendtx.TokenExchangeConfig) error {
+	validator *TestApexValidator) error {
 	return nil
 }
 
