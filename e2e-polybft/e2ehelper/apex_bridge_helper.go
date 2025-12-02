@@ -345,7 +345,7 @@ func getTokenNameForChains(apex IApexSystem, dstChain, srcChain string, expectNa
 			return ""
 		}
 
-		return apex.GetTokenNameForChains(dstChain, srcChain, srcTokenID)
+		return apex.GetTokenNameForChains(srcChain, dstChain, srcTokenID)
 	}
 
 	return cardanowallet.AdaTokenName

@@ -252,7 +252,6 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 	defer cncl()
 
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-	primeConfig.FundTokenAmount = 1_000_000_000
 	cardanoConfig.FundTokenAmount = 1_000_000_000
 
 	apex := cardanofw.SetupAndRunSkylineBridge(
@@ -411,7 +410,6 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 	defer cncl()
 
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-	primeConfig.FundTokenAmount = 1_000_000_000
 	cardanoConfig.FundTokenAmount = 1_000_000_000
 
 	apex := cardanofw.SetupAndRunSkylineBridge(
@@ -580,7 +578,8 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		go func(src, dest string, sender *cardanofw.TestApexUser) {
 			defer wg.Done()
 
-			tokenName := apex.GetTokenNameForChains(src, dest, 0)
+			tokenID := apex.GetTokenIDForChain(src, false)
+			tokenName := apex.GetTokenNameForChain(src, tokenID)
 
 			mu.RLock()
 			tokenBalance := initialBalances[br.src][tokenName]

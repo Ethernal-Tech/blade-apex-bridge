@@ -236,7 +236,7 @@ func executeInvalidDestination(
 ) {
 	t.Helper()
 
-	tokenID := apex.GetTokenIDForChain(config.dstChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
 
 	receivers := createReceivers(apex, 0, config.srcChainID, config.dstChainID, defaultSendAmount, bridgingType)
 	receiversForFeeCalculation := []sendtx.BridgingTxReceiver{
@@ -327,7 +327,7 @@ func executeInvalidEmptyReceivers(
 
 	receivers := []sendtx.BridgingTxReceiver{}
 
-	tokenID := apex.GetTokenIDForChain(config.dstChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
 
 	receiversForFeeCalculation := []sendtx.BridgingTxReceiver{
 		{

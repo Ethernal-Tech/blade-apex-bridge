@@ -58,7 +58,7 @@ func executeInvalidFeeReceiverAddr(
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)
-	tokenID := apex.GetTokenIDForChain(config.dstChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
 	require.NotZero(t, tokenID)
 
 	user := apex.Users[len(apex.Users)-1]
@@ -109,7 +109,7 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 	sendAmount := uint64(1_000_000)
 
 	user := apex.Users[len(apex.Users)-1]
-	tokenID := apex.GetTokenIDForChain(config.dstChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
 	require.NotZero(t, tokenID)
 
 	receivers := []sendtx.BridgingTxReceiver{
@@ -161,7 +161,7 @@ func executeInvalidMismatchSendNativeTokenAmount(
 
 	bridgingType := sendtx.BridgingTypeWrappedTokenOnSource
 
-	tokenID := apex.GetTokenIDForChain(config.dstChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
 	require.NotZero(t, tokenID)
 
 	receivers := []sendtx.BridgingTxReceiver{
@@ -205,7 +205,7 @@ func executeInvalidSendNativeToken(
 ) {
 	t.Helper()
 
-	tokenID := apex.GetTokenIDForChain(config.dstChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
 	require.NotZero(t, tokenID)
 
 	receivers := []sendtx.BridgingTxReceiver{
