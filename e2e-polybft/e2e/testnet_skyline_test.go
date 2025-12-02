@@ -323,7 +323,8 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 		retryIntervalSec       = 5
 	)
 
-	vectorCardanoTokenName := apex.GetTokenNameForChains(cardanofw.ChainIDVector, cardanofw.ChainIDCardano, 0)
+	vectorCardanoTokenID := apex.GetTokenIDForChain(cardanofw.ChainIDCardano, false)
+	vectorCardanoTokenName := apex.GetTokenNameForChains(cardanofw.ChainIDVector, cardanofw.ChainIDCardano, vectorCardanoTokenID)
 
 	primeCardanoTestConfig := newTestConfig(
 		t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, "")
@@ -386,7 +387,8 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	t.Run("9. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
 		user := apex.Users[len(apex.Users)-1]
 
-		token, err := cardanowallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(cardanofw.ChainIDVector, cardanofw.ChainIDCardano, 0))
+		tokenID := apex.GetTokenIDForChain(cardanofw.ChainIDCardano, true)
+		token, err := cardanowallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(cardanofw.ChainIDVector, cardanofw.ChainIDCardano, tokenID))
 		require.NoError(t, err)
 
 		tokenAmount := &cardanowallet.TokenAmount{

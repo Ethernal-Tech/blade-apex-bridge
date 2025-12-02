@@ -264,7 +264,7 @@ func executeInvalidDestination(
 	)
 	require.NoError(t, err)
 
-	metadata = bytes.Replace(metadata, fmt.Appendf([]byte("\"%s\""), config.dstChainID), []byte("\"unknown\""), 1)
+	metadata = bytes.Replace(metadata, fmt.Appendf(nil, "\"%s\"", config.dstChainID), []byte("\"unknown\""), 1)
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)

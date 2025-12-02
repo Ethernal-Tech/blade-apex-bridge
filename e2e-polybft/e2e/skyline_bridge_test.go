@@ -868,6 +868,21 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0)
 	})
+
+	t.Run("14.1 Prime -> Cardano - Submitted invalid metadata - invalid destination", func(t *testing.T) {
+		executeInvalidDestination(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, false, 0)
+	})
+
+	cardanoPrimeTestConfig := newTestConfig(
+		t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, apex.GetTokenIDForChain(cardanofw.ChainIDPrime, true)))
+
+	t.Run("14.2 Cardano -> Prime - Submitted invalid metadata - invalid destination", func(t *testing.T) {
+		executeInvalidDestination(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeWrappedTokenOnSource, false, 0)
+	})
+
+	t.Run("14.3 Vector -> Cardano - Submitted invalid metadata - invalid destination", func(t *testing.T) {
+		executeInvalidDestination(t, ctx, apex, vectorTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeWrappedTokenOnSource, false, 0)
+	})
 }
 
 func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
@@ -1187,7 +1202,8 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 		utxosCardanoSum := wallet.GetUtxosSum(utxosCardano)
 
 		// sum of tokens on cardano multisig address in the beginning
-		tokenName := apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, 0)
+		tokenID := apex.GetTokenIDForChain(cardanofw.ChainIDPrime, true)
+		tokenName := apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, tokenID)
 		utxosCardanoTokenSum1 = utxosCardanoSum[tokenName]
 
 		getCntConsolidationMap, lastBatchIDsRet := checkConsolidationBatchCounts(
@@ -1263,7 +1279,8 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 		require.NoError(t, err)
 
 		utxosCardanoSum := wallet.GetUtxosSum(utxosCardano)
-		tokenName := apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, 0)
+		tokenID := apex.GetTokenIDForChain(cardanofw.ChainIDCardano, false)
+		tokenName := apex.GetTokenNameForChains(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, tokenID)
 
 		// sum of tokens on cardano multisig address in the end
 		utxosCardanoTokenSum2 = utxosCardanoSum[tokenName]
@@ -1323,11 +1340,9 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		)
 
 		for _, br := range bridgingRequests {
-			tokenName := wallet.AdaTokenName
 
-			if br.requestType == sendtx.BridgingTypeCurrencyOnSource {
-				tokenName = apex.GetTokenNameForChains(br.dest, br.src, 0)
-			}
+			tokenID := apex.GetTokenIDForChain(br.src, br.requestType == sendtx.BridgingTypeCurrencyOnSource)
+			tokenName := apex.GetTokenNameForChains(br.dest, br.src, tokenID)
 
 			key := chainStageKey{chain: br.dest, srcChain: br.src, receiver: br.receiverIdx}
 			if _, exists := chainPrevAmounts[key]; !exists {
@@ -2264,11 +2279,8 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 
 			var tokenName string
 
-			if br.bridgingType == sendtx.BridgingTypeWrappedTokenOnSource {
-				tokenName = wallet.AdaTokenName
-			} else {
-				tokenName = apex.GetTokenNameForChains(br.dest, br.src, 0)
-			}
+			tokenID := apex.GetTokenIDForChain(br.src, br.bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+			tokenName = apex.GetTokenNameForChains(br.dest, br.src, tokenID)
 
 			if amount, ok := prevAmounts[brIdx][tokenName]; ok {
 				expectedAmounts[brIdx] = new(big.Int).Set(amount)
@@ -2314,11 +2326,8 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 
 				var tokenName string
 
-				if br.bridgingType == sendtx.BridgingTypeWrappedTokenOnSource {
-					tokenName = wallet.AdaTokenName
-				} else {
-					tokenName = apex.GetTokenNameForChains(br.dest, br.src, 0)
-				}
+				tokenID := apex.GetTokenIDForChain(br.src, br.bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+				tokenName = apex.GetTokenNameForChains(br.dest, br.src, tokenID)
 
 				prevAmount := prevAmounts[brIdx][tokenName]
 

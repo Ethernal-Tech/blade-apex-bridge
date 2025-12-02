@@ -150,67 +150,55 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 		executeInvalidMetadataType(t, ctx, apex, cardanoVectorTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, true, 0)
 	})
 
-	t.Run("6.1 Prime -> Cardano - Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestination(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, true, 0)
-	})
-
-	t.Run("6.2 Cardano -> Prime - Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestination(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeWrappedTokenOnSource, true, 0)
-	})
-
-	t.Run("6.3 Vector -> Cardano - Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestination(t, ctx, apex, vectorTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeWrappedTokenOnSource, true, 0)
-	})
-
-	t.Run("7.1 Prime -> Cardano - Submitted invalid metadata - invalid sender", func(t *testing.T) {
+	t.Run("6.1 Prime -> Cardano - Submitted invalid metadata - invalid sender", func(t *testing.T) {
 		executeInvalidMetadataInvalidSender(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, sendtx.BridgingTypeCurrencyOnSource, 0)
 	})
 
-	t.Run("7.2 Cardano -> Prime - Submitted invalid metadata - invalid sender", func(t *testing.T) {
+	t.Run("6.2 Cardano -> Prime - Submitted invalid metadata - invalid sender", func(t *testing.T) {
 		executeInvalidMetadataInvalidSender(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, sendtx.BridgingTypeWrappedTokenOnSource, 0)
 	})
 
-	t.Run("7.3 Cardano -> Vector - Submitted invalid metadata - invalid sender", func(t *testing.T) {
+	t.Run("6.3 Cardano -> Vector - Submitted invalid metadata - invalid sender", func(t *testing.T) {
 		executeInvalidMetadataInvalidSender(t, ctx, apex, cardanoVectorTestConfig, user, maxWaitTimeSec, sendtx.BridgingTypeCurrencyOnSource, 0)
 	})
 
-	t.Run("8.1 Prime -> Cardano - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
+	t.Run("7.1 Prime -> Cardano - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
 		executeInvalidBridgingFee(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, true, 0)
 	})
 
-	t.Run("8.2 Cardano -> Prime - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
+	t.Run("7.2 Cardano -> Prime - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
 		executeInvalidBridgingFee(t, ctx, apex, cardanoPrimeTestConfig, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeWrappedTokenOnSource, true, 0)
 	})
 
-	t.Run("8.3 Vector -> Cardano - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
+	t.Run("7.3 Vector -> Cardano - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
 		executeInvalidBridgingFee(t, ctx, apex, vectorTestConfig, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeWrappedTokenOnSource, true, 0)
 	})
 
-	t.Run("9.1 Prime -> Cardano - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
+	t.Run("8.1 Prime -> Cardano - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
 		executeInvalidFeeReceiverAddr(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, true, 0)
 	})
 
-	t.Run("9.2 Cardano -> Prime - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
+	t.Run("8.2 Cardano -> Prime - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
 		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoPrimeTestConfig, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeWrappedTokenOnSource, true, 0)
 	})
 
-	t.Run("9.3 Cardano -> Vector - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
+	t.Run("8.3 Cardano -> Vector - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
 		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoVectorTestConfig, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, true, 0)
 	})
 
-	t.Run("10.1 Prime -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {
+	t.Run("9.1 Prime -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {
 		executeInvalidEmptyReceivers(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, true, 0)
 	})
 
-	t.Run("10.2 Cardano -> Prime - Submitted invalid metadata - empty receivers", func(t *testing.T) {
+	t.Run("9.2 Cardano -> Prime - Submitted invalid metadata - empty receivers", func(t *testing.T) {
 		executeInvalidEmptyReceivers(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeWrappedTokenOnSource, true, 0)
 	})
 
-	t.Run("10.3 Vector -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {
+	t.Run("9.3 Vector -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {
 		executeInvalidEmptyReceivers(t, ctx, apex, vectorTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeWrappedTokenOnSource, true, 0)
 	})
 
-	t.Run("11. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
+	t.Run("10. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
 		user := apex.Users[0]
 		minterWallet, _ := user.GetCardanoWallet(cardanofw.ChainIDCardano)
 
@@ -224,7 +212,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoPrimeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0, sendtx.BridgingTypeCurrencyOnSource)
 	})
 
-	t.Run("12. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
+	t.Run("11. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
 		user, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
@@ -700,7 +688,8 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 				if br.requestType == sendtx.BridgingTypeCurrencyOnSource {
 					userSpending.Add(userSpending, new(big.Int).SetUint64(apex.GetMinBridgingFee(br.src, isNativeToken)))
 				} else {
-					tokenName = apex.GetTokenNameForChains(br.src, br.dest, 0)
+					tokenID := apex.GetTokenIDForChain(br.src, false)
+					tokenName = apex.GetTokenNameForChains(br.dest, br.src, tokenID)
 				}
 
 				initialAmount := initialBalance[addr][tokenName]

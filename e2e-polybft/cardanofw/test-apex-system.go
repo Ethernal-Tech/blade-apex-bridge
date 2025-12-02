@@ -931,11 +931,13 @@ func (a *ApexSystem) GetTokenNameForChain(chainID ChainID, tokenID uint16) strin
 }
 
 // Returns token name for the given dest chain
-func (a *ApexSystem) GetTokenNameForChains(chainID, dstChainID ChainID, srcTokenID uint16) string {
-	cardanoInfo := a.GetCardanoInfo(chainID)
-	for _, direction := range cardanoInfo.DestChain[dstChainID] {
+func (a *ApexSystem) GetTokenNameForChains(dstChainID, srcChainID ChainID, srcTokenID uint16) string {
+	srcInfo := a.GetCardanoInfo(srcChainID)
+	dstInfo := a.GetCardanoInfo(dstChainID)
+
+	for _, direction := range srcInfo.DestChain[dstChainID] {
 		if direction.SourceTokenID == srcTokenID {
-			return cardanoInfo.Tokens[direction.DestinationTokenID].ChainSpecific
+			return dstInfo.Tokens[direction.DestinationTokenID].ChainSpecific
 		}
 	}
 
