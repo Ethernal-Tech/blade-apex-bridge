@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BRANCH=main
+BRANCH=feat/AD-950_Fix_non-unique_claims
 BLADE_BRANCH=main
 
 # build Apex-bridge smartcontracts
