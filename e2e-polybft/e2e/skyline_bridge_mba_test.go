@@ -118,7 +118,7 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
 			vcCfg["maxUtxoCount"] = maxUtxoCount
 			vcCfg["takeAtLeastUtxoCount"] = 1
-		}, nil),
+		}, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())

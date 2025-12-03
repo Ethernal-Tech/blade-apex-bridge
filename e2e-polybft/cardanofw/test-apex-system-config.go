@@ -56,8 +56,9 @@ type ApexSystemConfig struct {
 	CardanoConfig *TestCardanoChainConfig
 	NexusConfig   *TestEVMChainConfig
 
-	CustomOracleConfigHandler  CustomConfigHandler
-	CustomRelayerConfigHandler CustomConfigHandler
+	CustomOracleConfigHandler     CustomConfigHandler
+	CustomRelayerConfigHandler    CustomConfigHandler
+	CustomDirectionsConfigHandler CustomConfigHandler
 
 	UserCnt                  uint
 	UpdateAddressCountChains []ChainID
@@ -137,10 +138,11 @@ func WithNexusConfig(config *TestEVMChainConfig) ApexSystemOptions {
 	}
 }
 
-func WithCustomConfigHandlers(callbackOracle, callbackRelayer CustomConfigHandler) ApexSystemOptions {
+func WithCustomConfigHandlers(callbackOracle, callbackRelayer, callbackDirections CustomConfigHandler) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.CustomOracleConfigHandler = callbackOracle
 		h.CustomRelayerConfigHandler = callbackRelayer
+		h.CustomDirectionsConfigHandler = callbackDirections
 	}
 }
 

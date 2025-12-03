@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"math/big"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 
@@ -179,6 +181,21 @@ func (cv *TestApexValidator) GenerateConfigs(
 	}
 
 	return common.CreateDirSafe(dbsPath, 0770)
+}
+
+func (cv *TestApexValidator) GenerateDirectionsConfig(directionConfigFile DirectionConfigFile) error {
+	fileName := path.Join(cv.GetBridgingConfigsDir(), DirectionsConfigFileName)
+
+	json, err := json.Marshal(directionConfigFile)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(fileName, json, 0600)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (cv *TestApexValidator) GenerateSkylineConfigs(

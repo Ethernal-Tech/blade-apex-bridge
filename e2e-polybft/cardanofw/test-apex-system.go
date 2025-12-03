@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"os"
 	"os/exec"
-	"path"
 	"regexp"
 	"strings"
 	"sync"
@@ -48,6 +46,21 @@ type Direction struct {
 	DestinationTokenID uint16 `json:"dstTokenID"`
 	TrackSource        bool   `json:"trackSource"`
 	TrackDestination   bool   `json:"trackDestination"`
+}
+
+type EcosystemToken struct {
+	ID   uint16 `json:"id"`
+	Name string `json:"name"`
+}
+
+type DirectionConfig struct {
+	DestinationChain map[ChainID][]Direction     `json:"destChain"`
+	Tokens           map[uint16]sendtx.ApexToken `json:"tokens"`
+}
+
+type DirectionConfigFile struct {
+	Directions      map[string]DirectionConfig `json:"directions"`
+	EcosystemTokens []EcosystemToken           `json:"ecosystemTokens"`
 }
 
 func (ci *CardanoChainInfo) GetTxProvider() (cardanowallet.ITxProvider, error) {
@@ -674,6 +687,13 @@ func (a *ApexSystem) generateReactorConfigs() error {
 			}
 		}
 
+		if handler := a.Config.CustomDirectionsConfigHandler; handler != nil {
+			fileName := validator.GetDirectionsConfig()
+			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -690,6 +710,20 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 		}
 	}
 
+	ecosystemTokens := make([]EcosystemToken, 0, len(a.EcosystemTokens))
+	for name, id := range a.EcosystemTokens {
+		ecosystemTokens = append(ecosystemTokens, EcosystemToken{ID: id, Name: name})
+	}
+
+	directionConfigFile := DirectionConfigFile{
+		Directions: map[string]DirectionConfig{
+			ChainIDPrime:   {DestinationChain: a.PrimeInfo.DestChain, Tokens: a.PrimeInfo.Tokens},
+			ChainIDVector:  {DestinationChain: a.VectorInfo.DestChain, Tokens: a.VectorInfo.Tokens},
+			ChainIDCardano: {DestinationChain: a.CardanoInfo.DestChain, Tokens: a.CardanoInfo.Tokens},
+		},
+		EcosystemTokens: ecosystemTokens,
+	}
+
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
 		if a.Config.TargetOneClusterServer {
@@ -699,6 +733,11 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 		err := validator.GenerateSkylineConfigs(
 			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i),
 		)
+		if err != nil {
+			return err
+		}
+
+		err = validator.GenerateDirectionsConfig(directionConfigFile)
 		if err != nil {
 			return err
 		}
@@ -724,66 +763,20 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 			}
 		}
 
+		if handler := a.Config.CustomDirectionsConfigHandler; handler != nil {
+			fileName := validator.GetDirectionsConfig()
+			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-
-	err = a.GenerateDirectionsConfig()
 	if err != nil {
 		return err
 	}
 
 	return a.setBridgingAPIs()
-}
-
-func (a *ApexSystem) GenerateDirectionsConfig() error {
-	// TODO: Potential refactor to place this config structs on infra
-	type EcosystemToken struct {
-		ID   uint16 `json:"id"`
-		Name string `json:"name"`
-	}
-
-	type DirectionConfig struct {
-		DestinationChain map[ChainID][]Direction     `json:"destChain"`
-		Tokens           map[uint16]sendtx.ApexToken `json:"tokens"`
-	}
-
-	type DirectionConfigFile struct {
-		Directions      map[string]DirectionConfig `json:"directions"`
-		EcosystemTokens []EcosystemToken           `json:"ecosystemTokens"`
-	}
-
-	ecosystemTokens := make([]EcosystemToken, 0, len(a.EcosystemTokens))
-	for name, id := range a.EcosystemTokens {
-		ecosystemTokens = append(ecosystemTokens, EcosystemToken{ID: id, Name: name})
-	}
-
-	directionConfigFile := DirectionConfigFile{
-		Directions: map[string]DirectionConfig{
-			ChainIDPrime:   {DestinationChain: a.PrimeInfo.DestChain, Tokens: a.PrimeInfo.Tokens},
-			ChainIDVector:  {DestinationChain: a.VectorInfo.DestChain, Tokens: a.VectorInfo.Tokens},
-			ChainIDCardano: {DestinationChain: a.CardanoInfo.DestChain, Tokens: a.CardanoInfo.Tokens},
-		},
-		EcosystemTokens: ecosystemTokens,
-	}
-
-	return a.execForEachValidator(func(i int, validator *TestApexValidator) error {
-		fileName := path.Join(validator.GetBridgingConfigsDir(), DirectionsConfigFileName)
-
-		json, err := json.Marshal(directionConfigFile)
-		if err != nil {
-			return err
-		}
-
-		err = os.WriteFile(fileName, json, 0600)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
 }
 
 func (a *ApexSystem) GetBridgeDefaultJSONRPCAddr() string {

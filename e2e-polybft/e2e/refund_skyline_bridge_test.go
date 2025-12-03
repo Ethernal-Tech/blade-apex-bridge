@@ -10,7 +10,6 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
-	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,7 +41,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 			tryCountLimitsSettings := cardanofw.GetMapFromInterfaceKey(mp, "tryCountLimits")
 			tryCountLimitsSettings["maxBatchTryCount"] = 1
 			tryCountLimitsSettings["maxSubmitTryCount"] = 2
-		}, nil),
+		}, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
@@ -252,7 +251,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 			tryCountLimitsSettings := cardanofw.GetMapFromInterfaceKey(mp, "tryCountLimits")
 			tryCountLimitsSettings["maxBatchTryCount"] = 1
 			tryCountLimitsSettings["maxSubmitTryCount"] = 2
-		}, nil),
+		}, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDCardano, bridgeAddrCnt),
 	)
@@ -409,7 +408,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["maxAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
-		}, nil),
+		}, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
@@ -501,7 +500,7 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["maxTokenAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
-		}, nil),
+		}, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
@@ -609,10 +608,15 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithVectorConfig(vectorConfig),
-		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-			vectorSettings := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", "vector")
-			vectorSettings["nativeTokens"] = nil
-		}, nil),
+		cardanofw.WithCustomConfigHandlers(nil, nil, func(a *cardanofw.ApexSystem, mp map[string]interface{}) {
+			cardanoCfg := cardanofw.GetMapFromInterfaceKey(mp, "directions", "cardano")
+			// remove vector from map
+			delete(cardanoCfg["destChain"].(map[string]interface{}), "vector")
+
+			vectorCfg := cardanofw.GetMapFromInterfaceKey(mp, "directions", "vector")
+			// remove cardano from map
+			delete(vectorCfg["destChain"].(map[string]interface{}), "cardano")
+		}),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
@@ -680,16 +684,16 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 			defer wg.Done()
 
 			if !br.isValid {
-				tokenName := wallet.AdaTokenName
 				isNativeToken := br.requestType != sendtx.BridgingTypeCurrencyOnSource
 				userSpending := new(big.Int).Set(sendAmount)
 				addr := br.sender.GetAddress(br.src)
 
+				// reversed
+				tokenID := apex.GetTokenIDForChain(br.dest, !(br.requestType == sendtx.BridgingTypeCurrencyOnSource))
+				tokenName := apex.GetTokenNameForChains(br.src, br.dest, tokenID)
+
 				if br.requestType == sendtx.BridgingTypeCurrencyOnSource {
 					userSpending.Add(userSpending, new(big.Int).SetUint64(apex.GetMinBridgingFee(br.src, isNativeToken)))
-				} else {
-					tokenID := apex.GetTokenIDForChain(br.src, false)
-					tokenName = apex.GetTokenNameForChains(br.dest, br.src, tokenID)
 				}
 
 				initialAmount := initialBalance[addr][tokenName]

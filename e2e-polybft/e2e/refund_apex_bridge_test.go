@@ -42,7 +42,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 			tryCountLimitsSettings := cardanofw.GetMapFromInterfaceKey(mp, "tryCountLimits")
 			tryCountLimitsSettings["maxBatchTryCount"] = 2
 			tryCountLimitsSettings["maxSubmitTryCount"] = 2
-		}, nil),
+		}, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -203,7 +203,7 @@ func TestE2E_ApexRefund_BatchRecreated(t *testing.T) {
 			tryCountLimitsSettings := cardanofw.GetMapFromInterfaceKey(mp, "tryCountLimits")
 			tryCountLimitsSettings["maxBatchTryCount"] = 2
 			tryCountLimitsSettings["maxSubmitTryCount"] = 2
-		}, nil),
+		}, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -256,7 +256,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
 			mp["refundEnabled"] = true
 			tryCountLimitsSettings := cardanofw.GetMapFromInterfaceKey(mp, "tryCountLimits")
 			tryCountLimitsSettings["maxSubmitTryCount"] = 2
-		}, nil),
+		}, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -325,7 +325,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxBatchTryCount(t *testing.T) {
 			tryCountLimitsSettings := cardanofw.GetMapFromInterfaceKey(mp, "tryCountLimits")
 			tryCountLimitsSettings["maxBatchTryCount"] = 1
 			tryCountLimitsSettings["maxSubmitTryCount"] = 2
-		}, nil),
+		}, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -383,7 +383,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxRefundTryCount(t *testing.T) {
 			tryCountLimitsSettings["maxBatchTryCount"] = 1
 			tryCountLimitsSettings["maxSubmitTryCount"] = 1
 			tryCountLimitsSettings["maxRefundTryCount"] = 1
-		}, nil),
+		}, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -473,7 +473,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 			mp["refundEnabled"] = true
 			tryCountLimitsSettings := cardanofw.GetMapFromInterfaceKey(mp, "tryCountLimits")
 			tryCountLimitsSettings["maxSubmitTryCount"] = 2
-		}, nil),
+		}, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())

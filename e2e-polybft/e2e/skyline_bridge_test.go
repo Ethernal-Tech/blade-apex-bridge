@@ -710,7 +710,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			mp["refundEnabled"] = false
-		}, nil),
+		}, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
@@ -915,7 +915,7 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["maxAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
 			mp["refundEnabled"] = false
-		}, nil),
+		}, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
@@ -998,7 +998,7 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["maxTokenAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
 			mp["refundEnabled"] = false
-		}, nil),
+		}, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
@@ -1150,7 +1150,7 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
 			vcCfg["maxUtxoCount"] = maxUtxoCount
 			vcCfg["takeAtLeastUtxoCount"] = 1
-		}, nil),
+		}, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1184,6 +1184,9 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 		lastBatchIDs          map[string]uint64 = map[string]uint64{"prime": 0, "cardano": 0}
 	)
 
+	tokenID := apex.GetTokenIDForChain(cardanofw.ChainIDPrime, true)
+	cardanoTokenName := apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, tokenID)
+
 	t.Run("with currency from prime to cardano", func(t *testing.T) {
 		t.Cleanup(func() {
 			apex.ResetIndexers()
@@ -1202,9 +1205,7 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 		utxosCardanoSum := wallet.GetUtxosSum(utxosCardano)
 
 		// sum of tokens on cardano multisig address in the beginning
-		tokenID := apex.GetTokenIDForChain(cardanofw.ChainIDPrime, true)
-		tokenName := apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, tokenID)
-		utxosCardanoTokenSum1 = utxosCardanoSum[tokenName]
+		utxosCardanoTokenSum1 = utxosCardanoSum[cardanoTokenName]
 
 		getCntConsolidationMap, lastBatchIDsRet := checkConsolidationBatchCounts(
 			t, ctxChild,
@@ -1279,11 +1280,9 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 		require.NoError(t, err)
 
 		utxosCardanoSum := wallet.GetUtxosSum(utxosCardano)
-		tokenID := apex.GetTokenIDForChain(cardanofw.ChainIDCardano, false)
-		tokenName := apex.GetTokenNameForChains(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, tokenID)
 
 		// sum of tokens on cardano multisig address in the end
-		utxosCardanoTokenSum2 = utxosCardanoSum[tokenName]
+		utxosCardanoTokenSum2 = utxosCardanoSum[cardanoTokenName]
 		require.Equal(t, utxosCardanoTokenSum1, utxosCardanoTokenSum2)
 
 		for _, cnt := range getCntConsolidationMap() {
@@ -2417,12 +2416,16 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-			primeSettings := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", "prime")
-			primeSettings["nativeTokens"] = nil
-			vectorSettings := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", "vector")
-			vectorSettings["nativeTokens"] = nil
 			mp["refundEnabled"] = false
-		}, nil),
+		}, nil, func(a *cardanofw.ApexSystem, mp map[string]interface{}) {
+			cardanoCfg := cardanofw.GetMapFromInterfaceKey(mp, "directions", "cardano")
+			// remove vector from map
+			delete(cardanoCfg["destChain"].(map[string]interface{}), "vector")
+
+			vectorCfg := cardanofw.GetMapFromInterfaceKey(mp, "directions", "vector")
+			// remove cardano from map
+			delete(vectorCfg["destChain"].(map[string]interface{}), "cardano")
+		}),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
