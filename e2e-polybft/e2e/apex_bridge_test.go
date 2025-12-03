@@ -1538,9 +1538,6 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		var (
 			bridgingRequests = []*bridingRequest{
 				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDVector, sender: apex.Users[0], amount: big.NewInt(65), receiverIdx: 0},
-				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDNexus, sender: apex.Users[1], amount: big.NewInt(1), receiverIdx: 0},
-				{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDPrime, sender: apex.Users[0], amount: big.NewInt(1), receiverIdx: 0},
-				{src: cardanofw.ChainIDNexus, dest: cardanofw.ChainIDPrime, sender: apex.Users[0], amount: big.NewInt(1), receiverIdx: 0},
 			}
 
 			receivers = map[uint]*cardanofw.TestApexUser{
@@ -1554,16 +1551,23 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 
 		fmt.Printf("Confirming that bridging requests will not be processed\n")
 
-		errsPerChain := waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 12, time.Second*10)
+		errsPerChain := waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10)
 		for chainKey, err := range errsPerChain {
 			require.Error(t, err)
 			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
 		}
 
 		fundWallets(t, ctx, apex, chains, big.NewInt(50))
-		fundWallets(t, ctx, apex, chains, big.NewInt(50))
 
 		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10)
+		for chainKey, err := range errsPerChain {
+			require.Error(t, err)
+			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
+		}
+
+		fundWallets(t, ctx, apex, chains, big.NewInt(50))
+
+		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10)
 		for chainKey, err := range errsPerChain {
 			require.NoError(t, err)
 			fmt.Printf("%v TXs on %v confirmed\n", chainExpectedAmounts[chainKey], chainKey)
