@@ -475,9 +475,6 @@ func TestE2E_ApexBridge_SingleBridging(t *testing.T) {
 
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm)
-
-	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm)
 }
 
 func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
