@@ -40,6 +40,12 @@ const (
 	initContractsRetryWaitTime = time.Second * 5
 )
 
+type EVMTokenInfo struct {
+	ID     uint16
+	Name   string
+	Symbol string
+}
+
 type TestEVMChainConfig struct {
 	ChainID   string
 	IsEnabled bool
@@ -53,9 +59,20 @@ type TestEVMChainConfig struct {
 	StartingPort           int64
 	ApexConfig             uint8
 	BurnContractInfo       *polybft.BurnContractInfo
+
 	MinBridgingFee         uint64
+	MinBridgingAmount      uint64
+	MinTokenBridgingAmount uint64
+	MinOperationFee        uint64
+	CurrencyID             uint16
 
 	AllowedDirections []ChainID
+
+	// Tokens that should be locked/unlocked on this chain
+	LockUnlockTokens []EVMTokenInfo
+
+	// Tokens that should be minted on this chain
+	MintTokens []EVMTokenInfo
 }
 
 func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
@@ -74,6 +91,25 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 		FundAmount:             ethgo.Ether(defaultFundEthTokenAmount),
 		FundRelayerAmount:      ethgo.Ether(defaultFundRelayerEthTokenAmount),
 		MinBridgingFee:         defaultMinBridgingFeeAmount,
+		MinBridgingAmount:      uint64(1_000_000),
+		MinTokenBridgingAmount: uint64(1),
+		MinOperationFee:        uint64(1),
+		CurrencyID:             AP3XTokenID,
+
+		LockUnlockTokens: []EVMTokenInfo{
+			{
+				ID:     USDTTokenID,
+				Name:   USDTTokenName,
+				Symbol: USDTTokenName,
+			},
+		},
+		MintTokens: []EVMTokenInfo{
+			{
+				ID:     XADATokenID,
+				Name:   XADATokenName,
+				Symbol: XADATokenName,
+			},
+		},
 	}
 }
 
@@ -102,9 +138,7 @@ func (ec *TestEVMChain) GetCustodialAddress() string {
 }
 
 // SetCustodialNFT implements ITestApexChain.
-func (ec *TestEVMChain) SetCustodialNFT(token infrawallet.Token) {
-	panic("unimplemented") //nolint:gocritic
-}
+func (ec *TestEVMChain) SetCustodialNFT(token infrawallet.Token) {}
 
 // GetRelayerAddress implements ITestApexChain.
 func (ec *TestEVMChain) GetRelayerAddress() string {
@@ -262,6 +296,31 @@ func (ec *TestEVMChain) FundWallets(ctx context.Context) error {
 	return nil
 }
 
+func (ec *TestEVMChain) RegexHelper(workingDirectory string, params []string, expression string) (types.Address, error) {
+	// if everything works fine, the working directory will be reused
+	if workingDirectory != "" {
+		if err := common.CreateDirSafe(workingDirectory, 0750); err != nil {
+			return types.Address{}, err
+		}
+	}
+
+	var b bytes.Buffer
+
+	err := RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
+	if err != nil {
+		return types.Address{}, err
+	}
+
+	output := b.String()
+	reGateway := regexp.MustCompile(fmt.Sprintf(`%s\s*=\s*0x([a-fA-F0-9]+)`, expression))
+
+	if match := reGateway.FindStringSubmatch(output); len(match) > 0 {
+		return types.StringToAddress(match[1]), nil
+	}
+
+	return types.Address{}, errors.New("cannot find gateway address")
+}
+
 func (ec *TestEVMChain) InitContracts(
 	ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string,
 ) error {
@@ -284,58 +343,83 @@ func (ec *TestEVMChain) InitContracts(
 		"--bridge-addr", contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
 		"--dir", workingDirectory,
+		"--min-fee", fmt.Sprint(ec.config.MinBridgingFee),
+		"--min-bridging-amount", fmt.Sprint(ec.config.MinBridgingAmount),
+		"--min-token-bridging-amount", fmt.Sprint(ec.config.MinTokenBridgingAmount),
+		"--min-operation-fee", fmt.Sprint(ec.config.MinOperationFee),
+		"--currency-token-id", fmt.Sprint(ec.config.CurrencyID),
 		"--clone",
 	}
 
-	execute := func() (types.Address, error) {
-		// if everything works fine, the working directory will be reused
-		if err := common.CreateDirSafe(workingDirectory, 0750); err != nil {
-			return types.Address{}, err
+	// reusable retry helper for this function
+	retry := func(action func() error) error {
+		tryCounter := 0
+		for {
+			if err := action(); err == nil {
+				return nil
+			} else {
+				tryCounter++
+				if tryCounter >= initContractsTryCount {
+					return err
+				}
+				// remove directory if something went wrong and try again
+				if err := common.RemoveDirSafe(workingDirectory); err != nil {
+					return err
+				}
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(initContractsRetryWaitTime):
+				}
+			}
 		}
-
-		var b bytes.Buffer
-
-		err = RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
-		if err != nil {
-			return types.Address{}, err
-		}
-
-		output := b.String()
-		reGateway := regexp.MustCompile(`Gateway Proxy Address\s*=\s*0x([a-fA-F0-9]+)`)
-
-		if match := reGateway.FindStringSubmatch(output); len(match) > 0 {
-			return types.StringToAddress(match[1]), nil
-		}
-
-		return types.Address{}, errors.New("cannot find gateway address")
 	}
 
-	tryCounter := 0
+	var gatewayAddr types.Address
 
-	for {
-		gatewayAddr, err := execute()
-		if err == nil {
-			ec.gatewayAddr = gatewayAddr
+	if err := retry(func() error {
+		var execErr error
+		gatewayAddr, execErr = ec.RegexHelper(workingDirectory, params, "Gateway Proxy Address")
+		return execErr
+	}); err != nil {
+		return err
+	}
 
-			return nil
+	ec.gatewayAddr = gatewayAddr
+
+	// For lock unlock tokens we need to
+	// 1. deploy ERC20 contract for the token
+	// 2. register the token on gateway
+
+	// For mint tokens we just register the token on gateway
+	for _, token := range ec.config.MintTokens {
+		params := []string{
+			"bridge-admin",
+			"register-gateway-token",
+			"--node-url", ec.jsonRPCAddr,
+			"--key", hex.EncodeToString(pk),
+			"--gateway-addr", ec.gatewayAddr.String(),
+			"--token-sc-addr", "0x0000000000000000000000000000000000000000",
+			"--token-id", fmt.Sprint(token.ID),
+			"--token-name", token.Name,
+			"--token-symbol", token.Symbol,
+			//"--gas-limit", fmt.Sprint(100_000_000_000),
 		}
 
-		tryCounter++
-		if tryCounter >= initContractsTryCount {
+		var tokenAddr types.Address
+
+		if err := retry(func() error {
+			var execErr error
+			tokenAddr, execErr = ec.RegexHelper("", params, "contractAddr")
+			return execErr
+		}); err != nil {
 			return err
 		}
 
-		// remove directory if something went wrong and try again
-		if err := common.RemoveDirSafe(workingDirectory); err != nil {
-			return err
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(initContractsRetryWaitTime):
-		}
+		fmt.Println("TOKEN ADDRESS =", tokenAddr.String())
 	}
+
+	return nil
 }
 
 func (ec *TestEVMChain) RegisterChain(validator *TestApexValidator) error {

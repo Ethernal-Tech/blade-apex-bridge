@@ -1,5 +1,41 @@
 package e2e
 
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/stretchr/testify/require"
+)
+
+func Test_General(t *testing.T) {
+	const apiKey = "test_api_key"
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfigWithMinting(true)
+	vectorConfig := cardanofw.NewVectorChainConfig()
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+	vectorConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	time.Sleep(60 * time.Minute)
+}
+
 /*
 func TestE2E_SkylineBridgeMint_General(t *testing.T) {
 	const apiKey = "test_api_key"

@@ -31,6 +31,7 @@ const (
 	ADATokenID   uint16 = 2
 	CAP3XTokenID uint16 = 3
 	XADATokenID  uint16 = 4
+	USDTTokenID  uint16 = 5
 )
 
 // Human readable token names
@@ -39,6 +40,7 @@ const (
 	ADATokenName   = "ADA"
 	CAP3XTokenName = "cAP3X"
 	XADATokenName  = "xADA"
+	USDTTokenName  = "USDT"
 )
 
 type ApexSystemConfig struct {

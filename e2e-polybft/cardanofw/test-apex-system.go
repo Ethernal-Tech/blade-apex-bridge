@@ -81,6 +81,11 @@ type EVMChainInfo struct {
 	JSONRPCAddr    string
 	AdminKey       *crypto.ECDSAKey
 	FundBlockNum   uint64
+
+	// Bridging directions
+	DestChain map[ChainID][]Direction
+	// Tokens config
+	Tokens map[uint16]sendtx.ApexToken
 }
 
 type ApexSystem struct {
@@ -198,6 +203,11 @@ func NewSkylineSystem(
 		}
 	}
 
+	nexus, err := NewTestEVMChain(config.NexusConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	apex := &ApexSystem{
 		Config:      config,
 		Users:       users,
@@ -206,6 +216,7 @@ func NewSkylineSystem(
 			NewTestCardanoChain(config.PrimeConfig),
 			NewTestCardanoChain(config.VectorConfig),
 			NewTestCardanoChain(config.CardanoConfig),
+			nexus,
 		},
 		IsSkyline: true,
 	}
@@ -481,6 +492,53 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 				IsWrappedCurrency: false,
 			},
 		}
+
+		if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
+			// In case Nexus is enabled, we need to add:
+			// - Nexus <-> Vector = USDT/xADA <-> wUSDT/xADA
+			a.NexusInfo.DestChain = map[ChainID][]Direction{
+				ChainIDVector: {
+					{
+						SourceTokenID:      XADATokenID,
+						DestinationTokenID: XADATokenID,
+					},
+					{
+						SourceTokenID:      USDTTokenID,
+						DestinationTokenID: USDTTokenID,
+					},
+				},
+			}
+
+			a.NexusInfo.Tokens = map[uint16]sendtx.ApexToken{
+				XADATokenID: {
+					ChainSpecific:     "",
+					LockUnlock:        true,
+					IsWrappedCurrency: true,
+				},
+				USDTTokenID: {
+					ChainSpecific:     "",
+					LockUnlock:        true,
+					IsWrappedCurrency: true,
+				},
+			}
+
+			a.VectorInfo.DestChain[ChainIDNexus] = []Direction{
+				{
+					SourceTokenID:      XADATokenID,
+					DestinationTokenID: XADATokenID,
+				},
+				{
+					SourceTokenID:      USDTTokenID,
+					DestinationTokenID: USDTTokenID,
+				},
+			}
+
+			a.VectorInfo.Tokens[USDTTokenID] = sendtx.ApexToken{
+				ChainSpecific:     "",
+				LockUnlock:        false,
+				IsWrappedCurrency: false,
+			}
+		}
 	}
 
 	a.EcosystemTokens = map[string]uint16{
@@ -597,6 +655,10 @@ func (a *ApexSystem) RegisterChains() error {
 func (a *ApexSystem) DeployCardanoContracts() error {
 	if a.IsSkyline {
 		return a.execForEachChain(func(chain ITestApexChain) error {
+			if chain.ChainID() == ChainIDNexus {
+				return nil
+			}
+
 			err := chain.DeployCardanoContract()
 			if err != nil {
 				return err
