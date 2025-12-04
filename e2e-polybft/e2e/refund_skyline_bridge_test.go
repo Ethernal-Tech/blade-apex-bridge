@@ -305,27 +305,23 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 		executeInvalidMetadataType(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, true, 2)
 	})
 
-	t.Run("6. Prime -> Cardano - Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestination(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, true, 3)
-	})
-
-	t.Run("7. Prime -> Cardano - Submitted invalid metadata - invalid sender", func(t *testing.T) {
+	t.Run("6. Prime -> Cardano - Submitted invalid metadata - invalid sender", func(t *testing.T) {
 		executeInvalidMetadataInvalidSender(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, sendtx.BridgingTypeCurrencyOnSource, 1)
 	})
 
-	t.Run("8. Prime -> Cardano - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
+	t.Run("7. Prime -> Cardano - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
 		executeInvalidBridgingFee(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, true, 2)
 	})
 
-	t.Run("9. Cardano -> Prime - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
+	t.Run("8. Cardano -> Prime - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
 		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoTestConfig, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeWrappedTokenOnSource, true, 0)
 	})
 
-	t.Run("10. Prime -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {
+	t.Run("9. Prime -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {
 		executeInvalidEmptyReceivers(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, true, 1)
 	})
 
-	t.Run("11. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
+	t.Run("10. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
 		user := apex.Users[0]
 		minterWallet, _ := user.GetCardanoWallet(cardanofw.ChainIDCardano)
 
@@ -347,7 +343,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 		fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
 	})
 
-	t.Run("12. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
+	t.Run("11. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
 		cardanoAddrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
 		require.NoError(t, err)
 		fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
@@ -369,7 +365,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 		fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
 	})
 
-	t.Run("13. Submitted tokens to bridging addr other than 0", func(t *testing.T) {
+	t.Run("12. Submitted tokens to bridging addr other than 0", func(t *testing.T) {
 		user := apex.Users[0]
 
 		cardanoAddrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)

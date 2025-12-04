@@ -15,8 +15,8 @@ func Test_General(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfigWithMinting(true)
-	vectorConfig := cardanofw.NewVectorChainConfig()
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{cardanofw.USDTTokenID: cardanofw.USDTTokenName})
 	nexusConfig := cardanofw.NewNexusChainConfig(true)
 	cardanoConfig.FundTokenAmount = 1_000_000_000
 	vectorConfig.FundTokenAmount = 1_000_000_000

@@ -75,7 +75,7 @@ type TestCardanoChainConfig struct {
 	CardanoScriptInfo CardanoScriptInfo
 
 	// Human readable names of tokens that should be mintable on this chain
-	MintableTokens []string
+	MintableTokens map[uint16]string
 	// Custodial NFT
 	CustodialNFT *infrawallet.Token
 }
@@ -104,8 +104,8 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 	}
 }
 
-func NewVectorChainConfig() *TestCardanoChainConfig {
-	return &TestCardanoChainConfig{
+func NewVectorChainConfig(mintableTokens ...map[uint16]string) *TestCardanoChainConfig {
+	cfg := &TestCardanoChainConfig{
 		IsEnabled:                   true,
 		ID:                          1,
 		NetworkType:                 infrawallet.TestNetNetwork,
@@ -126,6 +126,14 @@ func NewVectorChainConfig() *TestCardanoChainConfig {
 		MinOperationFee:             uint64(0),
 		BridgingAddressCnt:          1,
 	}
+
+	if len(mintableTokens) > 0 {
+		cfg.FundRelayerAmount = defaultFundTokenAmount
+		cfg.CustodialAddressGeneration = true
+		cfg.MintableTokens = mintableTokens[0]
+	}
+
+	return cfg
 }
 
 func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
@@ -148,17 +156,6 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		MinOperationFee:             DefaultMinOperationFee,
 		BridgingAddressCnt:          1,
 	}
-}
-
-func NewCardanoChainConfigWithMinting(isEnabled bool) *TestCardanoChainConfig {
-	config := NewCardanoChainConfig(isEnabled)
-
-	config.FundTokenAmount = 0
-	config.FundRelayerAmount = 100_000_000
-	config.CustodialAddressGeneration = true
-	config.MintableTokens = []string{DefaultTokenName}
-
-	return config
 }
 
 func NewRemotePrimeChainConfig(
@@ -389,7 +386,7 @@ func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) error {
 	return validator.CardanoWalletCreate(ec.ChainID(), walletType)
 }
 
-func (ec *TestCardanoChain) DeployCardanoContract() error {
+func (ec *TestCardanoChain) DeployMintingContract(_ context.Context) error {
 	custodialNFT := ec.config.CustodialNFT
 	if custodialNFT == nil {
 		return nil
@@ -610,11 +607,6 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	}
 
 	if ec.config.CustodialAddress != "" && ec.config.CustodialNFT != nil {
-		minterWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
-		if err != nil {
-			return err
-		}
-
 		lovelaceFundAmount := 2 * MinUTxODefaultValue
 
 		if err := MintToken(ec, minterWallet, MintNFTTokenName, 1); err != nil {
@@ -769,11 +761,11 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 	return balanceTransformed, nil
 }
 
-func (ec *TestCardanoChain) GetMintableTokens() []infrawallet.Token {
-	tokens := make([]infrawallet.Token, len(ec.config.MintableTokens))
+func (ec *TestCardanoChain) GetMintableTokens() map[uint16]string {
+	tokens := make(map[uint16]string, len(ec.config.MintableTokens))
 
-	for i, tokenName := range ec.config.MintableTokens {
-		tokens[i] = infrawallet.NewToken(ec.GetCardanoScriptInfo().PolicyID, tokenName)
+	for id, tokenName := range ec.config.MintableTokens {
+		tokens[id] = infrawallet.NewToken(ec.GetCardanoScriptInfo().PolicyID, tokenName).String()
 	}
 
 	return tokens

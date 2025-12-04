@@ -104,7 +104,7 @@ type ApexSystem struct {
 	CardanoInfo CardanoChainInfo
 	NexusInfo   EVMChainInfo
 
-	EcosystemTokens map[string]uint16
+	EcosystemTokens map[uint16]string
 
 	dataDirPath string
 
@@ -404,12 +404,22 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			a.CardanoInfo.GenesisWallet.VerificationKey, CAP3XTokenName)
 		require.NoError(t, err)
 
-		nftToken, _, err := GetTokenAndPolicyForVerificationKey(
-			a.Config.CardanoConfig.ChainType, a.Config.CardanoConfig.NetworkType,
-			a.CardanoInfo.GenesisWallet.VerificationKey, MintNFTTokenName)
-		require.NoError(t, err)
-
 		for _, chain := range a.chains {
+			if chain.ChainID() == ChainIDNexus {
+				continue
+			}
+
+			if chain.GetCustodialAddress() == "" {
+				continue
+			}
+
+			cgf := a.getCardanoConfig(chain.ChainID())
+			info := a.GetCardanoInfo(chain.ChainID())
+			nftToken, _, err := GetTokenAndPolicyForVerificationKey(
+				cgf.ChainType, cgf.NetworkType,
+				info.GenesisWallet.VerificationKey, MintNFTTokenName)
+			require.NoError(t, err)
+
 			chain.SetCustodialNFT(nftToken)
 		}
 
@@ -493,9 +503,17 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			},
 		}
 
+		a.EcosystemTokens = map[uint16]string{
+			AP3XTokenID:  AP3XTokenName,
+			ADATokenID:   ADATokenName,
+			CAP3XTokenID: CAP3XTokenName,
+			XADATokenID:  XADATokenName,
+		}
+
 		if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
 			// In case Nexus is enabled, we need to add:
 			// - Nexus <-> Vector = USDT/xADA <-> wUSDT/xADA
+			// - Nexus <-> Cardano = xADA <-> xADA
 			a.NexusInfo.DestChain = map[ChainID][]Direction{
 				ChainIDVector: {
 					{
@@ -507,18 +525,30 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						DestinationTokenID: USDTTokenID,
 					},
 				},
+				ChainIDCardano: {
+					{
+						SourceTokenID:      XADATokenID,
+						DestinationTokenID: ADATokenID,
+						TrackDestination:   true,
+					},
+				},
 			}
 
 			a.NexusInfo.Tokens = map[uint16]sendtx.ApexToken{
 				XADATokenID: {
 					ChainSpecific:     "",
-					LockUnlock:        true,
+					LockUnlock:        false,
 					IsWrappedCurrency: true,
 				},
 				USDTTokenID: {
 					ChainSpecific:     "",
 					LockUnlock:        true,
-					IsWrappedCurrency: true,
+					IsWrappedCurrency: false,
+				},
+				AP3XTokenID: { // currecny token on Nexus - required by validatorcomponents
+					ChainSpecific:     cardanowallet.AdaTokenName,
+					LockUnlock:        true,
+					IsWrappedCurrency: false,
 				},
 			}
 
@@ -538,14 +568,17 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 				LockUnlock:        false,
 				IsWrappedCurrency: false,
 			}
-		}
-	}
 
-	a.EcosystemTokens = map[string]uint16{
-		AP3XTokenName:  AP3XTokenID,
-		ADATokenName:   ADATokenID,
-		CAP3XTokenName: CAP3XTokenID,
-		XADATokenName:  XADATokenID,
+			a.CardanoInfo.DestChain[ChainIDNexus] = []Direction{
+				{
+					SourceTokenID:      ADATokenID,
+					DestinationTokenID: XADATokenID,
+					TrackSource:        true,
+				},
+			}
+
+			a.EcosystemTokens[USDTTokenID] = USDTTokenName
+		}
 	}
 
 	a.InitTxSendChainConfiguration()
@@ -652,43 +685,30 @@ func (a *ApexSystem) RegisterChains() error {
 	})
 }
 
-func (a *ApexSystem) DeployCardanoContracts() error {
+func (a *ApexSystem) DeployMintingContracts(ctx context.Context) error {
 	if a.IsSkyline {
 		return a.execForEachChain(func(chain ITestApexChain) error {
-			if chain.ChainID() == ChainIDNexus {
-				return nil
-			}
-
-			err := chain.DeployCardanoContract()
+			err := chain.DeployMintingContract(ctx)
 			if err != nil {
 				return err
 			}
 
-			tokenName := ""
 			mintableTokens := chain.GetMintableTokens()
 
 			if len(mintableTokens) > 0 {
 				switch chain.ChainID() {
-				case ChainIDCardano:
-					for _, mintableToken := range mintableTokens {
-						tokenID := a.EcosystemTokens[tokenName]
-						token := a.CardanoInfo.Tokens[tokenID]
-						token.ChainSpecific = mintableToken.String()
-						a.CardanoInfo.Tokens[tokenID] = token
+				case ChainIDCardano, ChainIDPrime, ChainIDVector:
+					chainInfo := a.GetCardanoInfo(chain.ChainID())
+					for tokenID, tokenName := range mintableTokens {
+						token := chainInfo.Tokens[tokenID]
+						token.ChainSpecific = tokenName
+						chainInfo.Tokens[tokenID] = token
 					}
-				case ChainIDPrime:
-					for _, mintableToken := range mintableTokens {
-						tokenID := a.EcosystemTokens[tokenName]
-						token := a.PrimeInfo.Tokens[tokenID]
-						token.ChainSpecific = mintableToken.String()
-						a.PrimeInfo.Tokens[tokenID] = token
-					}
-				case ChainIDVector:
-					for _, mintableToken := range mintableTokens {
-						tokenID := a.EcosystemTokens[tokenName]
-						token := a.VectorInfo.Tokens[tokenID]
-						token.ChainSpecific = mintableToken.String()
-						a.VectorInfo.Tokens[tokenID] = token
+				case ChainIDNexus:
+					for tokenID, tokenName := range mintableTokens {
+						token := a.NexusInfo.Tokens[tokenID]
+						token.ChainSpecific = tokenName
+						a.NexusInfo.Tokens[tokenID] = token
 					}
 				default:
 					return fmt.Errorf("unimplemented cardano contract setup for chain %s", chain.ChainID())
@@ -773,17 +793,30 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 	}
 
 	ecosystemTokens := make([]EcosystemToken, 0, len(a.EcosystemTokens))
-	for name, id := range a.EcosystemTokens {
+	for id, name := range a.EcosystemTokens {
 		ecosystemTokens = append(ecosystemTokens, EcosystemToken{ID: id, Name: name})
 	}
 
 	directionConfigFile := DirectionConfigFile{
 		Directions: map[string]DirectionConfig{
-			ChainIDPrime:   {DestinationChain: a.PrimeInfo.DestChain, Tokens: a.PrimeInfo.Tokens},
-			ChainIDVector:  {DestinationChain: a.VectorInfo.DestChain, Tokens: a.VectorInfo.Tokens},
-			ChainIDCardano: {DestinationChain: a.CardanoInfo.DestChain, Tokens: a.CardanoInfo.Tokens},
+			ChainIDPrime:  {DestinationChain: a.PrimeInfo.DestChain, Tokens: a.PrimeInfo.Tokens},
+			ChainIDVector: {DestinationChain: a.VectorInfo.DestChain, Tokens: a.VectorInfo.Tokens},
 		},
 		EcosystemTokens: ecosystemTokens,
+	}
+
+	if a.Config.CardanoConfig != nil && a.Config.CardanoConfig.IsEnabled {
+		directionConfigFile.Directions[ChainIDCardano] = DirectionConfig{
+			DestinationChain: a.CardanoInfo.DestChain,
+			Tokens:           a.CardanoInfo.Tokens,
+		}
+	}
+
+	if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
+		directionConfigFile.Directions[ChainIDNexus] = DirectionConfig{
+			DestinationChain: a.NexusInfo.DestChain,
+			Tokens:           a.NexusInfo.Tokens,
+		}
 	}
 
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {

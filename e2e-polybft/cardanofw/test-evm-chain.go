@@ -73,6 +73,9 @@ type TestEVMChainConfig struct {
 
 	// Tokens that should be minted on this chain
 	MintTokens []EVMTokenInfo
+
+	// Tokens that are being configured while starting the system (minting or locking/unlocking)
+	ConfigurableTokens map[uint16]string
 }
 
 func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
@@ -146,8 +149,10 @@ func (ec *TestEVMChain) GetRelayerAddress() string {
 }
 
 // GetMintableTokens implements ITestApexChain.
-func (ec *TestEVMChain) GetMintableTokens() []infrawallet.Token {
-	panic("unimplemented") //nolint:gocritic
+func (ec *TestEVMChain) GetMintableTokens() map[uint16]string {
+	// We return the tokens that are being configured while starting the system (minting or locking/unlocking)
+	// We use this to populate the apex system config with the tokens that are being configured while starting the system
+	return ec.config.ConfigurableTokens
 }
 
 // GetMintTokenPolicyID implements ITestApexChain.
@@ -261,7 +266,46 @@ func (ec *TestEVMChain) CreateWallets(validator *TestApexValidator) error {
 	return nil
 }
 
-func (ec *TestEVMChain) DeployCardanoContract() error {
+func (ec *TestEVMChain) DeployMintingContract(ctx context.Context) error {
+	fmt.Println("Deploying minting contract for chain =", ec.ChainID())
+	pk, err := ec.admin.MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	// For lock unlock tokens we need to
+	// 1. deploy ERC20 contract for the token
+	// 2. register the token on gateway
+
+	// For mint tokens we just register the token on gateway
+	tokenAddrs := make(map[uint16]string)
+	var execErr error
+	var tokenAddr types.Address
+	for _, token := range ec.config.MintTokens {
+		params := []string{
+			"bridge-admin",
+			"register-gateway-token",
+			"--node-url", ec.jsonRPCAddr,
+			"--key", hex.EncodeToString(pk),
+			"--gateway-addr", ec.gatewayAddr.String(),
+			"--token-sc-addr", "0x0000000000000000000000000000000000000000",
+			"--token-id", fmt.Sprint(token.ID),
+			"--token-name", token.Name,
+			"--token-symbol", token.Symbol,
+		}
+
+		if err := retry(ctx, "", func() error {
+			tokenAddr, execErr = regexHelper("", params, "contractAddr")
+			return execErr
+		}); err != nil {
+			return err
+		}
+
+		tokenAddrs[token.ID] = tokenAddr.String()
+	}
+
+	ec.config.ConfigurableTokens = tokenAddrs
+	fmt.Println("Mintable tokens =", ec.config.ConfigurableTokens)
 	return nil
 }
 
@@ -296,7 +340,7 @@ func (ec *TestEVMChain) FundWallets(ctx context.Context) error {
 	return nil
 }
 
-func (ec *TestEVMChain) RegexHelper(workingDirectory string, params []string, expression string) (types.Address, error) {
+func regexHelper(workingDirectory string, params []string, expression string) (types.Address, error) {
 	// if everything works fine, the working directory will be reused
 	if workingDirectory != "" {
 		if err := common.CreateDirSafe(workingDirectory, 0750); err != nil {
@@ -351,75 +395,40 @@ func (ec *TestEVMChain) InitContracts(
 		"--clone",
 	}
 
-	// reusable retry helper for this function
-	retry := func(action func() error) error {
-		tryCounter := 0
-		for {
-			if err := action(); err == nil {
-				return nil
-			} else {
-				tryCounter++
-				if tryCounter >= initContractsTryCount {
-					return err
-				}
-				// remove directory if something went wrong and try again
-				if err := common.RemoveDirSafe(workingDirectory); err != nil {
-					return err
-				}
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-time.After(initContractsRetryWaitTime):
-				}
-			}
-		}
-	}
-
-	var gatewayAddr types.Address
-
-	if err := retry(func() error {
+	if err := retry(ctx, workingDirectory, func() error {
 		var execErr error
-		gatewayAddr, execErr = ec.RegexHelper(workingDirectory, params, "Gateway Proxy Address")
+		ec.gatewayAddr, execErr = regexHelper(workingDirectory, params, "Gateway Proxy Address")
 		return execErr
 	}); err != nil {
 		return err
 	}
 
-	ec.gatewayAddr = gatewayAddr
-
-	// For lock unlock tokens we need to
-	// 1. deploy ERC20 contract for the token
-	// 2. register the token on gateway
-
-	// For mint tokens we just register the token on gateway
-	for _, token := range ec.config.MintTokens {
-		params := []string{
-			"bridge-admin",
-			"register-gateway-token",
-			"--node-url", ec.jsonRPCAddr,
-			"--key", hex.EncodeToString(pk),
-			"--gateway-addr", ec.gatewayAddr.String(),
-			"--token-sc-addr", "0x0000000000000000000000000000000000000000",
-			"--token-id", fmt.Sprint(token.ID),
-			"--token-name", token.Name,
-			"--token-symbol", token.Symbol,
-			//"--gas-limit", fmt.Sprint(100_000_000_000),
-		}
-
-		var tokenAddr types.Address
-
-		if err := retry(func() error {
-			var execErr error
-			tokenAddr, execErr = ec.RegexHelper("", params, "contractAddr")
-			return execErr
-		}); err != nil {
-			return err
-		}
-
-		fmt.Println("TOKEN ADDRESS =", tokenAddr.String())
-	}
-
 	return nil
+}
+
+func retry(ctx context.Context, workingDirectory string, action func() error) error {
+	tryCounter := 0
+	for {
+		if err := action(); err == nil {
+			return nil
+		} else {
+			tryCounter++
+			if tryCounter >= initContractsTryCount {
+				return err
+			}
+			// remove directory if something went wrong and try again
+			if workingDirectory != "" {
+				if err := common.RemoveDirSafe(workingDirectory); err != nil {
+					return err
+				}
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(initContractsRetryWaitTime):
+			}
+		}
+	}
 }
 
 func (ec *TestEVMChain) RegisterChain(validator *TestApexValidator) error {

@@ -114,7 +114,7 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Wallets have been funded\n")
 
-	require.NoError(t, apexSystem.DeployCardanoContracts())
+	require.NoError(t, apexSystem.DeployMintingContracts(ctx))
 
 	fmt.Printf("Cardano contracts have been deployed\n")
 
