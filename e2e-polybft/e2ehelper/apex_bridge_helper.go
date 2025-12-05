@@ -26,9 +26,10 @@ func ExecuteSingleBridging(
 	expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
 
 	balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
+	fmt.Printf("Receiver balance: %+v\n", balance)
 	require.NoError(t, err)
 
-	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, expectNativeTokens)
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, expectNativeTokens, config.coloredCoins...)
 	fmt.Printf("Tokens Info: %+v\n", tokensInfo)
 
 	prevAmount := cardanofw.SetOrDefault(balance[tokensInfo.DstTokenName], big.NewInt(0))
@@ -40,6 +41,8 @@ func ExecuteSingleBridging(
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
 	expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
+
+	fmt.Printf("Expected amount: %+v\n", expectedAmount)
 
 	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, srcChain, expectedAmount,
 		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, expectNativeTokens)

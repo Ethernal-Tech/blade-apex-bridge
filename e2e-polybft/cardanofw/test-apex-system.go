@@ -520,10 +520,10 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						SourceTokenID:      XADATokenID,
 						DestinationTokenID: XADATokenID,
 					},
-					{
-						SourceTokenID:      USDTTokenID,
-						DestinationTokenID: USDTTokenID,
-					},
+					// {
+					// 	SourceTokenID:      USDTTokenID,
+					// 	DestinationTokenID: USDTTokenID,
+					// },
 				},
 				ChainIDCardano: {
 					{
@@ -540,11 +540,11 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					LockUnlock:        false,
 					IsWrappedCurrency: true,
 				},
-				USDTTokenID: {
-					ChainSpecific:     "",
-					LockUnlock:        true,
-					IsWrappedCurrency: false,
-				},
+				// USDTTokenID: {
+				// 	ChainSpecific:     "",
+				// 	LockUnlock:        true,
+				// 	IsWrappedCurrency: false,
+				// },
 				AP3XTokenID: { // currecny token on Nexus - required by validatorcomponents
 					ChainSpecific:     cardanowallet.AdaTokenName,
 					LockUnlock:        true,
@@ -557,17 +557,17 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					SourceTokenID:      XADATokenID,
 					DestinationTokenID: XADATokenID,
 				},
-				{
-					SourceTokenID:      USDTTokenID,
-					DestinationTokenID: USDTTokenID,
-				},
+				// {
+				// 	SourceTokenID:      USDTTokenID,
+				// 	DestinationTokenID: USDTTokenID,
+				// },
 			}
 
-			a.VectorInfo.Tokens[USDTTokenID] = sendtx.ApexToken{
-				ChainSpecific:     "",
-				LockUnlock:        false,
-				IsWrappedCurrency: false,
-			}
+			// a.VectorInfo.Tokens[USDTTokenID] = sendtx.ApexToken{
+			// 	ChainSpecific:     "",
+			// 	LockUnlock:        false,
+			// 	IsWrappedCurrency: false,
+			// }
 
 			a.CardanoInfo.DestChain[ChainIDNexus] = []Direction{
 				{
@@ -577,7 +577,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 				},
 			}
 
-			a.EcosystemTokens[USDTTokenID] = USDTTokenName
+			// a.EcosystemTokens[USDTTokenID] = USDTTokenName
 		}
 	}
 
@@ -994,7 +994,7 @@ func (a *ApexSystem) GetBalance(
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Printf("Getting balance for chain: %+v and user: %+v\n", chainID, user.GetAddress(chainID))
 	balance, err := chain.GetAddressBalance(ctx, user.GetAddress(chainID))
 	if err != nil {
 		return nil, err
@@ -1005,6 +1005,15 @@ func (a *ApexSystem) GetBalance(
 	}
 
 	return balance, err
+}
+
+func (a *ApexSystem) GetBalanceWithTokenName(ctx context.Context, user *TestApexUser, chainID ChainID, tokenName string) (map[string]*big.Int, error) {
+	chain, err := a.getChain(chainID)
+	if err != nil {
+		return nil, err
+	}
+
+	return chain.GetAddressBalanceWithTokenName(ctx, user.GetAddress(chainID), tokenName)
 }
 
 func (a *ApexSystem) GetTokenNameForChain(chainID ChainID, tokenID uint16) string {
@@ -1097,17 +1106,23 @@ func (a *ApexSystem) WaitForAmount(
 	cmpHandler func(*big.Int) bool, numRetries int, retryDelay time.Duration, isNativeToken ...bool,
 ) (*big.Int, error) {
 	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*big.Int, error) {
-		amounts, err := a.GetBalance(ctx, user, dstChain)
-		if err != nil {
-			return nil, err
-		}
-
 		currency := cardanowallet.AdaTokenName
 
 		if len(isNativeToken) > 0 && isNativeToken[0] {
 			tokensInfo := a.GetBridgingTokensInfo(srcChain, dstChain, true)
+			fmt.Printf("Tokens Info: %+v\n", tokensInfo)
 			currency = tokensInfo.DstTokenName
 		}
+
+		var amounts map[string]*big.Int
+		var err error
+
+		amounts, err = a.GetBalanceWithTokenName(ctx, user, dstChain, currency)
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Printf("Amounts: %+v, currency: %+v\n", amounts, currency)
 
 		newBalance := amounts[currency]
 		if newBalance == nil {
@@ -1423,14 +1438,21 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	}
 
 	// check if bridging direction is supported
-	isValidDirection := (sourceChain != ChainIDCardano && destinationChain != ChainIDCardano) ||
-		(sourceChain == ChainIDCardano && destinationChain == ChainIDPrime) ||
-		(sourceChain == ChainIDPrime && destinationChain == ChainIDCardano) ||
-		(sourceChain == ChainIDCardano && destinationChain == ChainIDVector) ||
-		(sourceChain == ChainIDVector && destinationChain == ChainIDCardano)
-
-	if !isValidDirection {
-		return "", fmt.Errorf("invalid bridging direction")
+	isSourceChainCardanoType := sourceChain == ChainIDCardano || sourceChain == ChainIDPrime || sourceChain == ChainIDVector
+	if isSourceChainCardanoType {
+		srcChainInfo := a.GetCardanoInfo(sourceChain)
+		_, ok := srcChainInfo.DestChain[destinationChain]
+		if !ok {
+			return "", fmt.Errorf("invalid bridging direction")
+		}
+	} else if sourceChain == ChainIDNexus {
+		srcChainInfo := a.GetNexusInfo(sourceChain)
+		_, ok := srcChainInfo.DestChain[destinationChain]
+		if !ok {
+			return "", fmt.Errorf("invalid bridging direction")
+		}
+	} else {
+		return "", fmt.Errorf("invalid source chain")
 	}
 
 	if len(receivers) < numReceiversMin ||
@@ -1469,7 +1491,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		default:
 			// TODO: Implement for nexus
 			receiversMap[receiver.GetAddress(destinationChain)] = ReceiverAmount{
-				TokenID: 0,
+				TokenID: 5,
 				Amount:  DfmToChainNativeTokenAmount(sourceChain, dfmAmount),
 			}
 		}
@@ -1558,18 +1580,118 @@ type BridgingTokensInfo struct {
 	DstTokenName string
 }
 
-func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, expectNativeTokens bool) *BridgingTokensInfo {
-	srcTokenID := a.GetTokenIDForChain(srcChain, expectNativeTokens)
-	dstTokenID := a.GetTokenIDForChain(dstChain, !expectNativeTokens)
-	srcTokenName := a.GetTokenNameForChain(srcChain, srcTokenID)
-	dstTokenName := a.GetTokenNameForChain(dstChain, dstTokenID)
+func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, expectNativeTokens bool, coloredCoins ...uint16) *BridgingTokensInfo {
+	isSourceChainCardanoType := srcChain == ChainIDCardano || srcChain == ChainIDPrime || srcChain == ChainIDVector
+	isDestinationChainCardanoType := dstChain == ChainIDCardano || dstChain == ChainIDPrime || dstChain == ChainIDVector
 
-	return &BridgingTokensInfo{
-		SrcTokenID:   srcTokenID,
-		DstTokenID:   dstTokenID,
-		SrcTokenName: srcTokenName,
-		DstTokenName: dstTokenName,
+	if coloredCoins != nil {
+		// TODO: Implement for colored coins
+		fmt.Printf("Colored coins: %+v\n", coloredCoins)
+		srcTokenID := coloredCoins[0]
+
+		if isSourceChainCardanoType && isDestinationChainCardanoType {
+			srcChainInfo := a.GetCardanoInfo(srcChain)
+			dstChainInfo := a.GetCardanoInfo(dstChain)
+			srcTokenName := srcChainInfo.Tokens[srcTokenID].ChainSpecific
+
+			for _, direction := range srcChainInfo.DestChain[dstChain] {
+				if direction.SourceTokenID == srcTokenID {
+					return &BridgingTokensInfo{
+						SrcTokenID:   srcTokenID,
+						DstTokenID:   direction.DestinationTokenID,
+						SrcTokenName: srcTokenName,
+						DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].ChainSpecific,
+					}
+				}
+			}
+		} else if srcChain != ChainIDNexus {
+			srcChainInfo := a.GetCardanoInfo(srcChain)
+			dstChainInfo := a.GetNexusInfo(dstChain)
+
+			srcTokenName := srcChainInfo.Tokens[srcTokenID].ChainSpecific
+
+			for _, direction := range srcChainInfo.DestChain[dstChain] {
+				if direction.SourceTokenID == srcTokenID {
+					return &BridgingTokensInfo{
+						SrcTokenID:   srcTokenID,
+						DstTokenID:   direction.DestinationTokenID,
+						SrcTokenName: srcTokenName,
+						DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].ChainSpecific,
+					}
+				}
+			}
+		} else {
+			srcChainInfo := a.GetNexusInfo(srcChain)
+			dstChainInfo := a.GetCardanoInfo(dstChain)
+
+			srcTokenName := srcChainInfo.Tokens[srcTokenID].ChainSpecific
+
+			for _, direction := range srcChainInfo.DestChain[dstChain] {
+				if direction.SourceTokenID == srcTokenID {
+					return &BridgingTokensInfo{
+						SrcTokenID:   srcTokenID,
+						DstTokenID:   direction.DestinationTokenID,
+						SrcTokenName: srcTokenName,
+						DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].ChainSpecific,
+					}
+				}
+			}
+		}
+
+		return nil
 	}
+
+	if isSourceChainCardanoType && isDestinationChainCardanoType {
+		srcChainInfo := a.GetCardanoInfo(srcChain)
+		dstChainInfo := a.GetCardanoInfo(dstChain)
+
+		srcTokenID := a.GetTokenIDForChain(srcChain, expectNativeTokens)
+
+		for _, direction := range srcChainInfo.DestChain[dstChain] {
+			if direction.SourceTokenID == srcTokenID {
+				return &BridgingTokensInfo{
+					SrcTokenID:   srcTokenID,
+					DstTokenID:   direction.DestinationTokenID,
+					SrcTokenName: srcChainInfo.Tokens[srcTokenID].ChainSpecific,
+					DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].ChainSpecific,
+				}
+			}
+		}
+	} else if srcChain != ChainIDNexus {
+		srcChainInfo := a.GetCardanoInfo(srcChain)
+		dstChainInfo := a.GetNexusInfo(dstChain)
+
+		srcTokenID := a.GetTokenIDForChain(srcChain, expectNativeTokens)
+
+		for _, direction := range srcChainInfo.DestChain[dstChain] {
+			if direction.SourceTokenID == srcTokenID {
+				return &BridgingTokensInfo{
+					SrcTokenID:   srcTokenID,
+					DstTokenID:   direction.DestinationTokenID,
+					SrcTokenName: srcChainInfo.Tokens[srcTokenID].ChainSpecific,
+					DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].ChainSpecific,
+				}
+			}
+		}
+	} else {
+		srcChainInfo := a.GetNexusInfo(srcChain)
+		dstChainInfo := a.GetCardanoInfo(dstChain)
+
+		dstTokenID := a.GetTokenIDForChain(dstChain, !expectNativeTokens)
+
+		for _, direction := range srcChainInfo.DestChain[dstChain] {
+			if direction.DestinationTokenID == dstTokenID {
+				return &BridgingTokensInfo{
+					SrcTokenID:   direction.SourceTokenID,
+					DstTokenID:   dstTokenID,
+					SrcTokenName: srcChainInfo.Tokens[direction.SourceTokenID].ChainSpecific,
+					DstTokenName: dstChainInfo.Tokens[dstTokenID].ChainSpecific,
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (a *ApexSystem) GetChainMust(t *testing.T, chainID ChainID) ITestApexChain {
@@ -1676,6 +1798,15 @@ func (a *ApexSystem) GetCardanoInfo(chainID string) CardanoChainInfo {
 		return a.CardanoInfo
 	default:
 		return CardanoChainInfo{}
+	}
+}
+
+func (a *ApexSystem) GetNexusInfo(chainID string) EVMChainInfo {
+	switch chainID {
+	case ChainIDNexus:
+		return a.NexusInfo
+	default:
+		return EVMChainInfo{}
 	}
 }
 

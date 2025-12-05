@@ -2,12 +2,51 @@ package e2e
 
 import (
 	"context"
+	"fmt"
+	"math/big"
 	"testing"
-	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
+	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_CardanoToNexus(t *testing.T) {
+	const apiKey = "test_api_key"
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig( /*map[uint16]string{cardanofw.USDTTokenID: cardanofw.USDTTokenName}*/ )
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+	vectorConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+
+	fmt.Printf("User: %+v\n", user.GetAddress(cardanofw.ChainIDNexus))
+
+	t.Run("Cardano -> Nexus - ADA -> xADA", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, big.NewInt(100_000_000),
+			sendtx.BridgingTypeCurrencyOnSource)
+	})
+
+}
 
 func Test_General(t *testing.T) {
 	const apiKey = "test_api_key"
@@ -33,7 +72,47 @@ func Test_General(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	time.Sleep(60 * time.Minute)
+	user := apex.Users[0]
+
+	fmt.Printf("User: %+v\n", user.GetAddress(cardanofw.ChainIDNexus))
+
+	t.Run("Nexus -> Vector USTD -> wUSDT", func(t *testing.T) {
+		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(1_000_000), cardanofw.USDTTokenID)
+		require.NoError(t, err)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1_000_000),
+			sendtx.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+	})
+
+	t.Run("Cardano -> Nexus - ADA -> xADA", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, big.NewInt(100_000_000),
+			sendtx.BridgingTypeCurrencyOnSource)
+	})
+
+	t.Run("Nexus -> Cardano - xADA -> ADA", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
+			sendtx.BridgingTypeCurrencyOnSource)
+	})
+
+	t.Run("Cardano -> Vector - ADA -> xADA", func(t *testing.T) {
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, big.NewInt(10_000_000),
+			sendtx.BridgingTypeCurrencyOnSource)
+	})
+
+	t.Run("Vector -> Cardano - xADA -> ADA", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
+			sendtx.BridgingTypeWrappedTokenOnSource)
+	})
 }
 
 /*

@@ -44,6 +44,7 @@ type ITestApexChain interface {
 	DeployMintingContract(ctx context.Context) error
 	ChainID() string
 	GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error)
+	GetAddressBalanceWithTokenName(ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error)
 	BridgingRequest(
 		ctx context.Context,
 		destChainID ChainID,
@@ -262,6 +263,10 @@ func (td *TestApexChainDummy) SetCustodialNFT(token infrawallet.Token) {}
 // GetCardanoScriptInfo implements ITestApexChain.
 func (td *TestApexChainDummy) GetCardanoScriptInfo() *CardanoScriptInfo {
 	return &CardanoScriptInfo{}
+}
+
+func (td *TestApexChainDummy) GetAddressBalanceWithTokenName(ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
+	return nil, nil
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)

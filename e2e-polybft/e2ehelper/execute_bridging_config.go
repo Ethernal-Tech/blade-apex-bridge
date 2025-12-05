@@ -96,6 +96,7 @@ type RestartValidatorStrategyFn func(
 
 type executeBridgingConfig struct {
 	waitForUnexpectedBridges bool
+	coloredCoins             []uint16
 	restartValidatorsConfigs []RestartValidatorsConfig
 	sendTxStrategy           SendTxStrategyFn
 	restartValidatorStrategy RestartValidatorStrategyFn
@@ -147,6 +148,12 @@ func WithSendTxStrategy(strategy SendTxStrategyFn) ExecuteBridgingOption {
 func WithTimeoutConfig(tc TimeoutConfig) ExecuteBridgingOption {
 	return func(cfg *executeBridgingConfig) {
 		cfg.timeoutConfig = tc
+	}
+}
+
+func WithColoredCoins(coloredCoins []uint16) ExecuteBridgingOption {
+	return func(config *executeBridgingConfig) {
+		config.coloredCoins = coloredCoins
 	}
 }
 
