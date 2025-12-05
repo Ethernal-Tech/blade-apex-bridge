@@ -19,7 +19,7 @@ func Test_CardanoToNexus(t *testing.T) {
 	defer cncl()
 
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-	vectorConfig := cardanofw.NewVectorChainConfig( /*map[uint16]string{cardanofw.USDTTokenID: cardanofw.USDTTokenName}*/ )
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{cardanofw.USDTTokenID: cardanofw.USDTTokenName})
 	nexusConfig := cardanofw.NewNexusChainConfig(true)
 	cardanoConfig.FundTokenAmount = 1_000_000_000
 	vectorConfig.FundTokenAmount = 1_000_000_000
@@ -78,11 +78,11 @@ func Test_General(t *testing.T) {
 
 	t.Run("Nexus -> Vector USTD -> wUSDT", func(t *testing.T) {
 		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(1_000_000), cardanofw.USDTTokenID)
+		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(1), cardanofw.USDTTokenID)
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1_000_000),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
 			sendtx.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
 	})
 
@@ -111,6 +111,26 @@ func Test_General(t *testing.T) {
 	t.Run("Vector -> Cardano - xADA -> ADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
+			sendtx.BridgingTypeWrappedTokenOnSource)
+	})
+
+	t.Run("Prime -> Cardano - AP3X -> CAP3X", func(t *testing.T) {
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
+			sendtx.BridgingTypeCurrencyOnSource)
+	})
+
+	t.Run("Cardano -> Prime - CAP3X -> AP3X", func(t *testing.T) {
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(10_000_000),
 			sendtx.BridgingTypeWrappedTokenOnSource)
 	})
 }

@@ -179,9 +179,18 @@ var (
 
 					for j := 0; j < txCountPerSender; j++ {
 						for _, dstChain := range dstChains {
+							tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingTypes[NewChainPair(srcChain, dstChain)])
 							txHash, err := apex.SubmitBridgingRequest(
-								ctx, srcChain, dstChain, senderUser, sendAmountDfm,
-								bridgingTypes[NewChainPair(srcChain, dstChain)], receivers...)
+								cardanofw.SubmitBridgingRequestData{
+									Context:          ctx,
+									SourceChain:      srcChain,
+									DestinationChain: dstChain,
+									Sender:           senderUser,
+									DFMAmount:        sendAmountDfm,
+									BridgingType:     bridgingTypes[NewChainPair(srcChain, dstChain)],
+									Receivers:        receivers,
+									TokensInfo:       tokensInfo,
+								})
 							require.NoError(t, err)
 
 							fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",

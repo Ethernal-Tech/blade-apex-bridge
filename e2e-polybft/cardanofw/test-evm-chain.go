@@ -91,22 +91,22 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 		},
 		ApexConfig:             genesis.ApexConfigNexus,
 		InitialHotWalletAmount: big.NewInt(0),
-		PremineAmount:          ethgo.Ether(defaultPremineEthTokenAmount),
-		FundAmount:             ethgo.Ether(defaultFundEthTokenAmount),
-		FundRelayerAmount:      ethgo.Ether(defaultFundRelayerEthTokenAmount),
-		MinBridgingFee:         defaultMinBridgingFeeAmount,
-		MinBridgingAmount:      uint64(1_000_000),
-		MinTokenBridgingAmount: uint64(1),
-		MinOperationFee:        uint64(1),
+		PremineAmount:          DfmToWei(big.NewInt(int64(1_000_000_000_000_000_000))),
+		FundAmount:             DfmToWei(big.NewInt(int64(defaultFundEthTokenAmount))),
+		FundRelayerAmount:      DfmToWei(big.NewInt(int64(defaultFundRelayerEthTokenAmount))),
+		MinBridgingFee:         DfmToWei(big.NewInt(int64(4))).Uint64(),
+		MinBridgingAmount:      DfmToWei(big.NewInt(int64(1_000_000))).Uint64(),
+		MinTokenBridgingAmount: DfmToWei(big.NewInt(int64(1))).Uint64(),
+		MinOperationFee:        uint64(0),
 		CurrencyID:             AP3XTokenID,
 
-		// LockUnlockTokens: []EVMTokenInfo{
-		// 	{
-		// 		ID:     USDTTokenID,
-		// 		Name:   USDTTokenName,
-		// 		Symbol: USDTTokenName,
-		// 	},
-		// },
+		LockUnlockTokens: []EVMTokenInfo{
+			{
+				ID:     USDTTokenID,
+				Name:   USDTTokenName,
+				Symbol: USDTTokenName,
+			},
+		},
 		MintTokens: []EVMTokenInfo{
 			{
 				ID:     XADATokenID,
@@ -365,13 +365,10 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context) error {
 }
 
 func (ec *TestEVMChain) deployERC20Token(token EVMTokenInfo) (types.Address, error) {
-	fmt.Printf("[DEBUG deployERC20] Starting deployment for token: %+v\n", token)
-
 	privateKey, err := ec.GetAdminPrivateKey()
 	if err != nil {
 		return types.ZeroAddress, fmt.Errorf("failed to get admin private key: %w", err)
 	}
-	fmt.Printf("[DEBUG deployERC20] Got admin private key\n")
 
 	privateKeyECDSA, err := crypto.HexToECDSA(privateKey)
 	if err != nil {
@@ -379,18 +376,6 @@ func (ec *TestEVMChain) deployERC20Token(token EVMTokenInfo) (types.Address, err
 	}
 
 	key := crypto.NewECDSAKey(privateKeyECDSA)
-	fmt.Printf("[DEBUG deployERC20] Deployer address: %s\n", key.Address().String())
-
-	// Check deployer balance
-	rpc, err := ec.JSONRPC()
-	if err == nil {
-		balance, balErr := rpc.GetBalance(key.Address(), jsonrpc.LatestBlockNumberOrHash)
-		if balErr == nil {
-			fmt.Printf("[DEBUG deployERC20] Deployer balance: %s wei\n", balance.String())
-		} else {
-			fmt.Printf("[DEBUG deployERC20] Failed to get deployer balance: %v\n", balErr)
-		}
-	}
 
 	// Check if SimpleERC20 artifact is loaded
 	if contractsapi.SimpleERC20 == nil {
@@ -402,12 +387,8 @@ func (ec *TestEVMChain) deployERC20Token(token EVMTokenInfo) (types.Address, err
 	if contractsapi.SimpleERC20.Abi.Constructor == nil {
 		return types.ZeroAddress, fmt.Errorf("SimpleERC20 Constructor is nil")
 	}
-	fmt.Printf("[DEBUG deployERC20] SimpleERC20 artifact loaded\n")
-	fmt.Printf("[DEBUG deployERC20] Bytecode length: %d bytes\n", len(contractsapi.SimpleERC20.Bytecode))
-	fmt.Printf("[DEBUG deployERC20] Constructor inputs count: %d\n", len(contractsapi.SimpleERC20.Abi.Constructor.Inputs.TupleElems()))
 
 	// Encode constructor with name, symbol
-	fmt.Printf("[DEBUG deployERC20] Encoding constructor with args: name='%s', symbol='%s'\n", token.Name, token.Symbol)
 	constructorArgs, err := contractsapi.SimpleERC20.Abi.Constructor.Inputs.Encode([]interface{}{
 		token.Name,
 		token.Symbol,
@@ -415,11 +396,9 @@ func (ec *TestEVMChain) deployERC20Token(token EVMTokenInfo) (types.Address, err
 	if err != nil {
 		return types.ZeroAddress, fmt.Errorf("failed to encode constructor args: %w", err)
 	}
-	fmt.Printf("[DEBUG deployERC20] Encoded constructor args length: %d bytes\n", len(constructorArgs))
 
 	// Combine bytecode + constructor args
 	deploymentData := append(contractsapi.SimpleERC20.Bytecode, constructorArgs...)
-	fmt.Printf("[DEBUG deployERC20] Total deployment data length: %d bytes\n", len(deploymentData))
 
 	txRelayer, err := txrelayer.NewTxRelayer(
 		txrelayer.WithIPAddress(ec.jsonRPCAddr),
@@ -429,34 +408,18 @@ func (ec *TestEVMChain) deployERC20Token(token EVMTokenInfo) (types.Address, err
 	if err != nil {
 		return types.ZeroAddress, fmt.Errorf("failed to create tx relayer: %w", err)
 	}
-	fmt.Printf("[DEBUG deployERC20] Created tx relayer for RPC: %s\n", ec.jsonRPCAddr)
 
 	tx := types.NewTx(types.NewLegacyTx(
 		types.WithFrom(key.Address()),
 		types.WithInput(deploymentData),
 	))
-	fmt.Printf("[DEBUG deployERC20] Created deployment transaction\n")
 
 	receipt, err := txRelayer.SendTransaction(tx, key)
 	if err != nil {
 		return types.ZeroAddress, fmt.Errorf("failed to send deployment tx: %w", err)
 	}
-	fmt.Printf("[DEBUG deployERC20] Transaction sent, hash: %s\n", receipt.TransactionHash.String())
-	fmt.Printf("[DEBUG deployERC20] Receipt details - Status: %d, GasUsed: %d, BlockNumber: %d, ContractAddress: %s\n",
-		receipt.Status, receipt.GasUsed, receipt.BlockNumber, receipt.ContractAddress.String())
 
 	if receipt.Status != uint64(types.ReceiptSuccess) {
-		fmt.Printf("[DEBUG deployERC20] DEPLOYMENT FAILED - Full receipt: %+v\n", receipt)
-
-		// Try to get more details about the failure
-		if len(receipt.Logs) > 0 {
-			fmt.Printf("[DEBUG deployERC20] Receipt has %d logs\n", len(receipt.Logs))
-			for i, log := range receipt.Logs {
-				fmt.Printf("[DEBUG deployERC20] Log %d: Address=%s, Topics=%v, Data=%x\n",
-					i, log.Address, log.Topics, log.Data)
-			}
-		}
-
 		return types.ZeroAddress, fmt.Errorf("ERC20 deployment failed with status: %d (tx: %s)", receipt.Status, receipt.TransactionHash.String())
 	}
 
@@ -464,7 +427,7 @@ func (ec *TestEVMChain) deployERC20Token(token EVMTokenInfo) (types.Address, err
 		return types.ZeroAddress, fmt.Errorf("no contract address in receipt")
 	}
 
-	fmt.Printf("[DEBUG deployERC20] ✅ Successfully deployed ERC20 at: %s\n", receipt.ContractAddress.String())
+	fmt.Printf("Successfully deployed ERC20 at: %s\n", receipt.ContractAddress.String())
 	return types.StringToAddress(receipt.ContractAddress.String()), nil
 }
 

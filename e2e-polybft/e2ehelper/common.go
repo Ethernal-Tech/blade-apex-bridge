@@ -14,22 +14,19 @@ import (
 
 type IApexSystem interface {
 	SubmitBridgingRequest(
-		ctx context.Context,
-		sourceChain cardanofw.ChainID, destinationChain cardanofw.ChainID,
-		sender *cardanofw.TestApexUser, dfmAmount *big.Int, bridgingType sendtx.BridgingType,
-		receivers ...*cardanofw.TestApexUser,
+		data cardanofw.SubmitBridgingRequestData,
 	) (string, error)
 	WaitForGreaterAmount(
 		ctx context.Context, user *cardanofw.TestApexUser, dstChain cardanofw.ChainID, srcChain cardanofw.ChainID,
-		expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration, isNativeToken ...bool,
+		expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration, currency string,
 	) error
 	WaitForExactAmount(
 		ctx context.Context, user *cardanofw.TestApexUser, dstChain cardanofw.ChainID, srcChain cardanofw.ChainID,
-		expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration, isNativeToken ...bool,
+		expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration, currency string,
 	) error
 	WaitForAmount(
 		ctx context.Context, user *cardanofw.TestApexUser, dstChain cardanofw.ChainID, srcChain cardanofw.ChainID,
-		cmpHandler func(*big.Int) bool, numRetries int, waitTime time.Duration, isNativeToken ...bool,
+		cmpHandler func(*big.Int) bool, numRetries int, waitTime time.Duration, currency string,
 	) (*big.Int, error)
 	SubmitTx(
 		ctx context.Context, sourceChain cardanofw.ChainID, sender *cardanofw.TestApexUser,
@@ -47,7 +44,7 @@ type IApexSystem interface {
 	) (map[string]*big.Int, error)
 	GetTokenNameForChains(dstChain, srcChain cardanofw.ChainID, srcTokenID uint16) string
 	GetTokenIDForChain(sourceChain cardanofw.ChainID, isCurrencyBridging bool) uint16
-	GetBridgingTokensInfo(srcChain, dstChain cardanofw.ChainID, expectNativeTokens bool, coloredCoins ...uint16) *cardanofw.BridgingTokensInfo
+	GetBridgingTokensInfo(srcChain, dstChain cardanofw.ChainID, bridgingType sendtx.BridgingType, coloredCoins ...uint16) *cardanofw.BridgingTokensInfo
 	GetValidator(t *testing.T, idx int) *cardanofw.TestApexValidator
 	GetBridgeNode(t *testing.T, idx int) *framework.TestServer
 	GetChainMust(t *testing.T, chainID cardanofw.ChainID) cardanofw.ITestApexChain

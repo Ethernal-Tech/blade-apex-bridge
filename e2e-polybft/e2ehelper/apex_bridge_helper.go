@@ -23,29 +23,45 @@ func ExecuteSingleBridging(
 	t.Helper()
 
 	config := newExecuteBridgingConfig(options...)
-	expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
+	senderBalance, err := apex.GetBalance(ctx, senderUser, srcChain)
+	require.NoError(t, err)
+	fmt.Printf("Sender balance: %+v\n", senderBalance)
 
 	balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	fmt.Printf("Receiver balance: %+v\n", balance)
 	require.NoError(t, err)
 
-	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, expectNativeTokens, config.coloredCoins...)
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingType, config.coloredCoins...)
 	fmt.Printf("Tokens Info: %+v\n", tokensInfo)
 
 	prevAmount := cardanofw.SetOrDefault(balance[tokensInfo.DstTokenName], big.NewInt(0))
 
 	txHash, err := apex.SubmitBridgingRequest(
-		ctx, srcChain, dstChain, senderUser, sendAmount, bridgingType, receiverUser)
+		cardanofw.SubmitBridgingRequestData{
+			Context:          ctx,
+			SourceChain:      srcChain,
+			DestinationChain: dstChain,
+			Sender:           senderUser,
+			DFMAmount:        sendAmount,
+			BridgingType:     bridgingType,
+			Receivers:        []*cardanofw.TestApexUser{receiverUser},
+			TokensInfo:       tokensInfo,
+		},
+	)
 	require.NoError(t, err)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+	if dstChain == cardanofw.ChainIDNexus {
+		sendAmount = cardanofw.DfmToWei(sendAmount)
+	}
 
 	expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
 
 	fmt.Printf("Expected amount: %+v\n", expectedAmount)
 
 	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, srcChain, expectedAmount,
-		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, expectNativeTokens)
+		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, tokensInfo.DstTokenName)
 
 	require.NoError(t, err)
 }
@@ -81,16 +97,23 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 	config := newExecuteBridgingConfig(options...)
 
 	for i := 0; i < txCountPerSender; i++ {
-		expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
-
 		balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 		require.NoError(t, err)
 
-		tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
-		prevAmount := cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
+		tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingType, config.coloredCoins...)
+		prevAmount := cardanofw.SetOrDefault(balance[tokensInfo.DstTokenName], big.NewInt(0))
 
 		txHash, err := apex.SubmitBridgingRequest(
-			ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, receiverUser)
+			cardanofw.SubmitBridgingRequestData{
+				Context:          ctx,
+				SourceChain:      srcChain,
+				DestinationChain: dstChain,
+				Sender:           receiverUser,
+				DFMAmount:        sendAmount,
+				BridgingType:     bridgingType,
+				Receivers:        []*cardanofw.TestApexUser{receiverUser},
+				TokensInfo:       tokensInfo,
+			})
 		require.NoError(t, err)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -98,7 +121,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 		expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
 
 		err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, srcChain, expectedAmount,
-			config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, expectNativeTokens)
+			config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, tokensInfo.DstTokenName)
 
 		require.NoError(t, err)
 	}
@@ -112,19 +135,26 @@ func ExecuteBridgingWaitAfterSubmits(
 	t.Helper()
 
 	config := newExecuteBridgingConfig(options...)
-	expectNativeTokens := bridgingType == sendtx.BridgingTypeCurrencyOnSource
-
 	balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
 	require.NoError(t, err)
 
-	tokenName := getTokenNameForChains(apex, dstChain, srcChain, expectNativeTokens)
-	prevAmount := cardanofw.SetOrDefault(balance[tokenName], big.NewInt(0))
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingType, config.coloredCoins...)
+	prevAmount := cardanofw.SetOrDefault(balance[tokensInfo.DstTokenName], big.NewInt(0))
 
 	expectedAmount := prevAmount
 
 	for i := 0; i < txCountPerSender; i++ {
 		txHash, err := apex.SubmitBridgingRequest(
-			ctx, srcChain, dstChain, receiverUser, sendAmount, bridgingType, receiverUser)
+			cardanofw.SubmitBridgingRequestData{
+				Context:          ctx,
+				SourceChain:      srcChain,
+				DestinationChain: dstChain,
+				Sender:           receiverUser,
+				DFMAmount:        sendAmount,
+				BridgingType:     bridgingType,
+				Receivers:        []*cardanofw.TestApexUser{receiverUser},
+				TokensInfo:       tokensInfo,
+			})
 		require.NoError(t, err)
 
 		fmt.Printf("Tx[%d] sent. hash: %s\n", i, txHash)
@@ -133,7 +163,7 @@ func ExecuteBridgingWaitAfterSubmits(
 	}
 
 	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, srcChain, expectedAmount,
-		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, expectNativeTokens)
+		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, tokensInfo.DstTokenName)
 
 	require.NoError(t, err)
 }
@@ -293,13 +323,19 @@ func ExecuteBridging(
 					return receivedAmount
 				}
 
+				tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingTypes[NewChainPair(srcChain, dstChain)])
+				if tokensInfo == nil {
+					errs[idx*len(chainPairs)+idxChain] = fmt.Errorf("tokens info not found for %s->%s", srcChain, dstChain)
+					return
+				}
+
 				receivedAmount, err := apex.WaitForAmount(
 					ctx, receiver, dstChain, srcChain, func(currentAmount *big.Int) bool {
 						return currentAmount.Cmp(getDesiredAmount()) == 0
 					},
 					len(receiverUsers)*config.timeoutConfig.bridgingNumRetries,
 					config.timeoutConfig.bridgingRetryWaitTime,
-					expectNativeTokens(bridgingTypes[NewChainPair(srcChain, dstChain)]),
+					tokensInfo.DstTokenName,
 				)
 				if err != nil {
 					errs[idx*len(chainPairs)+idxChain] = fmt.Errorf("receiver %d on %s (%s vs %s): %w",
@@ -315,7 +351,7 @@ func ExecuteBridging(
 					err := apex.WaitForGreaterAmount(
 						ctx, receiver, dstChain, srcChain, receivedAmount,
 						config.timeoutConfig.unexpectedBridgesNumRetries, config.timeoutConfig.unexpectedBridgesRetryWaitTime,
-						expectNativeTokens(bridgingTypes[NewChainPair(srcChain, dstChain)]))
+						tokensInfo.DstTokenName)
 					if !errors.Is(err, infracommon.ErrRetryTimeout) {
 						lock.Lock()
 						errs = append(errs, fmt.Errorf(

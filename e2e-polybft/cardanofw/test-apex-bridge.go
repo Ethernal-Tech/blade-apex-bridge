@@ -116,7 +116,7 @@ func SetupAndRunApexBridge(
 
 	require.NoError(t, apexSystem.DeployMintingContracts(ctx))
 
-	fmt.Printf("Cardano contracts have been deployed\n")
+	fmt.Printf("Minting contracts have been deployed\n")
 
 	require.NoError(t, apexSystem.GenerateConfigs())
 

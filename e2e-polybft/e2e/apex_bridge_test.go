@@ -415,8 +415,11 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, sendtx.BridgingTypeNormal)
+	require.NotNil(t, tokensInfo)
+
 	err = apex.WaitForExactAmount(
-		ctx, apex.Users[0], dstChain, srcChain, expectedAmount, 48, time.Second*10, false)
+		ctx, apex.Users[0], dstChain, srcChain, expectedAmount, 48, time.Second*10, tokensInfo.DstTokenName)
 	require.NoError(t, err)
 }
 
@@ -453,9 +456,16 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 	sendAmount := uint64(1_000_000)
 
 	// Initiate bridging PRIME -> VECTOR
-	txHash, err := apex.SubmitBridgingRequest(ctx,
-		cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-		user, new(big.Int).SetUint64(sendAmount), sendtx.BridgingTypeNormal, user,
+	txHash, err := apex.SubmitBridgingRequest(
+		cardanofw.SubmitBridgingRequestData{
+			Context:          ctx,
+			SourceChain:      cardanofw.ChainIDPrime,
+			DestinationChain: cardanofw.ChainIDVector,
+			Sender:           user,
+			DFMAmount:        new(big.Int).SetUint64(sendAmount),
+			BridgingType:     sendtx.BridgingTypeNormal,
+			Receivers:        []*cardanofw.TestApexUser{user},
+		},
 	)
 	require.NoError(t, err)
 
@@ -520,7 +530,15 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			beforeSendingAmountDfm[i], err = apex.GetBalance(ctx, user, src)
 			require.NoError(t, err)
 
-			txHashes[i], err = apex.SubmitBridgingRequest(ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeNormal, user)
+			txHashes[i], err = apex.SubmitBridgingRequest(cardanofw.SubmitBridgingRequestData{
+				Context:          ctx,
+				SourceChain:      src,
+				DestinationChain: dest,
+				Sender:           sender,
+				DFMAmount:        apexSendAmount,
+				BridgingType:     sendtx.BridgingTypeNormal,
+				Receivers:        []*cardanofw.TestApexUser{user},
+			})
 			require.NoError(t, err)
 
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
@@ -538,9 +556,10 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[idx][infrawallet.AdaTokenName], apexSendAmount)
 
 			fmt.Printf("Tx hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm[idx])
-
-			err := apex.WaitForAmountInRange(ctx, apex.Users[0], br.src, br.dest, lowerBoundaryDfm, beforeSendingAmountDfm[idx][infrawallet.AdaTokenName],
-				60, time.Second*30)
+			tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, sendtx.BridgingTypeNormal)
+			require.NotNil(t, tokensInfo)
+			err := apex.WaitForAmountInRange(ctx, apex.Users[0], br.src, br.dest, lowerBoundaryDfm, beforeSendingAmountDfm[idx][tokensInfo.DstTokenName],
+				60, time.Second*30, tokensInfo.DstTokenName)
 			require.NoError(t, err)
 		}()
 	}
@@ -614,28 +633,45 @@ func TestE2E_FundAmount(t *testing.T) {
 			expectedAmount := new(big.Int).Set(tc.sendAmount)
 			expectedAmount.Add(expectedAmount, prevAmount)
 
-			txHash, err := apex.SubmitBridgingRequest(ctx,
-				tc.fromChain, tc.toChain,
-				user, tc.sendAmount, sendtx.BridgingTypeNormal, user,
+			txHash, err := apex.SubmitBridgingRequest(
+				cardanofw.SubmitBridgingRequestData{
+					Context:          ctx,
+					SourceChain:      tc.fromChain,
+					DestinationChain: tc.toChain,
+					Sender:           user,
+					DFMAmount:        tc.sendAmount,
+					BridgingType:     sendtx.BridgingTypeNormal,
+					Receivers:        []*cardanofw.TestApexUser{user},
+				},
 			)
 			require.NoError(t, err)
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
 
-			err = apex.WaitForExactAmount(ctx, user, tc.toChain, tc.fromChain, expectedAmount, 20, time.Second*10)
+			tokensInfo := apex.GetBridgingTokensInfo(tc.toChain, tc.fromChain, sendtx.BridgingTypeNormal)
+			require.NotNil(t, tokensInfo)
+
+			err = apex.WaitForExactAmount(ctx, user, tc.toChain, tc.fromChain, expectedAmount, 20, time.Second*10, tokensInfo.DstTokenName)
 			require.Error(t, err)
 
 			require.NoError(t, apex.FundChainHotWallet(ctx, tc.toChain, big.NewInt(tc.fundAmount)))
 
-			txHash, err = apex.SubmitBridgingRequest(ctx,
-				tc.fromChain, tc.toChain,
-				user, tc.sendAmount, sendtx.BridgingTypeNormal, user,
+			txHash, err = apex.SubmitBridgingRequest(
+				cardanofw.SubmitBridgingRequestData{
+					Context:          ctx,
+					SourceChain:      tc.fromChain,
+					DestinationChain: tc.toChain,
+					Sender:           user,
+					DFMAmount:        tc.sendAmount,
+					BridgingType:     sendtx.BridgingTypeNormal,
+					Receivers:        []*cardanofw.TestApexUser{user},
+				},
 			)
 			require.NoError(t, err)
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
 
-			err = apex.WaitForExactAmount(ctx, user, tc.toChain, tc.fromChain, expectedAmount, 20, time.Second*10)
+			err = apex.WaitForExactAmount(ctx, user, tc.toChain, tc.fromChain, expectedAmount, 20, time.Second*10, tokensInfo.DstTokenName)
 			require.NoError(t, err)
 		})
 	}
@@ -1318,7 +1354,15 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			go func(src string, dest string, sender *cardanofw.TestApexUser, receiver *cardanofw.TestApexUser, amount *big.Int) {
 				defer wg.Done()
 
-				txHash, err := apex.SubmitBridgingRequest(ctx, src, dest, sender, amount, sendtx.BridgingTypeNormal, receiver)
+				txHash, err := apex.SubmitBridgingRequest(cardanofw.SubmitBridgingRequestData{
+					Context:          ctx,
+					SourceChain:      src,
+					DestinationChain: dest,
+					Sender:           sender,
+					DFMAmount:        amount,
+					BridgingType:     sendtx.BridgingTypeNormal,
+					Receivers:        []*cardanofw.TestApexUser{receiver},
+				})
 				require.NoError(t, err)
 
 				fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHash)
@@ -1707,7 +1751,15 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 					if valid {
 						time.Sleep(time.Second * time.Duration(r.Intn(maxWaitTime)))
 
-						_, err := apex.SubmitBridgingRequest(ctx, src, dest, apex.Users[idx], sendAmount, sendtx.BridgingTypeNormal, user)
+						_, err := apex.SubmitBridgingRequest(cardanofw.SubmitBridgingRequestData{
+							Context:          ctx,
+							SourceChain:      src,
+							DestinationChain: dest,
+							Sender:           apex.Users[idx],
+							DFMAmount:        sendAmount,
+							BridgingType:     sendtx.BridgingTypeNormal,
+							Receivers:        []*cardanofw.TestApexUser{user},
+						})
 						require.NoError(t, err)
 					} else if src != cardanofw.ChainIDNexus {
 						submitInvalidSendAmountTransaction(t, ctx, apex, src, dest, apex.Users[idx], sendAmount, user.GetAddress(dest))
@@ -1734,7 +1786,10 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 				fmt.Printf("Waiting for %+v TXs on %s, prevAmount: %v, expectedAmount: %v\n",
 					succeededCount, dest, prevAmounts[dest], expectedAmounts[dest])
 
-				err := apex.WaitForExactAmount(ctx, user, dest, "", expectedAmounts[dest], numRetries, waitTime)
+				tokensInfo := apex.GetBridgingTokensInfo(dest, "", sendtx.BridgingTypeNormal)
+				require.NotNil(t, tokensInfo)
+
+				err := apex.WaitForExactAmount(ctx, user, dest, "", expectedAmounts[dest], numRetries, waitTime, tokensInfo.DstTokenName)
 				require.NoError(t, err)
 
 				fmt.Printf("TXs on %s confirmed\n", dest)
@@ -1775,8 +1830,10 @@ func waitOnDestination(
 			expectedAmount := new(big.Int).Set(chainExpectedAmounts[chainKey])
 			expectedAmount.Add(expectedAmount, prevAmount)
 
+			tokensInfo := apex.GetBridgingTokensInfo(chainKey.chain, chainKey.destChain, sendtx.BridgingTypeNormal)
+
 			err = apex.WaitForExactAmount(
-				ctx, chainReceivers[chainKey], chainKey.chain, chainKey.destChain, expectedAmount, numRetries, waitTime)
+				ctx, chainReceivers[chainKey], chainKey.chain, chainKey.destChain, expectedAmount, numRetries, waitTime, tokensInfo.DstTokenName)
 
 			mu.Lock()
 			defer mu.Unlock()

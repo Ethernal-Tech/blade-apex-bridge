@@ -73,9 +73,12 @@ func WaitForTestResult(
 		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm,
 			beforeSendingAmountDfm)
 
+		tokensInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, bridgingType)
+		require.NotNil(t, tokensInfo)
+
 		err := apex.WaitForAmountInRange(ctx, user, config.srcChainID, config.dstChainID, lowerBoundaryDfm,
 			beforeSendingAmountDfm[tokeName], numRetries, time.Second*time.Duration(retryIntervalSec),
-			bridgingType == sendtx.BridgingTypeWrappedTokenOnSource)
+			tokensInfo.DstTokenName)
 		require.NoError(t, err)
 	} else {
 		cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)

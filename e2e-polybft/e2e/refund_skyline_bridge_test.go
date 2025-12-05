@@ -439,8 +439,15 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			beforeSendingAmountDfm[idx], err = apex.GetBalance(ctx, user, src)
 			require.NoError(t, err)
 
-			txHashes[i], err = apex.SubmitBridgingRequest(ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeCurrencyOnSource,
-				user)
+			txHashes[i], err = apex.SubmitBridgingRequest(cardanofw.SubmitBridgingRequestData{
+				Context:          ctx,
+				SourceChain:      src,
+				DestinationChain: dest,
+				Sender:           sender,
+				DFMAmount:        apexSendAmount,
+				BridgingType:     sendtx.BridgingTypeCurrencyOnSource,
+				Receivers:        []*cardanofw.TestApexUser{user},
+			})
 			require.NoError(t, err)
 
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
@@ -461,8 +468,10 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 
 			fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm)
 
-			err := apex.WaitForAmountInRange(ctx, user, br.dest, br.src, lowerBoundaryDfm, beforeSendingAmountDfm[idx]["lovelace"],
-				20, time.Second*30)
+			tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, sendtx.BridgingTypeCurrencyOnSource)
+			require.NotNil(t, tokensInfo)
+
+			err := apex.WaitForExactAmount(ctx, user, br.dest, br.src, lowerBoundaryDfm, 20, time.Second*30, tokensInfo.DstTokenName)
 			require.NoError(t, err)
 		}()
 	}
@@ -546,7 +555,15 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 			require.NoError(t, err)
 
 			txHash, err := apex.SubmitBridgingRequest(
-				ctx, src, dest, sender, apexSendAmount, sendtx.BridgingTypeWrappedTokenOnSource, user)
+				cardanofw.SubmitBridgingRequestData{
+					Context:          ctx,
+					SourceChain:      src,
+					DestinationChain: dest,
+					Sender:           sender,
+					DFMAmount:        apexSendAmount,
+					BridgingType:     sendtx.BridgingTypeWrappedTokenOnSource,
+					Receivers:        []*cardanofw.TestApexUser{user},
+				})
 			require.NoError(t, err)
 
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHash)
@@ -568,7 +585,10 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 			tokenBalance := initialBalances[br.src][tokenName]
 			mu.RUnlock()
 
-			err := apex.WaitForExactAmount(ctx, br.sender, br.src, br.dest, tokenBalance, 30, 30*time.Second, true)
+			tokensInfo := apex.GetBridgingTokensInfo(src, dest, sendtx.BridgingTypeWrappedTokenOnSource)
+			require.NotNil(t, tokensInfo)
+
+			err := apex.WaitForExactAmount(ctx, br.sender, br.src, br.dest, tokenBalance, 30, 30*time.Second, tokensInfo.DstTokenName)
 			require.NoError(t, err)
 		}(br.src, br.dest, br.sender)
 	}
@@ -664,7 +684,15 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			txHashes[i], err = apex.SubmitBridgingRequest(ctx, br.src, br.dest, br.sender, sendAmount, br.requestType, user)
+			txHashes[i], err = apex.SubmitBridgingRequest(cardanofw.SubmitBridgingRequestData{
+				Context:          ctx,
+				SourceChain:      br.src,
+				DestinationChain: br.dest,
+				Sender:           br.sender,
+				DFMAmount:        sendAmount,
+				BridgingType:     br.requestType,
+				Receivers:        []*cardanofw.TestApexUser{user},
+			})
 			require.NoError(t, err)
 
 			fmt.Printf("Bridging request: %v to %v sent %v. hash: %s\n", br.src, br.dest, br.requestType, txHashes[i])
@@ -696,9 +724,10 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 
 				// minExpected = initial - (sendAmount + feeAmount)
 				minExpectedAmount := new(big.Int).Sub(initialAmount, userSpending)
-
+				tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, br.requestType)
+				require.NotNil(t, tokensInfo)
 				require.NoError(t,
-					apex.WaitForAmountInRange(ctx, br.sender, br.src, br.dest, minExpectedAmount, initialAmount, 20, 30*time.Second, isNativeToken))
+					apex.WaitForAmountInRange(ctx, br.sender, br.src, br.dest, minExpectedAmount, initialAmount, 20, 30*time.Second, tokensInfo.DstTokenName))
 			} else {
 				state, timeout := "ExecutedOnDestination", uint(60*8)
 
