@@ -48,7 +48,7 @@ func Test_CardanoToNexus(t *testing.T) {
 
 }
 
-func Test_General(t *testing.T) {
+func Test_SkylineBridgeMint_General(t *testing.T) {
 	const apiKey = "test_api_key"
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -86,6 +86,12 @@ func Test_General(t *testing.T) {
 			sendtx.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
 	})
 
+	t.Run("Vector -> Nexus wUSDT -> USTD", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(1),
+			sendtx.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+	})
+
 	t.Run("Cardano -> Nexus - ADA -> xADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, big.NewInt(100_000_000),
@@ -112,6 +118,18 @@ func Test_General(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
 			sendtx.BridgingTypeWrappedTokenOnSource)
+	})
+
+	t.Run("Vector -> Nexus xADA -> xADA", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(1),
+			sendtx.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.XADATokenID}))
+	})
+
+	t.Run("Nexus -> Vector xADA -> xADA", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
+			sendtx.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.XADATokenID}))
 	})
 
 	t.Run("Prime -> Cardano - AP3X -> CAP3X", func(t *testing.T) {
