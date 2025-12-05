@@ -61,10 +61,10 @@ type TestEVMChainConfig struct {
 	ApexConfig             uint8
 	BurnContractInfo       *polybft.BurnContractInfo
 
-	MinBridgingFee         uint64
-	MinBridgingAmount      uint64
-	MinTokenBridgingAmount uint64
-	MinOperationFee        uint64
+	MinBridgingFee         *big.Int
+	MinBridgingAmount      *big.Int
+	MinTokenBridgingAmount *big.Int
+	MinOperationFee        *big.Int
 	CurrencyID             uint16
 
 	AllowedDirections []ChainID
@@ -94,10 +94,10 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 		PremineAmount:          DfmToWei(big.NewInt(int64(1_000_000_000_000_000_000))),
 		FundAmount:             DfmToWei(big.NewInt(int64(defaultFundEthTokenAmount))),
 		FundRelayerAmount:      DfmToWei(big.NewInt(int64(defaultFundRelayerEthTokenAmount))),
-		MinBridgingFee:         DfmToWei(big.NewInt(int64(4))).Uint64(),
-		MinBridgingAmount:      DfmToWei(big.NewInt(int64(1_000_000))).Uint64(),
-		MinTokenBridgingAmount: DfmToWei(big.NewInt(int64(1))).Uint64(),
-		MinOperationFee:        uint64(0),
+		MinBridgingFee:         DfmToWei(new(big.Int).SetUint64(defaultMinBridgingFeeAmount)),
+		MinBridgingAmount:      DfmToWei(new(big.Int).SetUint64(MinUTxODefaultValue)),
+		MinTokenBridgingAmount: DfmToWei(new(big.Int).SetUint64(1)),
+		MinOperationFee:        DfmToWei(new(big.Int).SetUint64(DefaultMinOperationFee)),
 		CurrencyID:             AP3XTokenID,
 
 		LockUnlockTokens: []EVMTokenInfo{
@@ -117,11 +117,13 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 	}
 }
 
-func NewRemoteNexusChainConfig(isEnabled bool, minBridgingFeeAmount uint64) *TestEVMChainConfig {
+func NewRemoteNexusChainConfig(
+	isEnabled bool, minBridgingFeeAmount uint64, minOperationFee uint64) *TestEVMChainConfig {
 	return &TestEVMChainConfig{
-		IsEnabled:      isEnabled,
-		ChainID:        ChainIDNexus,
-		MinBridgingFee: minBridgingFeeAmount,
+		IsEnabled:       isEnabled,
+		ChainID:         ChainIDNexus,
+		MinBridgingFee:  DfmToWei(new(big.Int).SetUint64(minBridgingFeeAmount)),
+		MinOperationFee: DfmToWei(new(big.Int).SetUint64(minOperationFee)),
 	}
 }
 
@@ -589,10 +591,10 @@ func (ec *TestEVMChain) InitContracts(
 		"--bridge-addr", contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
 		"--dir", workingDirectory,
-		"--min-fee", fmt.Sprint(ec.config.MinBridgingFee),
-		"--min-bridging-amount", fmt.Sprint(ec.config.MinBridgingAmount),
-		"--min-token-bridging-amount", fmt.Sprint(ec.config.MinTokenBridgingAmount),
-		"--min-operation-fee", fmt.Sprint(ec.config.MinOperationFee),
+		"--min-fee", ec.config.MinBridgingFee.String(),
+		"--min-bridging-amount", ec.config.MinBridgingAmount.String(),
+		"--min-token-bridging-amount", ec.config.MinTokenBridgingAmount.String(),
+		"--min-operation-fee", ec.config.MinOperationFee.String(),
 		"--currency-token-id", fmt.Sprint(ec.config.CurrencyID),
 		"--clone",
 	}
@@ -654,7 +656,8 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 		"--output-relayer-file-name", RelayerConfigFileName,
 		"--dbs-path", dbsPath,
 		"--relayer-data-dir", validator.server.DataDir(),
-		"--evm-min-fee-for-bridging", fmt.Sprint(ec.config.MinBridgingFee),
+		"--evm-min-fee-for-bridging", WeiToDfm(ec.config.MinBridgingFee).String(),
+		"--min-operation-fee", WeiToDfm(ec.config.MinOperationFee).String(),
 	}
 
 	for _, direction := range ec.config.AllowedDirections {
@@ -793,7 +796,7 @@ func (ec *TestEVMChain) BridgingRequest(
 			"--chain-src", ec.config.ChainID,
 			"--chain-dst", destChainID,
 			"--fee", feeAmount.String(),
-			"--operation-fee", fmt.Sprint(ec.config.MinOperationFee),
+			"--operation-fee", ec.config.MinOperationFee.String(),
 			"--src-token-id", fmt.Sprint(receiverTokenID),
 			"--src-token-contract-addr", ec.config.ConfigurableTokens[receiverTokenID],
 			"--native-token-wallet-contract-addr", ec.nativeTokenWalletAddr.String(),

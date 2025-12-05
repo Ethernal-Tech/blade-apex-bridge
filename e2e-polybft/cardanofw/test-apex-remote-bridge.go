@@ -20,8 +20,9 @@ type RemoteCardanoChainConfig struct {
 }
 
 type RemoteEVMChainConfig struct {
-	Info           EVMChainInfo
-	MinBridgingFee uint64
+	Info            EVMChainInfo
+	MinBridgingFee  uint64
+	MinOperationFee uint64
 }
 
 type RemoteApexBridgeConfig struct {
@@ -309,11 +310,14 @@ func SetupRemoteApexBridge(
 	nexusRemoteConfig := remoteConfig.EVMChains[ChainIDNexus]
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig: NewRemotePrimeChainConfig(
-			primeRemoteConfig.DefaultMinBridgingFee, primeRemoteConfig.MinBridgingFeeForTokens, 0),
+			primeRemoteConfig.DefaultMinBridgingFee,
+			primeRemoteConfig.MinBridgingFeeForTokens, primeRemoteConfig.MinOperationFee),
 		VectorConfig: NewRemoteVectorChainConfig(
-			vectorRemoteConfig.DefaultMinBridgingFee, vectorRemoteConfig.MinBridgingFeeForTokens, 0),
-		NexusConfig: NewRemoteNexusChainConfig(true, nexusRemoteConfig.MinBridgingFee),
-		APIKey:      remoteConfig.BridgingAPIKey,
+			vectorRemoteConfig.DefaultMinBridgingFee,
+			vectorRemoteConfig.MinBridgingFeeForTokens, vectorRemoteConfig.MinOperationFee),
+		NexusConfig: NewRemoteNexusChainConfig(true,
+			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee),
+		APIKey: remoteConfig.BridgingAPIKey,
 	}
 
 	for _, opt := range apexOpts {

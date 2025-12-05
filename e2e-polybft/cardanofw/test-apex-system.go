@@ -634,7 +634,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 
 	if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
 		txSenderChainConfigs[ChainIDNexus] = sendtx.ChainConfig{
-			DefaultMinFeeForBridging: a.Config.NexusConfig.MinBridgingFee,
+			DefaultMinFeeForBridging: WeiToDfm(a.Config.NexusConfig.MinBridgingFee).Uint64(),
 		}
 	}
 
@@ -1919,7 +1919,7 @@ func (a *ApexSystem) SetDependencies(upgradeParams *SetDependenciesSCParams) err
 func (a *ApexSystem) GetMinBridgingFee(chainID ChainID, isNativeTokenBridging bool) uint64 {
 	switch chainID {
 	case ChainIDNexus:
-		return a.Config.NexusConfig.MinBridgingFee
+		return WeiToDfm(a.Config.NexusConfig.MinBridgingFee).Uint64()
 	default:
 		config := a.getCardanoConfig(chainID)
 
