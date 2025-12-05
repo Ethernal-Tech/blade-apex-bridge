@@ -677,7 +677,7 @@ func TestE2E_SkylineBridge_WithVector_InvalidScenarios(t *testing.T) {
 			apex.ResetIndexers()
 		})
 
-		executeInvalidTokenDirection(t, ctx, apex, vectorCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, true, 0)
+		executeInvalidTokenDirection(t, ctx, apex, vectorCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeWrappedTokenOnSource, true, 0)
 	})
 }
 

@@ -208,7 +208,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoPrimeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0, sendtx.BridgingTypeCurrencyOnSource)
+		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoPrimeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0, sendtx.BridgingTypeWrappedTokenOnSource)
 	})
 
 	t.Run("11. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {

@@ -78,7 +78,7 @@ func WaitForTestResult(
 
 		err := apex.WaitForAmountInRange(ctx, user, config.srcChainID, config.dstChainID, lowerBoundaryDfm,
 			beforeSendingAmountDfm[tokeName], numRetries, time.Second*time.Duration(retryIntervalSec),
-			tokensInfo.DstTokenName)
+			tokensInfo.SrcTokenName)
 		require.NoError(t, err)
 	} else {
 		cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)
@@ -412,7 +412,7 @@ func getDefaultSendAmounts(
 
 	tokens := []wallet.TokenAmount(nil)
 
-	if bridgingType == sendtx.BridgingTypeWrappedTokenOnSource {
+	if bridgingType == sendtx.BridgingTypeWrappedTokenOnSource || bridgingType == sendtx.BridgingTypeColoredCoinOnSource {
 		waitForAmount = defaultSendAmount
 		lovelaceAmount = feeAmount + operationFee
 
