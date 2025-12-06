@@ -586,10 +586,7 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 			tokenBalance := initialBalances[br.src][tokenName]
 			mu.RUnlock()
 
-			tokensInfo := apex.GetBridgingTokensInfo(src, dest, sendtx.BridgingTypeWrappedTokenOnSource)
-			require.NotNil(t, tokensInfo)
-
-			err := apex.WaitForExactAmount(ctx, br.sender, br.src, br.dest, tokenBalance, 30, 30*time.Second, tokensInfo.DstTokenName)
+			err := apex.WaitForExactAmount(ctx, br.sender, br.src, br.dest, tokenBalance, 30, 30*time.Second, tokenName)
 			require.NoError(t, err)
 		}(br.src, br.dest, br.sender)
 	}
@@ -725,10 +722,9 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 
 				// minExpected = initial - (sendAmount + feeAmount)
 				minExpectedAmount := new(big.Int).Sub(initialAmount, userSpending)
-				tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, br.requestType)
-				require.NotNil(t, tokensInfo)
+
 				require.NoError(t,
-					apex.WaitForAmountInRange(ctx, br.sender, br.src, br.dest, minExpectedAmount, initialAmount, 20, 30*time.Second, tokensInfo.DstTokenName))
+					apex.WaitForAmountInRange(ctx, br.sender, br.src, br.dest, minExpectedAmount, initialAmount, 20, 30*time.Second, tokenName))
 			} else {
 				state, timeout := "ExecutedOnDestination", uint(60*8)
 
