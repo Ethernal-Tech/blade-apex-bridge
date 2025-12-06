@@ -23,16 +23,19 @@ func ExecuteSingleBridging(
 	t.Helper()
 
 	config := newExecuteBridgingConfig(options...)
-	senderBalance, err := apex.GetBalance(ctx, senderUser, srcChain)
+
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingType, config.coloredCoins...)
+	require.NotNil(t, tokensInfo)
+
+	fmt.Printf("Tokens Info: %+v\n", tokensInfo)
+
+	senderBalance, err := apex.GetBalanceWithTokenName(ctx, senderUser, srcChain, tokensInfo.SrcTokenName)
 	require.NoError(t, err)
 	fmt.Printf("Sender balance: %+v\n", senderBalance)
 
-	balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
+	balance, err := apex.GetBalanceWithTokenName(ctx, receiverUser, dstChain, tokensInfo.DstTokenName)
 	fmt.Printf("Receiver balance: %+v\n", balance)
 	require.NoError(t, err)
-
-	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingType, config.coloredCoins...)
-	fmt.Printf("Tokens Info: %+v\n", tokensInfo)
 
 	prevAmount := cardanofw.SetOrDefault(balance[tokensInfo.DstTokenName], big.NewInt(0))
 
@@ -97,10 +100,12 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 	config := newExecuteBridgingConfig(options...)
 
 	for i := 0; i < txCountPerSender; i++ {
-		balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
+		tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingType, config.coloredCoins...)
+		require.NotNil(t, tokensInfo)
+
+		balance, err := apex.GetBalanceWithTokenName(ctx, receiverUser, dstChain, tokensInfo.DstTokenName)
 		require.NoError(t, err)
 
-		tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingType, config.coloredCoins...)
 		prevAmount := cardanofw.SetOrDefault(balance[tokensInfo.DstTokenName], big.NewInt(0))
 
 		txHash, err := apex.SubmitBridgingRequest(
@@ -135,10 +140,12 @@ func ExecuteBridgingWaitAfterSubmits(
 	t.Helper()
 
 	config := newExecuteBridgingConfig(options...)
-	balance, err := apex.GetBalance(ctx, receiverUser, dstChain)
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingType, config.coloredCoins...)
+	require.NotNil(t, tokensInfo)
+
+	balance, err := apex.GetBalanceWithTokenName(ctx, receiverUser, dstChain, tokensInfo.DstTokenName)
 	require.NoError(t, err)
 
-	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingType, config.coloredCoins...)
 	prevAmount := cardanofw.SetOrDefault(balance[tokensInfo.DstTokenName], big.NewInt(0))
 
 	expectedAmount := prevAmount

@@ -1831,6 +1831,15 @@ func waitOnDestination(
 			expectedAmount.Add(expectedAmount, prevAmount)
 
 			tokensInfo := apex.GetBridgingTokensInfo(chainKey.chain, chainKey.destChain, sendtx.BridgingTypeNormal)
+			if tokensInfo == nil {
+				mu.Lock()
+				defer mu.Unlock()
+
+				errsPerChain[chainKey] = fmt.Errorf("tokens infor not found for %s -> %s, type: %s",
+					chainKey.chain, chainKey.destChain, sendtx.BridgingTypeNormal)
+
+				return
+			}
 
 			err = apex.WaitForExactAmount(
 				ctx, chainReceivers[chainKey], chainKey.chain, chainKey.destChain, expectedAmount, numRetries, waitTime, tokensInfo.DstTokenName)
