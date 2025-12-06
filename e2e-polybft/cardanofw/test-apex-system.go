@@ -1401,6 +1401,11 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		data.TokensInfo = a.GetBridgingTokensInfo(data.SourceChain, data.DestinationChain, data.BridgingType)
 	}
 
+	if data.TokensInfo == nil {
+		return "", fmt.Errorf("failed to find tokenInfo for %s -> %s, type %s",
+			data.SourceChain, data.DestinationChain, data.BridgingType)
+	}
+
 	const (
 		numRetries = 5
 		waitTime   = time.Second * 10

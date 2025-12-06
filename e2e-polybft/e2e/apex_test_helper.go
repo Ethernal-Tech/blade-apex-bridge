@@ -62,23 +62,27 @@ func WaitForTestResult(
 	numRetries := max(1, int(maxWaitTimeSec/retryIntervalSec))
 
 	if refundEnabled {
-		tokeName := wallet.AdaTokenName
+		tokenName := wallet.AdaTokenName
 
 		if bridgingType == sendtx.BridgingTypeWrappedTokenOnSource {
-			tokeName = config.srcTokenName
+			tokenName = config.srcTokenName
 		}
 
-		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[tokeName], new(big.Int).SetUint64(sentAmount))
+		if bridgingType == sendtx.BridgingTypeColoredCoinOnSource {
+			tokensInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, bridgingType)
+			require.NotNil(t, tokensInfo)
+
+			tokenName = tokensInfo.SrcTokenName
+		}
+
+		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[tokenName], new(big.Int).SetUint64(sentAmount))
 
 		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm,
 			beforeSendingAmountDfm)
 
-		tokensInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, bridgingType)
-		require.NotNil(t, tokensInfo)
-
 		err := apex.WaitForAmountInRange(ctx, user, config.srcChainID, config.dstChainID, lowerBoundaryDfm,
-			beforeSendingAmountDfm[tokeName], numRetries, time.Second*time.Duration(retryIntervalSec),
-			tokensInfo.SrcTokenName)
+			beforeSendingAmountDfm[tokenName], numRetries, time.Second*time.Duration(retryIntervalSec),
+			tokenName)
 		require.NoError(t, err)
 	} else {
 		cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)

@@ -224,6 +224,10 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 
 		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
+
+	t.Run("12. vector -> cardano - currency on src", func(t *testing.T) {
+		executeInvalidTokenDirection(t, ctx, apex, vectorTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeCurrencyOnSource, true, 0)
+	})
 }
 
 func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
@@ -419,7 +423,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			sender *cardanofw.TestApexUser
 		}{
 			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[0]},
-			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[0]},
+			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDVector, sender: apex.Users[0]},
 		}
 		txHashes = make([]string, len(bridgingRequests))
 	)
@@ -466,12 +470,9 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 				beforeSendingAmountDfm[idx]["lovelace"],
 				new(big.Int).Add(apexSendAmount, new(big.Int).SetUint64(apex.GetMinBridgingFee(br.src, false))))
 
-			fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm)
+			fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm[idx]["lovelace"])
 
-			tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, sendtx.BridgingTypeCurrencyOnSource)
-			require.NotNil(t, tokensInfo)
-
-			err := apex.WaitForExactAmount(ctx, user, br.dest, br.src, lowerBoundaryDfm, 20, time.Second*30, tokensInfo.DstTokenName)
+			err := apex.WaitForAmountInRange(ctx, user, br.src, br.dest, lowerBoundaryDfm, beforeSendingAmountDfm[idx]["lovelace"], 20, time.Second*30, "lovelace")
 			require.NoError(t, err)
 		}()
 	}

@@ -618,69 +618,6 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 	})
 }
 
-func TestE2E_SkylineBridge_WithVector_InvalidScenarios(t *testing.T) {
-	const (
-		apiKey  = "test_api_key"
-		userCnt = 15
-
-		maxWaitTimeSec = 600
-		retryDelaySec  = 5
-	)
-
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	cardanoConfig, vectorConfig := cardanofw.NewCardanoChainConfig(true), cardanofw.NewVectorChainConfig()
-	cardanoConfig.FundTokenAmount = 1_000_000_000
-	cardanoConfig.UseIndexer = true
-
-	vectorConfig.FundTokenAmount = 1_000_000_000
-	vectorConfig.UseIndexer = true
-
-	apex := cardanofw.SetupAndRunSkylineBridge(
-		t, ctx,
-		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithUserCnt(userCnt),
-		cardanofw.WithVectorConfig(vectorConfig),
-		cardanofw.WithCardanoConfig(cardanoConfig),
-	)
-
-	defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-	user := apex.Users[userCnt-1]
-
-	fmt.Println("cardano user addr: ", user.CardanoAddress)
-	fmt.Println("cardano multisig addr: ", apex.CardanoInfo.MultisigAddr)
-	fmt.Println("cardano fee addr: ", apex.CardanoInfo.FeeAddr)
-	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
-	fmt.Println("vector user addr: ", user.VectorAddress)
-	fmt.Println("vector multisig addr: ", apex.VectorInfo.MultisigAddr)
-	fmt.Println("vector fee addr: ", apex.VectorInfo.FeeAddr)
-	fmt.Printf("vector socket path: %s\n", apex.VectorInfo.SocketPath)
-
-	vectorToken, err := cardanofw.FundUserWithToken(
-		ctx, apex, cardanofw.ChainIDVector,
-		apex.VectorInfo.GenesisWallet, user,
-		cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
-	require.NoError(t, err)
-
-	vectorCardanoTestConfig := newTestConfig(
-		t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, vectorToken.TokenName())
-
-	t.Run("1. vector -> cardano - currency on src", func(t *testing.T) {
-		if cardanofw.ShouldSkipE2RRedundantTests() {
-			t.Skip()
-		}
-
-		t.Cleanup(func() {
-			apex.ResetIndexers()
-		})
-
-		executeInvalidTokenDirection(t, ctx, apex, vectorCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, sendtx.BridgingTypeWrappedTokenOnSource, true, 0)
-	})
-}
-
 func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
