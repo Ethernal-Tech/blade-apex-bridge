@@ -25,6 +25,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type Token struct {
+	ChainSpecific     string `json:"chainSpecific"`
+	LockUnlock        bool   `json:"lockUnlock"`
+	IsWrappedCurrency bool   `json:"isWrappedCurrency"`
+}
+
 type CardanoChainInfo struct {
 	NetworkAddress   string
 	OgmiosURL        string
@@ -37,7 +43,7 @@ type CardanoChainInfo struct {
 	// Bridging directions
 	DestChain map[ChainID][]Direction
 	// Tokens config
-	Tokens map[uint16]sendtx.ApexToken
+	Tokens map[uint16]Token
 
 	GenesisWallet *cardanowallet.Wallet
 }
@@ -55,8 +61,8 @@ type EcosystemToken struct {
 }
 
 type DirectionConfig struct {
-	DestinationChain map[ChainID][]Direction     `json:"destChain"`
-	Tokens           map[uint16]sendtx.ApexToken `json:"tokens"`
+	DestinationChain map[ChainID][]Direction `json:"destChain"`
+	Tokens           map[uint16]Token        `json:"tokens"`
 }
 
 type DirectionConfigFile struct {
@@ -86,7 +92,7 @@ type EVMChainInfo struct {
 	// Bridging directions
 	DestChain map[ChainID][]Direction
 	// Tokens config
-	Tokens map[uint16]sendtx.ApexToken
+	Tokens map[uint16]Token
 }
 
 type ApexSystem struct {
@@ -440,9 +446,10 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			},
 		}
 
-		a.PrimeInfo.Tokens = map[uint16]sendtx.ApexToken{
+		a.PrimeInfo.Tokens = map[uint16]Token{
 			AP3XTokenID: {
-				FullName:          cardanowallet.AdaTokenName,
+				ChainSpecific:     cardanowallet.AdaTokenName,
+				LockUnlock:        true,
 				IsWrappedCurrency: false,
 			},
 		}
@@ -466,13 +473,15 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			},
 		}
 
-		a.CardanoInfo.Tokens = map[uint16]sendtx.ApexToken{
+		a.CardanoInfo.Tokens = map[uint16]Token{
 			ADATokenID: {
-				FullName:          cardanowallet.AdaTokenName,
+				ChainSpecific:     cardanowallet.AdaTokenName,
+				LockUnlock:        true,
 				IsWrappedCurrency: false,
 			},
 			CAP3XTokenID: {
-				FullName:          capexToken.String(),
+				ChainSpecific:     capexToken.String(),
+				LockUnlock:        true,
 				IsWrappedCurrency: true,
 			},
 		}
@@ -488,13 +497,15 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			},
 		}
 
-		a.VectorInfo.Tokens = map[uint16]sendtx.ApexToken{
+		a.VectorInfo.Tokens = map[uint16]Token{
 			XADATokenID: {
-				FullName:          xadaToken.String(),
+				ChainSpecific:     xadaToken.String(),
+				LockUnlock:        true,
 				IsWrappedCurrency: true,
 			},
 			AP3XTokenID: {
-				FullName:          cardanowallet.AdaTokenName,
+				ChainSpecific:     cardanowallet.AdaTokenName,
+				LockUnlock:        true,
 				IsWrappedCurrency: false,
 			},
 		}
@@ -530,17 +541,20 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 				},
 			}
 
-			a.NexusInfo.Tokens = map[uint16]sendtx.ApexToken{
+			a.NexusInfo.Tokens = map[uint16]Token{
 				XADATokenID: {
-					FullName:          "",
+					ChainSpecific:     "",
+					LockUnlock:        false,
 					IsWrappedCurrency: true,
 				},
 				USDTTokenID: {
-					FullName:          "",
+					ChainSpecific:     "",
+					LockUnlock:        true,
 					IsWrappedCurrency: false,
 				},
 				AP3XTokenID: { // currecny token on Nexus - required by validatorcomponents
-					FullName:          cardanowallet.AdaTokenName,
+					ChainSpecific:     cardanowallet.AdaTokenName,
+					LockUnlock:        true,
 					IsWrappedCurrency: false,
 				},
 			}
@@ -556,8 +570,9 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 				},
 			}
 
-			a.VectorInfo.Tokens[USDTTokenID] = sendtx.ApexToken{
-				FullName:          "",
+			a.VectorInfo.Tokens[USDTTokenID] = Token{
+				ChainSpecific:     "",
+				LockUnlock:        false,
 				IsWrappedCurrency: false,
 			}
 
@@ -579,6 +594,14 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 }
 
 func (a *ApexSystem) InitTxSendChainConfiguration() {
+	primeTokens := make(map[uint16]sendtx.ApexToken, len(a.PrimeInfo.Tokens))
+	for tID, t := range a.PrimeInfo.Tokens {
+		primeTokens[tID] = sendtx.ApexToken{
+			FullName:          t.ChainSpecific,
+			IsWrappedCurrency: t.IsWrappedCurrency,
+		}
+	}
+
 	txSenderChainConfigs := map[string]sendtx.ChainConfig{
 		ChainIDPrime: {
 			CardanoCliBinary:         ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
@@ -590,11 +613,19 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinFeeForBridgingTokens:  a.Config.PrimeConfig.MinBridgingFeeForTokens,
 			MinOperationFeeAmount:    a.Config.PrimeConfig.MinOperationFee,
 			PotentialFee:             PotentialFee,
-			Tokens:                   a.PrimeInfo.Tokens,
+			Tokens:                   primeTokens,
 		},
 	}
 
 	if a.Config.VectorConfig != nil && a.Config.VectorConfig.IsEnabled {
+		vectorTokens := make(map[uint16]sendtx.ApexToken, len(a.VectorInfo.Tokens))
+		for tID, t := range a.VectorInfo.Tokens {
+			vectorTokens[tID] = sendtx.ApexToken{
+				FullName:          t.ChainSpecific,
+				IsWrappedCurrency: t.IsWrappedCurrency,
+			}
+		}
+
 		txSenderChainConfigs[ChainIDVector] = sendtx.ChainConfig{
 			CardanoCliBinary:         ResolveCardanoCliBinary(a.Config.VectorConfig.NetworkType),
 			TxProvider:               cardanowallet.NewTxProviderOgmios(a.VectorInfo.OgmiosURL),
@@ -604,11 +635,19 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			DefaultMinFeeForBridging: a.Config.VectorConfig.DefaultMinBridgingFee,
 			MinFeeForBridgingTokens:  a.Config.VectorConfig.MinBridgingFeeForTokens,
 			PotentialFee:             PotentialFee,
-			Tokens:                   a.VectorInfo.Tokens,
+			Tokens:                   vectorTokens,
 		}
 	}
 
 	if a.Config.CardanoConfig != nil && a.Config.CardanoConfig.IsEnabled {
+		cardanoTokens := make(map[uint16]sendtx.ApexToken, len(a.CardanoInfo.Tokens))
+		for tID, t := range a.CardanoInfo.Tokens {
+			cardanoTokens[tID] = sendtx.ApexToken{
+				FullName:          t.ChainSpecific,
+				IsWrappedCurrency: t.IsWrappedCurrency,
+			}
+		}
+
 		txSenderChainConfigs[ChainIDCardano] = sendtx.ChainConfig{
 			CardanoCliBinary:         ResolveCardanoCliBinary(a.Config.CardanoConfig.NetworkType),
 			TxProvider:               cardanowallet.NewTxProviderOgmios(a.CardanoInfo.OgmiosURL),
@@ -618,7 +657,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			DefaultMinFeeForBridging: a.Config.CardanoConfig.DefaultMinBridgingFee,
 			MinFeeForBridgingTokens:  a.Config.CardanoConfig.MinBridgingFeeForTokens,
 			MinOperationFeeAmount:    a.Config.CardanoConfig.MinOperationFee,
-			Tokens:                   a.CardanoInfo.Tokens,
+			Tokens:                   cardanoTokens,
 			PotentialFee:             PotentialFee,
 		}
 	}
@@ -693,13 +732,13 @@ func (a *ApexSystem) DeployMintingContracts(ctx context.Context) error {
 					chainInfo := a.GetCardanoInfo(chain.ChainID())
 					for tokenID, tokenName := range mintableTokens {
 						token := chainInfo.Tokens[tokenID]
-						token.FullName = tokenName
+						token.ChainSpecific = tokenName
 						chainInfo.Tokens[tokenID] = token
 					}
 				case ChainIDNexus:
 					for tokenID, tokenName := range mintableTokens {
 						token := a.NexusInfo.Tokens[tokenID]
-						token.FullName = tokenName
+						token.ChainSpecific = tokenName
 						a.NexusInfo.Tokens[tokenID] = token
 					}
 				default:
@@ -1012,7 +1051,7 @@ func (a *ApexSystem) GetTokenNameForChain(chainID ChainID, tokenID uint16) strin
 	cardanoInfo := a.GetCardanoInfo(chainID)
 	for id, token := range cardanoInfo.Tokens {
 		if id == tokenID {
-			return token.FullName
+			return token.ChainSpecific
 		}
 	}
 
@@ -1026,7 +1065,7 @@ func (a *ApexSystem) GetTokenNameForChains(dstChainID, srcChainID ChainID, srcTo
 
 	for _, direction := range srcInfo.DestChain[dstChainID] {
 		if direction.SourceTokenID == srcTokenID {
-			return dstInfo.Tokens[direction.DestinationTokenID].FullName
+			return dstInfo.Tokens[direction.DestinationTokenID].ChainSpecific
 		}
 	}
 
@@ -1600,7 +1639,7 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 		if isSourceChainCardanoType && isDestinationChainCardanoType {
 			srcChainInfo := a.GetCardanoInfo(srcChain)
 			dstChainInfo := a.GetCardanoInfo(dstChain)
-			srcTokenName := srcChainInfo.Tokens[srcTokenID].FullName
+			srcTokenName := srcChainInfo.Tokens[srcTokenID].ChainSpecific
 
 			for _, direction := range srcChainInfo.DestChain[dstChain] {
 				if direction.SourceTokenID == srcTokenID {
@@ -1608,7 +1647,7 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 						SrcTokenID:   srcTokenID,
 						DstTokenID:   direction.DestinationTokenID,
 						SrcTokenName: srcTokenName,
-						DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].FullName,
+						DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].ChainSpecific,
 					}
 				}
 			}
@@ -1616,7 +1655,7 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 			srcChainInfo := a.GetCardanoInfo(srcChain)
 			dstChainInfo := a.GetNexusInfo(dstChain)
 
-			srcTokenName := srcChainInfo.Tokens[srcTokenID].FullName
+			srcTokenName := srcChainInfo.Tokens[srcTokenID].ChainSpecific
 
 			for _, direction := range srcChainInfo.DestChain[dstChain] {
 				if direction.SourceTokenID == srcTokenID {
@@ -1624,7 +1663,7 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 						SrcTokenID:   srcTokenID,
 						DstTokenID:   direction.DestinationTokenID,
 						SrcTokenName: srcTokenName,
-						DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].FullName,
+						DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].ChainSpecific,
 					}
 				}
 			}
@@ -1632,7 +1671,7 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 			srcChainInfo := a.GetNexusInfo(srcChain)
 			dstChainInfo := a.GetCardanoInfo(dstChain)
 
-			srcTokenName := srcChainInfo.Tokens[srcTokenID].FullName
+			srcTokenName := srcChainInfo.Tokens[srcTokenID].ChainSpecific
 
 			for _, direction := range srcChainInfo.DestChain[dstChain] {
 				if direction.SourceTokenID == srcTokenID {
@@ -1640,7 +1679,7 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 						SrcTokenID:   srcTokenID,
 						DstTokenID:   direction.DestinationTokenID,
 						SrcTokenName: srcTokenName,
-						DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].FullName,
+						DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].ChainSpecific,
 					}
 				}
 			}
@@ -1660,8 +1699,8 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 				return &BridgingTokensInfo{
 					SrcTokenID:   srcTokenID,
 					DstTokenID:   direction.DestinationTokenID,
-					SrcTokenName: srcChainInfo.Tokens[srcTokenID].FullName,
-					DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].FullName,
+					SrcTokenName: srcChainInfo.Tokens[srcTokenID].ChainSpecific,
+					DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].ChainSpecific,
 				}
 			}
 		}
@@ -1676,8 +1715,8 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 				return &BridgingTokensInfo{
 					SrcTokenID:   srcTokenID,
 					DstTokenID:   direction.DestinationTokenID,
-					SrcTokenName: srcChainInfo.Tokens[srcTokenID].FullName,
-					DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].FullName,
+					SrcTokenName: srcChainInfo.Tokens[srcTokenID].ChainSpecific,
+					DstTokenName: dstChainInfo.Tokens[direction.DestinationTokenID].ChainSpecific,
 				}
 			}
 		}
@@ -1692,8 +1731,8 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 				return &BridgingTokensInfo{
 					SrcTokenID:   direction.SourceTokenID,
 					DstTokenID:   dstTokenID,
-					SrcTokenName: srcChainInfo.Tokens[direction.SourceTokenID].FullName,
-					DstTokenName: dstChainInfo.Tokens[dstTokenID].FullName,
+					SrcTokenName: srcChainInfo.Tokens[direction.SourceTokenID].ChainSpecific,
+					DstTokenName: dstChainInfo.Tokens[dstTokenID].ChainSpecific,
 				}
 			}
 		}
