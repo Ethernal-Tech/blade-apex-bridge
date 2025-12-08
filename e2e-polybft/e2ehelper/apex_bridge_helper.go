@@ -11,14 +11,13 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
-	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
 func ExecuteSingleBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, senderUser, receiverUser *cardanofw.TestApexUser,
-	srcChain, dstChain string, sendAmount *big.Int, bridgingType sendtx.BridgingType, options ...ExecuteBridgingOption,
+	srcChain, dstChain string, sendAmount *big.Int, bridgingType cardanofw.BridgingType, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -92,7 +91,7 @@ func IsDiffGreaterThanOne(a, b *big.Int) bool {
 
 func ExecuteBridgingOneByOneWaitOnOtherSide(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
-	receiverUser *cardanofw.TestApexUser, srcChain, dstChain string, sendAmount *big.Int, bridgingType sendtx.BridgingType,
+	receiverUser *cardanofw.TestApexUser, srcChain, dstChain string, sendAmount *big.Int, bridgingType cardanofw.BridgingType,
 	options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
@@ -134,7 +133,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 
 func ExecuteBridgingWaitAfterSubmits(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
-	receiverUser *cardanofw.TestApexUser, srcChain, dstChain string, sendAmount *big.Int, bridgingType sendtx.BridgingType,
+	receiverUser *cardanofw.TestApexUser, srcChain, dstChain string, sendAmount *big.Int, bridgingType cardanofw.BridgingType,
 	options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
@@ -178,7 +177,7 @@ func ExecuteBridgingWaitAfterSubmits(
 func ExecuteBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	senderUsers []*cardanofw.TestApexUser, receiverUsers []*cardanofw.TestApexUser,
-	chains []string, chainsDst map[string][]string, bridgingTypes map[SrcDstChainPair]sendtx.BridgingType,
+	chains []string, chainsDst map[string][]string, bridgingTypes map[SrcDstChainPair]cardanofw.BridgingType,
 	sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
@@ -189,8 +188,8 @@ func ExecuteBridging(
 		chainPairs = getAllChainPairs(chains, chainsDst)
 		// per each receiver -> per each chain -> per each token
 		initialAmountsPerRecv = make([]map[string]map[string]*big.Int, len(receiverUsers))
-		expectNativeTokens    = func(bridgingType sendtx.BridgingType) bool {
-			return bridgingType == sendtx.BridgingTypeCurrencyOnSource
+		expectNativeTokens    = func(bridgingType cardanofw.BridgingType) bool {
+			return bridgingType == cardanofw.BridgingTypeCurrencyOnSource
 		}
 	)
 

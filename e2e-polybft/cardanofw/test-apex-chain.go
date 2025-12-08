@@ -52,7 +52,7 @@ type ITestApexChain interface {
 		receivers map[string]ReceiverAmount,
 		feeAmount *big.Int,
 		operationFee uint64,
-		bridgingTypes ...sendtx.BridgingType,
+		bridgingTypes ...BridgingType,
 	) (string, error)
 	SendTx(
 		ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
@@ -84,7 +84,7 @@ type ITestApexChain interface {
 		indx uint8,
 		expectError bool,
 	) (infrawallet.QueryStakeAddressInfo, error)
-	GetAddressToBridgeTo(ctx context.Context, bridgingType sendtx.BridgingType) (string, error)
+	GetAddressToBridgeTo(ctx context.Context, bridgingType BridgingType) (string, error)
 	GetMintableTokens() map[uint16]string
 	GetCardanoScriptInfo() *CardanoScriptInfo
 	GetRelayerAddress() string
@@ -127,7 +127,7 @@ func (td *TestApexChainDummy) BridgingRequest(
 	receivers map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
-	bridgingTypes ...sendtx.BridgingType,
+	bridgingTypes ...BridgingType,
 ) (string, error) {
 	return "", nil
 }
@@ -237,7 +237,7 @@ func (td *TestApexChainDummy) GetIndexer() e2eindexer.TxsExecutedComponent {
 
 func (td *TestApexChainDummy) GetAddressToBridgeTo(
 	ctx context.Context,
-	bridgingType sendtx.BridgingType,
+	bridgingType BridgingType,
 ) (string, error) {
 	return "", nil
 }

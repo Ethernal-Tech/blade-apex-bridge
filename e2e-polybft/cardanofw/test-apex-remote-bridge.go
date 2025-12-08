@@ -142,8 +142,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 					FeeAddr: "addr_test1xr06xce9aq6atg0hwuucxe7eu5g6nx8mmnvw2d2e848cz4y93epqj6zxan4pykvt4ux34uzwcwnts4akrfrus070ntss82juq8", //nolint:lll
 					Tokens: map[uint16]sendtx.ApexToken{
 						AP3XTokenID: {
-							ChainSpecific:     cardanowallet.AdaTokenName,
-							LockUnlock:        true,
+							FullName:          cardanowallet.AdaTokenName,
 							IsWrappedCurrency: false,
 						},
 					},
@@ -172,9 +171,8 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 					FeeAddr: "addr1x8m2clera4ucuj9hwvmux6k4g9mdplqna0ezg0fkd5u3r3ngx8nt5azu82cqd0plerhpg38a8wg6rwtj5jvz3epyh3sq42gx85",
 					Tokens: map[uint16]sendtx.ApexToken{
 						XADATokenID: {
-							ChainSpecific: cardanowallet.NewToken(
+							FullName: cardanowallet.NewToken(
 								"e243e802ff88962c9084a13de96fa875c8a6bb3ef2d1d29b0a0a7e90", "wADA").String(),
-							LockUnlock:        true,
 							IsWrappedCurrency: true,
 						},
 					},
@@ -201,13 +199,11 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 					FeeAddr:        "addr_test1xz429ta7d8akqvk6rtkavja8kshy4m3dplm2sgx60rp0fk3pmuk902u7lh609tzz54f32s49s5uf6sphu2zer00a2k4qkq40f9",           //nolint:lll
 					Tokens: map[uint16]sendtx.ApexToken{
 						ADATokenID: {
-							ChainSpecific: cardanowallet.AdaTokenName,
-							LockUnlock:    true,
+							FullName: cardanowallet.AdaTokenName,
 						},
 						CAP3XTokenID: {
-							ChainSpecific: cardanowallet.NewToken(
+							FullName: cardanowallet.NewToken(
 								"64c6ea243c3133d44f2022299e74b027f02b1c13397324819e8465c7", "WAPEX").String(),
-							LockUnlock:        true,
 							IsWrappedCurrency: true,
 						},
 					},

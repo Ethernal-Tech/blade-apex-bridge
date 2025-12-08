@@ -8,7 +8,6 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
-	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
@@ -47,7 +46,7 @@ type IApexSystem interface {
 	) (map[string]*big.Int, error)
 	GetTokenNameForChains(dstChain, srcChain cardanofw.ChainID, srcTokenID uint16) string
 	GetTokenIDForChain(sourceChain cardanofw.ChainID, isCurrencyBridging bool) uint16
-	GetBridgingTokensInfo(srcChain, dstChain cardanofw.ChainID, bridgingType sendtx.BridgingType, coloredCoins ...uint16) *cardanofw.BridgingTokensInfo
+	GetBridgingTokensInfo(srcChain, dstChain cardanofw.ChainID, bridgingType cardanofw.BridgingType, coloredCoins ...uint16) *cardanofw.BridgingTokensInfo
 	GetValidator(t *testing.T, idx int) *cardanofw.TestApexValidator
 	GetBridgeNode(t *testing.T, idx int) *framework.TestServer
 	GetChainMust(t *testing.T, chainID cardanofw.ChainID) cardanofw.ITestApexChain

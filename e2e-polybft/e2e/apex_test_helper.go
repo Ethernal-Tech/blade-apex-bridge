@@ -53,7 +53,7 @@ func newTestConfig(
 // Util methods
 func WaitForTestResult(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	txHash string, beforeSendingAmountDfm map[string]*big.Int, sentAmount uint64, bridgingType sendtx.BridgingType,
+	txHash string, beforeSendingAmountDfm map[string]*big.Int, sentAmount uint64, bridgingType cardanofw.BridgingType,
 	refundEnabled bool, maxWaitTimeSec, retryIntervalSec uint,
 ) {
 	t.Helper()
@@ -64,11 +64,11 @@ func WaitForTestResult(
 	if refundEnabled {
 		tokenName := wallet.AdaTokenName
 
-		if bridgingType == sendtx.BridgingTypeWrappedTokenOnSource {
+		if bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource {
 			tokenName = config.srcTokenName
 		}
 
-		if bridgingType == sendtx.BridgingTypeColoredCoinOnSource {
+		if bridgingType == cardanofw.BridgingTypeColoredCoinOnSource {
 			tokensInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, bridgingType)
 			require.NotNil(t, tokensInfo)
 
@@ -92,7 +92,7 @@ func WaitForTestResult(
 // Test methods
 func executeInvalidMismatchSendLovelaceAmount(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool, addrIndex uint8,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType cardanofw.BridgingType, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -101,7 +101,7 @@ func executeInvalidMismatchSendLovelaceAmount(
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource),
 		operationFee,
 		user, receivers, bridgingType)
 
@@ -122,7 +122,7 @@ func executeInvalidMismatchSendLovelaceAmount(
 
 func executeInvalidMismatchSendAmountMultipleInstances(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool, addrIndex uint8,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType cardanofw.BridgingType, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -134,7 +134,7 @@ func executeInvalidMismatchSendAmountMultipleInstances(
 		operationFee := apex.GetMinOperationFee(config.srcChainID)
 
 		metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-			apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
+			apex.GetMinBridgingFee(config.srcChainID, bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource),
 			operationFee,
 			apex.Users[i], receivers, bridgingType)
 
@@ -156,7 +156,7 @@ func executeInvalidMismatchSendAmountMultipleInstances(
 
 func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType cardanofw.BridgingType, refundEnabled bool,
 	addrIndex uint8,
 ) {
 	t.Helper()
@@ -176,7 +176,7 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 			operationFee := apex.GetMinOperationFee(config.srcChainID)
 
 			metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-				apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
+				apex.GetMinBridgingFee(config.srcChainID, bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource),
 				operationFee,
 				apex.Users[i], receivers, bridgingType)
 
@@ -201,7 +201,7 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 
 func executeInvalidMetadataType(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool, addrIndex uint8,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType cardanofw.BridgingType, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -210,7 +210,7 @@ func executeInvalidMetadataType(
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource),
 		operationFee,
 		user, receivers, bridgingType)
 	metadata = bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
@@ -238,19 +238,19 @@ func executeInvalidMetadataType(
 
 func executeInvalidDestination(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType cardanofw.BridgingType, refundEnabled bool,
 	addrIndex uint8,
 ) {
 	t.Helper()
 
-	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == cardanofw.BridgingTypeCurrencyOnSource)
 
 	receivers := createReceivers(apex, 0, config.srcChainID, config.dstChainID, defaultSendAmount, bridgingType)
 	receiversForFeeCalculation := []sendtx.BridgingTxReceiver{
 		{
-			Addr:   user.GetAddress(config.dstChainID),
-			Amount: defaultSendAmount,
-			Token:  tokenID,
+			Addr:    user.GetAddress(config.dstChainID),
+			Amount:  defaultSendAmount,
+			TokenID: tokenID,
 		},
 	}
 
@@ -260,7 +260,7 @@ func executeInvalidDestination(
 
 	feeAmount, err := srcTestChain.GetBridgingFee(
 		ctx, config.dstChainID, receiversForFeeCalculation,
-		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource),
 		operationFee,
 		config.srcMultiSigAddr)
 	require.NoError(t, err)
@@ -290,7 +290,7 @@ func executeInvalidDestination(
 
 func executeInvalidMetadataInvalidSender(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec uint, bridgingType sendtx.BridgingType, addrIndex uint8,
+	maxWaitTimeSec uint, bridgingType cardanofw.BridgingType, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -302,7 +302,7 @@ func executeInvalidMetadataInvalidSender(
 
 	feeAmount, err := srcTestChain.GetBridgingFee(
 		ctx, config.dstChainID, receivers,
-		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource),
 		operationFee,
 		config.srcMultiSigAddr)
 	require.NoError(t, err)
@@ -328,19 +328,19 @@ func executeInvalidMetadataInvalidSender(
 
 func executeInvalidEmptyReceivers(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool, addrIndex uint8,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType cardanofw.BridgingType, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
 	receivers := []sendtx.BridgingTxReceiver{}
 
-	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == cardanofw.BridgingTypeCurrencyOnSource)
 
 	receiversForFeeCalculation := []sendtx.BridgingTxReceiver{
 		{
-			Addr:   user.GetAddress(config.dstChainID),
-			Amount: defaultSendAmount,
-			Token:  tokenID,
+			Addr:    user.GetAddress(config.dstChainID),
+			Amount:  defaultSendAmount,
+			TokenID: tokenID,
 		},
 	}
 
@@ -350,7 +350,7 @@ func executeInvalidEmptyReceivers(
 
 	feeAmount, err := srcTestChain.GetBridgingFee(
 		ctx, config.dstChainID, receiversForFeeCalculation,
-		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource),
 		operationFee,
 		config.srcMultiSigAddr)
 	require.NoError(t, err)
@@ -377,7 +377,7 @@ func executeInvalidEmptyReceivers(
 
 func executeInvalidTokenDirection(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType sendtx.BridgingType, refundEnabled bool, addrIndex uint8,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType cardanofw.BridgingType, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -386,7 +386,7 @@ func executeInvalidTokenDirection(
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-		apex.GetMinBridgingFee(config.srcChainID, bridgingType == sendtx.BridgingTypeWrappedTokenOnSource),
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource),
 		operationFee,
 		user, receivers, bridgingType)
 
@@ -407,7 +407,7 @@ func executeInvalidTokenDirection(
 
 func getDefaultSendAmounts(
 	t *testing.T, config *testConfig,
-	feeAmount uint64, operationFee uint64, bridgingType sendtx.BridgingType,
+	feeAmount uint64, operationFee uint64, bridgingType cardanofw.BridgingType,
 ) (*big.Int, []wallet.TokenAmount, uint64) {
 	t.Helper()
 
@@ -416,7 +416,7 @@ func getDefaultSendAmounts(
 
 	tokens := []wallet.TokenAmount(nil)
 
-	if bridgingType == sendtx.BridgingTypeWrappedTokenOnSource || bridgingType == sendtx.BridgingTypeColoredCoinOnSource {
+	if bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource || bridgingType == cardanofw.BridgingTypeColoredCoinOnSource {
 		waitForAmount = defaultSendAmount
 		lovelaceAmount = feeAmount + operationFee
 
@@ -436,7 +436,7 @@ func createMetadata(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
 	srcChain, dstChain cardanofw.ChainID, bridgingFee, operationFee uint64,
 	sender *cardanofw.TestApexUser, receivers []sendtx.BridgingTxReceiver,
-	bridgingType sendtx.BridgingType,
+	bridgingType cardanofw.BridgingType,
 ) ([]byte, uint64) {
 	t.Helper()
 
@@ -455,17 +455,17 @@ func createMetadata(
 }
 
 func createReceivers(
-	apex *cardanofw.ApexSystem, receiversCount int, srcChain string, dstChain string, sendAmount uint64, bridgingType sendtx.BridgingType,
+	apex *cardanofw.ApexSystem, receiversCount int, srcChain string, dstChain string, sendAmount uint64, bridgingType cardanofw.BridgingType,
 ) []sendtx.BridgingTxReceiver {
 	receivers := make([]sendtx.BridgingTxReceiver, receiversCount)
 
-	tokenID := apex.GetTokenIDForChain(srcChain, bridgingType == sendtx.BridgingTypeCurrencyOnSource)
+	tokenID := apex.GetTokenIDForChain(srcChain, bridgingType == cardanofw.BridgingTypeCurrencyOnSource)
 
 	for i := range receivers {
 		receivers[i] = sendtx.BridgingTxReceiver{
-			Addr:   apex.Users[len(apex.Users)-1-i].GetAddress(dstChain),
-			Amount: sendAmount,
-			Token:  tokenID,
+			Addr:    apex.Users[len(apex.Users)-1-i].GetAddress(dstChain),
+			Amount:  sendAmount,
+			TokenID: tokenID,
 		}
 	}
 

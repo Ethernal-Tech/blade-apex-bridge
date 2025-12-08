@@ -50,7 +50,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 	user := apex.Users[0]
 
 	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, "")
-	bridgingType := sendtx.BridgingTypeNormal
+	bridgingType := cardanofw.BridgingTypeNormal
 
 	t.Run("1. Mismatch submitted and receiver amounts", func(t *testing.T) {
 		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
@@ -78,21 +78,21 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 		primeTestChain := apex.GetChainMust(t, cardanofw.ChainIDPrime)
 
-		tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendtx.BridgingTypeNormal)
+		tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.BridgingTypeNormal)
 		require.NotNil(t, tokensInfo)
 
 		metadata, err := primeTestChain.CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
-					Addr:   user.GetAddress(cardanofw.ChainIDVector),
-					Amount: sendAmount,
-					Token:  tokensInfo.SrcTokenID,
+					Addr:    user.GetAddress(cardanofw.ChainIDVector),
+					Amount:  sendAmount,
+					TokenID: tokensInfo.SrcTokenID,
 				},
 			}, feeAmount, operationFee)
 		require.NoError(t, err)
 
-		multisigAddr, err := primeTestChain.GetAddressToBridgeTo(ctx, sendtx.BridgingTypeNormal)
+		multisigAddr, err := primeTestChain.GetAddressToBridgeTo(ctx, cardanofw.BridgingTypeNormal)
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(
@@ -153,21 +153,21 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 		primeTestChain := apex.GetChainMust(t, cardanofw.ChainIDPrime)
 
-		tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendtx.BridgingTypeNormal)
+		tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.BridgingTypeNormal)
 		require.NotNil(t, tokensInfo)
 
 		metadata, err := primeTestChain.CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
-					Addr:   user.GetAddress(cardanofw.ChainIDVector),
-					Amount: sendAmount - feeAmount,
-					Token:  tokensInfo.SrcTokenID,
+					Addr:    user.GetAddress(cardanofw.ChainIDVector),
+					Amount:  sendAmount - feeAmount,
+					TokenID: tokensInfo.SrcTokenID,
 				},
 			}, feeAmount, operationFee)
 		require.NoError(t, err)
 
-		multisigAddr, err := primeTestChain.GetAddressToBridgeTo(ctx, sendtx.BridgingTypeNormal)
+		multisigAddr, err := primeTestChain.GetAddressToBridgeTo(ctx, cardanofw.BridgingTypeNormal)
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, multisigAddr,
@@ -228,7 +228,7 @@ func TestE2E_ApexRefund_BatchRecreated(t *testing.T) {
 		DestinationChain: cardanofw.ChainIDVector,
 		Sender:           brSubmitterUser,
 		DFMAmount:        new(big.Int).SetUint64(sendAmount),
-		BridgingType:     sendtx.BridgingTypeNormal,
+		BridgingType:     cardanofw.BridgingTypeNormal,
 		Receivers:        []*cardanofw.TestApexUser{brSubmitterUser},
 	})
 	require.NoError(t, err)
@@ -237,7 +237,7 @@ func TestE2E_ApexRefund_BatchRecreated(t *testing.T) {
 
 	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 
-	tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendtx.BridgingTypeNormal)
+	tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.BridgingTypeNormal)
 	require.NotNil(t, tokensInfo)
 
 	err = apex.WaitForAmountInRange(ctx, brSubmitterUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, lowerBoundaryDfm,
@@ -294,7 +294,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
 		DestinationChain: cardanofw.ChainIDVector,
 		Sender:           user,
 		DFMAmount:        new(big.Int).SetUint64(sendAmount),
-		BridgingType:     sendtx.BridgingTypeNormal,
+		BridgingType:     cardanofw.BridgingTypeNormal,
 		Receivers:        []*cardanofw.TestApexUser{user},
 	})
 	require.NoError(t, err)
@@ -303,7 +303,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
 
 	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 
-	tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendtx.BridgingTypeNormal)
+	tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.BridgingTypeNormal)
 	require.NotNil(t, tokensInfo)
 
 	e2ehelper.ExecuteBridging(
@@ -312,8 +312,8 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
 		map[string][]string{
 			cardanofw.ChainIDPrime: {cardanofw.ChainIDVector},
 		},
-		map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
-			e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): sendtx.BridgingTypeNormal,
+		map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
+			e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): cardanofw.BridgingTypeNormal,
 		},
 		new(big.Int).SetUint64(sendAmount2))
 
@@ -363,7 +363,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxBatchTryCount(t *testing.T) {
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 	require.NoError(t, err)
 
-	tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendtx.BridgingTypeNormal)
+	tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.BridgingTypeNormal)
 	require.NotNil(t, tokensInfo)
 
 	txHash, err := apex.SubmitBridgingRequest(cardanofw.SubmitBridgingRequestData{
@@ -372,7 +372,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxBatchTryCount(t *testing.T) {
 		DestinationChain: cardanofw.ChainIDVector,
 		Sender:           user,
 		DFMAmount:        new(big.Int).SetUint64(sendAmount),
-		BridgingType:     sendtx.BridgingTypeNormal,
+		BridgingType:     cardanofw.BridgingTypeNormal,
 		Receivers:        []*cardanofw.TestApexUser{user},
 	})
 	require.NoError(t, err)
@@ -430,7 +430,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxRefundTryCount(t *testing.T) {
 		DestinationChain: cardanofw.ChainIDVector,
 		Sender:           user,
 		DFMAmount:        new(big.Int).SetUint64(sendAmount),
-		BridgingType:     sendtx.BridgingTypeNormal,
+		BridgingType:     cardanofw.BridgingTypeNormal,
 		Receivers:        []*cardanofw.TestApexUser{user},
 	})
 	require.NoError(t, err)
@@ -544,9 +544,9 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 				cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector},
 				cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
 			},
-			map[e2ehelper.SrcDstChainPair]sendtx.BridgingType{
-				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): sendtx.BridgingTypeNormal,
-				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDPrime): sendtx.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
+				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): cardanofw.BridgingTypeNormal,
+				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDPrime): cardanofw.BridgingTypeNormal,
 			},
 			new(big.Int).SetUint64(sendAmount))
 	}()
@@ -573,7 +573,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 				DestinationChain: cardanofw.ChainIDVector,
 				Sender:           usr,
 				DFMAmount:        new(big.Int).SetUint64(hugeSendAmount),
-				BridgingType:     sendtx.BridgingTypeNormal,
+				BridgingType:     cardanofw.BridgingTypeNormal,
 				Receivers:        []*cardanofw.TestApexUser{userReceiver},
 			})
 			require.NoError(t, err)
@@ -629,7 +629,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 			// expectedAmount = initial + (parallelInstances * sequentialInstances * sendAmount)
 			expectedAmount := new(big.Int).Add(userInitialAmounts[key], new(big.Int).SetUint64(parallelInstances*sequentialInstances*sendAmount))
 
-			tokensInfo := apex.GetBridgingTokensInfo(chain.src, chain.dst, sendtx.BridgingTypeNormal)
+			tokensInfo := apex.GetBridgingTokensInfo(chain.src, chain.dst, cardanofw.BridgingTypeNormal)
 			require.NotNil(t, tokensInfo)
 
 			err := apex.WaitForExactAmount(ctx, userReceiver, chain.src, chain.dst, expectedAmount, 50, 200, tokensInfo.DstTokenName)
@@ -712,7 +712,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		fmt.Printf("\nWaiting for sender %d to receive his refunds...\n\tMin expected amount: %d", i, minExpectedAmount)
 		fmt.Printf("\n\tMax expected amount: %d\n", maxExpectedAmount)
 
-		tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendtx.BridgingTypeNormal)
+		tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.BridgingTypeNormal)
 		require.NotNil(t, tokensInfo)
 
 		err = apex.WaitForAmountInRange(ctx, usr, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, minExpectedAmount,
@@ -737,7 +737,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		// expectedAmount = initial + (defundCount * fundDefundAmount * 1_000_000)
 		expectedAmount := new(big.Int).Add(userInitialAmounts[key], new(big.Int).Mul(new(big.Int).SetUint64(defundCount), cardanofw.ApexToDfm(fundDefundAmount)))
 
-		tokensInfo := apex.GetBridgingTokensInfo(chain.src, chain.dst, sendtx.BridgingTypeNormal)
+		tokensInfo := apex.GetBridgingTokensInfo(chain.src, chain.dst, cardanofw.BridgingTypeNormal)
 		require.NotNil(t, tokensInfo)
 
 		err = apex.WaitForExactAmount(ctx, defundUser, chain.src, chain.dst, expectedAmount, 50, 200, tokensInfo.DstTokenName)

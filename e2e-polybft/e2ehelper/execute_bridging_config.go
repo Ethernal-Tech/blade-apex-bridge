@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
-	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +17,7 @@ type SubmittedTxData struct {
 	SrcChainID, DstChainID cardanofw.ChainID
 	TxHash                 string
 	SendAmountDfm          *big.Int
-	BridgingTxType         sendtx.BridgingType
+	BridgingTxType         cardanofw.BridgingType
 }
 
 type TimeoutConfig struct {
@@ -89,7 +88,7 @@ type RestartValidatorsConfig struct {
 type SendTxStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-	bridgingTypes map[SrcDstChainPair]sendtx.BridgingType) []*SubmittedTxData
+	bridgingTypes map[SrcDstChainPair]cardanofw.BridgingType) []*SubmittedTxData
 
 type RestartValidatorStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig)
@@ -161,7 +160,7 @@ var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-		bridgingTypes map[SrcDstChainPair]sendtx.BridgingType) []*SubmittedTxData {
+		bridgingTypes map[SrcDstChainPair]cardanofw.BridgingType) []*SubmittedTxData {
 		t.Helper()
 
 		var (

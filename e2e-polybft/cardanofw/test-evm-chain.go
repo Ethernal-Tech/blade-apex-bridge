@@ -774,11 +774,11 @@ func (ec *TestEVMChain) BridgingRequest(
 	receivers map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
-	bridgingTypes ...sendtx.BridgingType,
+	bridgingTypes ...BridgingType,
 ) (string, error) {
 	var params []string
 
-	if bridgingTypes[0] == sendtx.BridgingTypeColoredCoinOnSource {
+	if bridgingTypes[0] == BridgingTypeColoredCoinOnSource {
 		receiverTokenID := uint16(0)
 		for _, receiver := range receivers {
 			receiverTokenID = receiver.TokenID
@@ -907,6 +907,6 @@ func (ec *TestEVMChain) sendTx(
 	return receipt, nil
 }
 
-func (ec *TestEVMChain) GetAddressToBridgeTo(ctx context.Context, bridgingType sendtx.BridgingType) (string, error) {
+func (ec *TestEVMChain) GetAddressToBridgeTo(ctx context.Context, bridgingType BridgingType) (string, error) {
 	return ec.gatewayAddr.String(), nil
 }
