@@ -702,6 +702,10 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 	user := apex.Users[0]
 
+	t.Run("Submitted invalid metadata - wrong label", func(t *testing.T) {
+		executeInvalidMetadataWrongLabel(t, ctx, apex, user)
+	})
+
 	t.Run("Submitted invalid metadata - sliced off", func(t *testing.T) {
 		PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, user)
 	})
