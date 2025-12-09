@@ -718,7 +718,7 @@ func (a *ApexSystem) RegisterChains() error {
 
 func (a *ApexSystem) DeployMintingContracts(ctx context.Context) error {
 	if a.IsSkyline {
-		return a.execForEachChain(func(chain ITestApexChain) error {
+		err := a.execForEachChain(func(chain ITestApexChain) error {
 			err := chain.DeployMintingContract(ctx)
 			if err != nil {
 				return err
@@ -748,6 +748,13 @@ func (a *ApexSystem) DeployMintingContracts(ctx context.Context) error {
 
 			return nil
 		})
+		if err != nil {
+			return err
+		}
+
+		a.InitTxSendChainConfiguration()
+
+		return nil
 	}
 
 	return nil
@@ -1048,11 +1055,12 @@ func (a *ApexSystem) GetBalanceWithTokenName(ctx context.Context, user *TestApex
 }
 
 func (a *ApexSystem) GetTokenNameForChain(chainID ChainID, tokenID uint16) string {
-	cardanoInfo := a.GetCardanoInfo(chainID)
-	for id, token := range cardanoInfo.Tokens {
-		if id == tokenID {
-			return token.ChainSpecific
-		}
+	switch chainID {
+	case ChainIDCardano, ChainIDPrime, ChainIDVector:
+		cardanoInfo := a.GetCardanoInfo(chainID)
+		return cardanoInfo.Tokens[tokenID].ChainSpecific
+	case ChainIDNexus:
+		return a.NexusInfo.Tokens[tokenID].ChainSpecific
 	}
 
 	return ""
@@ -1628,7 +1636,7 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 
 	if bridgingType == BridgingTypeColoredCoinOnSource {
 		if len(coloredCoins) == 0 {
-			fmt.Printf("Colored coins are not provided for currency on source bridging\n")
+			fmt.Printf("Colored coins are not provided for colored coins bridging\n")
 
 			return nil
 		}

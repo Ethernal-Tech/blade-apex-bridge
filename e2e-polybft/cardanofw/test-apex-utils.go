@@ -77,6 +77,8 @@ func (bt BridgingType) String() string {
 		return "Bridging Wrapped Token on Source"
 	case BridgingTypeCurrencyOnSource:
 		return "Bridging Currency on Source"
+	case BridgingTypeColoredCoinOnSource:
+		return "Bridging Colored Coin on Source"
 	default:
 		return "Unknown Bridging Type"
 	}
