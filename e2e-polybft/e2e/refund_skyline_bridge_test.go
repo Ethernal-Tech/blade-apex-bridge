@@ -229,6 +229,81 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	})
 }
 
+func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 10
+
+		maxWaitTimeSec = 600
+		retryDelaySec  = 5
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{cardanofw.USDTTokenID: cardanofw.USDTTokenName})
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+	vectorConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+
+	tokens := fundTestUsersWithToken(
+		t, ctx, apex, []*testConfig{
+			{
+				srcChainID:      cardanofw.ChainIDVector,
+				srcMinterWallet: apex.VectorInfo.GenesisWallet,
+			},
+			{
+				srcChainID:      cardanofw.ChainIDCardano,
+				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
+			},
+		}, apex.Users[:userCnt], uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
+	vectorToken, cardanoToken := tokens[0], tokens[1]
+
+	cardanoNexusTestConfig := newTestConfig(
+		t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDNexus, cardanoToken.TokenName())
+	vectorTestConfig := newTestConfig(
+		t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDNexus, vectorToken.TokenName())
+
+	fmt.Printf("User: %+v\n", user.GetAddress(cardanofw.ChainIDNexus))
+
+	t.Run("1. Cardano -> Nexus - Mismatch submitted and receiver amounts", func(t *testing.T) {
+		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, cardanoNexusTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+	})
+
+	t.Run("2. Vector -> Nexus - Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
+		user, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
+		require.NoError(t, err)
+
+		tokensFunded, err := cardanofw.FundUserWithToken(
+			ctx, apex, cardanofw.ChainIDVector,
+			apex.VectorInfo.GenesisWallet, user,
+			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
+			uint64(10_000_000), uint64(1_123_000))
+		require.NoError(t, err)
+
+		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
+	})
+
+	t.Run("3. Cardano -> Nexus - Invalid destination - native token on source", func(t *testing.T) {
+		executeInvalidTokenDirection(t, ctx, apex, cardanoNexusTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+	})
+}
+
 func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"

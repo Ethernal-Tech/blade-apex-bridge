@@ -705,6 +705,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		executeInvalidTokenDirection(t, ctx, apex, vectorTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, false, 0)
 	})
 
+	//nolint:dupl
 	t.Run("5.Submitted invalid metadata - currency under min - token on source", func(t *testing.T) {
 		sendAmount := uint64(1_000_000)
 
@@ -1294,7 +1295,6 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		)
 
 		for _, br := range bridgingRequests {
-
 			tokenID := apex.GetTokenIDForChain(br.src, br.requestType == cardanofw.BridgingTypeCurrencyOnSource)
 			tokenName := apex.GetTokenNameForChains(br.dest, br.src, tokenID)
 
