@@ -88,7 +88,7 @@ type RestartValidatorsConfig struct {
 type SendTxStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-	bridgingTypes map[SrcDstChainPair]cardanofw.BridgingType) []*SubmittedTxData
+	bridgingTypes map[SrcDstChainPair]cardanofw.BridgingType, coloredCoins ...uint16) []*SubmittedTxData
 
 type RestartValidatorStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig)
@@ -160,7 +160,7 @@ var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-		bridgingTypes map[SrcDstChainPair]cardanofw.BridgingType) []*SubmittedTxData {
+		bridgingTypes map[SrcDstChainPair]cardanofw.BridgingType, coloredCoins ...uint16) []*SubmittedTxData {
 		t.Helper()
 
 		var (
@@ -178,7 +178,9 @@ var (
 
 					for j := 0; j < txCountPerSender; j++ {
 						for _, dstChain := range dstChains {
-							tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingTypes[NewChainPair(srcChain, dstChain)])
+							tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingTypes[NewChainPair(srcChain, dstChain)], coloredCoins...)
+							require.NotNil(t, tokensInfo)
+
 							txHash, err := apex.SubmitBridgingRequest(
 								cardanofw.SubmitBridgingRequestData{
 									Context:          ctx,

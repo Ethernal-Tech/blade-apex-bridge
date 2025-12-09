@@ -92,3 +92,13 @@ func getAllChainPairs(chains []string, chainsDst map[string][]string) (res []Src
 
 	return res
 }
+
+// For ExecuteBridgingExtended
+// It allows specifying multiple bridging directions between the same src / dst chains by
+// including the bridging type and token ID as part of the configuration.
+type BridgingDirectionConfig struct {
+	SrcChain     string
+	DstChain     string
+	BridgingType cardanofw.BridgingType
+	TokenID      uint16
+}

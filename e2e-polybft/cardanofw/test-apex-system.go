@@ -1066,6 +1066,10 @@ func (a *ApexSystem) GetTokenNameForChain(chainID ChainID, tokenID uint16) strin
 	return ""
 }
 
+func (a *ApexSystem) GetHumanReadableTokenNameForChain(tokenID uint16) string {
+	return a.EcosystemTokens[tokenID]
+}
+
 // Returns token name for the given dest chain
 func (a *ApexSystem) GetTokenNameForChains(dstChainID, srcChainID ChainID, srcTokenID uint16) string {
 	srcInfo := a.GetCardanoInfo(srcChainID)
