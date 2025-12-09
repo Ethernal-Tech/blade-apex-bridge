@@ -161,7 +161,7 @@ func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSm
 		contractsDir: dir,
 		contractName: "ClaimsProcessor",
 		dependencies: []string{contracts.Bridge.String(), contracts.ApexBridgeAdmin.String(),
-			contracts.Bridge.String(), chainTokensContractAddr, contracts.Claims.String(),
+			bridgingAddressesContractAddr, chainTokensContractAddr, contracts.Claims.String(),
 			contracts.ClaimsHelper.String(), registrationAddress, contracts.Validators.String()},
 		proxyAddress: claimsProcessorAddress,
 	}))
