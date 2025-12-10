@@ -83,11 +83,12 @@ func (ci *CardanoChainInfo) GetTxProvider() (cardanowallet.ITxProvider, error) {
 }
 
 type EVMChainInfo struct {
-	GatewayAddress types.Address
-	RelayerAddress types.Address
-	JSONRPCAddr    string
-	AdminKey       *crypto.ECDSAKey
-	FundBlockNum   uint64
+	GatewayAddress           types.Address
+	NativeTokenWalletAddress types.Address
+	RelayerAddress           types.Address
+	JSONRPCAddr              string
+	AdminKey                 *crypto.ECDSAKey
+	FundBlockNum             uint64
 
 	// Bridging directions
 	DestChain map[ChainID][]Direction
