@@ -42,6 +42,37 @@ func Test_CardanoToNexus(t *testing.T) {
 
 	fmt.Printf("User: %+v\n", user.GetAddress(cardanofw.ChainIDNexus))
 
+	t.Run("Test SendTx with erc20 tokens on Nexus", func(t *testing.T) {
+		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(2), cardanofw.USDTTokenID)
+		require.NoError(t, err)
+
+		receiver := apex.Users[1]
+
+		balance, err := nexusChain.GetAddressBalance(ctx, receiver.GetAddress(cardanofw.ChainIDNexus))
+		require.NoError(t, err)
+		fmt.Printf("Receiver token balance before: %+v\n", balance)
+		usdtTokenBalance, err := apex.GetBalanceWithTokenName(ctx, receiver, cardanofw.ChainIDNexus, apex.NexusInfo.Tokens[cardanofw.USDTTokenID].ChainSpecific)
+		require.NoError(t, err)
+		fmt.Printf("Receiver USDT token balance before: %+v\n", usdtTokenBalance)
+
+		_, err = apex.SubmitTx(
+			ctx, cardanofw.ChainIDNexus, user,
+			receiver.GetAddress(cardanofw.ChainIDNexus), big.NewInt(1_000_000),
+			[]wallet.TokenAmount{
+				{Token: wallet.Token{PolicyID: apex.NexusInfo.Tokens[cardanofw.USDTTokenID].ChainSpecific}, Amount: 2},
+			},
+			[]byte{})
+		require.NoError(t, err)
+
+		balance, err = nexusChain.GetAddressBalance(ctx, receiver.GetAddress(cardanofw.ChainIDNexus))
+		require.NoError(t, err)
+		fmt.Printf("Receiver token balance after: %+v\n", balance)
+		usdtTokenBalance, err = apex.GetBalanceWithTokenName(ctx, receiver, cardanofw.ChainIDNexus, apex.NexusInfo.Tokens[cardanofw.USDTTokenID].ChainSpecific)
+		require.NoError(t, err)
+		fmt.Printf("Receiver USDT token balance after: %+v\n", usdtTokenBalance)
+	})
+
 	t.Run("Cardano -> Nexus - ADA -> xADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, big.NewInt(100_000_000),
@@ -458,17 +489,6 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 		for idx, br := range bridgingRequests {
 			fmt.Printf("4.%d %s -> %s - %s\n", idx+1, br.src, br.dest, br.requestType)
 
-			//if br.requestType != cardanofw.BridgingTypeCurrencyOnSource {
-			//	fundTestUsersWithTokenID(
-			//		t, ctx, apex, []*testConfig{
-			//			{
-			//				srcChainID:      br.src,
-			//				srcMinterWallet: br.srcMinterWallet,
-			//			},
-			//		}, apex.Users[:instances],
-			//		uint64(100_000_000), sendAmount, br.tokenID)
-			//}
-
 			e2ehelper.ExecuteBridging(
 				t, ctx, apex, 1, apex.Users[:instances], []*cardanofw.TestApexUser{user},
 				[]string{br.src},
@@ -497,17 +517,6 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 		for idx, br := range bridgingRequests {
 			fmt.Printf("5.%d %s -> %s - %s\n", idx+1, br.src, br.dest, br.requestType)
 
-			//if br.requestType != cardanofw.BridgingTypeCurrencyOnSource {
-			//	fundTestUsersWithTokenID(
-			//		t, ctx, apex, []*testConfig{
-			//			{
-			//				srcChainID:      br.src,
-			//				srcMinterWallet: br.srcMinterWallet,
-			//			},
-			//		}, apex.Users[:parallelInstances],
-			//		uint64(100_000_000), sendAmount*sequentialInstances, br.tokenID)
-			//}
-
 			e2ehelper.ExecuteBridging(
 				t, ctx, apex, sequentialInstances,
 				apex.Users[:sequentialInstances],
@@ -534,19 +543,6 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 			instances  = 5
 		)
 
-		//for _, br := range bridgingRequests {
-		//	if br.requestType != cardanofw.BridgingTypeCurrencyOnSource {
-		//		fundTestUsersWithTokenID(
-		//			t, ctx, apex, []*testConfig{
-		//				{
-		//					srcChainID:      br.src,
-		//					srcMinterWallet: br.srcMinterWallet,
-		//				},
-		//			}, apex.Users[:instances],
-		//			uint64(100_000_000), sendAmount, br.tokenID)
-		//	}
-		//}
-
 		e2ehelper.ExecuteBridgingExtended(
 			t, ctx, apex, 1,
 			apex.Users[:instances],
@@ -566,24 +562,6 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 			instances  = 5
 		)
 
-		//for _, br := range bridgingRequests {
-		//	if br.requestType != cardanofw.BridgingTypeCurrencyOnSource {
-		//		multiplier := uint64(1)
-		//		if br.src == cardanofw.ChainIDNexus {
-		//			multiplier = instances
-		//		}
-		//
-		//		fundTestUsersWithTokenID(
-		//			t, ctx, apex, []*testConfig{
-		//				{
-		//					srcChainID:      br.src,
-		//					srcMinterWallet: br.srcMinterWallet,
-		//				},
-		//			}, apex.Users[:instances],
-		//			uint64(100_000_000), sendAmount*multiplier, br.tokenID)
-		//	}
-		//}
-
 		e2ehelper.ExecuteBridgingExtended(
 			t, ctx, apex, instances,
 			apex.Users[:instances],
@@ -592,50 +570,4 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 			new(big.Int).SetUint64(sendAmount),
 		)
 	})
-}
-
-func fundTestUsersWithTokenID(
-	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	testConfig []*testConfig, testApexUser []*cardanofw.TestApexUser,
-	currenctAmnt, tokenAmnt uint64, tokenID uint16) {
-
-	fmt.Printf("Funding test users on chain: %v with token ID: %d\n", testConfig, tokenID)
-
-	for _, cfg := range testConfig {
-		if cfg.srcChainID == cardanofw.ChainIDVector && tokenID == cardanofw.USDTTokenID {
-			fmt.Printf("Skipping funding test users on chain: %v with token ID: %d\n", cfg, tokenID)
-			continue
-		}
-
-		if cfg.srcChainID == cardanofw.ChainIDNexus && tokenID == cardanofw.XADATokenID {
-			fmt.Printf("Skipping funding test users on chain: %v with token ID: %d\n", cfg, tokenID)
-			continue
-		}
-
-		fmt.Printf("Funding test users on chain: %v with token ID: %d\n", cfg, tokenID)
-
-		if cfg.srcChainID == cardanofw.ChainIDNexus {
-			nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-
-			for _, user := range testApexUser {
-				err := nexusChain.FundUsersWithToken(
-					user.GetAddress(cardanofw.ChainIDNexus),
-					big.NewInt(0).SetUint64(tokenAmnt),
-					tokenID,
-				)
-				require.NoError(t, err)
-			}
-		} else {
-			cardanoChain := apex.GetChainMust(t, testConfig[0].srcChainID).(*cardanofw.TestCardanoChain)
-			tokenName := apex.GetHumanReadableTokenNameForChain(tokenID)
-			err := cardanofw.MintToken(
-				cardanoChain, cfg.srcMinterWallet, tokenName, tokenAmnt)
-			require.NoError(t, err)
-
-			_, err = cardanofw.FundUsersWithToken(
-				ctx, cardanoChain, cfg.srcMinterWallet,
-				testApexUser, tokenName, currenctAmnt, tokenAmnt)
-			require.NoError(t, err)
-		}
-	}
 }

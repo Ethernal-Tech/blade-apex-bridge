@@ -183,7 +183,6 @@ func ExecuteBridging(
 	t.Helper()
 
 	var (
-		err        error
 		config     = newExecuteBridgingConfig(options...)
 		chainPairs = getAllChainPairs(chains, chainsDst)
 		// per each receiver -> per each chain -> per each token
@@ -193,22 +192,22 @@ func ExecuteBridging(
 	// calculate receivers initial balances
 	for i, receiverUser := range receiverUsers {
 		initialAmountsPerRecv[i] = map[string]map[string]*big.Int{}
-		balancePerChain := map[string]map[string]*big.Int{}
 
 		for _, pair := range chainPairs {
 			tokensInfo := apex.GetBridgingTokensInfo(pair.srcChain, pair.dstChain, bridgingTypes[pair], config.coloredCoins...)
 			require.NotNil(t, tokensInfo)
 
-			balance, exists := balancePerChain[pair.dstChain]
-			if !exists {
-				balance, err = apex.GetBalanceWithTokenName(ctx, receiverUser, pair.dstChain, tokensInfo.DstTokenName)
-				require.NoError(t, err)
+			balance, err := apex.GetBalanceWithTokenName(ctx, receiverUser, pair.dstChain, tokensInfo.DstTokenName)
+			require.NoError(t, err)
 
-				balancePerChain[pair.dstChain] = balance
+			if _, exists := initialAmountsPerRecv[i][pair.dstChain]; !exists {
 				initialAmountsPerRecv[i][pair.dstChain] = map[string]*big.Int{}
 			}
 
-			initialAmountsPerRecv[i][pair.dstChain][tokensInfo.DstTokenName] = cardanofw.SetOrDefault(balance[tokensInfo.DstTokenName], big.NewInt(0))
+			initialAmountsPerRecv[i][pair.dstChain][tokensInfo.DstTokenName] = cardanofw.SetOrDefault(
+				balance[tokensInfo.DstTokenName],
+				big.NewInt(0),
+			)
 		}
 	}
 
@@ -400,7 +399,6 @@ func ExecuteBridgingExtended(
 	}
 
 	var (
-		err    error
 		config = newExecuteBridgingConfig(options...)
 		// per each receiver -> per each chain -> per each token
 		initialAmountsPerRecv = make([]map[string]map[string]*big.Int, len(receiverUsers))
@@ -455,17 +453,14 @@ func ExecuteBridgingExtended(
 	// calculate receivers initial balances
 	for i, receiverUser := range receiverUsers {
 		initialAmountsPerRecv[i] = map[string]map[string]*big.Int{}
-		balancePerChain := map[string]map[string]*big.Int{}
 
 		for _, dr := range dirsRuntime {
 			dstChain := dr.DstChain
 
-			balance, exists := balancePerChain[dstChain]
-			if !exists {
-				balance, err = apex.GetBalanceWithTokenName(ctx, receiverUser, dstChain, dr.TokensInfo.DstTokenName)
-				require.NoError(t, err)
+			balance, err := apex.GetBalanceWithTokenName(ctx, receiverUser, dstChain, dr.TokensInfo.DstTokenName)
+			require.NoError(t, err)
 
-				balancePerChain[dstChain] = balance
+			if _, exists := initialAmountsPerRecv[i][dstChain]; !exists {
 				initialAmountsPerRecv[i][dstChain] = map[string]*big.Int{}
 			}
 
