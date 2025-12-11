@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -36,6 +37,9 @@ const (
 	defaultMinBridgingFeeAmount = uint64(1_000_010)
 
 	DefaultRequestStateTimeoutSec = 300
+
+	PotentialFee     = 500_000
+	ttlSlotNumberInc = 500
 
 	DefaultTokenName       = "test1"
 	DefaultTokenMintAmount = uint64(1_000_000_000)
@@ -581,4 +585,23 @@ func isExitCode(err error, code int) bool {
 	}
 
 	return false
+}
+
+func GetGenesisWalletFromCluster(
+	dirPath string,
+	keyID uint,
+) (*wallet.Wallet, error) {
+	keyFileName := strings.Join([]string{"utxo", fmt.Sprint(keyID)}, "")
+
+	sKey, err := wallet.NewKey(filepath.Join(dirPath, "utxo-keys", fmt.Sprintf("%s.skey", keyFileName)))
+	if err != nil {
+		return nil, err
+	}
+
+	sKeyBytes, err := sKey.GetKeyBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	return wallet.NewWallet(sKeyBytes, nil), nil
 }
