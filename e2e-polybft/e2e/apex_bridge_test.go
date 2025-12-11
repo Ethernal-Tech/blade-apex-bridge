@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -715,6 +716,30 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 	user := apex.Users[0]
 
+	t.Run("Submitted invalid metadata - wrong label", func(t *testing.T) {
+		sendAmount := uint64(1_000_000)
+		feeAmount := uint64(1_100_000)
+
+		metadata := map[string]interface{}{
+			"0": map[string]interface{}{"whatever": "2"},
+		}
+
+		bridgingRequestMetadata, err := json.Marshal(metadata)
+		require.NoError(t, err)
+
+		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr,
+			new(big.Int).SetUint64(sendAmount+feeAmount), nil, bridgingRequestMetadata)
+		require.NoError(t, err)
+
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+		_, err = cardanofw.WaitForRequestStates(
+			ctx, apex, cardanofw.ChainIDPrime, txHash,
+			apex.Config.APIKey, nil, cardanofw.DefaultRequestStateTimeoutSec)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "timeout")
+	})
+
 	t.Run("Submitted invalid metadata - sliced off", func(t *testing.T) {
 		PrimeToVectorInvalidMetadataSlicedOff(t, ctx, apex, user)
 	})
@@ -1407,6 +1432,66 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		}
 
 		fundWallets(t, ctx, apex, chains, big.NewInt(100))
+
+		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10)
+		for chainKey, err := range errsPerChain {
+			require.NoError(t, err)
+			fmt.Printf("%v TXs on %v confirmed\n", chainExpectedAmounts[chainKey], chainKey)
+		}
+	})
+
+	t.Run("Fund_Parallel_Send_BRs_Then_Full_Fund_Two_Times_Same_Tx", func(t *testing.T) {
+		ctx, cncl := context.WithCancel(context.Background())
+		defer cncl()
+
+		primeConfig, vectorConfig, nexusConfig := cardanofw.NewPrimeChainConfig(),
+			cardanofw.NewVectorChainConfig(true), cardanofw.NewNexusChainConfig(true)
+		primeConfig.FundAmount = 0
+		vectorConfig.FundAmount = 0
+		nexusConfig.FundAmount = big.NewInt(0)
+
+		apex := cardanofw.SetupAndRunApexBridge(
+			t, ctx,
+			cardanofw.WithAPIKey(apiKey),
+			cardanofw.WithUserCnt(userCnt),
+			cardanofw.WithPrimeConfig(primeConfig),
+			cardanofw.WithVectorConfig(vectorConfig),
+			cardanofw.WithNexusConfig(nexusConfig),
+		)
+
+		defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+		var (
+			bridgingRequests = []*bridingRequest{
+				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDVector, sender: apex.Users[0], amount: big.NewInt(65), receiverIdx: 0},
+			}
+
+			receivers = map[uint]*cardanofw.TestApexUser{
+				0: apex.Users[userCnt-1],
+			}
+		)
+
+		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ := createBridgingData(ctx, apex, bridgingRequests, receivers, nil, nil)
+
+		bridgeTransactions(ctx, apex, bridgingRequests, receivers)
+
+		fmt.Printf("Confirming that bridging requests will not be processed\n")
+
+		errsPerChain := waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10)
+		for chainKey, err := range errsPerChain {
+			require.Error(t, err)
+			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
+		}
+
+		fundWallets(t, ctx, apex, chains, big.NewInt(50))
+
+		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 30, time.Second*10)
+		for chainKey, err := range errsPerChain {
+			require.Error(t, err)
+			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
+		}
+
+		fundWallets(t, ctx, apex, chains, big.NewInt(50))
 
 		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10)
 		for chainKey, err := range errsPerChain {
