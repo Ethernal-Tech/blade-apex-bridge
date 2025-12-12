@@ -408,8 +408,6 @@ func SetupRemoteApexBridge(
 		opt(apexConfig)
 	}
 
-	initAllowedDirections(apexConfig, false)
-
 	primeChain := &TestCardanoChain{
 		config:           apexConfig.PrimeConfig,
 		multisigAddr:     primeRemoteConfig.Info.MultisigAddr,
@@ -495,8 +493,6 @@ func SetupSkylineRemoteBridge(
 	for _, opt := range apexOpts {
 		opt(apexConfig)
 	}
-
-	initAllowedDirections(apexConfig, true)
 
 	primeChain := &TestCardanoChain{
 		config:           apexConfig.PrimeConfig,

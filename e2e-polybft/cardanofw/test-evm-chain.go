@@ -67,8 +67,6 @@ type TestEVMChainConfig struct {
 	MinOperationFee        *big.Int
 	CurrencyID             uint16
 
-	AllowedDirections []ChainID
-
 	// Tokens that should be locked/unlocked on this chain
 	LockUnlockTokens []EVMTokenInfo
 
@@ -658,10 +656,6 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 		"--relayer-data-dir", validator.server.DataDir(),
 		"--evm-min-fee-for-bridging", WeiToDfm(ec.config.MinBridgingFee).String(),
 		"--min-operation-fee", WeiToDfm(ec.config.MinOperationFee).String(),
-	}
-
-	for _, direction := range ec.config.AllowedDirections {
-		args = append(args, "--allowed-directions", direction)
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)

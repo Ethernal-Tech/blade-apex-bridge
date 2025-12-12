@@ -64,7 +64,6 @@ type TestCardanoChainConfig struct {
 	BridgeAddrHasStake          bool
 	BridgingAddressCnt          int
 	UseIndexer                  bool
-	AllowedDirections           []ChainID
 
 	// Minting
 	FundRelayerAmount          uint64
@@ -682,10 +681,6 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 	if relayerAddr != "" {
 		args = append(args, "--relayer-address", relayerAddr)
 		args = append(args, "--relayer-data-dir", validator.GetRelayerDataDir())
-	}
-
-	for _, direction := range ec.config.AllowedDirections {
-		args = append(args, "--allowed-directions", direction)
 	}
 
 	if ec.config.TTLInc > 0 {
