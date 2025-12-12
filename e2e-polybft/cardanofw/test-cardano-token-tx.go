@@ -2,10 +2,11 @@ package cardanofw
 
 import (
 	"context"
-	"errors"
+	"encoding/hex"
 	"fmt"
+	"math/big"
+	"os"
 
-	"github.com/Ethernal-Tech/cardano-infrastructure/common"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
@@ -14,427 +15,116 @@ const (
 	defaultTokenMintAmount = uint64(1_000_000_000)
 )
 
-func FundUserWithToken(ctx context.Context, chain ChainID,
-	networkType cardanowallet.CardanoNetworkType, networkMagic uint, txProvider cardanowallet.ITxProvider,
-	minterUser *TestApexUser, userToFund *TestApexUser, lovelaceFundAmount uint64, tokenFundAmount uint64,
+func FundUserWithToken(
+	ctx context.Context, apex *ApexSystem, chainID ChainID,
+	minterWallet *cardanowallet.Wallet, userToFund *TestApexUser,
+	tokenName string, mintAmount uint64,
+	lovelaceFundAmount uint64, tokenFundAmount uint64,
 ) (*cardanowallet.TokenAmount, error) {
-	minterWallet, _ := minterUser.GetCardanoWallet(chain)
-
-	keyHash, err := cardanowallet.GetKeyHash(minterWallet.VerificationKey)
+	chain, err := apex.getChain(chainID)
 	if err != nil {
 		return nil, err
 	}
 
-	policyScript := &cardanowallet.PolicyScript{
-		Type:    cardanowallet.PolicyScriptSigType,
-		KeyHash: keyHash,
+	cardanoChain, ok := chain.(*TestCardanoChain)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast the chain to cardano chain")
 	}
 
-	cardanoCliBinary := cardanowallet.ResolveCardanoCliBinary(networkType)
-
-	pid, err := cardanowallet.NewCliUtils(cardanoCliBinary).GetPolicyID(policyScript)
-	if err != nil {
-		return nil, err
-	}
-
-	mintToken := cardanowallet.NewTokenAmount(pid, defaultTokenName, defaultTokenMintAmount)
-
-	txHash, err := MintTokens(
-		ctx, networkType, networkMagic, txProvider, minterWallet, lovelaceFundAmount,
-		[]cardanowallet.TokenAmount{mintToken}, []cardanowallet.IPolicyScript{policyScript},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Printf("Done minting tokens. txHash: %s\n", txHash)
-
-	userToFundAddr := userToFund.GetAddress(chain)
-	fundToken := cardanowallet.NewTokenAmount(pid, defaultTokenName, tokenFundAmount)
-
-	txHash, err = SendTxWithTokens(
-		ctx, networkType, networkMagic, txProvider, minterWallet, userToFundAddr, lovelaceFundAmount,
-		[]cardanowallet.TokenAmount{fundToken}, nil,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Printf("Funded user %s with lovelace + native token %s. txHash: %s\n",
-		userToFundAddr, fundToken.TokenName(), txHash)
-
-	return &fundToken, nil
+	return FundAddressWithToken(
+		ctx, cardanoChain, minterWallet, userToFund.GetAddress(chain.ChainID()),
+		tokenName, mintAmount, lovelaceFundAmount, tokenFundAmount)
 }
 
-func SendTxWithTokens(
-	ctx context.Context,
-	networkType cardanowallet.CardanoNetworkType,
-	networkMagic uint,
-	txProvider cardanowallet.ITxProvider,
-	senderWallet *cardanowallet.Wallet,
-	receiverAddr string,
-	lovelaceAmount uint64,
-	tokens []cardanowallet.TokenAmount,
-	metadata []byte,
-) (string, error) {
-	if len(tokens) == 0 {
-		return "", errors.New("no tokens")
+func FundAddressWithToken(
+	ctx context.Context, chain *TestCardanoChain,
+	minterWallet *cardanowallet.Wallet, addrToFund string,
+	tokenName string, mintAmount uint64,
+	lovelaceFundAmount uint64, tokenFundAmount uint64,
+) (*cardanowallet.TokenAmount, error) {
+	if lovelaceFundAmount == 0 {
+		return nil, fmt.Errorf("lovelace amount must be greater than zero")
 	}
 
-	txRaw, txHash, err := createNativeTokenTx(
-		ctx, networkType, networkMagic, txProvider, senderWallet, receiverAddr, lovelaceAmount, tokens, metadata)
-	if err != nil {
-		return "", err
-	}
-
-	err = submitTokenTx(ctx, txProvider, txRaw, txHash, receiverAddr)
-	if err != nil {
-		return "", err
-	}
-
-	return txHash, nil
-}
-
-func MintTokens(
-	ctx context.Context,
-	networkType cardanowallet.CardanoNetworkType,
-	networkMagic uint,
-	txProvider cardanowallet.ITxProvider,
-	wallet *cardanowallet.Wallet,
-	lovelaceAmount uint64,
-	tokens []cardanowallet.TokenAmount,
-	tokenPolicyScripts []cardanowallet.IPolicyScript,
-) (string, error) {
-	if len(tokens) == 0 || len(tokenPolicyScripts) == 0 {
-		return "", errors.New("no tokens or policy scripts")
-	}
-
-	walletAddr, err := GetAddress(networkType, wallet)
-	if err != nil {
-		return "", err
-	}
-
-	txRaw, txHash, err := createMintTx(
-		ctx, networkType, networkMagic, txProvider, wallet, lovelaceAmount,
-		tokens, tokenPolicyScripts,
-	)
-	if err != nil {
-		return "", err
-	}
-
-	err = submitTokenTx(ctx, txProvider, txRaw, txHash, walletAddr.String())
-	if err != nil {
-		return "", err
-	}
-
-	return txHash, nil
-}
-
-func createNativeTokenTx(
-	ctx context.Context,
-	networkType cardanowallet.CardanoNetworkType,
-	networkMagic uint,
-	txProvider cardanowallet.ITxProvider,
-	senderWallet *cardanowallet.Wallet,
-	receiverAddr string,
-	lovelaceAmount uint64,
-	tokens []cardanowallet.TokenAmount,
-	metadata []byte,
-) ([]byte, string, error) {
-	senderWalletAddr, err := GetAddress(networkType, senderWallet)
-	if err != nil {
-		return nil, "", err
-	}
-
-	senderAddr := senderWalletAddr.String()
-
-	builder, err := cardanowallet.NewTxBuilder(ResolveCardanoCliBinary(networkType))
-	if err != nil {
-		return nil, "", err
-	}
-
-	defer builder.Dispose()
-
-	builder.SetTestNetMagic(networkMagic)
-
-	if err := builder.SetProtocolParametersAndTTL(ctx, txProvider, 0); err != nil {
-		return nil, "", err
-	}
-
-	if len(metadata) != 0 {
-		builder.SetMetaData(metadata)
-	}
-
-	allUtxos, err := common.ExecuteWithRetry(
-		ctx, func(ctx context.Context) ([]cardanowallet.Utxo, error) {
-			return txProvider.GetUtxos(ctx, senderAddr)
-		},
-	)
-	if err != nil {
-		return nil, "", err
-	}
-
-	minUtxoLovelace, err := cardanowallet.GetTokenCostSum(builder, senderWalletAddr.String(), allUtxos)
-	if err != nil {
-		return nil, "", err
-	}
-
-	receiverOutput := cardanowallet.TxOutput{
-		Addr:   receiverAddr,
-		Amount: lovelaceAmount,
-		Tokens: tokens,
-	}
-	desiredLovelaceAmount := PotentialFee + lovelaceAmount + max(minUtxoLovelace, MinUTxODefaultValue)
-
-	// This is a hacky way to get inputs for both lovelace and tokens
-	// will do it this way, until skyline is merged to main
-	// after that, this can be removed
-	inputs, err := getInputs(allUtxos, desiredLovelaceAmount, tokens)
-	if err != nil {
-		return nil, "", err
-	}
-
-	senderTokens, err := cardanowallet.GetTokensFromSumMap(inputs.Sum)
-	if err != nil {
-		return nil, "", err
-	}
-
-	builder.AddInputs(inputs.Inputs...)
-	builder.AddOutputs(receiverOutput, cardanowallet.TxOutput{
-		Addr:   senderAddr,
-		Amount: inputs.Sum[cardanowallet.AdaTokenName] - lovelaceAmount,
-		Tokens: senderTokens,
-	})
-
-	fee, err := builder.CalculateFee(1)
-	if err != nil {
-		return nil, "", err
-	}
-
-	outputsSumMap := cardanowallet.GetOutputsSum([]cardanowallet.TxOutput{receiverOutput})
-	outputsSumMap[cardanowallet.AdaTokenName] += fee
-
-	changeTxOutput, err := cardanowallet.CreateTxOutputChange(cardanowallet.TxOutput{
-		Addr: senderAddr,
-	}, inputs.Sum, outputsSumMap)
-	if err != nil {
-		return nil, "", err
-	}
-
-	if changeTxOutput.Amount > 0 || len(changeTxOutput.Tokens) > 0 {
-		builder.ReplaceOutput(-1, changeTxOutput)
-	} else {
-		builder.RemoveOutput(-1)
-	}
-
-	builder.SetFee(fee)
-
-	txRaw, txHash, err := builder.Build()
-	if err != nil {
-		return nil, "", err
-	}
-
-	txSigned, err := builder.SignTx(txRaw, []cardanowallet.ITxSigner{senderWallet})
-	if err != nil {
-		return nil, "", err
-	}
-
-	return txSigned, txHash, nil
-}
-
-func getInputs(
-	allUtxos []cardanowallet.Utxo,
-	desiredLovelaceAmount uint64,
-	tokens []cardanowallet.TokenAmount,
-) (*cardanowallet.TxInputs, error) {
-	inputsMap := make(map[string]cardanowallet.TxInput)
-
-	inputsLovelace, err := cardanowallet.GetUTXOsForAmount(
-		allUtxos, cardanowallet.AdaTokenName, desiredLovelaceAmount, maxInputs)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, input := range inputsLovelace.Inputs {
-		inputsMap[input.String()] = input
-	}
-
-	for _, token := range tokens {
-		inputsToken, err := cardanowallet.GetUTXOsForAmount(
-			allUtxos, token.TokenName(), token.Amount, maxInputs)
-		if err != nil {
+	if mintAmount > 0 {
+		if err := MintToken(chain, minterWallet, tokenName, mintAmount); err != nil {
 			return nil, err
 		}
-
-		for _, input := range inputsToken.Inputs {
-			inputsMap[input.String()] = input
-		}
 	}
 
-	utxoMap := make(map[string]cardanowallet.Utxo, len(allUtxos))
-	for _, utxo := range allUtxos {
-		utxoMap[fmt.Sprintf("%s#%d", utxo.Hash, utxo.Index)] = utxo
+	token, _, err := GetTokenAndPolicyForVerificationKey(
+		chain.ChainID(), chain.config.NetworkType, minterWallet.VerificationKey, tokenName)
+	if err != nil {
+		return nil, err
 	}
 
-	inputs := cardanowallet.TxInputs{
-		Inputs: make([]cardanowallet.TxInput, 0, len(inputsMap)),
-		Sum:    make(map[string]uint64),
-	}
-	for _, input := range inputsMap {
-		inputs.Inputs = append(inputs.Inputs, input)
+	tokenAmount := cardanowallet.NewTokenAmount(token, tokenFundAmount)
 
-		utxo, exists := utxoMap[input.String()]
-		if !exists {
-			return nil, fmt.Errorf("can not find utxo for input %v", input.String())
-		}
-
-		inputs.Sum[cardanowallet.AdaTokenName] += utxo.Amount
-		for _, token := range utxo.Tokens {
-			inputs.Sum[token.TokenName()] += token.Amount
-		}
+	minterAddr, err := GetAddress(chain.config.NetworkType, minterWallet)
+	if err != nil {
+		return nil, err
 	}
 
-	return &inputs, nil
+	if minterAddr.String() == addrToFund {
+		return &tokenAmount, nil
+	}
+
+	return FundAddressesWithToken(
+		ctx, chain, minterWallet, []string{addrToFund}, tokenName, lovelaceFundAmount, tokenFundAmount)
 }
 
-func createMintTx(
-	ctx context.Context,
-	networkType cardanowallet.CardanoNetworkType,
-	networkMagic uint,
-	txProvider cardanowallet.ITxProvider,
-	wallet *cardanowallet.Wallet,
-	lovelaceAmount uint64,
-	tokens []cardanowallet.TokenAmount,
-	tokenPolicyScripts []cardanowallet.IPolicyScript,
-) ([]byte, string, error) {
-	walletAddr, err := GetAddress(networkType, wallet)
+func FundAddressesWithToken(
+	ctx context.Context, chain *TestCardanoChain,
+	sender *cardanowallet.Wallet, addrs []string,
+	tokenName string, lovelaceFundAmount uint64, tokenFundAmount uint64,
+) (*cardanowallet.TokenAmount, error) {
+	token, _, err := GetTokenAndPolicyForVerificationKey(
+		chain.ChainID(), chain.config.NetworkType, sender.VerificationKey, tokenName)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
-	senderAddr := walletAddr.String()
+	tokenAmount := cardanowallet.NewTokenAmount(token, tokenFundAmount)
+	privateKey := ToCardanoPrivateKeyString(sender.SigningKey, sender.StakeSigningKey)
+	receivers := make([]GenericTxReceiver, len(addrs))
 
-	builder, err := cardanowallet.NewTxBuilder(ResolveCardanoCliBinary(networkType))
+	for i, addr := range addrs {
+		receivers[i] = GenericTxReceiver{
+			Addr:   addr,
+			Amount: new(big.Int).SetUint64(lovelaceFundAmount),
+			NativeTokens: []cardanowallet.TokenAmount{
+				tokenAmount,
+			},
+		}
+	}
+
+	txHash, err := chain.SendTx(ctx, privateKey, nil, receivers)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
-	defer builder.Dispose()
+	fmt.Printf("Funded %s with lovelace: %d, native tokens: %s. txHash: %s\n",
+		addrs, lovelaceFundAmount, tokenAmount, txHash)
 
-	builder.SetTestNetMagic(networkMagic)
-
-	if err := builder.SetProtocolParametersAndTTL(ctx, txProvider, 0); err != nil {
-		return nil, "", err
-	}
-
-	allUtxos, err := common.ExecuteWithRetry(
-		ctx, func(ctx context.Context) ([]cardanowallet.Utxo, error) {
-			return txProvider.GetUtxos(ctx, senderAddr)
-		},
-	)
-	if err != nil {
-		return nil, "", err
-	}
-
-	minUtxoLovelace, err := cardanowallet.GetTokenCostSum(builder, senderAddr, allUtxos)
-	if err != nil {
-		return nil, "", err
-	}
-
-	desiredLovelaceAmount := PotentialFee + lovelaceAmount + max(minUtxoLovelace, MinUTxODefaultValue)
-
-	inputs, err := cardanowallet.GetUTXOsForAmount(
-		allUtxos, cardanowallet.AdaTokenName, desiredLovelaceAmount, maxInputs)
-	if err != nil {
-		return nil, "", err
-	}
-
-	senderTokens, err := cardanowallet.GetTokensFromSumMap(inputs.Sum)
-	if err != nil {
-		return nil, "", err
-	}
-
-	txOutput := cardanowallet.TxOutput{
-		Addr:   senderAddr,
-		Amount: lovelaceAmount,
-		Tokens: tokens,
-	}
-
-	builder.AddInputs(inputs.Inputs...).AddTokenMints(tokenPolicyScripts, tokens)
-	builder.AddOutputs(txOutput, cardanowallet.TxOutput{
-		Addr:   walletAddr.String(),
-		Amount: inputs.Sum[cardanowallet.AdaTokenName] - lovelaceAmount,
-		Tokens: senderTokens,
-	})
-
-	fee, err := builder.CalculateFee(1)
-	if err != nil {
-		return nil, "", err
-	}
-
-	outputsSumMap := cardanowallet.GetOutputsSum([]cardanowallet.TxOutput{txOutput})
-	outputsSumMap[cardanowallet.AdaTokenName] += fee
-
-	changeTxOutput, err := cardanowallet.CreateTxOutputChange(cardanowallet.TxOutput{
-		Addr: senderAddr,
-	}, inputs.Sum, outputsSumMap)
-	if err != nil {
-		return nil, "", err
-	}
-
-	if changeTxOutput.Amount > 0 || len(changeTxOutput.Tokens) > 0 {
-		builder.ReplaceOutput(-1, changeTxOutput)
-	} else {
-		builder.RemoveOutput(-1)
-	}
-
-	builder.SetFee(fee)
-
-	txRaw, txHash, err := builder.Build()
-	if err != nil {
-		return nil, "", err
-	}
-
-	txSigned, err := builder.SignTx(txRaw, []cardanowallet.ITxSigner{wallet})
-	if err != nil {
-		return nil, "", err
-	}
-
-	return txSigned, txHash, nil
+	return &tokenAmount, nil
 }
 
-func submitTokenTx(
-	ctx context.Context,
-	txProvider cardanowallet.ITxProvider,
-	txRaw []byte,
-	txHash string,
-	receiverAddr string,
+func MintToken(
+	chain *TestCardanoChain, minterWallet *cardanowallet.Wallet, tokenName string, mintAmount uint64,
 ) error {
-	if err := txProvider.SubmitTx(ctx, txRaw); err != nil {
-		return err
+	args := []string{
+		"bridge-admin", "mint-native-token",
+		"--key", hex.EncodeToString(minterWallet.SigningKey),
+		"--ogmios", chain.ogmiosURL,
+		"--network-id", fmt.Sprintf("%v", chain.config.NetworkType),
+		"--testnet-magic", fmt.Sprintf("%v", chain.config.NetworkMagic),
+		"--token-name", tokenName,
+		"--amount", fmt.Sprintf("%v", mintAmount),
 	}
 
-	fmt.Println("transaction has been submitted. hash =", txHash)
-
-	newAmounts, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (map[string]uint64, error) {
-		utxos, err := txProvider.GetUtxos(ctx, receiverAddr)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, x := range utxos {
-			if x.Hash == txHash {
-				return cardanowallet.GetUtxosSum(utxos), nil
-			}
-		}
-
-		return nil, common.ErrRetryTryAgain
-	}, common.WithRetryCount(60))
-	if err != nil {
-		return err
+	if len(minterWallet.StakeSigningKey) > 0 {
+		args = append(args, "--stake-key", hex.EncodeToString(minterWallet.StakeSigningKey))
 	}
 
-	fmt.Printf("transaction has been included in block. hash = %s, balance = %v\n", txHash, newAmounts)
-
-	return nil
+	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
 }

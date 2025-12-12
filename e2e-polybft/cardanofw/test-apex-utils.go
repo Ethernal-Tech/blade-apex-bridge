@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -32,9 +33,16 @@ const (
 	BatchStateExecuted                  = "ExecutedOnDestination"
 	BridgingRequestStatusInvalidRequest = "InvalidRequest"
 
-	MinUTxODefaultValue = uint64(1_000_000)
+	MinUTxODefaultValue         = uint64(1_000_000)
+	defaultMinBridgingFeeAmount = uint64(1_000_010)
 
 	DefaultRequestStateTimeoutSec = 300
+
+	PotentialFee     = 500_000
+	ttlSlotNumberInc = 500
+
+	DefaultTokenName       = "test1"
+	DefaultTokenMintAmount = uint64(1_000_000_000)
 
 	splitStringLength = 40
 )
@@ -139,31 +147,69 @@ func ToCardanoPrivateKeyString(paymentKey, stakeKey []byte) string {
 	return fmt.Sprintf("%s_%s", paymentSK, hex.EncodeToString(stakeKey))
 }
 
-func FromCardanoPrivateKeyString(privateKey string) (paymentKey, stakeKey []byte, err error) {
-	var (
-		pKey = privateKey
-		sKey string
-	)
+func FromCardanoPrivateKeyString(
+	str string, networkID wallet.CardanoNetworkType, networkMagic uint,
+) (wallets []*wallet.Wallet, policyScript *wallet.PolicyScript, addr string, err error) {
+	if !strings.HasPrefix(str, "ps") {
+		parts := strings.Split(str, "_")
 
-	if strings.Contains(privateKey, "_") {
-		keys := strings.Split(privateKey, "_")
-		pKey = keys[0]
-		sKey = keys[1]
-	}
-
-	paymentKey, err = hex.DecodeString(pKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if len(sKey) > 0 {
-		stakeKey, err = hex.DecodeString(sKey)
+		paymentKey, err := hex.DecodeString(parts[0])
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, "", err
 		}
+
+		var stakeKey []byte
+
+		if len(parts) > 1 && len(parts[1]) > 0 {
+			stakeKey, err = hex.DecodeString(parts[1])
+			if err != nil {
+				return nil, nil, "", err
+			}
+		}
+
+		wallets = []*wallet.Wallet{wallet.NewWallet(paymentKey, stakeKey)}
+
+		walletAddress, err := GetAddress(networkID, wallets[0])
+		if err != nil {
+			return nil, nil, "", err
+		}
+
+		return wallets, nil, walletAddress.String(), nil
 	}
 
-	return paymentKey, stakeKey, err
+	parts := strings.Split(str[2:], "_")
+	if len(parts) < 2 {
+		return nil, nil, "", fmt.Errorf("invalid nuber of parts: %d", len(parts))
+	}
+
+	psBytes, err := hex.DecodeString(parts[0])
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	if err := json.Unmarshal(psBytes, &policyScript); err != nil {
+		return nil, nil, "", err
+	}
+
+	wallets = make([]*wallet.Wallet, len(parts)-1)
+
+	for i, keyHex := range parts[1:] {
+		paymentKey, err := hex.DecodeString(keyHex)
+		if err != nil {
+			return nil, nil, "", err
+		}
+
+		wallets[i] = wallet.NewWallet(paymentKey, nil)
+	}
+
+	cliUtils := wallet.NewCliUtils(ResolveCardanoCliBinary(networkID))
+
+	walletAddress, err := cliUtils.GetPolicyScriptEnterpriseAddress(networkMagic, policyScript)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	return wallets, policyScript, walletAddress, nil
 }
 
 func JSONRPCClient(jsonRPCAddr string) (*jsonrpc.EthClient, error) {
@@ -485,17 +531,11 @@ func WaitForInvalidState(
 	require.Equal(t, BridgingRequestStatusInvalidRequest, state)
 }
 
-func SplitAmountNTimes(totalAmount *big.Int, cnt int) []*big.Int {
-	cnt = max(1, cnt)
+func SplitAmountNTimes(totalAmount *big.Int, cnt int) (*big.Int, *big.Int) {
 	amount := new(big.Int).Div(totalAmount, big.NewInt(int64(cnt)))
 	amountWithChange := new(big.Int).Sub(totalAmount, new(big.Int).Mul(amount, big.NewInt(int64(cnt-1))))
-	result := make([]*big.Int, 0, cnt)
 
-	for range cnt - 1 {
-		result = append(result, new(big.Int).Set(amount))
-	}
-
-	return append(result, amountWithChange)
+	return amount, amountWithChange
 }
 
 func ChainIDToInt(chainID string) uint8 {
@@ -511,22 +551,57 @@ func ChainIDToInt(chainID string) uint8 {
 	}
 }
 
+func GetTokenAndPolicyForVerificationKey(
+	chainID ChainID, networkType wallet.CardanoNetworkType, verificationKey []byte, tokenName string,
+) (wallet.Token, *wallet.PolicyScript, error) {
+	keyHash, err := wallet.GetKeyHash(verificationKey)
+	if err != nil {
+		return wallet.Token{}, nil, err
+	}
+
+	policyScript := &wallet.PolicyScript{
+		Type:    wallet.PolicyScriptSigType,
+		KeyHash: keyHash,
+	}
+
+	pid, err := wallet.NewCliUtils(wallet.ResolveCardanoCliBinary(networkType)).GetPolicyID(policyScript)
+	if err != nil {
+		return wallet.Token{}, nil, err
+	}
+
+	return wallet.NewToken(pid, tokenName), policyScript, nil
+}
+
 func AddrToMetaDataAddr(addr string) []string {
 	addr = strings.TrimPrefix(strings.TrimPrefix(addr, "0x"), "0X")
 
 	return SplitString(addr, splitStringLength)
 }
 
-func isProcessOnPort(port int) (bool, error) {
-	command := fmt.Sprintf("lsof -i tcp:%d | grep LISTEN | awk '{print $2}'", port)
-	cmd := exec.Command("bash", "-c", command)
-
-	var out bytes.Buffer
-	cmd.Stdout = &out
-
-	if err := cmd.Run(); err != nil {
-		return false, err
+func isExitCode(err error, code int) bool {
+	var exitError *exec.ExitError
+	if errors.As(err, &exitError) {
+		return exitError.ExitCode() == code
 	}
 
-	return out.String() != "", nil
+	return false
+}
+
+func GetGenesisWalletFromCluster(
+	dirPath string,
+	keyID uint,
+) (*wallet.Wallet, error) {
+	keyFileName := strings.Join([]string{"utxo", fmt.Sprint(keyID)}, "")
+
+	sKey, err := wallet.NewKey(filepath.Join(dirPath, "utxo-keys", fmt.Sprintf("%s.skey", keyFileName)))
+	if err != nil {
+		return nil, err
+	}
+
+	sKeyBytes, err := sKey.GetKeyBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	return wallet.NewWallet(sKeyBytes, nil), nil
 }

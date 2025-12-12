@@ -57,6 +57,10 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Contracts have been set up\n")
 
+	require.NoError(t, apexSystem.FinishConfiguring(t))
+
+	fmt.Printf("Configuration has been set up\n")
+
 	require.NoError(t, apexSystem.FundWallets(ctx))
 
 	fmt.Printf("Wallets have been funded\n")

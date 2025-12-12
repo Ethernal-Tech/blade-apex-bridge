@@ -24,6 +24,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
+	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
@@ -51,6 +52,7 @@ type TestEVMChainConfig struct {
 	ApexConfig             uint8
 	BurnContractInfo       *polybft.BurnContractInfo
 	AllowedDirections      []string
+	MinBridgingFee         uint64
 }
 
 func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
@@ -68,6 +70,7 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 		PremineAmount:          ethgo.Ether(defaultPremineEthTokenAmount),
 		FundAmount:             ethgo.Ether(defaultFundEthTokenAmount),
 		FundRelayerAmount:      ethgo.Ether(defaultFundRelayerEthTokenAmount),
+		MinBridgingFee:         defaultMinBridgingFeeAmount,
 	}
 }
 
@@ -330,6 +333,9 @@ func (ec *TestEVMChain) PopulateApexSystem(apexSystem *ApexSystem) error {
 	return nil
 }
 
+func (ec *TestEVMChain) UpdateTxSendChainConfiguration(_ map[string]sendtx.ChainConfig) {
+}
+
 func (ec *TestEVMChain) ChainID() string {
 	return ec.config.ChainID
 }
@@ -348,6 +354,25 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (*bi
 	return amount, err
 }
 
+func (ec *TestEVMChain) GetBridgingFee(
+	_ context.Context,
+	_ string,
+	_ []sendtx.BridgingTxReceiver,
+	bridgingFee uint64,
+	_ string,
+) (uint64, error) {
+	return bridgingFee, nil
+}
+
+func (ec *TestEVMChain) CreateMetadata(
+	senderAddr string,
+	dstChainID string,
+	receivers []sendtx.BridgingTxReceiver,
+	bridgingFee uint64,
+) ([]byte, error) {
+	return nil, nil
+}
+
 func (ec *TestEVMChain) BridgingRequest(
 	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
 ) (string, error) {
@@ -357,6 +382,7 @@ func (ec *TestEVMChain) BridgingRequest(
 		"--gateway-addr", ec.gatewayAddr.String(),
 		fmt.Sprintf("--%s-url", ec.config.ChainID), ec.jsonRPCAddr,
 		"--key", privateKey,
+		"--chain-src", ec.config.ChainID,
 		"--chain-dst", destChainID,
 		"--fee", feeAmount.String(),
 	}
@@ -386,9 +412,13 @@ func (ec *TestEVMChain) BridgingRequest(
 }
 
 func (ec *TestEVMChain) SendTx(
-	ctx context.Context, privateKey string, receiver string, amount *big.Int, data []byte,
+	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
 ) (string, error) {
-	rec, err := ec.sendTx(privateKey, receiver, amount, data)
+	if ln := len(receivers); ln != 1 {
+		return "", fmt.Errorf("evm SendTx currently supports only one receiver but got %d", ln)
+	}
+
+	rec, err := ec.sendTx(privateKey, receivers[0].Addr, receivers[0].Amount, metadata)
 	if err != nil {
 		return "", err
 	}

@@ -8,14 +8,15 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
+	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
 type IApexSystem interface {
 	SubmitBridgingRequest(
-		t *testing.T, ctx context.Context,
+		ctx context.Context,
 		sourceChain cardanofw.ChainID, destinationChain cardanofw.ChainID,
 		sender *cardanofw.TestApexUser, dfmAmount *big.Int, receivers ...*cardanofw.TestApexUser,
-	) string
+	) (string, error)
 	WaitForGreaterAmount(
 		ctx context.Context, user *cardanofw.TestApexUser, chain cardanofw.ChainID,
 		expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration,
@@ -30,7 +31,7 @@ type IApexSystem interface {
 	) (*big.Int, error)
 	SubmitTx(
 		ctx context.Context, sourceChain cardanofw.ChainID, sender *cardanofw.TestApexUser,
-		receiver string, dfmAmount *big.Int, data []byte,
+		receiver string, dfmAmount *big.Int, nativeTokenAmounts []cardanowallet.TokenAmount, data []byte,
 	) (string, error)
 	GetBalance(
 		ctx context.Context, user *cardanofw.TestApexUser, chainID cardanofw.ChainID,
