@@ -17,7 +17,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano}
+var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus}
+var fundableTokensPerChain = map[cardanofw.ChainID][]uint16{
+	cardanofw.ChainIDPrime:   {},
+	cardanofw.ChainIDVector:  {cardanofw.XADATokenID},
+	cardanofw.ChainIDCardano: {cardanofw.CAP3XTokenID},
+	cardanofw.ChainIDNexus:   {cardanofw.USDTTokenID},
+}
 
 func Test_E2E_SkylineTestnetFund(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
@@ -48,7 +54,32 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 		go func(chain string) {
 			defer wg.Done()
 
-			tokens := cardanofw.GetAllTokensForChainWithAmounts(t, apex, chain, skylineChains, tokensToFund)
+			tokens := func() []cardanowallet.TokenAmount {
+				if chain == cardanofw.ChainIDNexus {
+					chainInfo := apex.GetNexusInfo(chain)
+					tokens := make([]cardanowallet.TokenAmount, len(fundableTokensPerChain[chain]))
+					for i, tokenID := range fundableTokensPerChain[chain] {
+						tokens[i] = cardanowallet.TokenAmount{
+							Token:  cardanowallet.Token{PolicyID: chainInfo.Tokens[tokenID].ChainSpecific},
+							Amount: tokensToFund,
+						}
+					}
+					return tokens
+				}
+
+				chainInfo := apex.GetCardanoInfo(chain)
+				tokens := make([]cardanowallet.TokenAmount, len(fundableTokensPerChain[chain]))
+				for i, tokenID := range fundableTokensPerChain[chain] {
+					token, err := cardanowallet.NewTokenWithFullNameTry(chainInfo.Tokens[tokenID].ChainSpecific)
+					require.NoError(t, err)
+
+					tokens[i] = cardanowallet.TokenAmount{
+						Token:  token,
+						Amount: tokensToFund,
+					}
+				}
+				return tokens
+			}()
 
 			for _, user := range apex.Users {
 				receiverAddr := user.GetAddress(chain)
@@ -105,9 +136,76 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 	fmt.Printf("defunding the wallets\n")
 
 	for _, chain := range skylineChains {
+		if chain == cardanofw.ChainIDNexus {
+			info := apex.NexusInfo
+
+			for _, user := range apex.Users {
+				balance, err := apex.GetBalance(ctx, user, chain)
+				require.NoError(t, err)
+
+				for _, token := range info.Tokens {
+					tokenBalance, err := apex.GetBalanceWithTokenName(ctx, user, chain, token.ChainSpecific)
+					require.NoError(t, err)
+
+					if tokenBalance[token.ChainSpecific].Cmp(big.NewInt(0)) > 0 {
+						balance[token.ChainSpecific] = tokenBalance[token.ChainSpecific]
+					}
+				}
+
+				// 1. Convert native balance from Wei to DFM
+				dfmBalance := cardanofw.WeiToDfm(balance[cardanowallet.AdaTokenName])
+
+				// 2. Compute change in DFM (PotentialFee is already in DFM units)
+				changeDfm := new(big.Int).Mul(
+					new(big.Int).SetUint64(cardanofw.PotentialFee),
+					new(big.Int).SetUint64(uint64(len(balance))),
+				)
+
+				if dfmBalance.Cmp(changeDfm) <= 0 {
+					continue
+				}
+
+				// 3. Refund amount in DFM
+				refundAmountDfm := new(big.Int).Sub(dfmBalance, changeDfm)
+
+				tokens := make([]cardanowallet.TokenAmount, len(balance)-1)
+
+				for token, amount := range balance {
+					if token == cardanowallet.AdaTokenName {
+						continue
+					}
+
+					tokens = append(tokens, cardanowallet.TokenAmount{
+						Token:  cardanowallet.Token{PolicyID: token},
+						Amount: cardanofw.WeiToDfm(amount).Uint64(),
+					})
+				}
+
+				wg.Add(1)
+
+				go func(user *cardanofw.TestApexUser, chain string) {
+					defer wg.Done()
+
+					_, err := apex.SubmitTx(ctx, chain, user, apex.FunderUser.GetAddress(chain),
+						refundAmountDfm, tokens, nil)
+
+					if err != nil {
+						mu.Lock()
+						addrErrs = append(addrErrs, fmt.Errorf("error while defunding addr %s: %w", user.GetAddress(chain), err))
+						mu.Unlock()
+					}
+				}(user, chain)
+			}
+
+			continue
+		}
+
 		info, networkType := apex.PrimeInfo, apex.Config.PrimeConfig.NetworkType
 		if chain == cardanofw.ChainIDCardano {
 			info, networkType = apex.CardanoInfo, apex.Config.CardanoConfig.NetworkType
+		}
+		if chain == cardanofw.ChainIDVector {
+			info, networkType = apex.VectorInfo, apex.Config.VectorConfig.NetworkType
 		}
 
 		txProvider, err := info.GetTxProvider()
@@ -202,18 +300,26 @@ func Test_E2E_SkylineSanityCheck(t *testing.T) {
 		src          string
 		dest         string
 		bridgingType cardanofw.BridgingType
+		tokenID      uint16
 	}{
-		{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, bridgingType: cardanofw.BridgingTypeCurrencyOnSource},
-		{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, bridgingType: cardanofw.BridgingTypeWrappedTokenOnSource},
-		{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDCardano, bridgingType: cardanofw.BridgingTypeWrappedTokenOnSource},
-		{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDVector, bridgingType: cardanofw.BridgingTypeCurrencyOnSource},
+		{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, bridgingType: cardanofw.BridgingTypeCurrencyOnSource, tokenID: cardanofw.CAP3XTokenID},
+		{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, bridgingType: cardanofw.BridgingTypeWrappedTokenOnSource, tokenID: cardanofw.ADATokenID},
+		{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDCardano, bridgingType: cardanofw.BridgingTypeWrappedTokenOnSource, tokenID: cardanofw.XADATokenID},
+		{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDVector, bridgingType: cardanofw.BridgingTypeCurrencyOnSource, tokenID: cardanofw.ADATokenID},
+		//// order is important here
+		{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDNexus, bridgingType: cardanofw.BridgingTypeCurrencyOnSource, tokenID: cardanofw.ADATokenID},
+		{src: cardanofw.ChainIDNexus, dest: cardanofw.ChainIDCardano, bridgingType: cardanofw.BridgingTypeColoredCoinOnSource, tokenID: cardanofw.XADATokenID},
+		{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDNexus, bridgingType: cardanofw.BridgingTypeColoredCoinOnSource, tokenID: cardanofw.XADATokenID},
+		{src: cardanofw.ChainIDNexus, dest: cardanofw.ChainIDVector, bridgingType: cardanofw.BridgingTypeColoredCoinOnSource, tokenID: cardanofw.XADATokenID},
+		{src: cardanofw.ChainIDNexus, dest: cardanofw.ChainIDVector, bridgingType: cardanofw.BridgingTypeColoredCoinOnSource, tokenID: cardanofw.USDTTokenID},
+		{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDNexus, bridgingType: cardanofw.BridgingTypeColoredCoinOnSource, tokenID: cardanofw.USDTTokenID},
 	}
 
 	for _, dir := range bridgingRequests {
 		fmt.Printf("bridging from %s to %s, %s\n", dir.src, dir.dest, dir.bridgingType.String())
-
+		options := append(bridgingOpts, e2ehelper.WithColoredCoins([]uint16{dir.tokenID}))
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, dir.bridgingType, bridgingOpts...)
+			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, dir.bridgingType, options...)
 	}
 }
 
@@ -310,6 +416,113 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 	})
 }
 
+func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
+	require.NoError(t, err)
+
+	user := apex.Users[1]
+	sendAmountDfm := big.NewInt(1_050_000)
+
+	const numOfInstanceForSequentialTests = 3
+
+	t.Run("1. Cardano -> Vector -> Nexus -> Cardano - ADA/xADA", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmountDfm,
+			cardanofw.BridgingTypeCurrencyOnSource)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, sendAmountDfm,
+			cardanofw.BridgingTypeWrappedTokenOnSource)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDCardano, sendAmountDfm,
+			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.XADATokenID}))
+	})
+
+	t.Run("2. Cardano -> Nexus -> Vector -> Cardano - ADA/xADA", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, sendAmountDfm,
+			cardanofw.BridgingTypeCurrencyOnSource)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, sendAmountDfm,
+			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.XADATokenID}))
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, sendAmountDfm,
+			cardanofw.BridgingTypeWrappedTokenOnSource)
+	})
+
+	t.Run("3. Nexus -> Vector sequential USDT", func(t *testing.T) {
+		options := append(bridgingOpts, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+
+		e2ehelper.ExecuteBridgingWaitAfterSubmits(
+			t, ctx, apex, numOfInstanceForSequentialTests, user,
+			cardanofw.ChainIDNexus, cardanofw.ChainIDVector,
+			sendAmountDfm, cardanofw.BridgingTypeColoredCoinOnSource, options...)
+	})
+
+	t.Run("4. Vector -> Nexus sequential USDT", func(t *testing.T) {
+		options := append(bridgingOpts, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+
+		e2ehelper.ExecuteBridgingWaitAfterSubmits(
+			t, ctx, apex, numOfInstanceForSequentialTests, user,
+			cardanofw.ChainIDVector, cardanofw.ChainIDNexus,
+			sendAmountDfm, cardanofw.BridgingTypeColoredCoinOnSource, options...)
+	})
+
+	t.Run("5. Cardano -> Nexus sequential ADA", func(t *testing.T) {
+		e2ehelper.ExecuteBridgingWaitAfterSubmits(
+			t, ctx, apex, numOfInstanceForSequentialTests, user,
+			cardanofw.ChainIDCardano, cardanofw.ChainIDNexus,
+			sendAmountDfm, cardanofw.BridgingTypeCurrencyOnSource, bridgingOpts...)
+	})
+
+	t.Run("6. Nexus -> Cardano sequential xADA", func(t *testing.T) {
+		options := append(bridgingOpts, e2ehelper.WithColoredCoins([]uint16{cardanofw.XADATokenID}))
+		e2ehelper.ExecuteBridgingWaitAfterSubmits(
+			t, ctx, apex, numOfInstanceForSequentialTests, user,
+			cardanofw.ChainIDNexus, cardanofw.ChainIDCardano,
+			sendAmountDfm, cardanofw.BridgingTypeColoredCoinOnSource, options...)
+	})
+
+	fundingSuccessfull := t.Run("7. Vector -> Nexus sequential xADA", func(t *testing.T) {
+		options := append(bridgingOpts, e2ehelper.WithColoredCoins([]uint16{cardanofw.XADATokenID}))
+
+		e2ehelper.ExecuteBridgingWaitAfterSubmits(
+			t, ctx, apex, numOfInstanceForSequentialTests, user,
+			cardanofw.ChainIDVector, cardanofw.ChainIDNexus,
+			sendAmountDfm, cardanofw.BridgingTypeColoredCoinOnSource, options...)
+	})
+
+	t.Run("8. Nexus -> Vector and Cardano -> Vector in parallel - sequential xADA", func(t *testing.T) {
+		if !fundingSuccessfull {
+			t.Skip()
+		}
+
+		bridgingDirections := []e2ehelper.ExecuteBridgingConfig{
+			{SrcChain: cardanofw.ChainIDNexus, DstChain: cardanofw.ChainIDVector, BridgingType: cardanofw.BridgingTypeColoredCoinOnSource, TokenID: cardanofw.XADATokenID, SendAmountDfm: sendAmountDfm},
+			{SrcChain: cardanofw.ChainIDCardano, DstChain: cardanofw.ChainIDVector, BridgingType: cardanofw.BridgingTypeCurrencyOnSource, SendAmountDfm: sendAmountDfm},
+		}
+
+		e2ehelper.ExecuteBridgingWaitAfterSubmitsExtended(
+			t, ctx, apex, numOfInstanceForSequentialTests, user,
+			bridgingDirections,
+			bridgingOpts...)
+
+		returnAmountDfm := new(big.Int).Mul(sendAmountDfm, big.NewInt(int64(numOfInstanceForSequentialTests*len(bridgingDirections))))
+
+		// return all the xADA to Cardano
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano,
+			returnAmountDfm, cardanofw.BridgingTypeWrappedTokenOnSource, bridgingOpts...)
+	})
+
+}
+
 func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
@@ -322,8 +535,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 		retryIntervalSec       = 5
 	)
 
-	vectorCardanoTokenID := apex.GetTokenIDForChain(cardanofw.ChainIDCardano, false)
-	vectorCardanoTokenName := apex.GetTokenNameForChains(cardanofw.ChainIDVector, cardanofw.ChainIDCardano, vectorCardanoTokenID)
+	vectorCardanoTokenName := apex.GetTokenNameForChains(cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ADATokenID)
 
 	primeCardanoTestConfig := newTestConfig(
 		t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, "")
@@ -351,11 +563,6 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	t.Run("4. Submitted invalid metadata - wrong type", func(t *testing.T) {
 		executeInvalidMetadataType(
 			t, ctx, apex, primeCardanoTestConfig, apex.Users[1], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
-	})
-
-	t.Run("5. Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestination(
-			t, ctx, apex, cardanoVectorTestConfig, apex.Users[3], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("6. Submitted invalid metadata - invalid sender", func(t *testing.T) {
@@ -386,8 +593,9 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	t.Run("9. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
 		user := apex.Users[len(apex.Users)-1]
 
-		tokenID := apex.GetTokenIDForChain(cardanofw.ChainIDCardano, true)
-		token, err := cardanowallet.NewTokenWithFullNameTry(apex.GetTokenNameForChains(cardanofw.ChainIDVector, cardanofw.ChainIDCardano, tokenID))
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.BridgingTypeWrappedTokenOnSource)
+		require.NotNil(t, tokenInfo)
+		token, err := cardanowallet.NewTokenWithFullNameTry(tokenInfo.SrcTokenName)
 		require.NoError(t, err)
 
 		tokenAmount := &cardanowallet.TokenAmount{
@@ -416,17 +624,20 @@ func printSkylineUserBalances(
 ) {
 	t.Helper()
 
-	chainTokensMap := map[cardanofw.ChainID][]string{}
-
-	for _, chain := range skylineChains {
-		chainTokensMap[chain] = append(chainTokensMap[chain], cardanowallet.AdaTokenName)
-
-		for _, token := range cardanofw.GetAllTokensForChainWithAmounts(t, apex, chain, skylineChains, 0) {
-			chainTokensMap[chain] = append(chainTokensMap[chain], token.TokenName())
-		}
-	}
-
 	allUsers := append([]*cardanofw.TestApexUser{apex.FunderUser}, users...)
+
+	balanceToString := func(tokenID uint16, balance *big.Int) {
+		if balance == nil {
+			return
+		}
+
+		if balance.Cmp(big.NewInt(0)) == 0 {
+			return
+		}
+
+		tokenName := apex.EcosystemTokens[tokenID]
+		fmt.Printf("  %s = %s\n", tokenName, balance.String())
+	}
 
 	for i, user := range allUsers {
 		fmt.Printf("=============================\n")
@@ -440,8 +651,16 @@ func printSkylineUserBalances(
 			} else {
 				fmt.Printf("%s addr: %s\n", chain, addr)
 
-				for _, tokenName := range chainTokensMap[chain] {
-					fmt.Printf("  %s = %s\n", tokenName, balance[tokenName])
+				if chain == cardanofw.ChainIDNexus {
+					info := apex.NexusInfo
+					for tokenID, token := range info.Tokens {
+						balanceToString(tokenID, balance[token.ChainSpecific])
+					}
+				} else {
+					info := apex.GetCardanoInfo(chain)
+					for tokenID, token := range info.Tokens {
+						balanceToString(tokenID, balance[token.ChainSpecific])
+					}
 				}
 			}
 		}

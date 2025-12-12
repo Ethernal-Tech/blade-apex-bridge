@@ -165,6 +165,11 @@ func ExecuteBridgingWaitAfterSubmits(
 
 		fmt.Printf("Tx[%d] sent. hash: %s\n", i, txHash)
 
+		if dstChain == cardanofw.ChainIDNexus {
+			expectedAmount = expectedAmount.Add(expectedAmount, cardanofw.DfmToWei(sendAmount))
+			continue
+		}
+
 		expectedAmount = expectedAmount.Add(expectedAmount, sendAmount)
 	}
 
@@ -172,6 +177,136 @@ func ExecuteBridgingWaitAfterSubmits(
 		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, tokensInfo.DstTokenName)
 
 	require.NoError(t, err)
+}
+
+type ExecuteBridgingConfig struct {
+	SrcChain      string
+	DstChain      string
+	BridgingType  cardanofw.BridgingType
+	TokenID       uint16
+	SendAmountDfm *big.Int
+}
+
+func ExecuteBridgingWaitAfterSubmitsExtended(
+	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
+	receiverUser *cardanofw.TestApexUser, directions []ExecuteBridgingConfig,
+	options ...ExecuteBridgingOption,
+) {
+	t.Helper()
+
+	config := newExecuteBridgingConfig(options...)
+
+	type expectedAmountInfo struct {
+		tokenName      string
+		srcChain       string
+		dstChain       string
+		expectedAmount *big.Int
+	}
+
+	expectedAmounts := make([]expectedAmountInfo, len(directions))
+
+	// We have to set inital balances here since some bridging may finish before the other ones
+	// with same tokens and scramble the expected amounts (e.g. Nexus -> Vector and Cardano -> Vector in parallel - sequential xADA)
+	initialBalances := make(map[string]*big.Int)
+	for _, direction := range directions {
+		tokensInfo := apex.GetBridgingTokensInfo(direction.SrcChain, direction.DstChain, direction.BridgingType, direction.TokenID)
+		require.NotNil(t, tokensInfo)
+
+		balance, err := apex.GetBalanceWithTokenName(ctx, receiverUser, direction.DstChain, tokensInfo.DstTokenName)
+		require.NoError(t, err)
+
+		initialBalances[tokensInfo.DstTokenName] = cardanofw.SetOrDefault(
+			balance[tokensInfo.DstTokenName],
+			big.NewInt(0),
+		)
+	}
+
+	// Send all bridging requests in parallel per direction
+	var wgSend sync.WaitGroup
+
+	for i, direction := range directions {
+		wgSend.Add(1)
+
+		go func(idx int, dir ExecuteBridgingConfig) {
+			defer wgSend.Done()
+
+			tokensInfo := apex.GetBridgingTokensInfo(dir.SrcChain, dir.DstChain, dir.BridgingType, dir.TokenID)
+			require.NotNil(t, tokensInfo)
+
+			prevAmount := initialBalances[tokensInfo.DstTokenName]
+			expectedAmount := new(big.Int).Set(prevAmount)
+
+			for j := 0; j < txCountPerSender; j++ {
+				txHash, err := apex.SubmitBridgingRequest(
+					cardanofw.SubmitBridgingRequestData{
+						Context:          ctx,
+						SourceChain:      dir.SrcChain,
+						DestinationChain: dir.DstChain,
+						Sender:           receiverUser,
+						DFMAmount:        dir.SendAmountDfm,
+						BridgingType:     dir.BridgingType,
+						Receivers:        []*cardanofw.TestApexUser{receiverUser},
+						TokensInfo:       tokensInfo,
+					})
+				require.NoError(t, err)
+
+				fmt.Printf("Direction %d Tx[%d] sent. hash: %s\n", idx, j, txHash)
+
+				expectedAmount.Add(expectedAmount, dir.SendAmountDfm)
+			}
+
+			expectedAmounts[idx] = expectedAmountInfo{
+				tokenName:      tokensInfo.DstTokenName,
+				srcChain:       dir.SrcChain,
+				dstChain:       dir.DstChain,
+				expectedAmount: expectedAmount,
+			}
+		}(i, direction)
+	}
+
+	wgSend.Wait()
+
+	// Sum up all the expected amounts for the same token name
+	amountsToWait := make(map[string]expectedAmountInfo)
+	for _, exp := range expectedAmounts {
+		if data, exists := amountsToWait[exp.tokenName]; !exists {
+			amountsToWait[exp.tokenName] = expectedAmountInfo{
+				tokenName:      exp.tokenName,
+				srcChain:       exp.srcChain,
+				dstChain:       exp.dstChain,
+				expectedAmount: exp.expectedAmount,
+			}
+		} else {
+			data.expectedAmount.Add(data.expectedAmount, exp.expectedAmount)
+			data.expectedAmount.Sub(data.expectedAmount, initialBalances[exp.tokenName])
+			amountsToWait[exp.tokenName] = data
+		}
+	}
+
+	// Wait for all expected amounts in parallel
+	var wgWait sync.WaitGroup
+
+	for _, exp := range amountsToWait {
+		wgWait.Add(1)
+
+		go func(e expectedAmountInfo) {
+			defer wgWait.Done()
+
+			err := apex.WaitForExactAmount(
+				ctx,
+				receiverUser,
+				e.dstChain,
+				e.srcChain,
+				e.expectedAmount,
+				config.timeoutConfig.bridgingNumRetries,
+				config.timeoutConfig.bridgingRetryWaitTime,
+				e.tokenName,
+			)
+			require.NoError(t, err)
+		}(exp)
+	}
+
+	wgWait.Wait()
 }
 
 func ExecuteBridging(

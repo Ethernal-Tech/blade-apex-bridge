@@ -479,6 +479,7 @@ func SetupSkylineRemoteBridge(
 	primeRemoteConfig := remoteConfig.CardanoChains[ChainIDPrime]
 	vectorRemoteConfig := remoteConfig.CardanoChains[ChainIDVector]
 	cardanoRemoteConfig := remoteConfig.CardanoChains[ChainIDCardano]
+	nexusRemoteConfig := remoteConfig.EVMChains[ChainIDNexus]
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig: NewRemotePrimeChainConfig(
 			primeRemoteConfig.DefaultMinBridgingFee, primeRemoteConfig.MinBridgingFeeForTokens,
@@ -489,6 +490,8 @@ func SetupSkylineRemoteBridge(
 		CardanoConfig: NewRemoteCardanoChainConfig(
 			true, cardanoRemoteConfig.DefaultMinBridgingFee, cardanoRemoteConfig.MinBridgingFeeForTokens,
 			cardanoRemoteConfig.MinOperationFee),
+		NexusConfig: NewRemoteNexusChainConfig(true,
+			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee),
 		APIKey: remoteConfig.BridgingAPIKey,
 	}
 
@@ -528,8 +531,16 @@ func SetupSkylineRemoteBridge(
 		indexer:          e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 
+	nexusChain := &TestEVMChain{
+		config:                apexConfig.NexusConfig,
+		gatewayAddr:           nexusRemoteConfig.Info.GatewayAddress,
+		nativeTokenWalletAddr: nexusRemoteConfig.Info.NativeTokenWalletAddress,
+		jsonRPCAddr:           nexusRemoteConfig.Info.JSONRPCAddr,
+		indexer:               e2eindexer.NewTxsExecutedComponentDummy(),
+	}
+
 	usersData, err := GetTestnetApexUsers(
-		NewApexNetworkTypes(apexConfig.PrimeConfig, apexConfig.VectorConfig, apexConfig.CardanoConfig, nil))
+		NewApexNetworkTypes(apexConfig.PrimeConfig, apexConfig.VectorConfig, apexConfig.CardanoConfig, apexConfig.NexusConfig))
 	if err != nil {
 		return nil, err
 	}
@@ -539,11 +550,19 @@ func SetupSkylineRemoteBridge(
 		FunderUser:   usersData.Funder,
 		Users:        usersData.Users,
 		IsSkyline:    true,
-		chains:       []ITestApexChain{primeChain, vectorChain, cardanoChain},
+		chains:       []ITestApexChain{primeChain, vectorChain, cardanoChain, nexusChain},
 		bridgingAPIs: remoteConfig.BridgingAPIs,
 		PrimeInfo:    primeRemoteConfig.Info,
 		VectorInfo:   vectorRemoteConfig.Info,
 		CardanoInfo:  cardanoRemoteConfig.Info,
+		NexusInfo:    nexusRemoteConfig.Info,
+		EcosystemTokens: map[uint16]string{
+			USDTTokenID:  USDTTokenName,
+			XADATokenID:  XADATokenName,
+			AP3XTokenID:  cardanowallet.AdaTokenName,
+			ADATokenID:   cardanowallet.AdaTokenName,
+			CAP3XTokenID: CAP3XTokenName,
+		},
 	}
 
 	apexSystem.InitTxSendChainConfiguration()

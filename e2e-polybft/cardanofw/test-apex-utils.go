@@ -629,6 +629,21 @@ func GetUsersBalances(
 					},
 				)
 
+				if chain == ChainIDNexus {
+					for _, token := range apex.NexusInfo.Tokens {
+						if token.ChainSpecific == wallet.AdaTokenName {
+							continue
+						}
+
+						tokenBalance, err := apex.GetBalanceWithTokenName(ctx, user, chain, token.ChainSpecific)
+						if err != nil {
+							errs = append(errs, fmt.Errorf("failed to get balance for (%s, %s): %w", chain, addr, err))
+						}
+
+						balance[token.ChainSpecific] = tokenBalance[token.ChainSpecific]
+					}
+				}
+
 				mu.Lock()
 				defer mu.Unlock()
 

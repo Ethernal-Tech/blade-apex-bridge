@@ -1450,7 +1450,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	}
 
 	const (
-		numRetries = 5
+		numRetries = 7
 		waitTime   = time.Second * 10
 
 		numReceiversMin = 1

@@ -124,6 +124,25 @@ func NewRemoteNexusChainConfig(
 		ChainID:         ChainIDNexus,
 		MinBridgingFee:  DfmToWei(new(big.Int).SetUint64(minBridgingFeeAmount)),
 		MinOperationFee: DfmToWei(new(big.Int).SetUint64(minOperationFee)),
+		CurrencyID:      AP3XTokenID,
+		LockUnlockTokens: []EVMTokenInfo{
+			{
+				ID:     USDTTokenID,
+				Name:   USDTTokenName,
+				Symbol: USDTTokenName,
+			},
+		},
+		MintTokens: []EVMTokenInfo{
+			{
+				ID:     XADATokenID,
+				Name:   XADATokenName,
+				Symbol: XADATokenName,
+			},
+		},
+		ConfigurableTokens: map[uint16]string{
+			USDTTokenID: "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0",
+			XADATokenID: "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f",
+		},
 	}
 }
 
@@ -786,6 +805,14 @@ func (ec *TestEVMChain) BridgingRequest(
 			break
 		}
 
+		isTokenLockUnlock := false
+		for _, token := range ec.config.LockUnlockTokens {
+			if token.ID == receiverTokenID {
+				isTokenLockUnlock = true
+				break
+			}
+		}
+
 		params = []string{
 			"sendtx",
 			"skyline",
@@ -798,9 +825,14 @@ func (ec *TestEVMChain) BridgingRequest(
 			"--fee", feeAmount.String(),
 			"--operation-fee", ec.config.MinOperationFee.String(),
 			"--src-token-id", fmt.Sprint(receiverTokenID),
-			"--src-token-contract-addr", ec.config.ConfigurableTokens[receiverTokenID],
-			"--native-token-wallet-contract-addr", ec.nativeTokenWalletAddr.String(),
 		}
+
+		if isTokenLockUnlock {
+			params = append(params,
+				"--native-token-wallet-contract-addr", ec.nativeTokenWalletAddr.String(),
+				"--src-token-contract-addr", ec.config.ConfigurableTokens[receiverTokenID])
+		}
+
 	} else {
 		params = []string{
 			"sendtx",
@@ -847,7 +879,7 @@ func (ec *TestEVMChain) SendTx(
 		return "", fmt.Errorf("evm SendTx currently supports only one receiver but got %d", ln)
 	}
 
-	rec, err := ec.sendTx(privateKey, receivers[0].Addr, receivers[0].Amount, metadata)
+	rec, err := ec.sendTxWithNativeTokens(privateKey, receivers[0].Addr, receivers[0].Amount, metadata, receivers[0].NativeTokens)
 	if err != nil {
 		return "", err
 	}
@@ -902,6 +934,77 @@ func (ec *TestEVMChain) sendTx(
 		return nil, err
 	} else if receipt.Status != uint64(types.ReceiptSuccess) {
 		return nil, fmt.Errorf("fund relayer failed: %d", receipt.Status)
+	}
+
+	return receipt, nil
+}
+
+func (ec *TestEVMChain) sendTxWithNativeTokens(
+	privateKey string, receiver string, amount *big.Int, data []byte, nativeTokens []infrawallet.TokenAmount,
+) (*ethgo.Receipt, error) {
+	privateKeyECDSA, err := crypto.HexToECDSA(privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	txRelayer, err := txrelayer.NewTxRelayer(
+		txrelayer.WithIPAddress(ec.jsonRPCAddr),
+		txrelayer.WithReceiptsTimeout(1*time.Minute),
+		txrelayer.WithEstimateGasFallback(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	key := crypto.NewECDSAKey(privateKeyECDSA)
+	receiverAddr := types.StringToAddress(receiver)
+	recipient := receiverAddr
+
+	for _, nativeToken := range nativeTokens {
+		// We interpret the Cardano token PolicyID as the ERC20 contract address on the EVM chain.
+		tokenAddr := types.StringToAddress(nativeToken.Token.PolicyID)
+		tokenAmount := DfmToWei(big.NewInt(0).SetUint64(nativeToken.Amount))
+
+		// Encode ERC20 transfer(recipient, amount)
+		if contractsapi.SimpleERC20 == nil || contractsapi.SimpleERC20.Abi == nil {
+			return nil, fmt.Errorf("SimpleERC20 artifact not loaded")
+		}
+
+		transferMethod := contractsapi.SimpleERC20.Abi.Methods["transfer"]
+		if transferMethod == nil {
+			return nil, fmt.Errorf("transfer method not found in SimpleERC20 ABI")
+		}
+
+		transferData, err := transferMethod.Encode([]interface{}{recipient, tokenAmount})
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode transfer call: %w", err)
+		}
+
+		receipt, err := txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
+			types.WithFrom(key.Address()),
+			types.WithTo(&tokenAddr),
+			types.WithInput(transferData),
+		)), key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to send transfer tx for token %s: %w", nativeToken.Token.PolicyID, err)
+		}
+
+		if receipt.Status != uint64(types.ReceiptSuccess) {
+			return nil, fmt.Errorf("token transfer for token %s failed with status: %d (tx: %s)", nativeToken.Token.PolicyID,
+				receipt.Status, receipt.TransactionHash.String())
+		}
+	}
+
+	receipt, err := txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
+		types.WithFrom(key.Address()),
+		types.WithValue(amount),
+		types.WithInput(data),
+		types.WithTo(&receiverAddr),
+	)), key)
+	if err != nil {
+		return nil, err
+	} else if receipt.Status != uint64(types.ReceiptSuccess) {
+		return nil, fmt.Errorf("currency transfer for chain %s failed: %d", ec.config.ChainID, receipt.Status)
 	}
 
 	return receipt, nil

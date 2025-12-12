@@ -162,14 +162,14 @@ func executeInvalidMismatchSendNativeTokenAmount(
 
 	bridgingType := cardanofw.BridgingTypeWrappedTokenOnSource
 
-	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == cardanofw.BridgingTypeCurrencyOnSource)
-	require.NotZero(t, tokenID)
+	tokenInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, bridgingType)
+	require.NotNil(t, tokenInfo)
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    user.GetAddress(config.dstChainID),
 			Amount:  nativeTokenAmount.Amount,
-			TokenID: tokenID,
+			TokenID: tokenInfo.SrcTokenID,
 		},
 	}
 
