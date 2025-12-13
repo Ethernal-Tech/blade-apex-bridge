@@ -251,5 +251,7 @@ func SetupRemoteApexBridge(
 	apexSystem.VectorInfo = remoteConfig.VectorInfo
 	apexSystem.NexusInfo = remoteConfig.NexusInfo
 
+	apexSystem.InitTxSendChainConfiguration()
+
 	return apexSystem, nil
 }
