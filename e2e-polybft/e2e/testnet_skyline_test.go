@@ -565,17 +565,22 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 			t, ctx, apex, primeCardanoTestConfig, apex.Users[1], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
-	t.Run("5. Submitted invalid metadata - invalid sender", func(t *testing.T) {
+	t.Run("5. Submitted invalid metadata - invalid destination", func(t *testing.T) {
+		executeInvalidDestination(
+			t, ctx, apex, cardanoVectorTestConfig, apex.Users[3], requestStateTimeoutSec, retryIntervalSec, bridgingType, 0)
+	})
+
+	t.Run("6. Submitted invalid metadata - invalid sender", func(t *testing.T) {
 		executeInvalidMetadataInvalidSender(
 			t, ctx, apex, cardanoVectorTestConfig, apex.Users[1], requestStateTimeoutSec, bridgingType, 0)
 	})
 
-	t.Run("6. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
+	t.Run("7. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
 		executeInvalidFeeReceiverAddr(
 			t, ctx, apex, cardanoVectorTestConfig, requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
-	t.Run("7. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
+	t.Run("8. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
 		user := apex.Users[len(apex.Users)-1]
 
 		minterWallet, _ := user.GetCardanoWallet(cardanofw.ChainIDVector)
@@ -590,7 +595,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 		executeInvalidSendNativeToken(t, ctx, apex, user, vectorCardanoTestConfig, *tokensFunded, requestStateTimeoutSec, retryIntervalSec, true, 0, cardanofw.BridgingTypeCurrencyOnSource)
 	})
 
-	t.Run("8. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
+	t.Run("9. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
 		user := apex.Users[len(apex.Users)-1]
 
 		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.BridgingTypeWrappedTokenOnSource)

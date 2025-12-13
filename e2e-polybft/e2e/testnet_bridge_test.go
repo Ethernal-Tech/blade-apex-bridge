@@ -386,7 +386,7 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 
 		t.Run("4. Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
 			executeInvalidDestination(
-				t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
+				t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryDelaySec, bridgingType, 0)
 		})
 
 		t.Run("5. Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {

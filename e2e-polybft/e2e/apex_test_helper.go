@@ -238,8 +238,7 @@ func executeInvalidMetadataType(
 
 func executeInvalidDestination(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, bridgingType cardanofw.BridgingType, refundEnabled bool,
-	addrIndex uint8,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType cardanofw.BridgingType, addrIndex uint8,
 ) {
 	t.Helper()
 
@@ -273,10 +272,7 @@ func executeInvalidDestination(
 
 	metadata = bytes.Replace(metadata, fmt.Appendf(nil, "\"%s\"", config.dstChainID), []byte("\"unknown\""), 1)
 
-	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
-	require.NoError(t, err)
-
-	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
+	lovelaceAmount, sentTokenAmount, _ := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee, bridgingType)
 
 	txHash, err := apex.SubmitTx(
@@ -284,8 +280,7 @@ func executeInvalidDestination(
 		lovelaceAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
-	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
-		bridgingType, refundEnabled, maxWaitTimeSec, retryIntervalSec)
+	cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)
 }
 
 func executeInvalidMetadataInvalidSender(
