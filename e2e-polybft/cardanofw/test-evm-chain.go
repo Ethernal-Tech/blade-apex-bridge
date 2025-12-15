@@ -27,6 +27,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/Ethernal-Tech/ethgo/abi"
 
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
@@ -864,6 +865,123 @@ func (ec *TestEVMChain) BridgingRequest(
 	}
 
 	return "", errors.New("tx hash not found in command output")
+}
+
+func (ec *TestEVMChain) DirectBridgingRequest(
+	dstChainID uint8,
+	privateKey string,
+	receivers map[string]ReceiverAmount,
+	feeAmount *big.Int,
+	operationFee *big.Int,
+	tokenContractAddrSrc string,
+) (
+	string, error,
+) {
+	contractAddress := types.StringToAddress(ec.gatewayAddr.String())
+
+	// Build ReceiverWithdraw tuples from the receivers map
+	type gatewayReceiverWithdraw struct {
+		Receiver string   `abi:"receiver"`
+		Amount   *big.Int `abi:"amount"`
+		TokenId  uint16   `abi:"tokenId"`
+	}
+
+	gatewayReceivers := make([]gatewayReceiverWithdraw, 0, len(receivers))
+	totalTokenAmount := big.NewInt(0)
+
+	for addr, ra := range receivers {
+		gatewayReceivers = append(gatewayReceivers, gatewayReceiverWithdraw{
+			Receiver: addr,
+			Amount:   ra.Amount,
+			TokenId:  ra.TokenID,
+		})
+
+		if tokenContractAddrSrc != "" {
+			totalTokenAmount.Add(totalTokenAmount, ra.Amount)
+		}
+	}
+
+	totalAmount := big.NewInt(0)
+	totalAmount.Add(totalAmount, feeAmount)
+	totalAmount.Add(totalAmount, operationFee)
+
+	txRelayer, err := txrelayer.NewTxRelayer(
+		txrelayer.WithIPAddress(ec.jsonRPCAddr),
+		txrelayer.WithReceiptsTimeout(1*time.Minute),
+		txrelayer.WithEstimateGasFallback(),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	privateKeyECDSA, err := crypto.HexToECDSA(privateKey)
+	if err != nil {
+		return "", err
+	}
+	key := crypto.NewECDSAKey(privateKeyECDSA)
+
+	if tokenContractAddrSrc != "" {
+		approveMethod, err := abi.NewMethod("function approve(address spender, uint256 value)")
+		if err != nil {
+			return "", err
+		}
+
+		// Approve the gateway / native token wallet to transfer tokens
+		spenderAddr := ec.nativeTokenWalletAddr
+		approveData, err := approveMethod.Encode([]interface{}{spenderAddr, totalTokenAmount})
+		if err != nil {
+			return "", fmt.Errorf("failed to encode approve call: %w", err)
+		}
+
+		tokenAddr := types.StringToAddress(tokenContractAddrSrc)
+
+		receipt, err := txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
+			types.WithFrom(key.Address()),
+			types.WithTo(&tokenAddr),
+			types.WithInput(approveData),
+		)), key)
+		if err != nil {
+			return "", fmt.Errorf("failed to send approve tx: %w", err)
+		}
+		if receipt.Status != uint64(types.ReceiptSuccess) {
+			return "", fmt.Errorf("approve transaction receipt status is unsuccessful: %d", receipt.Status)
+		}
+	}
+
+	// Encode and send Gateway.withdraw(chainID, receivers, feeAmount, operationFee)
+	withdrawMethod, err := abi.NewMethod(
+		"function withdraw(uint8 _destinationChainId, " +
+			"(string receiver,uint256 amount,uint16 tokenId)[] _receivers, " +
+			"uint256 _fee, uint256 _operationFee) payable",
+	)
+	if err != nil {
+		return "", err
+	}
+
+	withdrawData, err := withdrawMethod.Encode([]interface{}{
+		dstChainID,
+		gatewayReceivers,
+		feeAmount,
+		operationFee,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to encode withdraw call: %w", err)
+	}
+
+	receipt, err := txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
+		types.WithFrom(key.Address()),
+		types.WithTo(&contractAddress),
+		types.WithValue(totalAmount),
+		types.WithInput(withdrawData),
+	)), key)
+	if err != nil {
+		return "", fmt.Errorf("failed to send withdraw tx: %w", err)
+	}
+	if receipt.Status != uint64(types.ReceiptSuccess) {
+		return "", fmt.Errorf("transaction receipt status is unsuccessful: %d", receipt.Status)
+	}
+
+	return receipt.TransactionHash.String(), nil
 }
 
 func (ec *TestEVMChain) SendTx(

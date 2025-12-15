@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
@@ -284,4 +285,52 @@ func executeInvalidMetadataWrongLabel(
 		apex.Config.APIKey, nil, cardanofw.DefaultRequestStateTimeoutSec)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "timeout")
+}
+
+type InvalidNexusBridgingRequest struct {
+	dstChainID   uint8
+	sender       *cardanofw.TestApexUser
+	receivers    map[string]cardanofw.ReceiverAmount
+	feeAmount    *big.Int
+	operationFee *big.Int
+	tokenInfo    *cardanofw.BridgingTokensInfo
+}
+
+// nexus test helper
+func executeInvalidNexusBridgingRequest(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
+	data InvalidNexusBridgingRequest,
+) error {
+	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+
+	pk, err := user.GetPrivateKey(cardanofw.ChainIDNexus)
+	if err != nil {
+		return err
+	}
+
+	tokenBalance, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDNexus, data.tokenInfo.SrcTokenName)
+	if err != nil {
+		return err
+	}
+
+	feeAmount := cardanofw.DfmToChainNativeTokenAmount(
+		cardanofw.ChainIDNexus, new(big.Int).SetUint64(
+			apex.GetMinBridgingFee(cardanofw.ChainIDNexus, true)))
+
+	fmt.Printf("feeAmount: %d\n", feeAmount)
+
+	if data.feeAmount != nil {
+		feeAmount = data.feeAmount
+	}
+
+	txHash, err := nexusChain.DirectBridgingRequest(data.dstChainID, pk, data.receivers, feeAmount, data.operationFee, data.tokenInfo.SrcTokenName)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+	err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDNexus,
+		tokenBalance[data.tokenInfo.SrcTokenName], 10, time.Second*10, data.tokenInfo.SrcTokenName)
+	return err
 }

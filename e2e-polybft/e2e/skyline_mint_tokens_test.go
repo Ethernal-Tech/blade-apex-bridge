@@ -370,6 +370,374 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_RefundDisabled(t *testing.T) {
 	})
 }
 
+func TestE2E_SkylineMintTokens_InvalidScenarios_NexusSrc(t *testing.T) {
+	const apiKey = "test_api_key"
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{cardanofw.USDTTokenID: cardanofw.USDTTokenName})
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+	vectorConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+
+	// funding for tests
+	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+	err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(1000000000001), cardanofw.USDTTokenID)
+	require.NoError(t, err)
+
+	validSendAmount := big.NewInt(1_000_000_000_000)
+
+	t.Run("1. Invalid destination in bridging request", func(t *testing.T) {
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+		require.NotNil(t, tokenInfo)
+
+		t.Run("1. Destination is Nexus", func(t *testing.T) {
+			err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+				dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDNexus),
+				sender:     user,
+				receivers: map[string]cardanofw.ReceiverAmount{
+					user.GetAddress(cardanofw.ChainIDVector): {
+						TokenID: cardanofw.USDTTokenID,
+						Amount:  validSendAmount,
+					},
+				},
+				operationFee: big.NewInt(0),
+				tokenInfo:    tokenInfo,
+			})
+			require.NoError(t, err)
+		})
+
+		// Uncomment when the oracle is changed
+		//t.Run("2. Destination is unregistered", func(t *testing.T) {
+		//	err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+		//		dstChainID: 99,
+		//		sender:     user,
+		//		receivers: map[string]cardanofw.ReceiverAmount{
+		//			user.GetAddress(cardanofw.ChainIDVector): {
+		//				TokenID: cardanofw.USDTTokenID,
+		//				Amount:  validSendAmount,
+		//			},
+		//		},
+		//		operationFee: big.NewInt(0),
+		//		tokenInfo:    tokenInfo,
+		//	})
+		//	require.NoError(t, err)
+		//})
+	})
+
+	t.Run("2. Invalid destination in receiver", func(t *testing.T) {
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+		require.NotNil(t, tokenInfo)
+
+		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			sender:     user,
+			receivers: map[string]cardanofw.ReceiverAmount{
+				user.GetAddress(cardanofw.ChainIDNexus): {
+					TokenID: cardanofw.USDTTokenID,
+					Amount:  validSendAmount,
+				},
+			},
+			operationFee: big.NewInt(0),
+			tokenInfo:    tokenInfo,
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("3. 0 receivers in bridging request", func(t *testing.T) {
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+		require.NotNil(t, tokenInfo)
+
+		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+			dstChainID:   cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			sender:       user,
+			operationFee: big.NewInt(0),
+			tokenInfo:    tokenInfo,
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("4. Too many receivers in bridging request", func(t *testing.T) {
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+		require.NotNil(t, tokenInfo)
+
+		receivers := make(map[string]cardanofw.ReceiverAmount)
+		for i := 0; i < 6; i++ {
+			receivers[apex.Users[i].GetAddress(cardanofw.ChainIDVector)] = cardanofw.ReceiverAmount{
+				TokenID: cardanofw.USDTTokenID,
+				Amount:  validSendAmount,
+			}
+		}
+
+		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+			dstChainID:   cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			sender:       user,
+			receivers:    receivers,
+			operationFee: big.NewInt(0),
+			tokenInfo:    tokenInfo,
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("5. Invalid receiver address", func(t *testing.T) {
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+		require.NotNil(t, tokenInfo)
+
+		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			sender:     user,
+			receivers: map[string]cardanofw.ReceiverAmount{
+				"addr_test1invalidaddress": {
+					TokenID: cardanofw.USDTTokenID,
+					Amount:  validSendAmount,
+				},
+			},
+			operationFee: big.NewInt(0),
+			tokenInfo:    tokenInfo,
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("6. Fee address in receivers", func(t *testing.T) {
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+		require.NotNil(t, tokenInfo)
+
+		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			sender:     user,
+			receivers: map[string]cardanofw.ReceiverAmount{
+				apex.VectorInfo.FeeAddr: {
+					TokenID: cardanofw.USDTTokenID,
+					Amount:  validSendAmount,
+				},
+			},
+			operationFee: big.NewInt(0),
+			tokenInfo:    tokenInfo,
+		})
+		require.NoError(t, err)
+
+	})
+
+	t.Run("7. Less than allowed to bridge", func(t *testing.T) {
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+		require.NotNil(t, tokenInfo)
+
+		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			sender:     user,
+			receivers: map[string]cardanofw.ReceiverAmount{
+				user.GetAddress(cardanofw.ChainIDVector): {
+					TokenID: cardanofw.USDTTokenID,
+					Amount:  big.NewInt(0),
+				},
+			},
+			operationFee: big.NewInt(0),
+			tokenInfo:    tokenInfo,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
+	})
+
+	t.Run("8. Negative amount in receivers", func(t *testing.T) {
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+		require.NotNil(t, tokenInfo)
+
+		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			sender:     user,
+			receivers: map[string]cardanofw.ReceiverAmount{
+				user.GetAddress(cardanofw.ChainIDVector): {
+					TokenID: cardanofw.USDTTokenID,
+					Amount:  validSendAmount,
+				},
+				apex.Users[1].GetAddress(cardanofw.ChainIDVector): {
+					TokenID: cardanofw.USDTTokenID,
+					Amount:  big.NewInt(-1),
+				},
+			},
+			operationFee: big.NewInt(0),
+			tokenInfo:    tokenInfo,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
+	})
+
+	t.Run("9. Incorect token id in receivers", func(t *testing.T) {
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+		require.NotNil(t, tokenInfo)
+
+		req := InvalidNexusBridgingRequest{
+			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			sender:     user,
+			receivers: map[string]cardanofw.ReceiverAmount{
+				user.GetAddress(cardanofw.ChainIDVector): {
+					TokenID: 0,
+					Amount:  validSendAmount,
+				},
+			},
+			operationFee: big.NewInt(0),
+			tokenInfo:    tokenInfo,
+		}
+
+		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, req)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
+	})
+
+	t.Run("10. Over max allowed to bridge", func(t *testing.T) {
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+		require.NotNil(t, tokenInfo)
+
+		t.Run("1. Nexus -> Vector usdt", func(t *testing.T) {
+			err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+				dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+				sender:     user,
+				receivers: map[string]cardanofw.ReceiverAmount{
+					user.GetAddress(cardanofw.ChainIDVector): {
+						TokenID: cardanofw.USDTTokenID,
+						Amount:  cardanofw.DfmToWei(big.NewInt(1000000000001)),
+					},
+				},
+				operationFee: big.NewInt(0),
+				tokenInfo:    tokenInfo,
+			})
+			require.NoError(t, err)
+		})
+
+		vectorChain := apex.GetChainMust(t, cardanofw.ChainIDVector).(*cardanofw.TestCardanoChain)
+		err = cardanofw.MintToken(vectorChain, apex.VectorInfo.GenesisWallet, cardanofw.XADATokenName, 10000000000010)
+		require.NoError(t, err)
+
+		_, err = cardanofw.FundUsersWithToken(
+			ctx, vectorChain, apex.VectorInfo.GenesisWallet,
+			apex.Users, cardanofw.XADATokenName, 2_000_000, 1000000000001)
+		require.NoError(t, err)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(500000000001),
+			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.XADATokenID}))
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(500000000000),
+			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.XADATokenID}))
+
+		tokenInfo = apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.XADATokenID)
+		require.NotNil(t, tokenInfo)
+
+		t.Run("2. Nexus -> Vector xada", func(t *testing.T) {
+			err = executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+				dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+				sender:     user,
+				receivers: map[string]cardanofw.ReceiverAmount{
+					user.GetAddress(cardanofw.ChainIDVector): {
+						TokenID: cardanofw.XADATokenID,
+						Amount:  cardanofw.DfmToWei(big.NewInt(1000000000001)),
+					},
+				},
+				operationFee: big.NewInt(0),
+				tokenInfo:    tokenInfo,
+			})
+			require.NoError(t, err)
+		})
+
+		t.Run("3. Nexus -> Cardano xada", func(t *testing.T) {
+			err = executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+				dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDCardano),
+				sender:     user,
+				receivers: map[string]cardanofw.ReceiverAmount{
+					user.GetAddress(cardanofw.ChainIDCardano): {
+						TokenID: cardanofw.XADATokenID,
+						Amount:  cardanofw.DfmToWei(big.NewInt(1000000000001)),
+					},
+				},
+				operationFee: big.NewInt(0),
+				tokenInfo:    tokenInfo,
+			})
+			require.NoError(t, err)
+		})
+	})
+
+	t.Run("11. Insufficient balance", func(t *testing.T) {
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+		require.NotNil(t, tokenInfo)
+
+		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			sender:     user,
+			receivers: map[string]cardanofw.ReceiverAmount{
+				user.GetAddress(cardanofw.ChainIDVector): {
+					TokenID: cardanofw.USDTTokenID,
+					Amount:  new(big.Int).Mul(validSendAmount, big.NewInt(1000000000000000000)),
+				},
+			},
+			operationFee: big.NewInt(0),
+			tokenInfo:    tokenInfo,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
+	})
+
+	t.Run("12. Insufficient fee", func(t *testing.T) {
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+		require.NotNil(t, tokenInfo)
+
+		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			sender:     user,
+			receivers: map[string]cardanofw.ReceiverAmount{
+				user.GetAddress(cardanofw.ChainIDVector): {
+					TokenID: cardanofw.USDTTokenID,
+					Amount:  validSendAmount,
+				},
+			},
+			operationFee: big.NewInt(0),
+			feeAmount:    big.NewInt(1000000000),
+			tokenInfo:    tokenInfo,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
+	})
+
+	/*
+		Uncomnent when the operation fee is set to != 0 in settings
+		t.Run("13. Wrong operation fee", func(t *testing.T) {
+			tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+			require.NotNil(t, tokenInfo)
+
+			err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+				dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+				sender:     user,
+				receivers: map[string]cardanofw.ReceiverAmount{
+					user.GetAddress(cardanofw.ChainIDVector): {
+						TokenID: cardanofw.USDTTokenID,
+						Amount:  validSendAmount,
+					},
+				},
+				operationFee: new(big.Int).Sub(apex.Config.NexusConfig.MinOperationFee, big.NewInt(1)),
+				tokenInfo:    tokenInfo,
+			})
+			require.Error(t, err)
+			require.ErrorContains(t, err, "timeout")
+		})
+	*/
+}
+
 func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
