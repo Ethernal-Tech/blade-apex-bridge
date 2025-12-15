@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/stretchr/testify/require"
 )
 
@@ -274,6 +275,11 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 		}, apex.Users[:userCnt], uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
 	vectorToken, cardanoToken := tokens[0], tokens[1]
 
+	// Fund user on Nexus with USDT token
+	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+	err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(100), cardanofw.USDTTokenID)
+	require.NoError(t, err)
+
 	cardanoNexusTestConfig := newTestConfig(
 		t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDNexus, cardanoToken.TokenName())
 	vectorTestConfig := newTestConfig(
@@ -301,6 +307,47 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 
 	t.Run("3. Cardano -> Nexus - Invalid destination - native token on source", func(t *testing.T) {
 		executeInvalidTokenDirection(t, ctx, apex, cardanoNexusTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+	})
+
+	t.Run("4. Vector -> Nexus - Mismatch submitted and receiver amounts - USDT on source", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
+			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+
+		executeInvalidMismatchSendColCoinsAmount(t, ctx, apex, vectorTestConfig, user, uint64(1), cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, true, 0)
+	})
+
+	t.Run("5. Vector -> Nexus - Mismatch submitted and multiple receiver amounts - USDT on source", func(t *testing.T) {
+		instances := 3
+
+		for i := range instances {
+			fmt.Printf("Bridging USDT from Nexus to Vector for user %d\n", i)
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, user, apex.Users[i], cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
+				cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+		}
+
+		executeInvalidMismatchSendColCoinsMultipleInstancesParalel(t, ctx, apex, vectorTestConfig, uint64(1), cardanofw.USDTTokenID, instances, maxWaitTimeSec, retryDelaySec, true, 0)
+	})
+
+	// t.Run("6. Vector -> Nexus - Invalid destination - USDT on source", func(t *testing.T) {
+	// 	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+	// 	err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(2), cardanofw.USDTTokenID)
+	// 	require.NoError(t, err)
+
+	// 	e2ehelper.ExecuteSingleBridging(
+	// 		t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
+	// 		cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+
+	// 	executeInvalidDestinationColCoin(t, ctx, apex, vectorTestConfig, user, uint64(1), cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, true, 0)
+	// })
+
+	t.Run("7. Vector -> Nexus - Invalid metadata type - USDT on source", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
+			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+
+		executeInvalidMetadataTypeColCoin(t, ctx, apex, vectorTestConfig, user, uint64(1), cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 }
 

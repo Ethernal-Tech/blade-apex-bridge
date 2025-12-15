@@ -616,6 +616,43 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				{WaitTime: startAgainAfter, StartIndxs: []int{validatorStoppingIdx1}},
 			}))
 	})
+
+	t.Run("14. Prime -> Cardano - obsolete metadata - currency on src", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
+		primeTestConfig := newTestConfig(
+			t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, "")
+
+		executeObsoleteMetadata(t, ctx, apex, primeTestConfig, user, 600, 5, cardanofw.BridgingTypeCurrencyOnSource, 0)
+	})
+
+	t.Run("15. Vector -> Cardano - obsolete metadata - wrapped token on src", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
+		vectorToken, err := cardanofw.FundUserWithToken(
+			ctx, apex, cardanofw.ChainIDVector,
+			minterWalletVector, user,
+			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
+			uint64(1_100_000_000), uint64(2_500_000))
+		require.NoError(t, err)
+
+		vectorTestConfig := newTestConfig(
+			t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, vectorToken.TokenName())
+
+		executeObsoleteMetadata(t, ctx, apex, vectorTestConfig, user, 600, 5, cardanofw.BridgingTypeWrappedTokenOnSource, 0)
+	})
 }
 
 func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {

@@ -3,6 +3,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"sync"
@@ -14,6 +15,37 @@ import (
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
+
+type RefundOption int
+
+const (
+	RefundDisabled RefundOption = iota
+	RefundEnabled
+	RefundDisabledTimeout
+)
+
+const (
+	bridgingMetaDataType sendtx.BridgingRequestType = "bridge"
+	metadataMapKey       int                        = 1
+)
+
+// backward compatibility
+type BridgingRequestMetadataTransactionBC struct {
+	Address                     []string `cbor:"a" json:"a"`
+	IsNativeTokenOnSrc_Obsolete byte     `cbor:"nt" json:"nt"` //nolint:stylecheck
+	Amount                      uint64   `cbor:"m" json:"m"`
+	TokenID                     uint16   `cbor:"t" json:"t"`
+}
+
+// backward compatibility
+type BridgingRequestMetadataBC struct {
+	BridgingTxType     sendtx.BridgingRequestType             `cbor:"t" json:"t"`
+	DestinationChainID string                                 `cbor:"d" json:"d"`
+	SenderAddr         []string                               `cbor:"s" json:"s"`
+	Transactions       []BridgingRequestMetadataTransactionBC `cbor:"tx" json:"tx"`
+	BridgingFee        uint64                                 `cbor:"fa" json:"fa"`
+	OperationFee       uint64                                 `cbor:"of" json:"of"`
+}
 
 type testConfig struct {
 	srcChainID cardanofw.ChainID
@@ -54,7 +86,7 @@ func newTestConfig(
 func WaitForTestResult(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
 	txHash string, beforeSendingAmountDfm map[string]*big.Int, sentAmount uint64, bridgingType cardanofw.BridgingType,
-	refundEnabled bool, maxWaitTimeSec, retryIntervalSec uint,
+	refundEnabled bool, maxWaitTimeSec, retryIntervalSec uint, coloredCoins ...uint16,
 ) {
 	t.Helper()
 
@@ -69,7 +101,7 @@ func WaitForTestResult(
 		}
 
 		if bridgingType == cardanofw.BridgingTypeColoredCoinOnSource {
-			tokensInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, bridgingType)
+			tokensInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, bridgingType, coloredCoins...)
 			require.NotNil(t, tokensInfo)
 
 			tokenName = tokensInfo.SrcTokenName
@@ -90,6 +122,67 @@ func WaitForTestResult(
 }
 
 // Test methods
+func submitMismatchAndWait(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
+	metadata []byte, lovelaceAmount *big.Int, sentTokenAmount []wallet.TokenAmount, waitForAmount uint64,
+	bridgingType cardanofw.BridgingType, refundOption RefundOption, maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8,
+	coloredCoins ...uint16,
+) {
+	t.Helper()
+
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
+	require.NoError(t, err)
+
+	txHash, err := apex.SubmitTx(
+		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
+		lovelaceAmount, sentTokenAmount, metadata)
+	require.NoError(t, err)
+
+	if refundOption == RefundDisabledTimeout {
+		_, err = cardanofw.WaitForRequestStates(ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, nil, maxWaitTimeSec)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "timeout")
+	} else {
+		WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
+			bridgingType, refundOption == RefundEnabled, maxWaitTimeSec, retryIntervalSec, coloredCoins...)
+	}
+}
+
+func submitColCoinsMismatchAndWait(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
+	receivers []sendtx.BridgingTxReceiver, amount uint64, tokenID uint16, bridgingType cardanofw.BridgingType,
+	maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8, refundOption RefundOption, metadataModifier func([]byte) []byte,
+) {
+	t.Helper()
+
+	operationFee := apex.GetMinOperationFee(config.srcChainID)
+
+	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == cardanofw.BridgingTypeColoredCoinOnSource),
+		operationFee,
+		user, receivers, bridgingType)
+
+	if metadataModifier != nil {
+		metadata = metadataModifier(metadata)
+	}
+
+	waitForAmount := amount
+	lovelaceAmount := new(big.Int).SetUint64(feeAmount + operationFee)
+
+	tokensInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, cardanofw.BridgingTypeColoredCoinOnSource, []uint16{tokenID}...)
+
+	token, err := wallet.NewTokenWithFullName(tokensInfo.SrcTokenName, true)
+	require.NoError(t, err)
+
+	sentTokenAmount := []wallet.TokenAmount{{
+		Token:  token,
+		Amount: amount,
+	}}
+
+	submitMismatchAndWait(t, ctx, apex, config, user, metadata, lovelaceAmount, sentTokenAmount, waitForAmount,
+		cardanofw.BridgingTypeColoredCoinOnSource, refundOption, maxWaitTimeSec, retryIntervalSec, addrIndex, tokenID)
+}
+
 func executeInvalidMismatchSendLovelaceAmount(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
 	maxWaitTimeSec, retryIntervalSec uint, bridgingType cardanofw.BridgingType, refundEnabled bool, addrIndex uint8,
@@ -105,19 +198,103 @@ func executeInvalidMismatchSendLovelaceAmount(
 		operationFee,
 		user, receivers, bridgingType)
 
-	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
-	require.NoError(t, err)
-
 	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee, bridgingType)
 
-	txHash, err := apex.SubmitTx(
-		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		lovelaceAmount, sentTokenAmount, metadata)
-	require.NoError(t, err)
+	refundOption := RefundDisabled
+	if refundEnabled {
+		refundOption = RefundEnabled
+	}
 
-	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount, bridgingType,
-		refundEnabled, maxWaitTimeSec, retryIntervalSec)
+	submitMismatchAndWait(t, ctx, apex, config, user, metadata, lovelaceAmount, sentTokenAmount, waitForAmount,
+		bridgingType, refundOption, maxWaitTimeSec, retryIntervalSec, addrIndex)
+}
+
+func executeInvalidMismatchSendColCoinsAmount(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser, amount uint64, tokenID uint16,
+	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8,
+) {
+	t.Helper()
+
+	receivers := createReceiversColCoin(apex, 1, config.dstChainID, amount*10, tokenID)
+
+	refundOption := RefundDisabled
+	if refundEnabled {
+		refundOption = RefundEnabled
+	}
+
+	submitColCoinsMismatchAndWait(t, ctx, apex, config, user, receivers, amount, tokenID, cardanofw.BridgingTypeColoredCoinOnSource,
+		maxWaitTimeSec, retryIntervalSec, addrIndex, refundOption, nil)
+}
+
+func executeInvalidMismatchSendColCoinsMultipleInstancesParalel(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, amount uint64, tokenID uint16,
+	instances int, maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
+	addrIndex uint8,
+) {
+	t.Helper()
+
+	bridgingType := cardanofw.BridgingTypeColoredCoinOnSource
+
+	var wg sync.WaitGroup
+
+	for i := range instances {
+		wg.Add(1)
+
+		go func(idx int) {
+			defer wg.Done()
+
+			receivers := createReceiversColCoin(apex, 1, config.dstChainID, amount*10, tokenID)
+
+			refundOption := RefundDisabled
+			if refundEnabled {
+				refundOption = RefundEnabled
+			}
+
+			submitColCoinsMismatchAndWait(t, ctx, apex, config, apex.Users[idx], receivers, amount, tokenID, bridgingType,
+				maxWaitTimeSec, retryIntervalSec, addrIndex, refundOption, nil)
+		}(i)
+	}
+
+	wg.Wait()
+}
+
+func executeInvalidDestinationColCoin(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser, amount uint64, tokenID uint16,
+	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8,
+) {
+	t.Helper()
+
+	receivers := createReceiversColCoin(apex, 1, config.dstChainID, amount, tokenID)
+
+	refundOption := RefundDisabled
+	if refundEnabled {
+		refundOption = RefundEnabled
+	}
+
+	submitColCoinsMismatchAndWait(t, ctx, apex, config, user, receivers, amount, tokenID, cardanofw.BridgingTypeColoredCoinOnSource,
+		maxWaitTimeSec, retryIntervalSec, addrIndex, refundOption, func(metadata []byte) []byte {
+			return bytes.Replace(metadata, fmt.Appendf(nil, "\"%s\"", config.dstChainID), []byte("\"unknown\""), 1)
+		})
+}
+
+func executeInvalidMetadataTypeColCoin(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser, amount uint64, tokenID uint16,
+	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8,
+) {
+	t.Helper()
+
+	receivers := createReceiversColCoin(apex, 1, config.dstChainID, amount, tokenID)
+
+	refundOption := RefundDisabledTimeout
+	if refundEnabled {
+		refundOption = RefundEnabled
+	}
+
+	submitColCoinsMismatchAndWait(t, ctx, apex, config, user, receivers, amount, tokenID, cardanofw.BridgingTypeColoredCoinOnSource,
+		maxWaitTimeSec, retryIntervalSec, addrIndex, refundOption, func(metadata []byte) []byte {
+			return bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
+		})
 }
 
 func executeInvalidMismatchSendAmountMultipleInstances(
@@ -234,6 +411,54 @@ func executeInvalidMetadataType(
 		require.Error(t, err)
 		require.ErrorContains(t, err, "timeout")
 	}
+}
+
+func executeObsoleteMetadata(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
+	maxWaitTimeSec, retryIntervalSec uint, bridgingType cardanofw.BridgingType, addrIndex uint8,
+) {
+	t.Helper()
+
+	receivers := createReceivers(apex, 1, config.srcChainID, config.dstChainID, defaultSendAmount, bridgingType)
+
+	operationFee := apex.GetMinOperationFee(config.srcChainID)
+
+	metadata, feeAmount := createObsoleteMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
+		apex.GetMinBridgingFee(config.srcChainID, bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource),
+		operationFee,
+		user, receivers, bridgingType)
+
+	tokensInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, bridgingType)
+	require.NotNil(t, tokensInfo)
+
+	balance, err := apex.GetBalanceWithTokenName(ctx, apex.Users[len(apex.Users)-1], config.dstChainID, tokensInfo.DstTokenName)
+	fmt.Printf("Receiver balance: %+v\n", balance)
+	require.NoError(t, err)
+
+	lovelaceAmount, sentTokenAmount, _ := getDefaultSendAmounts(
+		t, config, feeAmount, operationFee, bridgingType)
+
+	txHash, err := apex.SubmitTx(
+		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
+		lovelaceAmount, sentTokenAmount, metadata)
+	require.NoError(t, err)
+
+	require.NoError(t, err)
+
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+	currentAmount, ok := balance[tokensInfo.DstTokenName]
+	if !ok {
+		currentAmount = big.NewInt(0)
+	}
+	expectedAmount := new(big.Int).Add(currentAmount, big.NewInt(int64(defaultSendAmount)))
+
+	numRetries := max(1, int(maxWaitTimeSec/retryIntervalSec))
+
+	err = apex.WaitForExactAmount(ctx, user, config.dstChainID, config.srcChainID, expectedAmount,
+		numRetries, time.Second*time.Duration(retryIntervalSec), tokensInfo.DstTokenName)
+
+	require.NoError(t, err)
 }
 
 func executeInvalidDestination(
@@ -449,12 +674,55 @@ func createMetadata(
 	return metadata, feeAmount
 }
 
-func createReceivers(
-	apex *cardanofw.ApexSystem, receiversCount int, srcChain string, dstChain string, sendAmount uint64, bridgingType cardanofw.BridgingType,
+func createObsoleteMetadata(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
+	srcChain, dstChain cardanofw.ChainID, bridgingFee, operationFee uint64,
+	sender *cardanofw.TestApexUser, receivers []sendtx.BridgingTxReceiver,
+	bridgingType cardanofw.BridgingType,
+) ([]byte, uint64) {
+	t.Helper()
+
+	srcTestChain := apex.GetChainMust(t, srcChain)
+
+	multisig, err := srcTestChain.GetAddressToBridgeTo(ctx, bridgingType)
+	require.NoError(t, err)
+
+	feeAmount, err := srcTestChain.GetBridgingFee(ctx, dstChain, receivers, bridgingFee, operationFee, multisig)
+	require.NoError(t, err)
+
+	txs := make([]BridgingRequestMetadataTransactionBC, len(receivers))
+	boolToByte := map[bool]byte{true: 1, false: 0}
+
+	for i, x := range receivers {
+		txs[i] = BridgingRequestMetadataTransactionBC{
+			Address:                     sendtx.AddrToMetaDataAddr(x.Addr),
+			IsNativeTokenOnSrc_Obsolete: boolToByte[bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource],
+			Amount:                      x.Amount,
+			TokenID:                     0,
+		}
+	}
+
+	metadata := BridgingRequestMetadataBC{
+		BridgingTxType:     bridgingMetaDataType,
+		DestinationChainID: dstChain,
+		SenderAddr:         sendtx.AddrToMetaDataAddr(sender.GetAddress(srcChain)),
+		Transactions:       txs,
+		BridgingFee:        feeAmount,
+		OperationFee:       operationFee,
+	}
+
+	metadataBytes, err := json.Marshal(map[int]BridgingRequestMetadataBC{
+		metadataMapKey: metadata,
+	})
+	require.NoError(t, err)
+
+	return metadataBytes, feeAmount
+}
+
+func createReceiversCore(
+	apex *cardanofw.ApexSystem, receiversCount int, dstChain string, sendAmount uint64, tokenID uint16,
 ) []sendtx.BridgingTxReceiver {
 	receivers := make([]sendtx.BridgingTxReceiver, receiversCount)
-
-	tokenID := apex.GetTokenIDForChain(srcChain, bridgingType == cardanofw.BridgingTypeCurrencyOnSource)
 
 	for i := range receivers {
 		receivers[i] = sendtx.BridgingTxReceiver{
@@ -465,4 +733,17 @@ func createReceivers(
 	}
 
 	return receivers
+}
+
+func createReceiversColCoin(
+	apex *cardanofw.ApexSystem, receiversCount int, dstChain string, sendAmount uint64, tokenID uint16,
+) []sendtx.BridgingTxReceiver {
+	return createReceiversCore(apex, receiversCount, dstChain, sendAmount, tokenID)
+}
+
+func createReceivers(
+	apex *cardanofw.ApexSystem, receiversCount int, srcChain string, dstChain string, sendAmount uint64, bridgingType cardanofw.BridgingType,
+) []sendtx.BridgingTxReceiver {
+	tokenID := apex.GetTokenIDForChain(srcChain, bridgingType == cardanofw.BridgingTypeCurrencyOnSource)
+	return createReceiversCore(apex, receiversCount, dstChain, sendAmount, tokenID)
 }
