@@ -18,6 +18,7 @@ type SubmittedTxData struct {
 	TxHash                 string
 	SendAmountDfm          *big.Int
 	BridgingTxType         cardanofw.BridgingType
+	err                    error
 }
 
 type TimeoutConfig struct {
@@ -86,7 +87,7 @@ type RestartValidatorsConfig struct {
 
 // returns map chainID -> receiverIdx -> txHash
 type SendTxStrategyFn func(
-	t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
+	ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
 	bridgingTypes map[SrcDstChainPair]cardanofw.BridgingType, coloredCoins ...uint16) []*SubmittedTxData
 
@@ -158,10 +159,9 @@ func WithColoredCoins(coloredCoins []uint16) ExecuteBridgingOption {
 
 var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
-		t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
+		ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
 		bridgingTypes map[SrcDstChainPair]cardanofw.BridgingType, coloredCoins ...uint16) []*SubmittedTxData {
-		t.Helper()
 
 		var (
 			wg              sync.WaitGroup
@@ -179,7 +179,18 @@ var (
 					for j := 0; j < txCountPerSender; j++ {
 						for _, dstChain := range dstChains {
 							tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingTypes[NewChainPair(srcChain, dstChain)], coloredCoins...)
-							require.NotNil(t, tokensInfo)
+							if tokensInfo == nil {
+								mu.Lock()
+
+								submittedTxData = append(submittedTxData, &SubmittedTxData{
+									err: fmt.Errorf("tokensInfo nil for src: %s, dst: %s, type: %v, cc: %v",
+										srcChain, dstChain, bridgingTypes[NewChainPair(srcChain, dstChain)], coloredCoins),
+								})
+
+								mu.Unlock()
+
+								continue
+							}
 
 							txHash, err := apex.SubmitBridgingRequest(
 								cardanofw.SubmitBridgingRequestData{
@@ -192,7 +203,17 @@ var (
 									Receivers:        receivers,
 									TokensInfo:       tokensInfo,
 								})
-							require.NoError(t, err)
+							if err != nil {
+								mu.Lock()
+
+								submittedTxData = append(submittedTxData, &SubmittedTxData{
+									err: err,
+								})
+
+								mu.Unlock()
+
+								continue
+							}
 
 							fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
 								idx+1, j+1, srcChain, dstChain, txHash)

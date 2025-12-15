@@ -187,13 +187,14 @@ func NewApexSystem(
 func NewSkylineSystem(
 	dataDirPath string, opts ...ApexSystemOptions,
 ) (*ApexSystem, error) {
-	config := getDefaultSkylinexSystemConfig()
+	config := getDefaultSkylineSystemConfig()
 	for _, opt := range opts {
 		opt(config)
 	}
 
 	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee
 	config.VectorConfig.MinOperationFee = DefaultMinOperationFee
+	config.NexusConfig.MinOperationFee = DfmToWei(new(big.Int).SetUint64(DefaultMinOperationFee))
 
 	users := make([]*TestApexUser, config.UserCnt)
 
@@ -583,6 +584,105 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 
 			a.EcosystemTokens[USDTTokenID] = USDTTokenName
 		}
+	} else {
+		require.NotNil(t, a.PrimeInfo.GenesisWallet)
+		require.NotNil(t, a.VectorInfo.GenesisWallet)
+
+		// By default we have the following directions:
+		// - Prime <-> Vector = AP3X <-> AP3X
+		// And tokens: AP3X
+
+		a.PrimeInfo.DestChain = map[ChainID][]Direction{
+			ChainIDVector: {
+				{
+					SourceTokenID:      AP3XTokenID,
+					DestinationTokenID: AP3XTokenID,
+					TrackSource:        true,
+					TrackDestination:   true,
+				},
+			},
+		}
+
+		a.PrimeInfo.Tokens = map[uint16]Token{
+			AP3XTokenID: {
+				ChainSpecific:     cardanowallet.AdaTokenName,
+				LockUnlock:        true,
+				IsWrappedCurrency: false,
+			},
+		}
+
+		a.VectorInfo.DestChain = map[ChainID][]Direction{
+			ChainIDPrime: {
+				{
+					SourceTokenID:      AP3XTokenID,
+					DestinationTokenID: AP3XTokenID,
+					TrackSource:        true,
+					TrackDestination:   true,
+				},
+			},
+		}
+
+		a.VectorInfo.Tokens = map[uint16]Token{
+			AP3XTokenID: {
+				ChainSpecific:     cardanowallet.AdaTokenName,
+				LockUnlock:        true,
+				IsWrappedCurrency: false,
+			},
+		}
+
+		a.EcosystemTokens = map[uint16]string{
+			AP3XTokenID: AP3XTokenName,
+		}
+
+		if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
+			// In case Nexus is enabled, we need to add:
+			// - Nexus <-> Vector = AP3X <-> AP3X
+			// - Nexus <-> Prime = AP3X <-> AP3X
+			a.NexusInfo.DestChain = map[ChainID][]Direction{
+				ChainIDPrime: {
+					{
+						SourceTokenID:      AP3XTokenID,
+						DestinationTokenID: AP3XTokenID,
+						TrackSource:        true,
+						TrackDestination:   true,
+					},
+				},
+				ChainIDVector: {
+					{
+						SourceTokenID:      AP3XTokenID,
+						DestinationTokenID: AP3XTokenID,
+						TrackSource:        true,
+						TrackDestination:   true,
+					},
+				},
+			}
+
+			a.NexusInfo.Tokens = map[uint16]Token{
+				AP3XTokenID: {
+					ChainSpecific:     cardanowallet.AdaTokenName,
+					LockUnlock:        true,
+					IsWrappedCurrency: false,
+				},
+			}
+
+			a.PrimeInfo.DestChain[ChainIDNexus] = []Direction{
+				{
+					SourceTokenID:      AP3XTokenID,
+					DestinationTokenID: AP3XTokenID,
+					TrackSource:        true,
+					TrackDestination:   true,
+				},
+			}
+
+			a.VectorInfo.DestChain[ChainIDNexus] = []Direction{
+				{
+					SourceTokenID:      AP3XTokenID,
+					DestinationTokenID: AP3XTokenID,
+					TrackSource:        true,
+					TrackDestination:   true,
+				},
+			}
+		}
 	}
 
 	a.InitTxSendChainConfiguration()
@@ -765,68 +865,7 @@ func (a *ApexSystem) GenerateConfigs() error {
 	}
 }
 
-func (a *ApexSystem) generateReactorConfigs() error {
-	getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
-		return func(data map[string]any) {
-			callback(a, data)
-		}
-	}
-
-	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
-		serverIndx := i
-		if a.Config.TargetOneClusterServer {
-			serverIndx = 0
-		}
-
-		err := validator.GenerateConfigs(
-			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i))
-		if err != nil {
-			return err
-		}
-
-		for _, chain := range a.chains {
-			if err := chain.GenerateChainConfigs(serverIndx, validator); err != nil {
-				return err
-			}
-		}
-
-		if handler := a.Config.CustomOracleConfigHandler; handler != nil {
-			fileName := validator.GetValidatorComponentsConfig()
-			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
-				return err
-			}
-		}
-
-		if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
-			fileName := validator.GetRelayerConfig()
-			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
-				return err
-			}
-		}
-
-		if handler := a.Config.CustomDirectionsConfigHandler; handler != nil {
-			fileName := validator.GetDirectionsConfig()
-			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	return a.setBridgingAPIs()
-}
-
-func (a *ApexSystem) generateSkylineConfigs() error {
-	getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
-		return func(data map[string]any) {
-			callback(a, data)
-		}
-	}
-
+func (a *ApexSystem) generateDirectionsConfigFile() *DirectionConfigFile {
 	ecosystemTokens := make([]EcosystemToken, 0, len(a.EcosystemTokens))
 	for id, name := range a.EcosystemTokens {
 		ecosystemTokens = append(ecosystemTokens, EcosystemToken{ID: id, Name: name})
@@ -854,6 +893,81 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 		}
 	}
 
+	return &directionConfigFile
+}
+
+func (a *ApexSystem) generateCommonValidatorConfigs(
+	validator *TestApexValidator, serverIndx int, directionConfigFile *DirectionConfigFile,
+) error {
+	getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
+		return func(data map[string]any) {
+			callback(a, data)
+		}
+	}
+
+	err := validator.GenerateDirectionsConfig(directionConfigFile)
+	if err != nil {
+		return err
+	}
+
+	for _, chain := range a.chains {
+		if err := chain.GenerateChainConfigs(
+			serverIndx, validator); err != nil {
+			return err
+		}
+	}
+
+	if handler := a.Config.CustomOracleConfigHandler; handler != nil {
+		fileName := validator.GetValidatorComponentsConfig()
+		if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
+			return err
+		}
+	}
+
+	if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
+		fileName := validator.GetRelayerConfig()
+		if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
+			return err
+		}
+	}
+
+	if handler := a.Config.CustomDirectionsConfigHandler; handler != nil {
+		fileName := validator.GetDirectionsConfig()
+		if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (a *ApexSystem) generateReactorConfigs() error {
+	directionConfigFile := a.generateDirectionsConfigFile()
+
+	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
+		serverIndx := i
+		if a.Config.TargetOneClusterServer {
+			serverIndx = 0
+		}
+
+		err := validator.GenerateConfigs(
+			a.Config.APIPortStart+i, a.Config.APIKey, a.Config.GetTelemetryForValidatorIdx(i))
+		if err != nil {
+			return err
+		}
+
+		return a.generateCommonValidatorConfigs(validator, serverIndx, directionConfigFile)
+	})
+	if err != nil {
+		return err
+	}
+
+	return a.setBridgingAPIs()
+}
+
+func (a *ApexSystem) generateSkylineConfigs() error {
+	directionConfigFile := a.generateDirectionsConfigFile()
+
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		serverIndx := i
 		if a.Config.TargetOneClusterServer {
@@ -867,40 +981,7 @@ func (a *ApexSystem) generateSkylineConfigs() error {
 			return err
 		}
 
-		err = validator.GenerateDirectionsConfig(directionConfigFile)
-		if err != nil {
-			return err
-		}
-
-		for _, chain := range a.chains {
-			if err := chain.GenerateChainConfigs(
-				serverIndx, validator); err != nil {
-				return err
-			}
-		}
-
-		if handler := a.Config.CustomOracleConfigHandler; handler != nil {
-			fileName := validator.GetValidatorComponentsConfig()
-			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
-				return err
-			}
-		}
-
-		if handler := a.Config.CustomRelayerConfigHandler; handler != nil && RunRelayerOnValidatorID == validator.ID {
-			fileName := validator.GetRelayerConfig()
-			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
-				return err
-			}
-		}
-
-		if handler := a.Config.CustomDirectionsConfigHandler; handler != nil {
-			fileName := validator.GetDirectionsConfig()
-			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
-				return err
-			}
-		}
-
-		return nil
+		return a.generateCommonValidatorConfigs(validator, serverIndx, directionConfigFile)
 	})
 	if err != nil {
 		return err
@@ -1029,7 +1110,6 @@ func (a *ApexSystem) GetBalance(
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Getting balance for chain: %+v and user: %+v\n", chainID, user.GetAddress(chainID))
 	balance, err := chain.GetAddressBalance(ctx, user.GetAddress(chainID))
 	if err != nil {
 		return nil, err
@@ -1048,42 +1128,21 @@ func (a *ApexSystem) GetBalanceWithTokenName(ctx context.Context, user *TestApex
 		return nil, err
 	}
 
-	return chain.GetAddressBalanceWithTokenName(ctx, user.GetAddress(chainID), tokenName)
-}
-
-func (a *ApexSystem) GetTokenNameForChain(chainID ChainID, tokenID uint16) string {
-	switch chainID {
-	case ChainIDCardano, ChainIDPrime, ChainIDVector:
-		cardanoInfo := a.GetCardanoInfo(chainID)
-		return cardanoInfo.Tokens[tokenID].ChainSpecific
-	case ChainIDNexus:
-		return a.NexusInfo.Tokens[tokenID].ChainSpecific
+	balance, err := chain.GetAddressBalanceWithTokenName(ctx, user.GetAddress(chainID), tokenName)
+	if err != nil {
+		return nil, err
 	}
 
-	return ""
-}
-
-func (a *ApexSystem) GetHumanReadableTokenNameForChain(tokenID uint16) string {
-	return a.EcosystemTokens[tokenID]
-}
-
-// Returns token name for the given dest chain
-func (a *ApexSystem) GetTokenNameForChains(dstChainID, srcChainID ChainID, srcTokenID uint16) string {
-	srcInfo := a.GetCardanoInfo(srcChainID)
-	dstInfo := a.GetCardanoInfo(dstChainID)
-
-	for _, direction := range srcInfo.DestChain[dstChainID] {
-		if direction.SourceTokenID == srcTokenID {
-			return dstInfo.Tokens[direction.DestinationTokenID].ChainSpecific
-		}
+	for key, value := range balance {
+		balance[key] = ChainNativeTokenAmountToDfm(chainID, value)
 	}
 
-	return ""
+	return balance, err
 }
 
 func (a *ApexSystem) WaitForGreaterAmount(
 	ctx context.Context, user *TestApexUser, dstChain ChainID, srcChain ChainID,
-	expectedAmount *big.Int, numRetries int, waitTime time.Duration, currency string,
+	expectedAmount *big.Int, numRetries int, waitTime time.Duration, tokenName string,
 ) error {
 	var (
 		lastAmount *big.Int
@@ -1092,7 +1151,7 @@ func (a *ApexSystem) WaitForGreaterAmount(
 
 	lastAmount, err = a.WaitForAmount(ctx, user, dstChain, srcChain, func(val *big.Int) bool {
 		return val.Cmp(expectedAmount) == 1
-	}, numRetries, waitTime, currency)
+	}, numRetries, waitTime, tokenName)
 
 	if err != nil {
 		return fmt.Errorf("amount mismatch: expected greater than %s, but received %s: %w",
@@ -1104,11 +1163,11 @@ func (a *ApexSystem) WaitForGreaterAmount(
 
 func (a *ApexSystem) WaitForAmountInRange(
 	ctx context.Context, user *TestApexUser, dstChain ChainID, srcChain ChainID,
-	lowerBoundaryDfm *big.Int, higherBoundaryDfm *big.Int, numRetries int, retryDelay time.Duration, currency string,
+	lowerBoundaryDfm *big.Int, higherBoundaryDfm *big.Int, numRetries int, retryDelay time.Duration, tokenName string,
 ) error {
 	lastAmount, err := a.WaitForAmount(ctx, user, dstChain, srcChain, func(val *big.Int) bool {
 		return val.Cmp(lowerBoundaryDfm) == 1 && val.Cmp(higherBoundaryDfm) != 1
-	}, numRetries, retryDelay, currency)
+	}, numRetries, retryDelay, tokenName)
 	if err != nil {
 		return fmt.Errorf("amount mismatch: expected amount between %s and %s, but received %s: %w",
 			lowerBoundaryDfm, higherBoundaryDfm, lastAmount, err)
@@ -1119,7 +1178,7 @@ func (a *ApexSystem) WaitForAmountInRange(
 
 func (a *ApexSystem) WaitForExactAmount(
 	ctx context.Context, user *TestApexUser, dstChain ChainID, srcChain ChainID,
-	expectedAmount *big.Int, numRetries int, waitTime time.Duration, currency string,
+	expectedAmount *big.Int, numRetries int, waitTime time.Duration, tokenName string,
 ) error {
 	var (
 		lastAmount *big.Int
@@ -1128,7 +1187,7 @@ func (a *ApexSystem) WaitForExactAmount(
 
 	lastAmount, err = a.WaitForAmount(ctx, user, dstChain, srcChain, func(val *big.Int) bool {
 		return val.Cmp(expectedAmount) >= 0
-	}, numRetries, waitTime, currency)
+	}, numRetries, waitTime, tokenName)
 
 	if err != nil {
 		return fmt.Errorf("amount mismatch: expected %s, but received %s: %w",
@@ -1143,20 +1202,19 @@ func (a *ApexSystem) WaitForExactAmount(
 
 func (a *ApexSystem) WaitForAmount(
 	ctx context.Context, user *TestApexUser, dstChain ChainID, srcChain string,
-	cmpHandler func(*big.Int) bool, numRetries int, retryDelay time.Duration, currency string,
+	cmpHandler func(*big.Int) bool, numRetries int, retryDelay time.Duration, tokenName string,
 ) (*big.Int, error) {
 	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*big.Int, error) {
 		var amounts map[string]*big.Int
 		var err error
 
-		amounts, err = a.GetBalanceWithTokenName(ctx, user, dstChain, currency)
+		amounts, err = a.GetBalanceWithTokenName(ctx, user, dstChain, tokenName)
 		if err != nil {
 			return nil, err
 		}
 
-		fmt.Printf("Amounts: %+v, currency: %+v\n", amounts, currency)
-
-		newBalance := amounts[currency]
+		// fmt.Printf("Amounts: %+v, tokenName: %+v\n", amounts, tokenName)
+		newBalance := amounts[tokenName]
 		if newBalance == nil {
 			newBalance = big.NewInt(0)
 		}
@@ -1500,7 +1558,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 			return "", fmt.Errorf("invalid bridging direction")
 		}
 	} else if data.SourceChain == ChainIDNexus {
-		srcChainInfo := a.GetNexusInfo(data.SourceChain)
+		srcChainInfo := a.GetEvmInfo(data.SourceChain)
 		_, ok := srcChainInfo.DestChain[data.DestinationChain]
 		if !ok {
 			return "", fmt.Errorf("invalid bridging direction")
@@ -1588,7 +1646,8 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	return txHash, nil
 }
 
-func (a *ApexSystem) GetTokenIDForChain(sourceChain ChainID, isCurrencyBridging bool) uint16 {
+// used only for non colored coins bridging
+func (a *ApexSystem) getTokenIDForChain(sourceChain ChainID, isCurrencyBridging bool) uint16 {
 	if isCurrencyBridging {
 		switch sourceChain {
 		case ChainIDCardano:
@@ -1626,12 +1685,11 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 	expectNativeTokens := bridgingType == BridgingTypeCurrencyOnSource
 
 	if bridgingType == BridgingTypeNormal {
-		// TODO: Untested reactor
 		return &BridgingTokensInfo{
-			SrcTokenID:   a.GetTokenIDForChain(srcChain, false),
-			DstTokenID:   a.GetTokenIDForChain(dstChain, true),
-			SrcTokenName: a.GetTokenNameForChain(srcChain, a.GetTokenIDForChain(srcChain, false)),
-			DstTokenName: a.GetTokenNameForChain(dstChain, a.GetTokenIDForChain(dstChain, true)),
+			SrcTokenID:   AP3XTokenID,
+			DstTokenID:   AP3XTokenID,
+			SrcTokenName: cardanowallet.AdaTokenName,
+			DstTokenName: cardanowallet.AdaTokenName,
 		}
 	}
 
@@ -1662,7 +1720,7 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 			}
 		} else if srcChain != ChainIDNexus {
 			srcChainInfo := a.GetCardanoInfo(srcChain)
-			dstChainInfo := a.GetNexusInfo(dstChain)
+			dstChainInfo := a.GetEvmInfo(dstChain)
 
 			srcTokenName := srcChainInfo.Tokens[srcTokenID].ChainSpecific
 
@@ -1677,7 +1735,7 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 				}
 			}
 		} else {
-			srcChainInfo := a.GetNexusInfo(srcChain)
+			srcChainInfo := a.GetEvmInfo(srcChain)
 			dstChainInfo := a.GetCardanoInfo(dstChain)
 
 			srcTokenName := srcChainInfo.Tokens[srcTokenID].ChainSpecific
@@ -1701,7 +1759,7 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 		srcChainInfo := a.GetCardanoInfo(srcChain)
 		dstChainInfo := a.GetCardanoInfo(dstChain)
 
-		srcTokenID := a.GetTokenIDForChain(srcChain, expectNativeTokens)
+		srcTokenID := a.getTokenIDForChain(srcChain, expectNativeTokens)
 
 		for _, direction := range srcChainInfo.DestChain[dstChain] {
 			if direction.SourceTokenID == srcTokenID {
@@ -1715,9 +1773,9 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 		}
 	} else if srcChain != ChainIDNexus {
 		srcChainInfo := a.GetCardanoInfo(srcChain)
-		dstChainInfo := a.GetNexusInfo(dstChain)
+		dstChainInfo := a.GetEvmInfo(dstChain)
 
-		srcTokenID := a.GetTokenIDForChain(srcChain, expectNativeTokens)
+		srcTokenID := a.getTokenIDForChain(srcChain, expectNativeTokens)
 
 		for _, direction := range srcChainInfo.DestChain[dstChain] {
 			if direction.SourceTokenID == srcTokenID {
@@ -1730,10 +1788,10 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 			}
 		}
 	} else {
-		srcChainInfo := a.GetNexusInfo(srcChain)
+		srcChainInfo := a.GetEvmInfo(srcChain)
 		dstChainInfo := a.GetCardanoInfo(dstChain)
 
-		dstTokenID := a.GetTokenIDForChain(dstChain, !expectNativeTokens)
+		dstTokenID := a.getTokenIDForChain(dstChain, !expectNativeTokens)
 
 		for _, direction := range srcChainInfo.DestChain[dstChain] {
 			if direction.DestinationTokenID == dstTokenID {
@@ -1857,7 +1915,7 @@ func (a *ApexSystem) GetCardanoInfo(chainID string) CardanoChainInfo {
 	}
 }
 
-func (a *ApexSystem) GetNexusInfo(chainID string) EVMChainInfo {
+func (a *ApexSystem) GetEvmInfo(chainID string) EVMChainInfo {
 	switch chainID {
 	case ChainIDNexus:
 		return a.NexusInfo

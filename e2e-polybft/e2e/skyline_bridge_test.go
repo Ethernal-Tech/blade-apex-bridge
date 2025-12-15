@@ -795,7 +795,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	})
 
 	t.Run("7. Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestination(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, bridgingType, 0)
+		executeInvalidDestination(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, bridgingType, false, 0)
 	})
 
 	t.Run("8. Submitted invalid metadata - invalid sender", func(t *testing.T) {
@@ -821,11 +821,11 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		tokensFunded, err := cardanofw.FundUserWithToken(
 			ctx, apex, cardanofw.ChainIDVector,
 			minterWallet, user,
-			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
+			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendNativeToken(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0, cardanofw.BridgingTypeCurrencyOnSource)
+		executeInvalidSendNativeToken(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0, cardanofw.BridgingTypeWrappedTokenOnSource)
 	})
 
 	t.Run("13. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
@@ -845,18 +845,21 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	})
 
 	t.Run("14.1 Prime -> Cardano - Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestination(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, 0)
+		executeInvalidDestination(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, false, 0)
 	})
 
-	cardanoPrimeTestConfig := newTestConfig(
-		t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, apex.GetTokenIDForChain(cardanofw.ChainIDPrime, true)))
-
 	t.Run("14.2 Cardano -> Prime - Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestination(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, 0)
+		tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, cardanofw.BridgingTypeWrappedTokenOnSource)
+		require.NotNil(t, tokensInfo)
+
+		cardanoPrimeTestConfig := newTestConfig(
+			t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, tokensInfo.SrcTokenName)
+
+		executeInvalidDestination(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, false, 0)
 	})
 
 	t.Run("14.3 Vector -> Cardano - Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestination(t, ctx, apex, vectorTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, 0)
+		executeInvalidDestination(t, ctx, apex, vectorTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, false, 0)
 	})
 
 	t.Run("15. Submitted invalid metadata - wrong label", func(t *testing.T) {
@@ -1177,8 +1180,10 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 		lastBatchIDs          map[string]uint64 = map[string]uint64{"prime": 0, "cardano": 0}
 	)
 
-	tokenID := apex.GetTokenIDForChain(cardanofw.ChainIDPrime, true)
-	cardanoTokenName := apex.GetTokenNameForChains(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, tokenID)
+	tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, cardanofw.BridgingTypeWrappedTokenOnSource)
+	require.NotNil(t, tokensInfo)
+
+	cardanoTokenName := tokensInfo.SrcTokenName
 
 	t.Run("with currency from prime to cardano", func(t *testing.T) {
 		t.Cleanup(func() {
@@ -1332,8 +1337,10 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		)
 
 		for _, br := range bridgingRequests {
-			tokenID := apex.GetTokenIDForChain(br.src, br.requestType == cardanofw.BridgingTypeCurrencyOnSource)
-			tokenName := apex.GetTokenNameForChains(br.dest, br.src, tokenID)
+			tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, br.requestType)
+			require.NotNil(t, tokensInfo)
+
+			tokenName := tokensInfo.DstTokenName
 
 			key := chainStageKey{chain: br.dest, srcChain: br.src, receiver: br.receiverIdx}
 			if _, exists := chainPrevAmounts[key]; !exists {
@@ -2273,10 +2280,10 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 			prevAmounts[brIdx], err = apex.GetBalance(ctx, br.receiver, br.dest)
 			require.NoError(t, err)
 
-			var tokenName string
+			tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, br.bridgingType)
+			require.NotNil(t, tokensInfo)
 
-			tokenID := apex.GetTokenIDForChain(br.src, br.bridgingType == cardanofw.BridgingTypeCurrencyOnSource)
-			tokenName = apex.GetTokenNameForChains(br.dest, br.src, tokenID)
+			tokenName := tokensInfo.DstTokenName
 
 			if amount, ok := prevAmounts[brIdx][tokenName]; ok {
 				expectedAmounts[brIdx] = new(big.Int).Set(amount)
@@ -2329,10 +2336,10 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 			go func(brIdx int, br bridgingRequest) {
 				defer wg.Done()
 
-				var tokenName string
+				tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, br.bridgingType)
+				require.NotNil(t, tokensInfo)
 
-				tokenID := apex.GetTokenIDForChain(br.src, br.bridgingType == cardanofw.BridgingTypeCurrencyOnSource)
-				tokenName = apex.GetTokenNameForChains(br.dest, br.src, tokenID)
+				tokenName := tokensInfo.DstTokenName
 
 				prevAmount := prevAmounts[brIdx][tokenName]
 
@@ -2345,11 +2352,8 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 				fmt.Printf("Waiting for %+v TXs on %s, prevAmount: %v, expectedAmount: %v\n",
 					succeededCount, br.dest, prevAmounts[brIdx], expectedAmounts[brIdx])
 
-				tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, br.bridgingType)
-				require.NotNil(t, tokensInfo)
-
 				err := apex.WaitForExactAmount(ctx, br.receiver, br.dest, br.src, expectedAmounts[brIdx], numRetries, waitTime,
-					tokensInfo.DstTokenName)
+					tokenName)
 				require.NoError(t, err)
 
 				fmt.Printf("TXs on %s confirmed\n", br.dest)
@@ -2366,12 +2370,14 @@ func sendInvalidSendAmountTransaction(
 ) {
 	t.Helper()
 
+	tokensInfo := apex.GetBridgingTokensInfo(src, dest, cardanofw.BridgingTypeCurrencyOnSource)
+	require.NotNil(t, tokensInfo)
+
 	receivers := []sendtx.BridgingTxReceiver{
 		{
-			Addr:   receiverUserAddr,
-			Amount: sendAmount.Uint64() * 10,
-			// TODO: FIX THIS UP WITH ID
-			// BridgingType: cardanofw.BridgingTypeCurrencyOnSource,
+			Addr:    receiverUserAddr,
+			Amount:  sendAmount.Uint64() * 10,
+			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
 

@@ -53,7 +53,6 @@ func Test_OnlyRunApexBridge_WithNexusAndVector(t *testing.T) {
 	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithVectorEnabled(true),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithTelemetryConfig(cardanofw.PrometheusTelemetry),
 		cardanofw.WithUserCnt(1),
@@ -403,9 +402,12 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	prevAmount := cardanofw.SetOrDefault(balance[infrawallet.AdaTokenName], big.NewInt(0))
 	expectedAmount := new(big.Int).Add(prevAmount, sendAmountDfm)
 
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.BridgingTypeNormal)
+	require.NotNil(t, tokensInfo)
+
 	receiversMap := make(map[string]cardanofw.ReceiverAmount, 1)
 	receiversMap[apex.Users[0].VectorAddress.String()] = cardanofw.ReceiverAmount{
-		TokenID: apex.GetTokenIDForChain(srcChain, false),
+		TokenID: tokensInfo.SrcTokenID,
 		Amount:  sendAmountDfm,
 	}
 
@@ -414,9 +416,6 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	require.NoError(t, err)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
-
-	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.BridgingTypeNormal)
-	require.NotNil(t, tokensInfo)
 
 	err = apex.WaitForExactAmount(
 		ctx, apex.Users[0], dstChain, srcChain, expectedAmount, 48, time.Second*10, tokensInfo.DstTokenName)
@@ -527,7 +526,10 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 
 			var err error
 
-			beforeSendingAmountDfm[i], err = apex.GetBalance(ctx, user, src)
+			tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, cardanofw.BridgingTypeNormal)
+			require.NotNil(t, tokensInfo)
+
+			beforeSendingAmountDfm[i], err = apex.GetBalanceWithTokenName(ctx, user, src, tokensInfo.SrcTokenName)
 			require.NoError(t, err)
 
 			txHashes[i], err = apex.SubmitBridgingRequest(cardanofw.SubmitBridgingRequestData{
@@ -553,13 +555,14 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[idx][infrawallet.AdaTokenName], apexSendAmount)
+			lowerBoundaryDfm := new(big.Int).Sub(
+				beforeSendingAmountDfm[idx][infrawallet.AdaTokenName],
+				new(big.Int).Add(apexSendAmount, new(big.Int).SetUint64(apex.GetMinBridgingFee(br.src, false))))
 
 			fmt.Printf("Tx hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm[idx])
-			tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, cardanofw.BridgingTypeNormal)
-			require.NotNil(t, tokensInfo)
-			err := apex.WaitForAmountInRange(ctx, apex.Users[0], br.src, br.dest, lowerBoundaryDfm, beforeSendingAmountDfm[idx][tokensInfo.DstTokenName],
-				60, time.Second*30, tokensInfo.DstTokenName)
+
+			err := apex.WaitForAmountInRange(ctx, apex.Users[0], br.src, br.dest, lowerBoundaryDfm, beforeSendingAmountDfm[idx][infrawallet.AdaTokenName],
+				60, time.Second*30, infrawallet.AdaTokenName)
 			require.NoError(t, err)
 		}()
 	}
@@ -721,12 +724,17 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 		fmt.Println("beforeSendingAmountDfm", beforeSendingAmountDfm)
 
+		tokensInfo := apex.GetBridgingTokensInfo(
+			cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.BridgingTypeNormal)
+		require.NotNil(t, tokensInfo)
+
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
-					Addr:   user.GetAddress(cardanofw.ChainIDVector),
-					Amount: sendAmount - feeAmount,
+					Addr:    user.GetAddress(cardanofw.ChainIDVector),
+					Amount:  sendAmount - feeAmount,
+					TokenID: tokensInfo.SrcTokenID,
 				},
 			}, feeAmount, operationFee)
 		require.NoError(t, err)
@@ -796,7 +804,7 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 	t.Run("5. Submitted invalid metadata - invalid destination", func(t *testing.T) {
 		executeInvalidDestination(
-			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType, 0)
+			t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec, bridgingType, false, 0)
 	})
 
 	t.Run("6. Submitted invalid metadata - invalid sender", func(t *testing.T) {
@@ -829,12 +837,17 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			uint64(10_000_000), uint64(1_000_000))
 		require.NoError(t, err)
 
+		tokensInfo := apex.GetBridgingTokensInfo(
+			cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.BridgingTypeNormal)
+		require.NotNil(t, tokensInfo)
+
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
-					Addr:   user.GetAddress(cardanofw.ChainIDVector),
-					Amount: sendAmount - feeAmount,
+					Addr:    user.GetAddress(cardanofw.ChainIDVector),
+					Amount:  sendAmount - feeAmount,
+					TokenID: tokensInfo.SrcTokenID,
 				},
 			}, feeAmount, operationFee)
 		require.NoError(t, err)
@@ -942,12 +955,17 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			uint64(10_000_000), uint64(1_000_000))
 		require.NoError(t, err)
 
+		tokensInfo := apex.GetBridgingTokensInfo(
+			cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.BridgingTypeNormal)
+		require.NotNil(t, tokensInfo)
+
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
-					Addr:   user.GetAddress(cardanofw.ChainIDVector),
-					Amount: sendAmount - feeAmount,
+					Addr:    user.GetAddress(cardanofw.ChainIDVector),
+					Amount:  sendAmount - feeAmount,
+					TokenID: tokensInfo.SrcTokenID,
 				},
 			}, feeAmount, operationFee)
 		require.NoError(t, err)
@@ -1304,7 +1322,10 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		for _, br := range bridgingRequests {
 			key := chainStageKey{chain: br.dest, receiver: br.receiverIdx}
 			if _, exists := chainPrevAmounts[key]; !exists {
-				balance, err := apex.GetBalance(ctx, receivers[br.receiverIdx], br.dest)
+				tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, cardanofw.BridgingTypeNormal)
+				require.NotNil(t, tokensInfo)
+
+				balance, err := apex.GetBalanceWithTokenName(ctx, receivers[br.receiverIdx], br.dest, tokensInfo.DstTokenName)
 				require.NoError(t, err)
 
 				prevAmount := balance[infrawallet.AdaTokenName]
@@ -1347,6 +1368,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		return chainPrevAmounts, chainExpectedAmounts, chainReceivers, defundReceiversPrevAmount, defundReceiversExpectedAmount, defundReceivers
 	}
 
+	//nolint:dupl
 	bridgeTransactions := func(ctx context.Context, apex *cardanofw.ApexSystem,
 		bridgingRequests []*bridingRequest, receivers map[uint]*cardanofw.TestApexUser,
 	) {
@@ -1909,12 +1931,14 @@ func sendWithoutWaitInvalidMetadataWrongType(
 ) error {
 	t.Helper()
 
+	tokensInfo := apex.GetBridgingTokensInfo(originChainID, destinationChainID, cardanofw.BridgingTypeNormal)
+	require.NotNil(t, tokensInfo)
+
 	receivers := []sendtx.BridgingTxReceiver{
 		{
-			Addr: receiver.GetAddress(destinationChainID),
-			// TODO: FIX THIS UP WITH ID
-			//BridgingType: cardanofw.BridgingTypeNormal,
-			Amount: sendAmount,
+			Addr:    receiver.GetAddress(destinationChainID),
+			Amount:  sendAmount,
+			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
 
@@ -2155,13 +2179,15 @@ func submitInvalidSendAmountTransaction(
 
 	srcTestChain := apex.GetChainMust(t, src)
 
+	tokensInfo := apex.GetBridgingTokensInfo(src, dest, cardanofw.BridgingTypeNormal)
+	require.NotNil(t, tokensInfo)
+
 	bridgingRequestMetadata, err := srcTestChain.CreateMetadata(
 		senderUser.GetAddress(src), dest, []sendtx.BridgingTxReceiver{
 			{
-				Addr:   receiverUserAddr,
-				Amount: sendAmount.Uint64() * 10,
-				// TODO: FIX THIS UP WITH ID
-				//BridgingType: cardanofw.BridgingTypeNormal,
+				Addr:    receiverUserAddr,
+				Amount:  sendAmount.Uint64() * 10,
+				TokenID: tokensInfo.SrcTokenID,
 			},
 		}, feeAmount, operationFee)
 	require.NoError(t, err)
@@ -2181,12 +2207,14 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 	operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
 	feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
 
+	tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.BridgingTypeNormal)
+	require.NotNil(t, tokensInfo)
+
 	receivers := []sendtx.BridgingTxReceiver{
 		{
-			Addr:   user.GetAddress(cardanofw.ChainIDVector),
-			Amount: sendAmount,
-			// TODO: FIX THIS UP WITH ID
-			//BridgingType: cardanofw.BridgingTypeNormal,
+			Addr:    user.GetAddress(cardanofw.ChainIDVector),
+			Amount:  sendAmount,
+			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
 

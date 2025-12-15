@@ -11,7 +11,6 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
-	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,10 +52,6 @@ func ExecuteSingleBridging(
 	require.NoError(t, err)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
-
-	if dstChain == cardanofw.ChainIDNexus {
-		sendAmount = cardanofw.DfmToWei(sendAmount)
-	}
 
 	expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
 
@@ -164,11 +159,6 @@ func ExecuteBridgingWaitAfterSubmits(
 		require.NoError(t, err)
 
 		fmt.Printf("Tx[%d] sent. hash: %s\n", i, txHash)
-
-		if dstChain == cardanofw.ChainIDNexus {
-			expectedAmount = expectedAmount.Add(expectedAmount, cardanofw.DfmToWei(sendAmount))
-			continue
-		}
 
 		expectedAmount = expectedAmount.Add(expectedAmount, sendAmount)
 	}
@@ -348,7 +338,11 @@ func ExecuteBridging(
 
 	// send transactions
 	sendTxDatas := config.sendTxStrategy(
-		t, ctx, apex, chainsDst, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender, bridgingTypes, config.coloredCoins...)
+		ctx, apex, chainsDst, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender, bridgingTypes, config.coloredCoins...)
+
+	for _, d := range sendTxDatas {
+		require.NoError(t, d.err)
+	}
 
 	var (
 		wgResults              sync.WaitGroup
@@ -375,10 +369,6 @@ func ExecuteBridging(
 		}
 
 		expectedAmount := new(big.Int).Set(txData.SendAmountDfm)
-		// Nexus uses Wei for sending amounts
-		if txData.DstChainID == cardanofw.ChainIDNexus {
-			expectedAmount = cardanofw.DfmToWei(expectedAmount)
-		}
 
 		originalDesiredAmounts[txData.DstChainID][tokensInfo.DstTokenName].Add(
 			originalDesiredAmounts[txData.DstChainID][tokensInfo.DstTokenName], expectedAmount)
@@ -405,8 +395,6 @@ func ExecuteBridging(
 			for _, chainPair := range chainPairs {
 				sum := new(big.Int)
 
-				//tokenName := getTokenNameForChains(
-				//	apex, chainPair.dstChain, chainPair.srcChain, expectNativeTokens(bridgingTypes[chainPair]))
 				tokensInfo := apex.GetBridgingTokensInfo(chainPair.srcChain, chainPair.dstChain, bridgingTypes[chainPair], config.coloredCoins...)
 				require.NotNil(t, tokensInfo)
 
@@ -438,8 +426,6 @@ func ExecuteBridging(
 
 	// prepare the map (dstChain + tokenName -> sourceChain)
 	for _, pair := range chainPairs {
-		//tokenName := getTokenNameForChains(
-		//	apex, pair.dstChain, pair.srcChain, expectNativeTokens(bridgingTypes[pair]))
 		tokensInfo := apex.GetBridgingTokensInfo(pair.srcChain, pair.dstChain, bridgingTypes[pair], config.coloredCoins...)
 		require.NotNil(t, tokensInfo)
 		key := fmt.Sprintf("%s-%s", pair.dstChain, tokensInfo.DstTokenName)
@@ -451,8 +437,6 @@ func ExecuteBridging(
 	// wait for amounts
 	for i, userRecv := range receiverUsers {
 		for j, chainPair := range chainPairs {
-			//tokenName := getTokenNameForChains(
-			//	apex, chainPair.dstChain, chainPair.srcChain, expectNativeTokens(bridgingTypes[chainPair]))
 			tokensInfo := apex.GetBridgingTokensInfo(chainPair.srcChain, chainPair.dstChain, bridgingTypes[chainPair], config.coloredCoins...)
 			require.NotNil(t, tokensInfo)
 
@@ -614,6 +598,7 @@ func ExecuteBridgingExtended(
 		SendAmountDfm  *big.Int
 		BridgingTxType cardanofw.BridgingType
 		DstTokenName   string
+		err            error
 	}
 
 	var (
@@ -647,7 +632,18 @@ func ExecuteBridgingExtended(
 							TokensInfo:       dr.TokensInfo,
 						},
 					)
-					require.NoError(t, err)
+
+					if err != nil {
+						muSend.Lock()
+
+						sendTxDatas = append(sendTxDatas, &extendedTxData{
+							err: err,
+						})
+
+						muSend.Unlock()
+
+						continue
+					}
 
 					fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s (token=%s)\n",
 						idx+1, j+1, dr.SrcChain, dr.DstChain, txHash, dr.TokensInfo.DstTokenName)
@@ -668,6 +664,10 @@ func ExecuteBridgingExtended(
 	}
 
 	wgSend.Wait()
+
+	for _, d := range sendTxDatas {
+		require.NoError(t, d.err)
+	}
 
 	var (
 		wgResults              sync.WaitGroup
@@ -691,10 +691,6 @@ func ExecuteBridgingExtended(
 		}
 
 		expectedAmount := new(big.Int).Set(txData.SendAmountDfm)
-		// Nexus uses Wei for sending amounts
-		if txData.DstChainID == cardanofw.ChainIDNexus {
-			expectedAmount = cardanofw.DfmToWei(expectedAmount)
-		}
 
 		originalDesiredAmounts[txData.DstChainID][txData.DstTokenName].Add(
 			originalDesiredAmounts[txData.DstChainID][txData.DstTokenName], expectedAmount)
@@ -838,23 +834,4 @@ func ExecuteBridgingExtended(
 	close(closeCh)
 
 	require.NoError(t, errors.Join(errs...))
-}
-
-// Return token name of destination chain token from source chain and if it's native token on dest
-func getTokenNameForChains(apex IApexSystem, dstChain, srcChain string, expectNativeTokens bool, coloredCoins ...uint16) string {
-	if len(coloredCoins) > 0 {
-		srcTokenID := coloredCoins[0]
-		return apex.GetTokenNameForChains(dstChain, srcChain, srcTokenID)
-	}
-
-	if expectNativeTokens {
-		srcTokenID := apex.GetTokenIDForChain(srcChain, true)
-		if srcTokenID == 0 {
-			return ""
-		}
-
-		return apex.GetTokenNameForChains(dstChain, srcChain, srcTokenID)
-	}
-
-	return cardanowallet.AdaTokenName
 }

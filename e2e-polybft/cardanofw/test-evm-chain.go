@@ -35,7 +35,7 @@ import (
 
 const (
 	defaultFundEthTokenAmount        = uint64(100_000)
-	defaultPremineEthTokenAmount     = uint64(100_000)
+	defaultPremineEthTokenAmount     = uint64(1_000_000_000_000)
 	defaultFundRelayerEthTokenAmount = uint64(5)
 
 	initContractsTryCount      = 3
@@ -90,13 +90,13 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 		},
 		ApexConfig:             genesis.ApexConfigNexus,
 		InitialHotWalletAmount: big.NewInt(0),
-		PremineAmount:          DfmToWei(big.NewInt(int64(1_000_000_000_000_000_000))),
+		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
 		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
 		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
 		MinBridgingFee:         DfmToWei(new(big.Int).SetUint64(defaultMinBridgingFeeAmount)),
 		MinBridgingAmount:      DfmToWei(new(big.Int).SetUint64(MinUTxODefaultValue)),
 		MinTokenBridgingAmount: DfmToWei(new(big.Int).SetUint64(1)),
-		MinOperationFee:        DfmToWei(new(big.Int).SetUint64(DefaultMinOperationFee)),
+		MinOperationFee:        big.NewInt(0),
 		CurrencyID:             AP3XTokenID,
 
 		LockUnlockTokens: []EVMTokenInfo{
@@ -600,7 +600,11 @@ func (ec *TestEVMChain) InitContracts(
 		return err
 	}
 
-	workingDirectory := filepath.Join(os.TempDir(), "deploy-apex-bridge-evm-gateway")
+	workingDirectory, err := os.MkdirTemp("", "deploy-apex-bridge-evm-gateway")
+	if err != nil {
+		return err
+	}
+
 	params := []string{
 		"deploy-evm",
 		"--url", ec.jsonRPCAddr,
@@ -721,7 +725,6 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (map
 }
 
 func (ec *TestEVMChain) GetAddressBalanceWithTokenName(ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
-	fmt.Printf("Getting balance with token name: %+v for chain: %+v and user: %+v\n", tokenName, ec.ChainID(), addr)
 	if tokenName == infrawallet.AdaTokenName {
 		return ec.GetAddressBalance(ctx, addr)
 	}
@@ -749,7 +752,6 @@ func (ec *TestEVMChain) GetAddressBalanceWithTokenName(ctx context.Context, addr
 		return nil, err
 	}
 
-	fmt.Printf("Out hex: %+v\n", outHex)
 	balance, err := common.ParseUint256orHex(&outHex)
 	if err != nil {
 		return nil, err

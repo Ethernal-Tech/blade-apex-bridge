@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
+	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -206,7 +207,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 		tokensFunded, err := cardanofw.FundUserWithToken(
 			ctx, apex, cardanofw.ChainIDCardano,
 			minterWallet, user,
-			cardanofw.CAP3XTokenName, cardanofw.DefaultTokenMintAmount,
+			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
@@ -515,7 +516,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 		tokensFunded, err := cardanofw.FundUserWithToken(
 			ctx, apex, cardanofw.ChainIDCardano,
 			minterWallet, user,
-			cardanofw.CAP3XTokenName, cardanofw.DefaultTokenMintAmount,
+			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
@@ -523,7 +524,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
 
-		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0, cardanofw.BridgingTypeCurrencyOnSource)
+		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0, cardanofw.BridgingTypeWrappedTokenOnSource)
 
 		cardanoAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
 		require.NoError(t, err)
@@ -650,12 +651,12 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			defer wg.Done()
 
 			lowerBoundaryDfm := new(big.Int).Sub(
-				beforeSendingAmountDfm[idx]["lovelace"],
+				beforeSendingAmountDfm[idx][infrawallet.AdaTokenName],
 				new(big.Int).Add(apexSendAmount, new(big.Int).SetUint64(apex.GetMinBridgingFee(br.src, false))))
 
-			fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm[idx]["lovelace"])
+			fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm[idx][infrawallet.AdaTokenName])
 
-			err := apex.WaitForAmountInRange(ctx, user, br.src, br.dest, lowerBoundaryDfm, beforeSendingAmountDfm[idx]["lovelace"], 20, time.Second*30, "lovelace")
+			err := apex.WaitForAmountInRange(ctx, user, br.src, br.dest, lowerBoundaryDfm, beforeSendingAmountDfm[idx][infrawallet.AdaTokenName], 20, time.Second*30, infrawallet.AdaTokenName)
 			require.NoError(t, err)
 		}()
 	}
@@ -762,14 +763,14 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		go func(src, dest string, sender *cardanofw.TestApexUser) {
 			defer wg.Done()
 
-			tokenID := apex.GetTokenIDForChain(src, false)
-			tokenName := apex.GetTokenNameForChain(src, tokenID)
+			tokensInfo := apex.GetBridgingTokensInfo(src, dest, cardanofw.BridgingTypeWrappedTokenOnSource)
+			require.NotNil(t, tokensInfo)
 
 			mu.RLock()
-			tokenBalance := initialBalances[br.src][tokenName]
+			tokenBalance := initialBalances[br.src][tokensInfo.SrcTokenName]
 			mu.RUnlock()
 
-			err := apex.WaitForExactAmount(ctx, br.sender, br.src, br.dest, tokenBalance, 30, 30*time.Second, tokenName)
+			err := apex.WaitForExactAmount(ctx, br.sender, br.src, br.dest, tokenBalance, 30, 30*time.Second, tokensInfo.SrcTokenName)
 			require.NoError(t, err)
 		}(br.src, br.dest, br.sender)
 	}
@@ -893,9 +894,10 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 				userSpending := new(big.Int).Set(sendAmount)
 				addr := br.sender.GetAddress(br.src)
 
-				// reversed
-				tokenID := apex.GetTokenIDForChain(br.dest, !(br.requestType == cardanofw.BridgingTypeCurrencyOnSource))
-				tokenName := apex.GetTokenNameForChains(br.src, br.dest, tokenID)
+				tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, br.requestType)
+				require.NotNil(t, tokensInfo)
+
+				tokenName := tokensInfo.SrcTokenName
 
 				if br.requestType == cardanofw.BridgingTypeCurrencyOnSource {
 					userSpending.Add(userSpending, new(big.Int).SetUint64(apex.GetMinBridgingFee(br.src, isNativeToken)))

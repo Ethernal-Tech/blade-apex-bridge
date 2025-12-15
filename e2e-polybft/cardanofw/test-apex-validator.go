@@ -183,10 +183,10 @@ func (cv *TestApexValidator) GenerateConfigs(
 	return common.CreateDirSafe(dbsPath, 0770)
 }
 
-func (cv *TestApexValidator) GenerateDirectionsConfig(directionConfigFile DirectionConfigFile) error {
+func (cv *TestApexValidator) GenerateDirectionsConfig(directionConfigFile *DirectionConfigFile) error {
 	fileName := path.Join(cv.GetBridgingConfigsDir(), DirectionsConfigFileName)
 
-	json, err := json.Marshal(directionConfigFile)
+	json, err := json.Marshal(*directionConfigFile)
 	if err != nil {
 		return err
 	}

@@ -24,7 +24,7 @@ func executeInvalidBridgingFee(
 	t.Helper()
 
 	user := apex.Users[len(apex.Users)-1]
-	receivers := createReceivers(apex, 1, config.srcChainID, config.dstChainID, defaultSendAmount, bridgingType)
+	receivers := createReceivers(t, apex, 1, config.srcChainID, config.dstChainID, defaultSendAmount, bridgingType)
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource)
@@ -60,15 +60,16 @@ func executeInvalidFeeReceiverAddr(
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource)
-	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == cardanofw.BridgingTypeCurrencyOnSource)
-	require.NotZero(t, tokenID)
+
+	tokensInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, bridgingType)
+	require.NotNil(t, tokensInfo)
 
 	user := apex.Users[len(apex.Users)-1]
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    apex.GetCardanoInfo(config.dstChainID).FeeAddr,
 			Amount:  minBridgingFee,
-			TokenID: tokenID,
+			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
 
@@ -111,14 +112,15 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 	sendAmount := uint64(1_000_000)
 
 	user := apex.Users[len(apex.Users)-1]
-	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == cardanofw.BridgingTypeCurrencyOnSource)
-	require.NotZero(t, tokenID)
+
+	tokensInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, bridgingType)
+	require.NotNil(t, tokensInfo)
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    user.GetAddress(config.dstChainID),
 			Amount:  sendAmount,
-			TokenID: tokenID,
+			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
 
@@ -204,17 +206,18 @@ func executeInvalidSendNativeToken(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
 	config *testConfig, nativeTokenAmount wallet.TokenAmount,
 	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8, bridgingType cardanofw.BridgingType,
+	coloredCoins ...uint16,
 ) {
 	t.Helper()
 
-	tokenID := apex.GetTokenIDForChain(config.srcChainID, bridgingType == cardanofw.BridgingTypeCurrencyOnSource)
-	require.NotZero(t, tokenID)
+	tokensInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, bridgingType, coloredCoins...)
+	require.NotNil(t, tokensInfo)
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    user.GetAddress(config.dstChainID),
 			Amount:  defaultSendAmount,
-			TokenID: tokenID,
+			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
 
@@ -223,7 +226,7 @@ func executeInvalidSendNativeToken(
 		{
 			Addr:    user.GetAddress(config.dstChainID),
 			Amount:  defaultSendAmount,
-			TokenID: tokenID,
+			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
 

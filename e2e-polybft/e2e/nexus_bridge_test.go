@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -30,34 +29,21 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	directions := map[string][]string{}
-
-	var directionsMutex sync.Mutex
-
 	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithVectorEnabled(true),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(1),
-		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			allowedDirections := setting["allowedDirections"].(map[string]interface{})
-
-			directionsMutex.Lock()
-			defer directionsMutex.Unlock()
-
-			for src, dirs := range allowedDirections {
-				directions[src] = make([]string, len(dirs.([]interface{})))
-				for i, d := range dirs.([]interface{}) {
-					directions[src][i] = d.(string)
-				}
-			}
-		}, nil, nil),
 	)
 	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	directions := map[string][]string{
+		cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
+		cardanofw.ChainIDVector: {cardanofw.ChainIDPrime, cardanofw.ChainIDNexus},
+		cardanofw.ChainIDNexus:  {cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
+	}
 
 	t.Run("From Nexus", func(t *testing.T) {
 		srcChain := cardanofw.ChainIDNexus
@@ -147,7 +133,6 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithVectorEnabled(true),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(userCnt),
 	)
@@ -264,7 +249,6 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios(t *testing.T) {
 	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithVectorEnabled(true),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(userCnt),
 	)
@@ -367,7 +351,6 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithVectorEnabled(true),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(userCnt),
 		cardanofw.WithPrimeConfig(primeConfig),
@@ -656,7 +639,6 @@ func TestE2E_ApexBridgeWithNexus_DstN_InvalidScenarios(t *testing.T) {
 	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithVectorEnabled(true),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithVectorConfig(vectorConfig),
@@ -732,7 +714,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
-			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
@@ -807,7 +788,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
-			cardanofw.WithVectorEnabled(true),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
@@ -877,7 +857,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
-			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
@@ -949,7 +928,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
-			cardanofw.WithVectorEnabled(true),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
@@ -1017,7 +995,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
-			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
@@ -1082,7 +1059,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
-			cardanofw.WithVectorEnabled(true),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
@@ -1148,7 +1124,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
 			cardanofw.WithAPIKey(apiKey),
-			cardanofw.WithVectorEnabled(false),
 			cardanofw.WithNexusEnabled(true),
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
@@ -1235,7 +1210,6 @@ func TestE2E_ApexBridgeWithNexus_NexusFundAmount(t *testing.T) {
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithNexusConfig(nexusConfig),
 		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithVectorEnabled(true),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(userCnt),
 	)
@@ -1337,7 +1311,6 @@ func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
 	apex := cardanofw.SetupAndRunApexBridge(
 		t, ctx, cardanofw.SystemIDReactor,
 		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithVectorEnabled(false),
 		cardanofw.WithNexusEnabled(true),
 	)
 
@@ -1527,12 +1500,14 @@ func DstNexusSubmitterNotEnoughFunds(
 	operationFee := apex.GetMinOperationFee(srcChain)
 	minBridgingFee := apex.GetMinBridgingFee(srcChain, false)
 
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.BridgingTypeNormal)
+	require.NotNil(t, tokensInfo)
+
 	receivers := []sendtx.BridgingTxReceiver{
 		{
-			Addr:   user.GetAddress(dstChain),
-			Amount: sendAmountDfm.Uint64(),
-			// TODO: FIX THIS UP WITH ID
-			// BridgingType: cardanofw.BridgingTypeNormal,
+			Addr:    user.GetAddress(dstChain),
+			Amount:  sendAmountDfm.Uint64(),
+			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
 
@@ -1560,12 +1535,14 @@ func DstNexusInvalidMetadataSlicedOff(
 	operationFee := apex.GetMinOperationFee(srcChain)
 	minBridgingFee := apex.GetMinBridgingFee(srcChain, false)
 
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.BridgingTypeNormal)
+	require.NotNil(t, tokensInfo)
+
 	receivers := []sendtx.BridgingTxReceiver{
 		{
-			Addr:   user.GetAddress(dstChain),
-			Amount: sendAmountDfm.Uint64() * 10,
-			// TODO: FIX THIS UP WITH ID
-			// BridgingType: cardanofw.BridgingTypeNormal,
+			Addr:    user.GetAddress(dstChain),
+			Amount:  sendAmountDfm.Uint64() * 10,
+			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
 
@@ -1594,12 +1571,16 @@ func DstNexusInvalidMetadataWrongType(
 	operationFee := apex.GetMinOperationFee(srcChain)
 	minBridgingFee := apex.GetMinBridgingFee(srcChain, false)
 
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.BridgingTypeNormal)
+	require.NotNil(t, tokensInfo)
+
 	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
 		user.GetAddress(srcChain), dstChain,
 		[]sendtx.BridgingTxReceiver{
 			{
-				Addr:   user.GetAddress(dstChain),
-				Amount: sendAmountDfm.Uint64() * 10,
+				Addr:    user.GetAddress(dstChain),
+				Amount:  sendAmountDfm.Uint64() * 10,
+				TokenID: tokensInfo.SrcTokenID,
 			},
 		}, minBridgingFee, operationFee)
 	require.NoError(t, err)
@@ -1616,9 +1597,6 @@ func DstNexusInvalidMetadataWrongType(
 	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[cardanowallet.AdaTokenName], new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(minBridgingFee)))
 
 	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
-
-	tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, cardanofw.BridgingTypeNormal)
-	require.NotNil(t, tokensInfo)
 
 	err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, lowerBoundaryDfm, beforeSendingAmountDfm[cardanowallet.AdaTokenName],
 		50, time.Second*30, tokensInfo.DstTokenName)
@@ -1641,12 +1619,16 @@ func DstNexusInvalidMetadataInvalidDestination(
 	operationFee := apex.GetMinOperationFee(srcChain)
 	minBridgingFee := apex.GetMinBridgingFee(srcChain, false)
 
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.BridgingTypeNormal)
+	require.NotNil(t, tokensInfo)
+
 	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
 		user.GetAddress(srcChain), dstChain,
 		[]sendtx.BridgingTxReceiver{
 			{
-				Addr:   user.GetAddress(dstChain),
-				Amount: sendAmountDfm.Uint64() * 10,
+				Addr:    user.GetAddress(dstChain),
+				Amount:  sendAmountDfm.Uint64() * 10,
+				TokenID: tokensInfo.SrcTokenID,
 			},
 		}, minBridgingFee, operationFee)
 	require.NoError(t, err)
@@ -1654,12 +1636,21 @@ func DstNexusInvalidMetadataInvalidDestination(
 	bridgingRequestMetadata := bytes.Replace(metadata,
 		[]byte(fmt.Sprintf("\"%s\"", dstChain)), []byte("\"hector\""), 1)
 
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
 		new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(minBridgingFee)), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
+	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[cardanowallet.AdaTokenName], new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(minBridgingFee)))
+
+	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
+
+	err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, lowerBoundaryDfm, beforeSendingAmountDfm[cardanowallet.AdaTokenName],
+		50, time.Second*30, cardanowallet.AdaTokenName)
+	require.NoError(t, err)
 }
 
 func DstNexusInvalidMetadataInvalidSender(
@@ -1678,12 +1669,16 @@ func DstNexusInvalidMetadataInvalidSender(
 	operationFee := apex.GetMinOperationFee(srcChain)
 	minBridgingFee := apex.GetMinBridgingFee(srcChain, false)
 
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.BridgingTypeNormal)
+	require.NotNil(t, tokensInfo)
+
 	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
 		"dummy", dstChain,
 		[]sendtx.BridgingTxReceiver{
 			{
-				Addr:   user.GetAddress(dstChain),
-				Amount: sendAmountDfm.Uint64() * 10,
+				Addr:    user.GetAddress(dstChain),
+				Amount:  sendAmountDfm.Uint64() * 10,
+				TokenID: tokensInfo.SrcTokenID,
 			},
 		}, minBridgingFee, operationFee)
 	require.NoError(t, err)
@@ -1771,7 +1766,6 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithVectorEnabled(false),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithTargetOneClusterServer(true),
 	)

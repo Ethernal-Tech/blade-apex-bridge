@@ -44,8 +44,6 @@ type IApexSystem interface {
 	GetBalanceWithTokenName(
 		ctx context.Context, user *cardanofw.TestApexUser, chainID cardanofw.ChainID, tokenName string,
 	) (map[string]*big.Int, error)
-	GetTokenNameForChains(dstChain, srcChain cardanofw.ChainID, srcTokenID uint16) string
-	GetTokenIDForChain(sourceChain cardanofw.ChainID, isCurrencyBridging bool) uint16
 	GetBridgingTokensInfo(srcChain, dstChain cardanofw.ChainID, bridgingType cardanofw.BridgingType, coloredCoins ...uint16) *cardanofw.BridgingTokensInfo
 	GetValidator(t *testing.T, idx int) *cardanofw.TestApexValidator
 	GetBridgeNode(t *testing.T, idx int) *framework.TestServer

@@ -130,6 +130,8 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Relayer started. Apex bridge setup done\n")
 
+	require.True(t, apexSystem.ApexBridgeProcessesRunning())
+
 	return apexSystem
 }
 

@@ -176,7 +176,7 @@ func Test_SkylineBridgeMint_General(t *testing.T) {
 	})
 }
 
-func TestE2E_SkylineMintTokens_InvalidScenarios_RefundDisabled(t *testing.T) {
+func Test_SkylineBridgeMint_InvalidScenarios_RefundDisabled(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 10
@@ -294,7 +294,7 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_RefundDisabled(t *testing.T) {
 	})
 
 	t.Run("6. Cardano -> Nexus - Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		executeInvalidDestination(t, ctx, apex, cardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, bridgingType, 0)
+		executeInvalidDestination(t, ctx, apex, cardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, bridgingType, false, 0)
 	})
 
 	t.Run("7. Cardano -> Nexus - Submitted invalid metadata - invalid sender", func(t *testing.T) {
@@ -316,11 +316,11 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_RefundDisabled(t *testing.T) {
 		tokensFunded, err := cardanofw.FundUserWithToken(
 			ctx, apex, cardanofw.ChainIDVector,
 			minterWallet, user,
-			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
+			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendNativeToken(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0, cardanofw.BridgingTypeCurrencyOnSource)
+		executeInvalidSendNativeToken(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.XADATokenID)
 	})
 
 	t.Run("11. Vector -> Nexus - Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
@@ -433,7 +433,7 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_RefundDisabled(t *testing.T) {
 	})
 }
 
-func TestE2E_SkylineMintTokens_InvalidScenarios_NexusSrc(t *testing.T) {
+func Test_SkylineBridgeMint_InvalidScenarios_NexusSrc(t *testing.T) {
 	const apiKey = "test_api_key"
 
 	ctx, cncl := context.WithCancel(context.Background())

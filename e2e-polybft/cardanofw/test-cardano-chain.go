@@ -662,6 +662,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		"--output-relayer-file-name", RelayerConfigFileName,
 		"--dbs-path", dbsPath,
 		"--min-fee-for-bridging", fmt.Sprint(ec.config.DefaultMinBridgingFee),
+		"--min-operation-fee", fmt.Sprint(ec.config.MinOperationFee),
 	}
 
 	if ec.config.CustodialNFT != nil {

@@ -86,12 +86,6 @@ func WithAPIKey(apiKey string) ApexSystemOptions {
 	}
 }
 
-func WithVectorEnabled(enabled bool) ApexSystemOptions {
-	return func(h *ApexSystemConfig) {
-		h.VectorConfig.IsEnabled = enabled
-	}
-}
-
 func WithCardanoEnabled(enabled bool) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.CardanoConfig.IsEnabled = enabled
@@ -186,7 +180,7 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 	}
 }
 
-func getDefaultSkylinexSystemConfig() *ApexSystemConfig {
+func getDefaultSkylineSystemConfig() *ApexSystemConfig {
 	return &ApexSystemConfig{
 		APIValidatorID: 1,
 		APIPortStart:   40000,

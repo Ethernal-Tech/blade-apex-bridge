@@ -56,7 +56,7 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 
 			tokens := func() []cardanowallet.TokenAmount {
 				if chain == cardanofw.ChainIDNexus {
-					chainInfo := apex.GetNexusInfo(chain)
+					chainInfo := apex.GetEvmInfo(chain)
 					tokens := make([]cardanowallet.TokenAmount, len(fundableTokensPerChain[chain]))
 					for i, tokenID := range fundableTokensPerChain[chain] {
 						tokens[i] = cardanowallet.TokenAmount{
@@ -535,7 +535,10 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 		retryIntervalSec       = 5
 	)
 
-	vectorCardanoTokenName := apex.GetTokenNameForChains(cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ADATokenID)
+	tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.BridgingTypeWrappedTokenOnSource)
+	require.NotNil(t, tokensInfo)
+
+	vectorCardanoTokenName := tokensInfo.SrcTokenName
 
 	primeCardanoTestConfig := newTestConfig(
 		t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, "")
@@ -566,8 +569,9 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("5. Submitted invalid metadata - invalid destination", func(t *testing.T) {
+		// wTODO: change refundEnabled to true here, after testnet is redeployed
 		executeInvalidDestination(
-			t, ctx, apex, cardanoVectorTestConfig, apex.Users[3], requestStateTimeoutSec, retryIntervalSec, bridgingType, 0)
+			t, ctx, apex, cardanoVectorTestConfig, apex.Users[3], requestStateTimeoutSec, retryIntervalSec, bridgingType, false, 0)
 	})
 
 	t.Run("6. Submitted invalid metadata - invalid sender", func(t *testing.T) {
@@ -592,7 +596,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendNativeToken(t, ctx, apex, user, vectorCardanoTestConfig, *tokensFunded, requestStateTimeoutSec, retryIntervalSec, true, 0, cardanofw.BridgingTypeCurrencyOnSource)
+		executeInvalidSendNativeToken(t, ctx, apex, user, vectorCardanoTestConfig, *tokensFunded, requestStateTimeoutSec, retryIntervalSec, true, 0, cardanofw.BridgingTypeWrappedTokenOnSource)
 	})
 
 	t.Run("9. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {

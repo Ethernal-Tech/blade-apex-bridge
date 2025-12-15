@@ -661,29 +661,6 @@ func GetUsersBalances(
 	return balances, errors.Join(errs...)
 }
 
-func GetAllTokensForChainWithAmounts(
-	t *testing.T, apex *ApexSystem, chain ChainID, chains []ChainID, amount uint64,
-) (tokens []wallet.TokenAmount) {
-	t.Helper()
-
-	for _, otherChain := range chains {
-		if otherChain != chain {
-			// TODO: FIX THIS UP WITH ID
-			tokenName := apex.GetTokenNameForChains(chain, otherChain, 0)
-			if tokenName == "" {
-				continue
-			}
-
-			token, err := wallet.NewTokenWithFullNameTry(tokenName)
-			require.NoError(t, err)
-
-			tokens = append(tokens, wallet.NewTokenAmount(token, amount))
-		}
-	}
-
-	return tokens
-}
-
 func GetTokenAndPolicyForVerificationKey(
 	chainID ChainID, networkType wallet.CardanoNetworkType, verificationKey []byte, tokenName string,
 ) (wallet.Token, *wallet.PolicyScript, error) {
