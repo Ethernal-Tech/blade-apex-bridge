@@ -158,7 +158,8 @@ func submitMismatchAndWait(
 func submitColCoinsMismatchAndWait(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
 	receivers []sendtx.BridgingTxReceiver, amount uint64, tokenID uint16, bridgingType cardanofw.BridgingType,
-	maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8, refundOption RefundOption, metadataModifier func([]byte) []byte,
+	maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8,
+	refundOption RefundOption, metadataModifier func([]byte) []byte,
 ) {
 	t.Helper()
 
@@ -176,7 +177,8 @@ func submitColCoinsMismatchAndWait(
 	waitForAmount := amount
 	lovelaceAmount := new(big.Int).SetUint64(feeAmount + operationFee)
 
-	tokensInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, cardanofw.BridgingTypeColoredCoinOnSource, []uint16{tokenID}...)
+	tokensInfo := apex.GetBridgingTokensInfo(
+		config.srcChainID, config.dstChainID, cardanofw.BridgingTypeColoredCoinOnSource, []uint16{tokenID}...)
 
 	token, err := wallet.NewTokenWithFullName(tokensInfo.SrcTokenName, true)
 	require.NoError(t, err)
@@ -394,7 +396,8 @@ func executeObsoleteMetadata(
 	tokensInfo := apex.GetBridgingTokensInfo(config.srcChainID, config.dstChainID, bridgingType)
 	require.NotNil(t, tokensInfo)
 
-	balance, err := apex.GetBalanceWithTokenName(ctx, apex.Users[len(apex.Users)-1], config.dstChainID, tokensInfo.DstTokenName)
+	balance, err := apex.GetBalanceWithTokenName(
+		ctx, apex.Users[len(apex.Users)-1], config.dstChainID, tokensInfo.DstTokenName)
 	fmt.Printf("Receiver balance: %+v\n", balance)
 	require.NoError(t, err)
 
@@ -414,6 +417,7 @@ func executeObsoleteMetadata(
 	if !ok {
 		currentAmount = big.NewInt(0)
 	}
+
 	expectedAmount := new(big.Int).Add(currentAmount, big.NewInt(int64(defaultSendAmount)))
 
 	numRetries := max(1, int(maxWaitTimeSec/retryIntervalSec))
@@ -610,7 +614,8 @@ func getDefaultSendAmounts(
 
 	tokens := []wallet.TokenAmount(nil)
 
-	if bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource || bridgingType == cardanofw.BridgingTypeColoredCoinOnSource {
+	if bridgingType == cardanofw.BridgingTypeWrappedTokenOnSource ||
+		bridgingType == cardanofw.BridgingTypeColoredCoinOnSource {
 		waitForAmount = defaultSendAmount
 		lovelaceAmount = feeAmount + operationFee
 
@@ -716,7 +721,8 @@ func createReceiversColCoin(
 }
 
 func createReceivers(
-	t *testing.T, apex *cardanofw.ApexSystem, receiversCount int, srcChain string, dstChain string, sendAmount uint64, bridgingType cardanofw.BridgingType,
+	t *testing.T, apex *cardanofw.ApexSystem, receiversCount int, srcChain string, dstChain string,
+	sendAmount uint64, bridgingType cardanofw.BridgingType,
 ) []sendtx.BridgingTxReceiver {
 	t.Helper()
 

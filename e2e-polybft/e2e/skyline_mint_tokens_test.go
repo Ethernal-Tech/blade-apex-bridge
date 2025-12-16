@@ -53,6 +53,7 @@ func Test_CardanoToNexus(t *testing.T) {
 		balance, err := nexusChain.GetAddressBalance(ctx, receiver.GetAddress(cardanofw.ChainIDNexus))
 		require.NoError(t, err)
 		fmt.Printf("Receiver token balance before: %+v\n", balance)
+
 		usdtTokenBalance, err := apex.GetBalanceWithTokenName(ctx, receiver, cardanofw.ChainIDNexus, apex.NexusInfo.Tokens[cardanofw.USDTTokenID].ChainSpecific)
 		require.NoError(t, err)
 		fmt.Printf("Receiver USDT token balance before: %+v\n", usdtTokenBalance)
@@ -69,6 +70,7 @@ func Test_CardanoToNexus(t *testing.T) {
 		balance, err = nexusChain.GetAddressBalance(ctx, receiver.GetAddress(cardanofw.ChainIDNexus))
 		require.NoError(t, err)
 		fmt.Printf("Receiver token balance after: %+v\n", balance)
+
 		usdtTokenBalance, err = apex.GetBalanceWithTokenName(ctx, receiver, cardanofw.ChainIDNexus, apex.NexusInfo.Tokens[cardanofw.USDTTokenID].ChainSpecific)
 		require.NoError(t, err)
 		fmt.Printf("Receiver USDT token balance after: %+v\n", usdtTokenBalance)
@@ -593,7 +595,6 @@ func Test_SkylineBridgeMint_InvalidScenarios_NexusSrc(t *testing.T) {
 			tokenInfo:    tokenInfo,
 		})
 		require.NoError(t, err)
-
 	})
 
 	t.Run("8. Less than allowed to bridge", func(t *testing.T) {
@@ -640,7 +641,7 @@ func Test_SkylineBridgeMint_InvalidScenarios_NexusSrc(t *testing.T) {
 		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
 	})
 
-	t.Run("10. Incorect token id in receivers", func(t *testing.T) {
+	t.Run("10. Incorrect token id in receivers", func(t *testing.T) {
 		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
 		require.NotNil(t, tokenInfo)
 
@@ -754,28 +755,6 @@ func Test_SkylineBridgeMint_InvalidScenarios_NexusSrc(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
 	})
-
-	t.Run("13. Insufficient fee", func(t *testing.T) {
-		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
-		require.NotNil(t, tokenInfo)
-
-		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
-			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
-			sender:     user,
-			receivers: map[string]cardanofw.ReceiverAmount{
-				user.GetAddress(cardanofw.ChainIDVector): {
-					TokenID: cardanofw.USDTTokenID,
-					Amount:  validSendAmount,
-				},
-			},
-			operationFee: big.NewInt(0),
-			feeAmount:    big.NewInt(1000000000),
-			tokenInfo:    tokenInfo,
-		})
-		require.Error(t, err)
-		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
-	})
-
 	/*
 		Uncomnent when the operation fee is set to != 0 in settings
 		t.Run("13. Wrong operation fee", func(t *testing.T) {
@@ -798,6 +777,27 @@ func Test_SkylineBridgeMint_InvalidScenarios_NexusSrc(t *testing.T) {
 			require.ErrorContains(t, err, "timeout")
 		})
 	*/
+
+	t.Run("13. Insufficient fee", func(t *testing.T) {
+		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
+		require.NotNil(t, tokenInfo)
+
+		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			sender:     user,
+			receivers: map[string]cardanofw.ReceiverAmount{
+				user.GetAddress(cardanofw.ChainIDVector): {
+					TokenID: cardanofw.USDTTokenID,
+					Amount:  validSendAmount,
+				},
+			},
+			operationFee: big.NewInt(0),
+			feeAmount:    big.NewInt(1000000000),
+			tokenInfo:    tokenInfo,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
+	})
 }
 
 func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
@@ -889,6 +889,7 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 				TokenID:      br.tokenID,
 			}
 		}
+
 		return res
 	}
 

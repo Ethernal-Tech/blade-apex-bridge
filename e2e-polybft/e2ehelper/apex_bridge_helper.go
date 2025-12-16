@@ -86,7 +86,8 @@ func IsDiffGreaterThanOne(a, b *big.Int) bool {
 
 func ExecuteBridgingOneByOneWaitOnOtherSide(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
-	receiverUser *cardanofw.TestApexUser, srcChain, dstChain string, sendAmount *big.Int, bridgingType cardanofw.BridgingType,
+	receiverUser *cardanofw.TestApexUser, srcChain, dstChain string,
+	sendAmount *big.Int, bridgingType cardanofw.BridgingType,
 	options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
@@ -128,7 +129,8 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 
 func ExecuteBridgingWaitAfterSubmits(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
-	receiverUser *cardanofw.TestApexUser, srcChain, dstChain string, sendAmount *big.Int, bridgingType cardanofw.BridgingType,
+	receiverUser *cardanofw.TestApexUser, srcChain, dstChain string,
+	sendAmount *big.Int, bridgingType cardanofw.BridgingType,
 	options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
@@ -195,11 +197,14 @@ func ExecuteBridgingWaitAfterSubmitsExtended(
 
 	expectedAmounts := make([]expectedAmountInfo, len(directions))
 
-	// We have to set inital balances here since some bridging may finish before the other ones
-	// with same tokens and scramble the expected amounts (e.g. Nexus -> Vector and Cardano -> Vector in parallel - sequential xADA)
+	// We have to set initial balances here since some bridging may finish before the other ones
+	// with same tokens and scramble the expected amounts
+	// (e.g. Nexus -> Vector and Cardano -> Vector in parallel - sequential xADA)
 	initialBalances := make(map[string]*big.Int)
+
 	for _, direction := range directions {
-		tokensInfo := apex.GetBridgingTokensInfo(direction.SrcChain, direction.DstChain, direction.BridgingType, direction.TokenID)
+		tokensInfo := apex.GetBridgingTokensInfo(
+			direction.SrcChain, direction.DstChain, direction.BridgingType, direction.TokenID)
 		require.NotNil(t, tokensInfo)
 
 		balance, err := apex.GetBalanceWithTokenName(ctx, receiverUser, direction.DstChain, tokensInfo.DstTokenName)
@@ -338,7 +343,8 @@ func ExecuteBridging(
 
 	// send transactions
 	sendTxDatas := config.sendTxStrategy(
-		ctx, apex, chainsDst, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender, bridgingTypes, config.coloredCoins...)
+		ctx, apex, chainsDst, senderUsers, receiverUsers,
+		sendAmountDfm, txCountPerSender, bridgingTypes, config.coloredCoins...)
 
 	for _, d := range sendTxDatas {
 		require.NoError(t, d.err)
@@ -357,7 +363,8 @@ func ExecuteBridging(
 
 	// calculate desired amounts per chain
 	for _, txData := range sendTxDatas {
-		tokensInfo := apex.GetBridgingTokensInfo(txData.SrcChainID, txData.DstChainID, txData.BridgingTxType, config.coloredCoins...)
+		tokensInfo := apex.GetBridgingTokensInfo(
+			txData.SrcChainID, txData.DstChainID, txData.BridgingTxType, config.coloredCoins...)
 		require.NotNil(t, tokensInfo)
 
 		if _, exists := originalDesiredAmounts[txData.DstChainID]; !exists {
@@ -395,7 +402,8 @@ func ExecuteBridging(
 			for _, chainPair := range chainPairs {
 				sum := new(big.Int)
 
-				tokensInfo := apex.GetBridgingTokensInfo(chainPair.srcChain, chainPair.dstChain, bridgingTypes[chainPair], config.coloredCoins...)
+				tokensInfo := apex.GetBridgingTokensInfo(
+					chainPair.srcChain, chainPair.dstChain, bridgingTypes[chainPair], config.coloredCoins...)
 				require.NotNil(t, tokensInfo)
 
 				// Retrieve all failed transactions on the source chain, if any
@@ -410,7 +418,8 @@ func ExecuteBridging(
 				oldValue := new(big.Int).Set(desiredAmounts[chainPair.dstChain][tokensInfo.DstTokenName])
 
 				// Subtract failed transaction amounts from the original desired amounts on the destination chain
-				desiredAmounts[chainPair.dstChain][tokensInfo.DstTokenName].Sub(originalDesiredAmounts[chainPair.dstChain][tokensInfo.DstTokenName], sum)
+				desiredAmounts[chainPair.dstChain][tokensInfo.DstTokenName].Sub(
+					originalDesiredAmounts[chainPair.dstChain][tokensInfo.DstTokenName], sum)
 
 				newValue := desiredAmounts[chainPair.dstChain][tokensInfo.DstTokenName]
 				isDifferent := oldValue.Cmp(newValue) != 0
@@ -437,7 +446,9 @@ func ExecuteBridging(
 	// wait for amounts
 	for i, userRecv := range receiverUsers {
 		for j, chainPair := range chainPairs {
-			tokensInfo := apex.GetBridgingTokensInfo(chainPair.srcChain, chainPair.dstChain, bridgingTypes[chainPair], config.coloredCoins...)
+			tokensInfo := apex.GetBridgingTokensInfo(
+				chainPair.srcChain, chainPair.dstChain,
+				bridgingTypes[chainPair], config.coloredCoins...)
 			require.NotNil(t, tokensInfo)
 
 			wgResults.Add(1)
@@ -452,7 +463,8 @@ func ExecuteBridging(
 					lock.RLock()
 					defer lock.RUnlock()
 
-					receivedAmount := bigIntCache.Add(bigIntCache.Set(initialAmountDfm), desiredAmounts[dstChain][tokensInfo.DstTokenName])
+					receivedAmount := bigIntCache.Add(
+						bigIntCache.Set(initialAmountDfm), desiredAmounts[dstChain][tokensInfo.DstTokenName])
 
 					return receivedAmount
 				}

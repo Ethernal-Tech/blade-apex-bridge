@@ -550,7 +550,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					LockUnlock:        true,
 					IsWrappedCurrency: false,
 				},
-				AP3XTokenID: { // currecny token on Nexus - required by validatorcomponents
+				AP3XTokenID: { // currency token on Nexus - required by validatorcomponents
 					ChainSpecific:     cardanowallet.AdaTokenName,
 					LockUnlock:        true,
 					IsWrappedCurrency: false,
@@ -1110,6 +1110,7 @@ func (a *ApexSystem) GetBalance(
 	if err != nil {
 		return nil, err
 	}
+
 	balance, err := chain.GetAddressBalance(ctx, user.GetAddress(chainID))
 	if err != nil {
 		return nil, err
@@ -1122,7 +1123,8 @@ func (a *ApexSystem) GetBalance(
 	return balance, err
 }
 
-func (a *ApexSystem) GetBalanceWithTokenName(ctx context.Context, user *TestApexUser, chainID ChainID, tokenName string) (map[string]*big.Int, error) {
+func (a *ApexSystem) GetBalanceWithTokenName(
+	ctx context.Context, user *TestApexUser, chainID ChainID, tokenName string) (map[string]*big.Int, error) {
 	chain, err := a.getChain(chainID)
 	if err != nil {
 		return nil, err
@@ -1205,8 +1207,10 @@ func (a *ApexSystem) WaitForAmount(
 	cmpHandler func(*big.Int) bool, numRetries int, retryDelay time.Duration, tokenName string,
 ) (*big.Int, error) {
 	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*big.Int, error) {
-		var amounts map[string]*big.Int
-		var err error
+		var (
+			amounts map[string]*big.Int
+			err     error
+		)
 
 		amounts, err = a.GetBalanceWithTokenName(ctx, user, dstChain, tokenName)
 		if err != nil {
@@ -1550,15 +1554,19 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	}
 
 	// check if bridging direction is supported
-	isSourceChainCardanoType := data.SourceChain == ChainIDCardano || data.SourceChain == ChainIDPrime || data.SourceChain == ChainIDVector
+	isSourceChainCardanoType := data.SourceChain == ChainIDCardano ||
+		data.SourceChain == ChainIDPrime || data.SourceChain == ChainIDVector
+	//nolint:gocritic
 	if isSourceChainCardanoType {
 		srcChainInfo := a.GetCardanoInfo(data.SourceChain)
+
 		_, ok := srcChainInfo.DestChain[data.DestinationChain]
 		if !ok {
 			return "", fmt.Errorf("invalid bridging direction")
 		}
 	} else if data.SourceChain == ChainIDNexus {
 		srcChainInfo := a.GetEvmInfo(data.SourceChain)
+
 		_, ok := srcChainInfo.DestChain[data.DestinationChain]
 		if !ok {
 			return "", fmt.Errorf("invalid bridging direction")
@@ -1624,7 +1632,9 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 	feeAmount := DfmToChainNativeTokenAmount(
 		data.SourceChain, new(big.Int).SetUint64(
-			a.GetMinBridgingFee(data.SourceChain, data.BridgingType == BridgingTypeWrappedTokenOnSource || data.BridgingType == BridgingTypeColoredCoinOnSource)))
+			a.GetMinBridgingFee(data.SourceChain,
+				data.BridgingType == BridgingTypeWrappedTokenOnSource ||
+					data.BridgingType == BridgingTypeColoredCoinOnSource)))
 
 	txHash, err := infracommon.ExecuteWithRetry(data.Context, func(ctx context.Context) (string, error) {
 		txHash, err := srcChain.BridgingRequest(
@@ -1678,7 +1688,8 @@ type BridgingTokensInfo struct {
 	DstTokenName string
 }
 
-func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingType BridgingType, coloredCoins ...uint16) *BridgingTokensInfo {
+func (a *ApexSystem) GetBridgingTokensInfo(
+	srcChain, dstChain ChainID, bridgingType BridgingType, coloredCoins ...uint16) *BridgingTokensInfo {
 	isSourceChainCardanoType := srcChain == ChainIDCardano || srcChain == ChainIDPrime || srcChain == ChainIDVector
 	isDestinationChainCardanoType := dstChain == ChainIDCardano || dstChain == ChainIDPrime || dstChain == ChainIDVector
 
@@ -1703,6 +1714,7 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 		fmt.Printf("Colored coins: %+v\n", coloredCoins)
 		srcTokenID := coloredCoins[0]
 
+		//nolint:gocritic
 		if isSourceChainCardanoType && isDestinationChainCardanoType {
 			srcChainInfo := a.GetCardanoInfo(srcChain)
 			dstChainInfo := a.GetCardanoInfo(dstChain)
@@ -1755,6 +1767,7 @@ func (a *ApexSystem) GetBridgingTokensInfo(srcChain, dstChain ChainID, bridgingT
 		return nil
 	}
 
+	//nolint:gocritic
 	if isSourceChainCardanoType && isDestinationChainCardanoType {
 		srcChainInfo := a.GetCardanoInfo(srcChain)
 		dstChainInfo := a.GetCardanoInfo(dstChain)

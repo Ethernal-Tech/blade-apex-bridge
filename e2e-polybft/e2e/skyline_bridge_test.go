@@ -1383,6 +1383,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		return chainPrevAmounts, chainExpectedAmounts, chainReceivers, defundReceiversPrevAmount, defundReceiversExpectedAmount, defundReceivers
 	}
 
+	//nolint:dupl
 	bridgeTransactions := func(ctx context.Context, apex *cardanofw.ApexSystem,
 		bridgingRequests []*bridingRequest, receivers map[uint]*cardanofw.TestApexUser,
 	) {

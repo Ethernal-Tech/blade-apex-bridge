@@ -195,6 +195,7 @@ func (cv *TestApexValidator) GenerateDirectionsConfig(directionConfigFile *Direc
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 

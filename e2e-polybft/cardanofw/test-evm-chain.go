@@ -290,6 +290,7 @@ func (ec *TestEVMChain) CreateWallets(validator *TestApexValidator) error {
 
 func (ec *TestEVMChain) DeployMintingContract(ctx context.Context) error {
 	fmt.Println("Deploying minting contract for chain =", ec.ChainID())
+
 	pk, err := ec.admin.MarshallPrivateKey()
 	if err != nil {
 		return err
@@ -329,6 +330,7 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context) error {
 
 		if tokenAddr, execErr = ec.deployERC20Token(token); execErr != nil {
 			fmt.Printf("Failed to deploy ERC20 token for token = %+v: %+v\n", token, execErr)
+
 			return err
 		}
 
@@ -348,6 +350,7 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context) error {
 
 		if err := retry(ctx, "", func() error {
 			tokenAddr, execErr = regexHelper(params, "contractAddr")
+
 			return execErr
 		}); err != nil {
 			return err
@@ -371,6 +374,7 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context) error {
 
 		if err := retry(ctx, "", func() error {
 			tokenAddr, execErr = regexHelper(params, "contractAddr")
+
 			return execErr
 		}); err != nil {
 			return err
@@ -381,6 +385,7 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context) error {
 
 	ec.config.ConfigurableTokens = tokenAddrs
 	fmt.Println("Mintable tokens =", ec.config.ConfigurableTokens)
+
 	return nil
 }
 
@@ -401,9 +406,11 @@ func (ec *TestEVMChain) deployERC20Token(token EVMTokenInfo) (types.Address, err
 	if contractsapi.SimpleERC20 == nil {
 		return types.ZeroAddress, fmt.Errorf("SimpleERC20 artifact is nil")
 	}
+
 	if contractsapi.SimpleERC20.Abi == nil {
 		return types.ZeroAddress, fmt.Errorf("SimpleERC20 ABI is nil")
 	}
+
 	if contractsapi.SimpleERC20.Abi.Constructor == nil {
 		return types.ZeroAddress, fmt.Errorf("SimpleERC20 Constructor is nil")
 	}
@@ -418,7 +425,8 @@ func (ec *TestEVMChain) deployERC20Token(token EVMTokenInfo) (types.Address, err
 	}
 
 	// Combine bytecode + constructor args
-	deploymentData := append(contractsapi.SimpleERC20.Bytecode, constructorArgs...)
+	deploymentData := append([]byte{}, contractsapi.SimpleERC20.Bytecode...)
+	deploymentData = append(deploymentData, constructorArgs...)
 
 	txRelayer, err := txrelayer.NewTxRelayer(
 		txrelayer.WithIPAddress(ec.jsonRPCAddr),
@@ -440,14 +448,18 @@ func (ec *TestEVMChain) deployERC20Token(token EVMTokenInfo) (types.Address, err
 	}
 
 	if receipt.Status != uint64(types.ReceiptSuccess) {
-		return types.ZeroAddress, fmt.Errorf("ERC20 deployment failed with status: %d (tx: %s)", receipt.Status, receipt.TransactionHash.String())
+		return types.ZeroAddress, fmt.Errorf(
+			"ERC20 deployment failed with status: %d (tx: %s)",
+			receipt.Status, receipt.TransactionHash.String())
 	}
 
-	if receipt.ContractAddress.String() == "" || receipt.ContractAddress.String() == "0x0000000000000000000000000000000000000000" {
+	if receipt.ContractAddress.String() == "" ||
+		receipt.ContractAddress.String() == "0x0000000000000000000000000000000000000000" {
 		return types.ZeroAddress, fmt.Errorf("no contract address in receipt")
 	}
 
 	fmt.Printf("Successfully deployed ERC20 at: %s\n", receipt.ContractAddress.String())
+
 	return types.StringToAddress(receipt.ContractAddress.String()), nil
 }
 
@@ -566,7 +578,6 @@ func (ec *TestEVMChain) InitContracts(
 
 	regexHelper := func(workingDirectory string, params []string) (types.Address, types.Address, error) {
 		// if everything works fine, the working directory will be reused
-
 		if err := common.CreateDirSafe(workingDirectory, 0750); err != nil {
 			return types.Address{}, types.Address{}, err
 		}
@@ -624,6 +635,7 @@ func (ec *TestEVMChain) InitContracts(
 	if err := retry(ctx, workingDirectory, func() error {
 		var execErr error
 		ec.gatewayAddr, ec.nativeTokenWalletAddr, execErr = regexHelper(workingDirectory, params)
+
 		return execErr
 	}); err != nil {
 		return err
@@ -634,6 +646,7 @@ func (ec *TestEVMChain) InitContracts(
 
 func retry(ctx context.Context, workingDirectory string, action func() error) error {
 	tryCounter := 0
+
 	for {
 		if err := action(); err == nil {
 			return nil
@@ -724,7 +737,8 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (map
 	}, err
 }
 
-func (ec *TestEVMChain) GetAddressBalanceWithTokenName(ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
+func (ec *TestEVMChain) GetAddressBalanceWithTokenName(
+	ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
 	if tokenName == infrawallet.AdaTokenName {
 		return ec.GetAddressBalance(ctx, addr)
 	}
@@ -792,6 +806,7 @@ func (ec *TestEVMChain) BridgingRequest(
 	operationFee uint64,
 	bridgingTypes ...BridgingType,
 ) (string, error) {
+	//nolint:prealloc
 	var params []string
 
 	if bridgingTypes[0] == BridgingTypeColoredCoinOnSource {
@@ -803,9 +818,11 @@ func (ec *TestEVMChain) BridgingRequest(
 		}
 
 		isTokenLockUnlock := false
+
 		for _, token := range ec.config.LockUnlockTokens {
 			if token.ID == receiverTokenID {
 				isTokenLockUnlock = true
+
 				break
 			}
 		}
@@ -829,7 +846,6 @@ func (ec *TestEVMChain) BridgingRequest(
 				"--native-token-wallet-contract-addr", ec.nativeTokenWalletAddr.String(),
 				"--src-token-contract-addr", ec.config.ConfigurableTokens[receiverTokenID])
 		}
-
 	} else {
 		params = []string{
 			"sendtx",
@@ -885,7 +901,7 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 	type gatewayReceiverWithdraw struct {
 		Receiver string   `abi:"receiver"`
 		Amount   *big.Int `abi:"amount"`
-		TokenId  uint16   `abi:"tokenId"`
+		TokenID  uint16   `abi:"tokenId"`
 	}
 
 	gatewayReceivers := make([]gatewayReceiverWithdraw, 0, len(receivers))
@@ -895,7 +911,7 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 		gatewayReceivers = append(gatewayReceivers, gatewayReceiverWithdraw{
 			Receiver: addr,
 			Amount:   ra.Amount,
-			TokenId:  ra.TokenID,
+			TokenID:  ra.TokenID,
 		})
 
 		if tokenContractAddrSrc != "" {
@@ -920,6 +936,7 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 	if err != nil {
 		return "", err
 	}
+
 	key := crypto.NewECDSAKey(privateKeyECDSA)
 
 	if tokenContractAddrSrc != "" {
@@ -930,6 +947,7 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 
 		// Approve the gateway / native token wallet to transfer tokens
 		spenderAddr := ec.nativeTokenWalletAddr
+
 		approveData, err := approveMethod.Encode([]interface{}{spenderAddr, totalTokenAmount})
 		if err != nil {
 			return "", fmt.Errorf("failed to encode approve call: %w", err)
@@ -945,6 +963,7 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 		if err != nil {
 			return "", fmt.Errorf("failed to send approve tx: %w", err)
 		}
+
 		if receipt.Status != uint64(types.ReceiptSuccess) {
 			return "", fmt.Errorf("approve transaction receipt status is unsuccessful: %d", receipt.Status)
 		}
@@ -979,6 +998,7 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 	if err != nil {
 		return "", fmt.Errorf("failed to send withdraw tx: %w", err)
 	}
+
 	if receipt.Status != uint64(types.ReceiptSuccess) {
 		return "", fmt.Errorf("transaction receipt status is unsuccessful: %d", receipt.Status)
 	}
@@ -993,7 +1013,8 @@ func (ec *TestEVMChain) SendTx(
 		return "", fmt.Errorf("evm SendTx currently supports only one receiver but got %d", ln)
 	}
 
-	rec, err := ec.sendTxWithNativeTokens(privateKey, receivers[0].Addr, receivers[0].Amount, metadata, receivers[0].NativeTokens)
+	rec, err := ec.sendTxWithNativeTokens(privateKey, receivers[0].Addr, receivers[0].Amount,
+		metadata, receivers[0].NativeTokens)
 	if err != nil {
 		return "", err
 	}

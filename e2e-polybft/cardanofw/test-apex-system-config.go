@@ -134,7 +134,8 @@ func WithNexusConfig(config *TestEVMChainConfig) ApexSystemOptions {
 	}
 }
 
-func WithCustomConfigHandlers(callbackOracle, callbackRelayer, callbackDirections CustomConfigHandler) ApexSystemOptions {
+func WithCustomConfigHandlers(
+	callbackOracle, callbackRelayer, callbackDirections CustomConfigHandler) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.CustomOracleConfigHandler = callbackOracle
 		h.CustomRelayerConfigHandler = callbackRelayer

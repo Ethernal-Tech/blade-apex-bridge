@@ -304,7 +304,9 @@ func executeInvalidNexusBridgingRequest(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
 	data InvalidNexusBridgingRequest,
 ) error {
-	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+	t.Helper()
+
+	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain) //nolint:forcetypeassert
 
 	pk, err := user.GetPrivateKey(cardanofw.ChainIDNexus)
 	if err != nil {
@@ -326,7 +328,8 @@ func executeInvalidNexusBridgingRequest(
 		feeAmount = data.feeAmount
 	}
 
-	txHash, err := nexusChain.DirectBridgingRequest(data.dstChainID, pk, data.receivers, feeAmount, data.operationFee, data.tokenInfo.SrcTokenName)
+	txHash, err := nexusChain.DirectBridgingRequest(
+		data.dstChainID, pk, data.receivers, feeAmount, data.operationFee, data.tokenInfo.SrcTokenName)
 	if err != nil {
 		return err
 	}
@@ -335,5 +338,6 @@ func executeInvalidNexusBridgingRequest(
 
 	err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDNexus,
 		tokenBalance[data.tokenInfo.SrcTokenName], 10, time.Second*10, data.tokenInfo.SrcTokenName)
+
 	return err
 }

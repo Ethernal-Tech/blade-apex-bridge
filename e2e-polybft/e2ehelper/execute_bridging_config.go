@@ -178,7 +178,9 @@ var (
 
 					for j := 0; j < txCountPerSender; j++ {
 						for _, dstChain := range dstChains {
-							tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingTypes[NewChainPair(srcChain, dstChain)], coloredCoins...)
+							tokensInfo := apex.GetBridgingTokensInfo(
+								srcChain, dstChain,
+								bridgingTypes[NewChainPair(srcChain, dstChain)], coloredCoins...)
 							if tokensInfo == nil {
 								mu.Lock()
 

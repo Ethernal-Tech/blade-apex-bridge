@@ -265,7 +265,8 @@ func (td *TestApexChainDummy) GetCardanoScriptInfo() *CardanoScriptInfo {
 	return &CardanoScriptInfo{}
 }
 
-func (td *TestApexChainDummy) GetAddressBalanceWithTokenName(ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
+func (td *TestApexChainDummy) GetAddressBalanceWithTokenName(
+	ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
 	return nil, nil
 }
 

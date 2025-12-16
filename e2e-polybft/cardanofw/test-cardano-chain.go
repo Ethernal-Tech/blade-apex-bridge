@@ -757,7 +757,8 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 	return balanceTransformed, nil
 }
 
-func (ec *TestCardanoChain) GetAddressBalanceWithTokenName(ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
+func (ec *TestCardanoChain) GetAddressBalanceWithTokenName(
+	ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
 	return ec.GetAddressBalance(ctx, addr)
 }
 

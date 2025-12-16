@@ -536,7 +536,8 @@ func SetupSkylineRemoteBridge(
 	}
 
 	usersData, err := GetTestnetApexUsers(
-		NewApexNetworkTypes(apexConfig.PrimeConfig, apexConfig.VectorConfig, apexConfig.CardanoConfig, apexConfig.NexusConfig))
+		NewApexNetworkTypes(
+			apexConfig.PrimeConfig, apexConfig.VectorConfig, apexConfig.CardanoConfig, apexConfig.NexusConfig))
 	if err != nil {
 		return nil, err
 	}
