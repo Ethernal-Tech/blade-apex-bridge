@@ -60,30 +60,6 @@ const (
 	BatchTypeValidatorSetFinal
 )
 
-type BridgingType byte
-
-const (
-	BridgingTypeNormal BridgingType = iota
-	BridgingTypeWrappedTokenOnSource
-	BridgingTypeCurrencyOnSource
-	BridgingTypeColoredCoinOnSource
-)
-
-func (bt BridgingType) String() string {
-	switch bt {
-	case BridgingTypeNormal:
-		return "Bridging Request Reactor"
-	case BridgingTypeWrappedTokenOnSource:
-		return "Bridging Wrapped Token on Source"
-	case BridgingTypeCurrencyOnSource:
-		return "Bridging Currency on Source"
-	case BridgingTypeColoredCoinOnSource:
-		return "Bridging Colored Coin on Source"
-	default:
-		return "Unknown Bridging Type"
-	}
-}
-
 func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
 	env, name := "CARDANO_CLI_BINARY", "cardano-cli"
 

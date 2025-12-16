@@ -51,7 +51,7 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 		for _, dstChain := range directions[srcChain] {
 			fmt.Printf("Testing bridging from %s to %s\n", srcChain, dstChain)
 			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.BridgingTypeNormal)
+				t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.AP3XTokenID)
 		}
 	})
 
@@ -65,7 +65,7 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.BridgingTypeNormal)
+			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.AP3XTokenID)
 
 		relayerBalanceAfter, err := dstTestChain.GetAddressBalance(
 			ctx, apex.NexusInfo.RelayerAddress.String())
@@ -84,7 +84,7 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.BridgingTypeNormal)
+			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.AP3XTokenID)
 
 		relayerBalanceAfter, err := dstTestChain.GetAddressBalance(
 			ctx, apex.NexusInfo.RelayerAddress.String())
@@ -105,7 +105,7 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.BridgingTypeNormal)
+			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.AP3XTokenID)
 
 		relayerBalanceAfter, err := dstTestChain.GetAddressBalance(
 			ctx, apex.NexusInfo.RelayerAddress.String())
@@ -147,21 +147,21 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 		const instances = 5
 
 		e2ehelper.ExecuteBridgingOneByOneWaitOnOtherSide(
-			t, ctx, apex, instances, user, srcChain, cardanofw.ChainIDPrime, sendAmountDfm, cardanofw.BridgingTypeNormal)
+			t, ctx, apex, instances, user, srcChain, cardanofw.ChainIDPrime, sendAmountDfm, cardanofw.AP3XTokenID)
 	})
 
 	t.Run("One by one - don't wait", func(t *testing.T) {
 		const instances = 5
 
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
-			t, ctx, apex, instances, user, srcChain, cardanofw.ChainIDVector, sendAmountDfm, cardanofw.BridgingTypeNormal)
+			t, ctx, apex, instances, user, srcChain, cardanofw.ChainIDVector, sendAmountDfm, cardanofw.AP3XTokenID)
 	})
 
 	t.Run("One by one - don't wait", func(t *testing.T) {
 		const instances = 2
 
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
-			t, ctx, apex, instances, user, srcChain, cardanofw.ChainIDPrime, sendAmountDfm, cardanofw.BridgingTypeNormal)
+			t, ctx, apex, instances, user, srcChain, cardanofw.ChainIDPrime, sendAmountDfm, cardanofw.AP3XTokenID)
 	})
 
 	t.Run("Parallel", func(t *testing.T) {
@@ -175,8 +175,8 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				srcChain: {cardanofw.ChainIDVector},
 			},
-			map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-				e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDVector): cardanofw.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]uint16{
+				e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDVector): cardanofw.AP3XTokenID,
 			},
 			sendAmountDfm)
 	})
@@ -195,8 +195,8 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				srcChain: {cardanofw.ChainIDPrime},
 			},
-			map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-				e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDPrime): cardanofw.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]uint16{
+				e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDPrime): cardanofw.AP3XTokenID,
 			},
 			sendAmountDfm)
 	})
@@ -227,8 +227,8 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				srcChain: {cardanofw.ChainIDPrime},
 			},
-			map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-				e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDPrime): cardanofw.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]uint16{
+				e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDPrime): cardanofw.AP3XTokenID,
 			},
 			sendAmountDfm,
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
@@ -237,7 +237,9 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 	})
 }
 
-func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios(t *testing.T) {
+// this runs with refund tests because that job is underutilized, and the ApexBridgeWithNexus job seems to be
+// struggling on GH Actions
+func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 1
@@ -375,7 +377,7 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 
 		e2ehelper.ExecuteBridgingOneByOneWaitOnOtherSide(
 			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm,
-			cardanofw.BridgingTypeNormal)
+			cardanofw.AP3XTokenID)
 	})
 
 	t.Run("From Vector to Nexus one by one - don't wait for other side", func(t *testing.T) {
@@ -391,7 +393,7 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
 			t, ctx, apex, instances, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, sendAmountDfm,
-			cardanofw.BridgingTypeNormal)
+			cardanofw.AP3XTokenID)
 	})
 
 	t.Run("From Prime to Nexus parallel", func(t *testing.T) {
@@ -413,8 +415,8 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 			},
-			map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus): cardanofw.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]uint16{
+				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus): cardanofw.AP3XTokenID,
 			},
 			sendAmountDfm)
 	})
@@ -442,8 +444,8 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDVector: {cardanofw.ChainIDNexus},
 			},
-			map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDNexus): cardanofw.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]uint16{
+				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDNexus): cardanofw.AP3XTokenID,
 			},
 			sendAmountDfm)
 	})
@@ -491,8 +493,8 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 			map[string][]string{
 				cardanofw.ChainIDVector: {cardanofw.ChainIDNexus},
 			},
-			map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDNexus): cardanofw.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]uint16{
+				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDNexus): cardanofw.AP3XTokenID,
 			},
 			sendAmountDfm,
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
@@ -522,11 +524,11 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDNexus:  {cardanofw.ChainIDPrime, cardanofw.ChainIDVector},
 				cardanofw.ChainIDVector: {cardanofw.ChainIDNexus},
 			},
-			map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus):  cardanofw.BridgingTypeNormal,
-				e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime):  cardanofw.BridgingTypeNormal,
-				e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDVector): cardanofw.BridgingTypeNormal,
-				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDNexus): cardanofw.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]uint16{
+				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus):  cardanofw.AP3XTokenID,
+				e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime):  cardanofw.AP3XTokenID,
+				e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDVector): cardanofw.AP3XTokenID,
+				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDNexus): cardanofw.AP3XTokenID,
 			},
 			sendAmountDfm)
 	})
@@ -571,9 +573,9 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 				cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 			},
-			map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus): cardanofw.BridgingTypeNormal,
-				e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime): cardanofw.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]uint16{
+				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus): cardanofw.AP3XTokenID,
+				e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime): cardanofw.AP3XTokenID,
 			},
 			sendAmountDfm,
 			e2ehelper.WithWaitForUnexpectedBridges(true),
@@ -606,9 +608,9 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDVector: {cardanofw.ChainIDNexus},
 				cardanofw.ChainIDNexus:  {cardanofw.ChainIDVector},
 			},
-			map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDNexus): cardanofw.BridgingTypeNormal,
-				e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDVector): cardanofw.BridgingTypeNormal,
+			map[e2ehelper.SrcDstChainPair]uint16{
+				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDNexus): cardanofw.AP3XTokenID,
+				e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDVector): cardanofw.AP3XTokenID,
 			},
 			sendAmountDfm,
 			e2ehelper.WithWaitForUnexpectedBridges(true),
@@ -619,7 +621,9 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 	})
 }
 
-func TestE2E_ApexBridgeWithNexus_DstN_InvalidScenarios(t *testing.T) {
+// this runs with refund tests because that job is underutilized, and the ApexBridgeWithNexus job seems to be
+// struggling on GH Actions
+func TestE2E_ABWithNexus_ApexRefund_DstN_InvalidScenarios(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 15
@@ -688,7 +692,9 @@ func TestE2E_ApexBridgeWithNexus_DstN_InvalidScenarios(t *testing.T) {
 	})
 }
 
-func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
+// this runs with refund tests because that job is underutilized, and the ApexBridgeWithNexus job seems to be
+// struggling on GH Actions
+func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 1
@@ -731,7 +737,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			DestinationChain: cardanofw.ChainIDNexus,
 			Sender:           user,
 			DFMAmount:        sendAmountDfm,
-			BridgingType:     cardanofw.BridgingTypeNormal,
+			SrcTokenID:       cardanofw.AP3XTokenID,
 			Receivers:        []*cardanofw.TestApexUser{user},
 		})
 		require.NoError(t, err)
@@ -805,7 +811,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			DestinationChain: cardanofw.ChainIDNexus,
 			Sender:           user,
 			DFMAmount:        sendAmountDfm,
-			BridgingType:     cardanofw.BridgingTypeNormal,
+			SrcTokenID:       cardanofw.AP3XTokenID,
 			Receivers:        []*cardanofw.TestApexUser{user},
 		})
 		require.NoError(t, err)
@@ -872,7 +878,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			DestinationChain: cardanofw.ChainIDNexus,
 			Sender:           user,
 			DFMAmount:        sendAmountDfm,
-			BridgingType:     cardanofw.BridgingTypeNormal,
+			SrcTokenID:       cardanofw.AP3XTokenID,
 			Receivers:        []*cardanofw.TestApexUser{user},
 		})
 		require.NoError(t, err)
@@ -909,7 +915,6 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		require.False(t, timeout)
 	})
 
-	//nolint:dupl
 	t.Run("Test failed batch", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
 			t.Skip()
@@ -942,6 +947,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		prevBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
 		require.NoError(t, err)
 
+		tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, cardanofw.AP3XTokenID)
+		require.NoError(t, err)
+
 		prevBalanceDfm := prevBalance[cardanowallet.AdaTokenName]
 
 		fmt.Printf("Dfm before Tx %d\n", prevBalanceDfm)
@@ -955,7 +963,8 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			DestinationChain: cardanofw.ChainIDNexus,
 			Sender:           user,
 			DFMAmount:        sendAmountDfm,
-			BridgingType:     cardanofw.BridgingTypeNormal,
+			SrcTokenID:       cardanofw.AP3XTokenID,
+			TokensInfo:       tokensInfo,
 			Receivers:        []*cardanofw.TestApexUser{user},
 		})
 		require.NoError(t, err)
@@ -969,14 +978,10 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		require.Equal(t, failedToExecute, 1)
 		require.False(t, timeout)
 
-		tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, cardanofw.BridgingTypeNormal)
-		require.NotNil(t, tokensInfo)
-
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, expectedAmount, 3, time.Second*10, tokensInfo.DstTokenName)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmount, 3, time.Second*10, tokensInfo.DstTokenName)
 		require.NoError(t, err)
 	})
 
-	//nolint:dupl
 	t.Run("Test failed batch 5 times in a row", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
 			t.Skip()
@@ -1009,6 +1014,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		prevBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
 		require.NoError(t, err)
 
+		tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, cardanofw.AP3XTokenID)
+		require.NoError(t, err)
+
 		prevBalanceDfm := prevBalance[cardanowallet.AdaTokenName]
 
 		fmt.Printf("DFM Amount before Tx %d\n", prevBalanceDfm)
@@ -1022,7 +1030,8 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			DestinationChain: cardanofw.ChainIDNexus,
 			Sender:           user,
 			DFMAmount:        sendAmountDfm,
-			BridgingType:     cardanofw.BridgingTypeNormal,
+			SrcTokenID:       cardanofw.AP3XTokenID,
+			TokensInfo:       tokensInfo,
 			Receivers:        []*cardanofw.TestApexUser{user},
 		})
 		require.NoError(t, err)
@@ -1033,13 +1042,10 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		failedToExecute, timeout = cardanofw.WaitForBatchState(
 			ctx, apex, srcChain, txHash, apiKey, false, false, cardanofw.BatchStateExecuted)
 
-		require.Equal(t, failedToExecute, 5)
+		require.Equal(t, 5, failedToExecute)
 		require.False(t, timeout)
 
-		tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, cardanofw.BridgingTypeNormal)
-		require.NotNil(t, tokensInfo)
-
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, expectedAmount, 3, time.Second*10, tokensInfo.DstTokenName)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmount, 3, time.Second*10, tokensInfo.DstTokenName)
 		require.NoError(t, err)
 	})
 
@@ -1073,6 +1079,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		prevBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
 		require.NoError(t, err)
 
+		tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, cardanofw.AP3XTokenID)
+		require.NoError(t, err)
+
 		prevBalanceDfm := prevBalance[cardanowallet.AdaTokenName]
 
 		fmt.Printf("DFM Amount before Tx %d\n", prevBalanceDfm)
@@ -1088,7 +1097,8 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 				DestinationChain: cardanofw.ChainIDNexus,
 				Sender:           user,
 				DFMAmount:        sendAmountDfm,
-				BridgingType:     cardanofw.BridgingTypeNormal,
+				SrcTokenID:       cardanofw.AP3XTokenID,
+				TokensInfo:       tokensInfo,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})
 			require.NoError(t, err)
@@ -1104,10 +1114,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			require.False(t, timeout[i])
 		}
 
-		tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, cardanofw.BridgingTypeNormal)
-		require.NotNil(t, tokensInfo)
-
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, ethExpectedBalance, 20, time.Second*10, tokensInfo.DstTokenName)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, ethExpectedBalance, 20, time.Second*10, tokensInfo.DstTokenName)
 		require.NoError(t, err)
 	})
 
@@ -1138,6 +1145,9 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 		prevBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
 		require.NoError(t, err)
 
+		tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, cardanofw.AP3XTokenID)
+		require.NoError(t, err)
+
 		prevBalanceDfm := prevBalance[cardanowallet.AdaTokenName]
 
 		fmt.Printf("DFM Amount before Tx %d\n", prevBalanceDfm)
@@ -1153,7 +1163,8 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 				DestinationChain: cardanofw.ChainIDNexus,
 				Sender:           user,
 				DFMAmount:        sendAmountDfm,
-				BridgingType:     cardanofw.BridgingTypeNormal,
+				SrcTokenID:       cardanofw.AP3XTokenID,
+				TokensInfo:       tokensInfo,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})
 			require.NoError(t, err)
@@ -1173,10 +1184,7 @@ func TestE2E_ApexBridgeWithNexus_BatchFailed(t *testing.T) {
 			require.False(t, timeout[i])
 		}
 
-		tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, cardanofw.BridgingTypeNormal)
-		require.NotNil(t, tokensInfo)
-
-		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, ethExpectedBalance, 3, time.Second*10, tokensInfo.DstTokenName)
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, ethExpectedBalance, 3, time.Second*10, tokensInfo.DstTokenName)
 		require.NoError(t, err)
 	})
 }
@@ -1262,6 +1270,9 @@ func TestE2E_ApexBridgeWithNexus_NexusFundAmount(t *testing.T) {
 			prevBalance, err := apex.GetBalance(ctx, user, tc.toChain)
 			require.NoError(t, err)
 
+			tokensInfo, err := apex.GetBridgingTokensInfo(tc.toChain, tc.fromChain, cardanofw.AP3XTokenID)
+			require.NoError(t, err)
+
 			prevAmount := prevBalance[cardanowallet.AdaTokenName]
 
 			fmt.Printf("prevAmount %v\n", prevAmount)
@@ -1275,24 +1286,22 @@ func TestE2E_ApexBridgeWithNexus_NexusFundAmount(t *testing.T) {
 				DestinationChain: tc.toChain,
 				Sender:           user,
 				DFMAmount:        tc.sendAmountDfm,
-				BridgingType:     cardanofw.BridgingTypeNormal,
+				SrcTokenID:       cardanofw.AP3XTokenID,
+				TokensInfo:       tokensInfo,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})
 			require.NoError(t, err)
 
 			fmt.Printf("Tx sent. hash: %s. %v - expectedAmount\n", txHash, expectedAmount)
 
-			tokensInfo := apex.GetBridgingTokensInfo(tc.toChain, tc.fromChain, cardanofw.BridgingTypeNormal)
-			require.NotNil(t, tokensInfo)
-
-			err = apex.WaitForExactAmount(ctx, user, tc.toChain, tc.fromChain, expectedAmount, 20, time.Second*10, tokensInfo.DstTokenName)
+			err = apex.WaitForExactAmount(ctx, user, tc.toChain, expectedAmount, 20, time.Second*10, tokensInfo.DstTokenName)
 			require.Error(t, err)
 
 			require.NoError(t, apex.FundChainHotWallet(ctx, tc.toChain, tc.fundAmountDfm))
 
 			fmt.Printf("Funded %s with %v\n", tc.toChain, tc.fundAmountDfm)
 
-			err = apex.WaitForExactAmount(ctx, user, tc.toChain, tc.fromChain, expectedAmount, 30, time.Second*20, tokensInfo.DstTokenName)
+			err = apex.WaitForExactAmount(ctx, user, tc.toChain, expectedAmount, 30, time.Second*20, tokensInfo.DstTokenName)
 			require.NoError(t, err)
 		})
 	}
@@ -1323,6 +1332,9 @@ func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
 	prevAmountPrimeDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 	require.NoError(t, err)
 
+	tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, cardanofw.AP3XTokenID)
+	require.NoError(t, err)
+
 	// give time to oracle to submit hot wallet increment claims
 	select {
 	case <-ctx.Done():
@@ -1337,7 +1349,8 @@ func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
 			DestinationChain: cardanofw.ChainIDPrime,
 			Sender:           user,
 			DFMAmount:        sendAmountDfm,
-			BridgingType:     cardanofw.BridgingTypeNormal,
+			SrcTokenID:       cardanofw.AP3XTokenID,
+			TokensInfo:       tokensInfo,
 			Receivers:        []*cardanofw.TestApexUser{user},
 		})
 	require.NoError(t, err)
@@ -1361,11 +1374,8 @@ func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
 	// wait for tx on destination
 	expectedAmountDfm := new(big.Int).Add(prevAmountPrimeDfm[cardanowallet.AdaTokenName], sendAmountDfm)
 
-	tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, cardanofw.BridgingTypeNormal)
-	require.NotNil(t, tokensInfo)
-
 	err = apex.WaitForExactAmount(
-		ctx, user, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, expectedAmountDfm, 100, time.Second*10, tokensInfo.DstTokenName)
+		ctx, user, cardanofw.ChainIDPrime, expectedAmountDfm, 100, time.Second*10, tokensInfo.DstTokenName)
 	require.NoError(t, err)
 
 	fmt.Printf("Expected amount on Prime received\n")
@@ -1379,8 +1389,8 @@ func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
 		map[string][]string{
 			cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 		},
-		map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-			e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus): cardanofw.BridgingTypeNormal,
+		map[e2ehelper.SrcDstChainPair]uint16{
+			e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus): cardanofw.AP3XTokenID,
 		},
 		sendAmountDfm)
 }
@@ -1403,8 +1413,8 @@ func SrcNexusSequentialAndParallelWithMaxReceivers(
 		map[string][]string{
 			cardanofw.ChainIDNexus: {dstChain},
 		},
-		map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-			e2ehelper.NewChainPair(cardanofw.ChainIDNexus, dstChain): cardanofw.BridgingTypeNormal,
+		map[e2ehelper.SrcDstChainPair]uint16{
+			e2ehelper.NewChainPair(cardanofw.ChainIDNexus, dstChain): cardanofw.AP3XTokenID,
 		},
 		sendAmountDfm,
 		options...)
@@ -1455,8 +1465,8 @@ func DstNexusSequentialAndParallelWithMaxReceivers(
 		map[string][]string{
 			srcChain: {cardanofw.ChainIDNexus},
 		},
-		map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-			e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDNexus): cardanofw.BridgingTypeNormal,
+		map[e2ehelper.SrcDstChainPair]uint16{
+			e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDNexus): cardanofw.AP3XTokenID,
 		},
 		sendAmountDfm,
 		options...)
@@ -1480,9 +1490,9 @@ func DstNexusBothDirectionsSequentialAndParallel(
 			srcChain:               {cardanofw.ChainIDNexus},
 			cardanofw.ChainIDNexus: {srcChain},
 		},
-		map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-			e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDNexus): cardanofw.BridgingTypeNormal,
-			e2ehelper.NewChainPair(cardanofw.ChainIDNexus, srcChain): cardanofw.BridgingTypeNormal,
+		map[e2ehelper.SrcDstChainPair]uint16{
+			e2ehelper.NewChainPair(srcChain, cardanofw.ChainIDNexus): cardanofw.AP3XTokenID,
+			e2ehelper.NewChainPair(cardanofw.ChainIDNexus, srcChain): cardanofw.AP3XTokenID,
 		},
 		sendAmountDfm,
 		options...)
@@ -1500,8 +1510,8 @@ func DstNexusSubmitterNotEnoughFunds(
 	operationFee := apex.GetMinOperationFee(srcChain)
 	minBridgingFee := apex.GetMinBridgingFee(srcChain, false)
 
-	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.BridgingTypeNormal)
-	require.NotNil(t, tokensInfo)
+	tokensInfo, err := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.AP3XTokenID)
+	require.NoError(t, err)
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
@@ -1535,8 +1545,8 @@ func DstNexusInvalidMetadataSlicedOff(
 	operationFee := apex.GetMinOperationFee(srcChain)
 	minBridgingFee := apex.GetMinBridgingFee(srcChain, false)
 
-	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.BridgingTypeNormal)
-	require.NotNil(t, tokensInfo)
+	tokensInfo, err := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.AP3XTokenID)
+	require.NoError(t, err)
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
@@ -1571,8 +1581,8 @@ func DstNexusInvalidMetadataWrongType(
 	operationFee := apex.GetMinOperationFee(srcChain)
 	minBridgingFee := apex.GetMinBridgingFee(srcChain, false)
 
-	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.BridgingTypeNormal)
-	require.NotNil(t, tokensInfo)
+	tokensInfo, err := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.AP3XTokenID)
+	require.NoError(t, err)
 
 	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
 		user.GetAddress(srcChain), dstChain,
@@ -1598,7 +1608,7 @@ func DstNexusInvalidMetadataWrongType(
 
 	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 
-	err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, lowerBoundaryDfm, beforeSendingAmountDfm[cardanowallet.AdaTokenName],
+	err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, lowerBoundaryDfm, beforeSendingAmountDfm[cardanowallet.AdaTokenName],
 		50, time.Second*30, tokensInfo.DstTokenName)
 	require.NoError(t, err)
 }
@@ -1619,8 +1629,8 @@ func DstNexusInvalidMetadataInvalidDestination(
 	operationFee := apex.GetMinOperationFee(srcChain)
 	minBridgingFee := apex.GetMinBridgingFee(srcChain, false)
 
-	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.BridgingTypeNormal)
-	require.NotNil(t, tokensInfo)
+	tokensInfo, err := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.AP3XTokenID)
+	require.NoError(t, err)
 
 	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
 		user.GetAddress(srcChain), dstChain,
@@ -1648,7 +1658,7 @@ func DstNexusInvalidMetadataInvalidDestination(
 
 	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 
-	err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, lowerBoundaryDfm, beforeSendingAmountDfm[cardanowallet.AdaTokenName],
+	err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, lowerBoundaryDfm, beforeSendingAmountDfm[cardanowallet.AdaTokenName],
 		50, time.Second*30, cardanowallet.AdaTokenName)
 	require.NoError(t, err)
 }
@@ -1669,8 +1679,8 @@ func DstNexusInvalidMetadataInvalidSender(
 	operationFee := apex.GetMinOperationFee(srcChain)
 	minBridgingFee := apex.GetMinBridgingFee(srcChain, false)
 
-	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.BridgingTypeNormal)
-	require.NotNil(t, tokensInfo)
+	tokensInfo, err := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.AP3XTokenID)
+	require.NoError(t, err)
 
 	metadata, err := apex.GetChainMust(t, srcChain).CreateMetadata(
 		"dummy", dstChain,
@@ -1729,10 +1739,10 @@ func DstNexusInvalidMetadataInvalidTransactions(
 
 	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 
-	tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, cardanofw.BridgingTypeNormal)
-	require.NotNil(t, tokensInfo)
+	tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, cardanofw.AP3XTokenID)
+	require.NoError(t, err)
 
-	err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, lowerBoundaryDfm, beforeSendingAmountDfm[cardanowallet.AdaTokenName],
+	err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, lowerBoundaryDfm, beforeSendingAmountDfm[cardanowallet.AdaTokenName],
 		50, time.Second*30, tokensInfo.DstTokenName)
 	require.NoError(t, err)
 }
@@ -1779,6 +1789,9 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 	prevAmountNexusDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
 	require.NoError(t, err)
 
+	tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, cardanofw.AP3XTokenID)
+	require.NoError(t, err)
+
 	// give time to oracle to submit hot wallet increment claims
 	select {
 	case <-ctx.Done():
@@ -1792,7 +1805,8 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 		DestinationChain: cardanofw.ChainIDNexus,
 		Sender:           user,
 		DFMAmount:        sendAmountDfm,
-		BridgingType:     cardanofw.BridgingTypeNormal,
+		SrcTokenID:       cardanofw.AP3XTokenID,
+		TokensInfo:       tokensInfo,
 		Receivers:        []*cardanofw.TestApexUser{user},
 	})
 	require.NoError(t, err)
@@ -1816,10 +1830,7 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 	// wait for tx on destination
 	expectedAmountDfm := new(big.Int).Add(prevAmountNexusDfm[cardanowallet.AdaTokenName], sendAmountDfm)
 
-	tokensInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, cardanofw.BridgingTypeNormal)
-	require.NotNil(t, tokensInfo)
-
-	err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPrime, expectedAmountDfm, 100, time.Second*10, tokensInfo.DstTokenName)
+	err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus, expectedAmountDfm, 100, time.Second*10, tokensInfo.DstTokenName)
 	require.NoError(t, err)
 
 	// send nexus -> prime
@@ -1831,8 +1842,8 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 		map[string][]string{
 			cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 		},
-		map[e2ehelper.SrcDstChainPair]cardanofw.BridgingType{
-			e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime): cardanofw.BridgingTypeNormal,
+		map[e2ehelper.SrcDstChainPair]uint16{
+			e2ehelper.NewChainPair(cardanofw.ChainIDNexus, cardanofw.ChainIDPrime): cardanofw.AP3XTokenID,
 		},
 		sendAmountDfm)
 }

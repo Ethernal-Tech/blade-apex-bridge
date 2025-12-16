@@ -17,7 +17,7 @@ type SubmittedTxData struct {
 	SrcChainID, DstChainID cardanofw.ChainID
 	TxHash                 string
 	SendAmountDfm          *big.Int
-	BridgingTxType         cardanofw.BridgingType
+	TokensInfo             *cardanofw.BridgingTokensInfo
 	err                    error
 }
 
@@ -89,14 +89,13 @@ type RestartValidatorsConfig struct {
 type SendTxStrategyFn func(
 	ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-	bridgingTypes map[SrcDstChainPair]cardanofw.BridgingType, coloredCoins ...uint16) []*SubmittedTxData
+	srcTokenIDs map[SrcDstChainPair]uint16) []*SubmittedTxData
 
 type RestartValidatorStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig)
 
 type executeBridgingConfig struct {
 	waitForUnexpectedBridges bool
-	coloredCoins             []uint16
 	restartValidatorsConfigs []RestartValidatorsConfig
 	sendTxStrategy           SendTxStrategyFn
 	restartValidatorStrategy RestartValidatorStrategyFn
@@ -151,17 +150,11 @@ func WithTimeoutConfig(tc TimeoutConfig) ExecuteBridgingOption {
 	}
 }
 
-func WithColoredCoins(coloredCoins []uint16) ExecuteBridgingOption {
-	return func(config *executeBridgingConfig) {
-		config.coloredCoins = coloredCoins
-	}
-}
-
 var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
 		ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-		bridgingTypes map[SrcDstChainPair]cardanofw.BridgingType, coloredCoins ...uint16) []*SubmittedTxData {
+		srcTokenIDs map[SrcDstChainPair]uint16) []*SubmittedTxData {
 
 		var (
 			wg              sync.WaitGroup
@@ -178,15 +171,13 @@ var (
 
 					for j := 0; j < txCountPerSender; j++ {
 						for _, dstChain := range dstChains {
-							tokensInfo := apex.GetBridgingTokensInfo(
-								srcChain, dstChain,
-								bridgingTypes[NewChainPair(srcChain, dstChain)], coloredCoins...)
-							if tokensInfo == nil {
+							tokensInfo, err := apex.GetBridgingTokensInfo(
+								srcChain, dstChain, srcTokenIDs[NewChainPair(srcChain, dstChain)])
+							if err != nil {
 								mu.Lock()
 
 								submittedTxData = append(submittedTxData, &SubmittedTxData{
-									err: fmt.Errorf("tokensInfo nil for src: %s, dst: %s, type: %v, cc: %v",
-										srcChain, dstChain, bridgingTypes[NewChainPair(srcChain, dstChain)], coloredCoins),
+									err: err,
 								})
 
 								mu.Unlock()
@@ -201,7 +192,7 @@ var (
 									DestinationChain: dstChain,
 									Sender:           senderUser,
 									DFMAmount:        sendAmountDfm,
-									BridgingType:     bridgingTypes[NewChainPair(srcChain, dstChain)],
+									SrcTokenID:       srcTokenIDs[NewChainPair(srcChain, dstChain)],
 									Receivers:        receivers,
 									TokensInfo:       tokensInfo,
 								})
@@ -222,11 +213,11 @@ var (
 
 							mu.Lock()
 							submittedTxData = append(submittedTxData, &SubmittedTxData{
-								SrcChainID:     srcChain,
-								DstChainID:     dstChain,
-								TxHash:         txHash,
-								SendAmountDfm:  sendAmountDfm,
-								BridgingTxType: bridgingTypes[NewChainPair(srcChain, dstChain)],
+								SrcChainID:    srcChain,
+								DstChainID:    dstChain,
+								TxHash:        txHash,
+								SendAmountDfm: sendAmountDfm,
+								TokensInfo:    tokensInfo,
 							})
 							mu.Unlock()
 						}

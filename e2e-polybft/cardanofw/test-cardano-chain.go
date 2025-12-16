@@ -837,7 +837,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 	receiversMap map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
-	bridgingTypes ...BridgingType,
+	isCurrency bool,
 ) (string, error) {
 	wallets, policyScript, senderAddr, err := FromCardanoPrivateKeyString(
 		privateKey, ec.config.NetworkType, ec.config.NetworkMagic)
@@ -847,11 +847,6 @@ func (ec *TestCardanoChain) BridgingRequest(
 
 	receivers := make([]sendtx.BridgingTxReceiver, 0, len(receiversMap))
 
-	bridgingType := BridgingTypeNormal
-	if len(bridgingTypes) > 0 {
-		bridgingType = bridgingTypes[0]
-	}
-
 	for receiverAddress, receiverAmount := range receiversMap {
 		receivers = append(receivers, sendtx.BridgingTxReceiver{
 			Addr:    receiverAddress,
@@ -860,7 +855,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		})
 	}
 
-	multisigAddr, err := ec.GetAddressToBridgeTo(ctx, bridgingType)
+	multisigAddr, err := ec.GetAddressToBridgeTo(ctx, !isCurrency)
 	if err != nil {
 		return "", err
 	}
@@ -890,14 +885,14 @@ func (ec *TestCardanoChain) BridgingRequest(
 
 func (ec *TestCardanoChain) GetAddressToBridgeTo(
 	ctx context.Context,
-	bridgingType BridgingType,
+	hasTokens bool,
 ) (string, error) {
 	txProvider, err := ec.GetTxProvider()
 	if err != nil {
 		return "", err
 	}
 
-	if len(ec.multisigAddr) == 1 || bridgingType == BridgingTypeWrappedTokenOnSource {
+	if len(ec.multisigAddr) == 1 || hasTokens {
 		return ec.multisigAddr[0], nil
 	}
 

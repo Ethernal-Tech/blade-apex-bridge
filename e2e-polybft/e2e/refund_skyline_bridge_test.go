@@ -64,7 +64,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	fmt.Println("cardano fee addr: ", apex.CardanoInfo.FeeAddr)
 	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
 
-	tokens := fundTestUsersWithToken(
+	_ = fundTestUsersWithToken(
 		t, ctx, apex, []*testConfig{
 			{
 				srcChainID:      cardanofw.ChainIDVector,
@@ -75,129 +75,126 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 			},
 		}, apex.Users[:userCnt], uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
-	vectorToken, cardanoToken := tokens[0], tokens[1]
 
-	primeTestConfig := newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, "")
+	primeCardanoTestConfig := newTestConfig(
+		t, apex, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, cardanofw.AP3XTokenID)
 
 	cardanoPrimeTestConfig := newTestConfig(
-		t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, cardanoToken.TokenName())
+		t, apex, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, cardanofw.CAP3XTokenID)
 
-	vectorTestConfig := newTestConfig(
-		t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, vectorToken.TokenName())
+	vectorCardanoTestConfig := newTestConfig(
+		t, apex, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, cardanofw.XADATokenID)
 
-	cardanoVectorTestConfig := newTestConfig(t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDVector, "")
+	cardanoVectorTestConfig := newTestConfig(
+		t, apex, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDVector, cardanofw.ADATokenID)
 
-	fmt.Printf("Prime test config: %+v\n", primeTestConfig)
-	fmt.Printf("Vector test config: %+v\n", vectorTestConfig)
+	fmt.Printf("Prime->Cardano test config: %+v\n", primeCardanoTestConfig)
+	fmt.Printf("Vector->Cardano test config: %+v\n", vectorCardanoTestConfig)
 	fmt.Printf("Cardano->Prime test config: %+v\n", cardanoPrimeTestConfig)
 	fmt.Printf("Cardano->Vector test config: %+v\n", cardanoVectorTestConfig)
 
 	t.Run("1.1 Prime -> Cardano - Mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("1.2 Cardano -> Prime - Mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("1.3 Cardano -> Vector - Mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, cardanoVectorTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, cardanoVectorTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("2.1 Prime -> Cardano - Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeCardanoTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("2.2 Cardano -> Prime - Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, cardanoPrimeTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, cardanoPrimeTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("2.3 Vector -> Cardano - Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, vectorTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, vectorCardanoTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("3.1 Prime -> Cardano - Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeCardanoTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("3.2 Cardano -> Prime - Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, cardanoPrimeTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, cardanoPrimeTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("3.3 Cardano -> Vector - Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, cardanoVectorTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, cardanoVectorTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("4.1 Prime -> Cardano - Submitted invalid metadata - sliced off", func(t *testing.T) {
-		executeInvalidMetadataSlicedOff(t, ctx, apex, primeTestConfig, cardanofw.BridgingTypeCurrencyOnSource, 0)
+		executeInvalidMetadataSlicedOff(t, ctx, apex, primeCardanoTestConfig, 0)
 	})
 
 	t.Run("4.2 Cardano -> Prime - Submitted invalid metadata - sliced off", func(t *testing.T) {
-		executeInvalidMetadataSlicedOff(t, ctx, apex, cardanoPrimeTestConfig, cardanofw.BridgingTypeWrappedTokenOnSource, 0)
+		executeInvalidMetadataSlicedOff(t, ctx, apex, cardanoPrimeTestConfig, 0)
 	})
 
 	t.Run("4.3 Vector -> Cardano - Submitted invalid metadata - sliced off", func(t *testing.T) {
-		executeInvalidMetadataSlicedOff(t, ctx, apex, vectorTestConfig, cardanofw.BridgingTypeWrappedTokenOnSource, 0)
+		executeInvalidMetadataSlicedOff(t, ctx, apex, vectorCardanoTestConfig, 0)
 	})
 
 	t.Run("5.1 Prime -> Cardano - Submitted invalid metadata - wrong type", func(t *testing.T) {
-		executeInvalidMetadataType(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+		executeInvalidMetadataType(t, ctx, apex, primeCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("5.2 Cardano -> Prime - Submitted invalid metadata - wrong type", func(t *testing.T) {
-		executeInvalidMetadataType(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+		executeInvalidMetadataType(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("5.3 Cardano -> Vector - Submitted invalid metadata - wrong type", func(t *testing.T) {
-		executeInvalidMetadataType(t, ctx, apex, cardanoVectorTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+		executeInvalidMetadataType(t, ctx, apex, cardanoVectorTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("6.1 Prime -> Cardano - Submitted invalid metadata - invalid sender", func(t *testing.T) {
-		executeInvalidMetadataInvalidSender(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, cardanofw.BridgingTypeCurrencyOnSource, 0)
+		executeInvalidMetadataInvalidSender(t, ctx, apex, primeCardanoTestConfig, user, maxWaitTimeSec, 0)
 	})
 
 	t.Run("6.2 Cardano -> Prime - Submitted invalid metadata - invalid sender", func(t *testing.T) {
-		executeInvalidMetadataInvalidSender(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, cardanofw.BridgingTypeWrappedTokenOnSource, 0)
+		executeInvalidMetadataInvalidSender(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, 0)
 	})
 
 	t.Run("6.3 Cardano -> Vector - Submitted invalid metadata - invalid sender", func(t *testing.T) {
-		executeInvalidMetadataInvalidSender(t, ctx, apex, cardanoVectorTestConfig, user, maxWaitTimeSec, cardanofw.BridgingTypeCurrencyOnSource, 0)
+		executeInvalidMetadataInvalidSender(t, ctx, apex, cardanoVectorTestConfig, user, maxWaitTimeSec, 0)
 	})
 
 	t.Run("7.1 Prime -> Cardano - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
-		executeInvalidBridgingFee(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+		executeInvalidBridgingFee(t, ctx, apex, primeCardanoTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("7.2 Cardano -> Prime - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
-		executeInvalidBridgingFee(t, ctx, apex, cardanoPrimeTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+		executeInvalidBridgingFee(t, ctx, apex, cardanoPrimeTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("7.3 Vector -> Cardano - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
-		executeInvalidBridgingFee(t, ctx, apex, vectorTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+		executeInvalidBridgingFee(t, ctx, apex, vectorCardanoTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
-	t.Run("8.1 Prime -> Cardano - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
-		executeInvalidFeeReceiverAddr(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+	t.Run("8.1 Cardano -> Prime - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
+		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoPrimeTestConfig, cardanofw.CAP3XTokenID, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
-	t.Run("8.2 Cardano -> Prime - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
-		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoPrimeTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
-	})
-
-	t.Run("8.3 Cardano -> Vector - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
-		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoVectorTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+	t.Run("8.2 Cardano -> Vector - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
+		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoVectorTestConfig, cardanofw.CAP3XTokenID, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("9.1 Prime -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {
-		executeInvalidEmptyReceivers(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+		executeInvalidEmptyReceivers(t, ctx, apex, primeCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("9.2 Cardano -> Prime - Submitted invalid metadata - empty receivers", func(t *testing.T) {
-		executeInvalidEmptyReceivers(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+		executeInvalidEmptyReceivers(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("9.3 Vector -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {
-		executeInvalidEmptyReceivers(t, ctx, apex, vectorTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+		executeInvalidEmptyReceivers(t, ctx, apex, vectorCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("10. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
@@ -211,7 +208,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
-		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoPrimeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0, cardanofw.BridgingTypeWrappedTokenOnSource)
+		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoPrimeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("11. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
@@ -225,11 +222,11 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 			uint64(10_000_000), uint64(1_123_000))
 		require.NoError(t, err)
 
-		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
+		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorCardanoTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("12. vector -> cardano - currency on src", func(t *testing.T) {
-		executeInvalidTokenDirection(t, ctx, apex, vectorTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+		executeInvalidTokenDirection(t, ctx, apex, vectorCardanoTestConfig, cardanofw.AP3XTokenID, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 }
 
@@ -271,7 +268,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 
 	user := apex.Users[0]
 
-	tokens := fundTestUsersWithToken(
+	_ = fundTestUsersWithToken(
 		t, ctx, apex, []*testConfig{
 			{
 				srcChainID:      cardanofw.ChainIDVector,
@@ -282,7 +279,6 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 			},
 		}, apex.Users[:userCnt], uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
-	vectorToken, cardanoToken := tokens[0], tokens[1]
 
 	// Fund user on Nexus with USDT token
 	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
@@ -290,14 +286,16 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 	require.NoError(t, err)
 
 	cardanoNexusTestConfig := newTestConfig(
-		t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDNexus, cardanoToken.TokenName())
-	vectorTestConfig := newTestConfig(
-		t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDNexus, vectorToken.TokenName())
+		t, apex, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDNexus, cardanofw.ADATokenID)
+	vectorNexusXADATestConfig := newTestConfig(
+		t, apex, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDNexus, cardanofw.XADATokenID)
+	vectorNexusUSDTTestConfig := newTestConfig(
+		t, apex, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDNexus, cardanofw.USDTTokenID)
 
 	fmt.Printf("User: %+v\n", user.GetAddress(cardanofw.ChainIDNexus))
 
 	t.Run("1. Cardano -> Nexus - Mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, cardanoNexusTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, cardanoNexusTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("2. Vector -> Nexus - Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
@@ -311,21 +309,21 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 			uint64(10_000_000), uint64(1_123_000))
 		require.NoError(t, err)
 
-		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
+		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorNexusXADATestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("3. Cardano -> Nexus - Invalid destination - native token on source", func(t *testing.T) {
-		executeInvalidTokenDirection(t, ctx, apex, cardanoNexusTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+		executeInvalidTokenDirection(t, ctx, apex, cardanoNexusTestConfig, cardanofw.CAP3XTokenID, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("4. Vector -> Nexus - Mismatch submitted and receiver amounts - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+			cardanofw.USDTTokenID)
 
-		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
+		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:  createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge*10, cardanofw.USDTTokenID),
+				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, minColCoinsAllowedToBridge*10, cardanofw.USDTTokenID),
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitRefundEnabled,
 			},
@@ -338,24 +336,24 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 		for i := range instances {
 			e2ehelper.ExecuteSingleBridging(
 				t, ctx, apex, user, apex.Users[i], cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-				cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+				cardanofw.USDTTokenID)
 		}
 
-		executeInvalidMismatchSendColCoinsMultipleInstancesParalel(t, ctx, apex, vectorTestConfig, minColCoinsAllowedToBridge, cardanofw.USDTTokenID, instances, maxWaitTimeSec, retryDelaySec, true, 0)
+		executeInvalidMismatchSendColCoinsMultipleInstancesParalel(t, ctx, apex, vectorNexusUSDTTestConfig, minColCoinsAllowedToBridge, instances, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("6. Vector -> Nexus - Invalid destination - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+			cardanofw.USDTTokenID)
 
-		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
+		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:  createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
+				receivers:  createReceivers(apex, 1, vectorNexusXADATestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitRefundEnabled,
 				metadataModifier: func(metadata []byte) []byte {
-					return bytes.Replace(metadata, fmt.Appendf(nil, "\"%s\"", vectorTestConfig.dstChainID), []byte("\"unknown\""), 1)
+					return bytes.Replace(metadata, fmt.Appendf(nil, "\"%s\"", vectorNexusXADATestConfig.dstChainID), []byte("\"unknown\""), 1)
 				},
 			},
 		)
@@ -364,11 +362,11 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 	t.Run("7. Vector -> Nexus - Invalid metadata type - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+			cardanofw.USDTTokenID)
 
-		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
+		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:  createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
+				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitRefundEnabled,
 				metadataModifier: func(metadata []byte) []byte {
@@ -381,12 +379,12 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 	t.Run("8. Vector -> Nexus - Invalid receiver amount - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+			cardanofw.USDTTokenID)
 
 		invalidAmount := minColCoinsAllowedToBridge - 1
-		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
+		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:  createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, invalidAmount, cardanofw.USDTTokenID),
+				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, invalidAmount, cardanofw.USDTTokenID),
 				amount:     invalidAmount,
 				waitOption: WaitRefundEnabled,
 			},
@@ -396,9 +394,9 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 	t.Run("9. Vector -> Nexus - Invalid receiver address - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+			cardanofw.USDTTokenID)
 
-		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
+		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
 				receivers: []sendtx.BridgingTxReceiver{
 					{
@@ -465,48 +463,48 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 		}, apex.Users[:userCnt], uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
 	cardanoToken := tokens[0]
 
-	primeTestConfig := newTestConfig(
-		t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, "")
+	primeCardanoTestConfig := newTestConfig(
+		t, apex, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, cardanofw.AP3XTokenID)
 
-	cardanoTestConfig := newTestConfig(
-		t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, cardanoToken.TokenName())
+	cardanoPrimeTestConfig := newTestConfig(
+		t, apex, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, cardanofw.CAP3XTokenID)
 
-	fmt.Printf("Cardano test config: %+v\n", cardanoToken)
+	fmt.Printf("Cardano test config: %+v\n", cardanoPrimeTestConfig.tokensInfo.SrcTokenName)
 
 	t.Run("1. Prime -> Cardano - Mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 1)
+		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 1)
 	})
 
 	t.Run("2. Prime -> Cardano - Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 2)
+		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeCardanoTestConfig, maxWaitTimeSec, retryDelaySec, true, 2)
 	})
 
 	t.Run("3. Prime -> Cardano - Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
-		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 3)
+		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeCardanoTestConfig, maxWaitTimeSec, retryDelaySec, true, 3)
 	})
 
 	t.Run("4. Prime -> Cardano - Submitted invalid metadata - sliced off", func(t *testing.T) {
-		executeInvalidMetadataSlicedOff(t, ctx, apex, primeTestConfig, cardanofw.BridgingTypeCurrencyOnSource, 1)
+		executeInvalidMetadataSlicedOff(t, ctx, apex, primeCardanoTestConfig, 1)
 	})
 
 	t.Run("5. Prime -> Cardano - Submitted invalid metadata - wrong type", func(t *testing.T) {
-		executeInvalidMetadataType(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 2)
+		executeInvalidMetadataType(t, ctx, apex, primeCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 2)
 	})
 
 	t.Run("6. Prime -> Cardano - Submitted invalid metadata - invalid sender", func(t *testing.T) {
-		executeInvalidMetadataInvalidSender(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, cardanofw.BridgingTypeCurrencyOnSource, 1)
+		executeInvalidMetadataInvalidSender(t, ctx, apex, primeCardanoTestConfig, user, maxWaitTimeSec, 1)
 	})
 
 	t.Run("7. Prime -> Cardano - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
-		executeInvalidBridgingFee(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 2)
+		executeInvalidBridgingFee(t, ctx, apex, primeCardanoTestConfig, maxWaitTimeSec, retryDelaySec, true, 2)
 	})
 
 	t.Run("8. Cardano -> Prime - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
-		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoTestConfig, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoPrimeTestConfig, cardanofw.CAP3XTokenID, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("9. Prime -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {
-		executeInvalidEmptyReceivers(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 1)
+		executeInvalidEmptyReceivers(t, ctx, apex, primeCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 1)
 	})
 
 	t.Run("10. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
@@ -524,7 +522,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
 
-		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0, cardanofw.BridgingTypeWrappedTokenOnSource)
+		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoPrimeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
 
 		cardanoAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
 		require.NoError(t, err)
@@ -546,7 +544,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 			uint64(10_000_000), uint64(1_123_000))
 		require.NoError(t, err)
 
-		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, cardanoTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
+		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, cardanoPrimeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
 
 		cardanoAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
 		require.NoError(t, err)
@@ -560,7 +558,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Cardano multisig addresses amounts: ", cardanoAddrAmounts)
 
-		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoTestConfig, *cardanoToken, maxWaitTimeSec, retryDelaySec, true, 2, cardanofw.BridgingTypeWrappedTokenOnSource)
+		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoPrimeTestConfig, *cardanoToken, maxWaitTimeSec, retryDelaySec, true, 2)
 
 		cardanoAddrAmounts, err = apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
 		require.NoError(t, err)
@@ -602,12 +600,13 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		user             = apex.Users[0]
 		apexSendAmount   = cardanofw.ApexToDfm(big.NewInt(10))
 		bridgingRequests = []struct {
-			src    string
-			dest   string
-			sender *cardanofw.TestApexUser
+			src        string
+			dest       string
+			sender     *cardanofw.TestApexUser
+			srcTokenID uint16
 		}{
-			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[0]},
-			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDVector, sender: apex.Users[0]},
+			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, srcTokenID: cardanofw.AP3XTokenID, sender: apex.Users[0]},
+			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDVector, srcTokenID: cardanofw.ADATokenID, sender: apex.Users[0]},
 		}
 		txHashes = make([]string, len(bridgingRequests))
 	)
@@ -619,7 +618,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 	for idx, br := range bridgingRequests {
 		wg.Add(1)
 
-		go func(i int, src string, dest string, sender *cardanofw.TestApexUser) {
+		go func(i int, src string, dest string, srcTokenID uint16, sender *cardanofw.TestApexUser) {
 			defer wg.Done()
 
 			var err error
@@ -633,13 +632,13 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 				DestinationChain: dest,
 				Sender:           sender,
 				DFMAmount:        apexSendAmount,
-				BridgingType:     cardanofw.BridgingTypeCurrencyOnSource,
+				SrcTokenID:       srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})
 			require.NoError(t, err)
 
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHashes[i])
-		}(idx, br.src, br.dest, br.sender)
+		}(idx, br.src, br.dest, br.srcTokenID, br.sender)
 	}
 
 	wg.Wait()
@@ -656,7 +655,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 
 			fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm[idx][infrawallet.AdaTokenName])
 
-			err := apex.WaitForAmountInRange(ctx, user, br.src, br.dest, lowerBoundaryDfm, beforeSendingAmountDfm[idx][infrawallet.AdaTokenName], 20, time.Second*30, infrawallet.AdaTokenName)
+			err := apex.WaitForAmountInRange(ctx, user, br.src, lowerBoundaryDfm, beforeSendingAmountDfm[idx][infrawallet.AdaTokenName], 20, time.Second*30, infrawallet.AdaTokenName)
 			require.NoError(t, err)
 		}()
 	}
@@ -700,12 +699,13 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		user             = apex.Users[0]
 		apexSendAmount   = cardanofw.ApexToDfm(big.NewInt(10))
 		bridgingRequests = []struct {
-			src    string
-			dest   string
-			sender *cardanofw.TestApexUser
+			src        string
+			dest       string
+			sender     *cardanofw.TestApexUser
+			srcTokenID uint16
 		}{
-			{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDCardano, sender: apex.Users[0]},
-			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[0]},
+			{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDCardano, srcTokenID: cardanofw.XADATokenID, sender: apex.Users[0]},
+			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, srcTokenID: cardanofw.CAP3XTokenID, sender: apex.Users[0]},
 		}
 		initialBalances = map[string]map[string]*big.Int{}
 
@@ -731,7 +731,7 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 	for idx, br := range bridgingRequests {
 		wg.Add(1)
 
-		go func(i int, src, dest string, sender *cardanofw.TestApexUser) {
+		go func(i int, src, dest string, srcTokenID uint16, sender *cardanofw.TestApexUser) {
 			defer wg.Done()
 
 			mu.Lock()
@@ -746,13 +746,13 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 					DestinationChain: dest,
 					Sender:           sender,
 					DFMAmount:        apexSendAmount,
-					BridgingType:     cardanofw.BridgingTypeWrappedTokenOnSource,
+					SrcTokenID:       srcTokenID,
 					Receivers:        []*cardanofw.TestApexUser{user},
 				})
 			require.NoError(t, err)
 
 			fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHash)
-		}(idx, br.src, br.dest, br.sender)
+		}(idx, br.src, br.dest, br.srcTokenID, br.sender)
 	}
 
 	wg.Wait()
@@ -760,19 +760,19 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 	for _, br := range bridgingRequests {
 		wg.Add(1)
 
-		go func(src, dest string, sender *cardanofw.TestApexUser) {
+		go func(src, dest string, srcTokenID uint16, sender *cardanofw.TestApexUser) {
 			defer wg.Done()
 
-			tokensInfo := apex.GetBridgingTokensInfo(src, dest, cardanofw.BridgingTypeWrappedTokenOnSource)
-			require.NotNil(t, tokensInfo)
+			tokensInfo, err := apex.GetBridgingTokensInfo(src, dest, srcTokenID)
+			require.NoError(t, err)
 
 			mu.RLock()
 			tokenBalance := initialBalances[br.src][tokensInfo.SrcTokenName]
 			mu.RUnlock()
 
-			err := apex.WaitForExactAmount(ctx, br.sender, br.src, br.dest, tokenBalance, 30, 30*time.Second, tokensInfo.SrcTokenName)
+			err = apex.WaitForExactAmount(ctx, br.sender, br.src, tokenBalance, 30, 30*time.Second, tokensInfo.SrcTokenName)
 			require.NoError(t, err)
-		}(br.src, br.dest, br.sender)
+		}(br.src, br.dest, br.srcTokenID, br.sender)
 	}
 
 	wg.Wait()
@@ -784,11 +784,11 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 	}
 
 	type bridgingRequest struct {
-		src         string
-		dest        string
-		sender      *cardanofw.TestApexUser
-		requestType cardanofw.BridgingType
-		isValid     bool
+		src        string
+		dest       string
+		sender     *cardanofw.TestApexUser
+		srcTokenID uint16
+		isValid    bool
 	}
 
 	const apiKey = "test_api_key"
@@ -824,10 +824,10 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 		user             = apex.Users[0]
 		sendAmount       = cardanofw.ApexToDfm(big.NewInt(2))
 		bridgingRequests = []bridgingRequest{
-			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[1], requestType: cardanofw.BridgingTypeCurrencyOnSource, isValid: true},
-			{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDCardano, sender: apex.Users[2], requestType: cardanofw.BridgingTypeWrappedTokenOnSource, isValid: false},
-			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDVector, sender: apex.Users[1], requestType: cardanofw.BridgingTypeCurrencyOnSource, isValid: false},
-			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[2], requestType: cardanofw.BridgingTypeWrappedTokenOnSource, isValid: true},
+			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[1], srcTokenID: cardanofw.AP3XTokenID, isValid: true},
+			{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDCardano, sender: apex.Users[2], srcTokenID: cardanofw.XADATokenID, isValid: false},
+			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDVector, sender: apex.Users[1], srcTokenID: cardanofw.ADATokenID, isValid: false},
+			{src: cardanofw.ChainIDCardano, dest: cardanofw.ChainIDPrime, sender: apex.Users[2], srcTokenID: cardanofw.CAP3XTokenID, isValid: true},
 		}
 		txHashes = make([]string, len(bridgingRequests))
 
@@ -850,7 +850,7 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 				tokenName = cardanofw.XADATokenName
 			}
 
-			if br.requestType == cardanofw.BridgingTypeWrappedTokenOnSource {
+			if br.srcTokenID != cardanofw.AP3XTokenID && br.srcTokenID != cardanofw.ADATokenID {
 				token, err := cardanofw.FundUserWithToken(
 					ctx, apex, br.src,
 					apex.GetCardanoInfo(br.src).GenesisWallet, br.sender,
@@ -872,12 +872,12 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 				DestinationChain: br.dest,
 				Sender:           br.sender,
 				DFMAmount:        sendAmount,
-				BridgingType:     br.requestType,
+				SrcTokenID:       br.srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})
 			require.NoError(t, err)
 
-			fmt.Printf("Bridging request: %v to %v sent %v. hash: %s\n", br.src, br.dest, br.requestType, txHashes[i])
+			fmt.Printf("Bridging request: %v to %v sent tokenID: %v. hash: %s\n", br.src, br.dest, br.srcTokenID, txHashes[i])
 		}(idx, br)
 	}
 
@@ -890,16 +890,16 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 			defer wg.Done()
 
 			if !br.isValid {
-				isNativeToken := br.requestType != cardanofw.BridgingTypeCurrencyOnSource
+				isNativeToken := br.srcTokenID != cardanofw.AP3XTokenID && br.srcTokenID != cardanofw.ADATokenID
 				userSpending := new(big.Int).Set(sendAmount)
 				addr := br.sender.GetAddress(br.src)
 
-				tokensInfo := apex.GetBridgingTokensInfo(br.src, br.dest, br.requestType)
-				require.NotNil(t, tokensInfo)
+				tokensInfo, err := apex.GetBridgingTokensInfo(br.src, br.dest, br.srcTokenID)
+				require.NoError(t, err)
 
 				tokenName := tokensInfo.SrcTokenName
 
-				if br.requestType == cardanofw.BridgingTypeCurrencyOnSource {
+				if !isNativeToken {
 					userSpending.Add(userSpending, new(big.Int).SetUint64(apex.GetMinBridgingFee(br.src, isNativeToken)))
 				}
 
@@ -909,7 +909,7 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 				minExpectedAmount := new(big.Int).Sub(initialAmount, userSpending)
 
 				require.NoError(t,
-					apex.WaitForAmountInRange(ctx, br.sender, br.src, br.dest, minExpectedAmount, initialAmount, 20, 30*time.Second, tokenName))
+					apex.WaitForAmountInRange(ctx, br.sender, br.src, minExpectedAmount, initialAmount, 20, 30*time.Second, tokenName))
 			} else {
 				state, timeout := "ExecutedOnDestination", uint(60*8)
 

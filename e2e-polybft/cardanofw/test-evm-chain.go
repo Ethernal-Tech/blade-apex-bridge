@@ -801,12 +801,12 @@ func (ec *TestEVMChain) BridgingRequest(
 	receivers map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
-	bridgingTypes ...BridgingType,
+	isCurrency bool,
 ) (string, error) {
 	//nolint:prealloc
 	var params []string
 
-	if bridgingTypes[0] == BridgingTypeColoredCoinOnSource {
+	if !isCurrency {
 		receiverTokenID := uint16(0)
 		for _, receiver := range receivers {
 			receiverTokenID = receiver.TokenID
@@ -1140,6 +1140,6 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 	return receipt, nil
 }
 
-func (ec *TestEVMChain) GetAddressToBridgeTo(ctx context.Context, bridgingType BridgingType) (string, error) {
+func (ec *TestEVMChain) GetAddressToBridgeTo(ctx context.Context, hasTokens bool) (string, error) {
 	return ec.gatewayAddr.String(), nil
 }
