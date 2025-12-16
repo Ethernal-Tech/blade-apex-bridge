@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math/big"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
+	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -320,7 +322,13 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
 			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
 
-		executeInvalidMismatchSendColCoinsAmount(t, ctx, apex, vectorTestConfig, user, minColCoinsAllowedToBridge, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, true, 0)
+		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
+			colCoinInvalidOpts{
+				receivers:    createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge*10, cardanofw.USDTTokenID),
+				amount:       minColCoinsAllowedToBridge,
+				refundOption: RefundEnabled,
+			},
+		)
 	})
 
 	t.Run("5. Vector -> Nexus - Mismatch submitted and multiple receiver amounts - USDT on source", func(t *testing.T) {
@@ -340,7 +348,16 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
 			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
 
-		executeInvalidDestinationColCoin(t, ctx, apex, vectorTestConfig, user, minColCoinsAllowedToBridge, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, true, 0)
+		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
+			colCoinInvalidOpts{
+				receivers:    createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
+				amount:       minColCoinsAllowedToBridge,
+				refundOption: RefundEnabled,
+				metadataModifier: func(metadata []byte) []byte {
+					return bytes.Replace(metadata, fmt.Appendf(nil, "\"%s\"", vectorTestConfig.dstChainID), []byte("\"unknown\""), 1)
+				},
+			},
+		)
 	})
 
 	t.Run("7. Vector -> Nexus - Invalid metadata type - USDT on source", func(t *testing.T) {
@@ -348,7 +365,16 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
 			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
 
-		executeInvalidMetadataTypeColCoin(t, ctx, apex, vectorTestConfig, user, minColCoinsAllowedToBridge, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, true, 0)
+		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
+			colCoinInvalidOpts{
+				receivers:    createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
+				amount:       minColCoinsAllowedToBridge,
+				refundOption: RefundEnabled,
+				metadataModifier: func(metadata []byte) []byte {
+					return bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
+				},
+			},
+		)
 	})
 
 	t.Run("8. Vector -> Nexus - Invalid receiver amount - USDT on source", func(t *testing.T) {
@@ -356,7 +382,14 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
 			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
 
-		executeInvalidReceiverColCoinAmount(t, ctx, apex, vectorTestConfig, user, minColCoinsAllowedToBridge, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, true, 0)
+		invalidAmount := minColCoinsAllowedToBridge - 1
+		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
+			colCoinInvalidOpts{
+				receivers:    createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, invalidAmount, cardanofw.USDTTokenID),
+				amount:       invalidAmount,
+				refundOption: RefundEnabled,
+			},
+		)
 	})
 
 	t.Run("9. Vector -> Nexus - Invalid receiver address - USDT on source", func(t *testing.T) {
@@ -364,7 +397,19 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
 			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
 
-		executeInvalidReceiverAddressColCoin(t, ctx, apex, vectorTestConfig, user, minColCoinsAllowedToBridge, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, true, 0)
+		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
+			colCoinInvalidOpts{
+				receivers: []sendtx.BridgingTxReceiver{
+					{
+						Addr:    "addr1qxyz...invalidaddress",
+						Amount:  minColCoinsAllowedToBridge,
+						TokenID: cardanofw.USDTTokenID,
+					},
+				},
+				amount:       minColCoinsAllowedToBridge,
+				refundOption: RefundEnabled,
+			},
+		)
 	})
 }
 
