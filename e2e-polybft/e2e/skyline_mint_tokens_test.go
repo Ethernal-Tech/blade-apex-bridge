@@ -182,6 +182,8 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		maxWaitTimeSec = 600
 		retryDelaySec  = 5
+
+		minColCoinsAllowedToBridge = uint64(2)
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -202,6 +204,8 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_RefundDisabled(t *testing.T) {
 		cardanofw.WithNexusConfig(nexusConfig),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			mp["refundEnabled"] = false
+			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
+			setting["minColCoinsAllowedToBridge"] = minColCoinsAllowedToBridge
 		}, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
@@ -334,39 +338,54 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 	t.Run("12. Vector -> Nexus - Mismatch submitted and receiver amounts - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
 			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
 
-		executeInvalidMismatchSendColCoinsAmount(t, ctx, apex, vectorTestConfig, user, uint64(1), cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, false, 0)
+		executeInvalidMismatchSendColCoinsAmount(t, ctx, apex, vectorTestConfig, user, minColCoinsAllowedToBridge, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, false, 0)
 	})
 
 	t.Run("13. Vector -> Nexus - Mismatch submitted and multiple receiver amounts - USDT on source", func(t *testing.T) {
 		instances := 3
 
 		for i := range instances {
-			fmt.Printf("Bridging USDT from Nexus to Vector for user %d\n", i)
 			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, user, apex.Users[i], cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
+				t, ctx, apex, user, apex.Users[i], cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
 				cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
 		}
 
-		executeInvalidMismatchSendColCoinsMultipleInstancesParalel(t, ctx, apex, vectorTestConfig, uint64(1), cardanofw.USDTTokenID, instances, maxWaitTimeSec, retryDelaySec, false, 0)
+		executeInvalidMismatchSendColCoinsMultipleInstancesParalel(t, ctx, apex, vectorTestConfig, minColCoinsAllowedToBridge, cardanofw.USDTTokenID, instances, maxWaitTimeSec, retryDelaySec, false, 0)
 	})
 
 	t.Run("14. Vector -> Nexus - Invalid destination - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
 			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
 
-		executeInvalidDestinationColCoin(t, ctx, apex, vectorTestConfig, user, uint64(1), cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, false, 0)
+		executeInvalidDestinationColCoin(t, ctx, apex, vectorTestConfig, user, minColCoinsAllowedToBridge, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, false, 0)
 	})
 
 	t.Run("15. Vector -> Nexus - Invalid metadata type - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
 			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
 
-		executeInvalidMetadataTypeColCoin(t, ctx, apex, vectorTestConfig, user, uint64(1), cardanofw.USDTTokenID, 60, retryDelaySec, false, 0)
+		executeInvalidMetadataTypeColCoin(t, ctx, apex, vectorTestConfig, user, minColCoinsAllowedToBridge, cardanofw.USDTTokenID, 60, retryDelaySec, false, 0)
+	})
+
+	t.Run("16. Vector -> Nexus - Invalid receiver amount - USDT on source", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+
+		executeInvalidReceiverColCoinAmount(t, ctx, apex, vectorTestConfig, user, minColCoinsAllowedToBridge, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, false, 0)
+	})
+
+	t.Run("17. Vector -> Nexus - Invalid receiver address - USDT on source", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+
+		executeInvalidReceiverAddressColCoin(t, ctx, apex, vectorTestConfig, user, minColCoinsAllowedToBridge, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, false, 0)
 	})
 }
 
@@ -423,25 +442,24 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_NexusSrc(t *testing.T) {
 			require.NoError(t, err)
 		})
 
-		// Uncomment when the oracle is changed
-		//t.Run("2. Destination is unregistered", func(t *testing.T) {
-		//	err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
-		//		dstChainID: 99,
-		//		sender:     user,
-		//		receivers: map[string]cardanofw.ReceiverAmount{
-		//			user.GetAddress(cardanofw.ChainIDVector): {
-		//				TokenID: cardanofw.USDTTokenID,
-		//				Amount:  validSendAmount,
-		//			},
-		//		},
-		//		operationFee: big.NewInt(0),
-		//		tokenInfo:    tokenInfo,
-		//	})
-		//	require.NoError(t, err)
-		//})
+		t.Run("2. Destination is unregistered", func(t *testing.T) {
+			err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+				dstChainID: 99,
+				sender:     user,
+				receivers: map[string]cardanofw.ReceiverAmount{
+					user.GetAddress(cardanofw.ChainIDVector): {
+						TokenID: cardanofw.USDTTokenID,
+						Amount:  validSendAmount,
+					},
+				},
+				operationFee: big.NewInt(0),
+				tokenInfo:    tokenInfo,
+			})
+			require.NoError(t, err)
+		})
 	})
 
-	t.Run("2. Invalid destination in receiver", func(t *testing.T) {
+	t.Run("3. Invalid destination in receiver", func(t *testing.T) {
 		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
 		require.NotNil(t, tokenInfo)
 
@@ -460,7 +478,7 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_NexusSrc(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("3. 0 receivers in bridging request", func(t *testing.T) {
+	t.Run("4. 0 receivers in bridging request", func(t *testing.T) {
 		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
 		require.NotNil(t, tokenInfo)
 
@@ -473,12 +491,12 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_NexusSrc(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("4. Too many receivers in bridging request", func(t *testing.T) {
+	t.Run("5. Too many receivers in bridging request", func(t *testing.T) {
 		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
 		require.NotNil(t, tokenInfo)
 
 		receivers := make(map[string]cardanofw.ReceiverAmount)
-		for i := 0; i < 6; i++ {
+		for i := range 6 {
 			receivers[apex.Users[i].GetAddress(cardanofw.ChainIDVector)] = cardanofw.ReceiverAmount{
 				TokenID: cardanofw.USDTTokenID,
 				Amount:  validSendAmount,
@@ -495,7 +513,7 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_NexusSrc(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("5. Invalid receiver address", func(t *testing.T) {
+	t.Run("6. Invalid receiver address", func(t *testing.T) {
 		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
 		require.NotNil(t, tokenInfo)
 
@@ -514,7 +532,7 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_NexusSrc(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("6. Fee address in receivers", func(t *testing.T) {
+	t.Run("7. Fee address in receivers", func(t *testing.T) {
 		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
 		require.NotNil(t, tokenInfo)
 
@@ -534,7 +552,7 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_NexusSrc(t *testing.T) {
 
 	})
 
-	t.Run("7. Less than allowed to bridge", func(t *testing.T) {
+	t.Run("8. Less than allowed to bridge", func(t *testing.T) {
 		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
 		require.NotNil(t, tokenInfo)
 
@@ -554,7 +572,7 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_NexusSrc(t *testing.T) {
 		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
 	})
 
-	t.Run("8. Negative amount in receivers", func(t *testing.T) {
+	t.Run("9. Negative amount in receivers", func(t *testing.T) {
 		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
 		require.NotNil(t, tokenInfo)
 
@@ -578,7 +596,7 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_NexusSrc(t *testing.T) {
 		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
 	})
 
-	t.Run("9. Incorect token id in receivers", func(t *testing.T) {
+	t.Run("10. Incorect token id in receivers", func(t *testing.T) {
 		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
 		require.NotNil(t, tokenInfo)
 
@@ -600,7 +618,7 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_NexusSrc(t *testing.T) {
 		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
 	})
 
-	t.Run("10. Over max allowed to bridge", func(t *testing.T) {
+	t.Run("11. Over max allowed to bridge", func(t *testing.T) {
 		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
 		require.NotNil(t, tokenInfo)
 
@@ -673,7 +691,7 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_NexusSrc(t *testing.T) {
 		})
 	})
 
-	t.Run("11. Insufficient balance", func(t *testing.T) {
+	t.Run("12. Insufficient balance", func(t *testing.T) {
 		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
 		require.NotNil(t, tokenInfo)
 
@@ -693,7 +711,7 @@ func TestE2E_SkylineMintTokens_InvalidScenarios_NexusSrc(t *testing.T) {
 		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
 	})
 
-	t.Run("12. Insufficient fee", func(t *testing.T) {
+	t.Run("13. Insufficient fee", func(t *testing.T) {
 		tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
 		require.NotNil(t, tokenInfo)
 

@@ -297,6 +297,47 @@ func executeInvalidMetadataTypeColCoin(
 		})
 }
 
+func executeInvalidReceiverColCoinAmount(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser, minColCoinsAllowedToBridge uint64, tokenID uint16,
+	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8,
+) {
+	t.Helper()
+
+	invalidAmount := minColCoinsAllowedToBridge - 1
+	receivers := createReceiversColCoin(apex, 1, config.dstChainID, invalidAmount, tokenID)
+
+	refundOption := RefundDisabled
+	if refundEnabled {
+		refundOption = RefundEnabled
+	}
+
+	submitColCoinsMismatchAndWait(t, ctx, apex, config, user, receivers, invalidAmount, tokenID, cardanofw.BridgingTypeColoredCoinOnSource,
+		maxWaitTimeSec, retryIntervalSec, addrIndex, refundOption, nil)
+}
+
+func executeInvalidReceiverAddressColCoin(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser, amount uint64, tokenID uint16,
+	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8,
+) {
+	t.Helper()
+
+	receivers := []sendtx.BridgingTxReceiver{
+		{
+			Addr:    "addr1qxyz...invalidaddress",
+			Amount:  amount,
+			TokenID: tokenID,
+		},
+	}
+
+	refundOption := RefundDisabled
+	if refundEnabled {
+		refundOption = RefundEnabled
+	}
+
+	submitColCoinsMismatchAndWait(t, ctx, apex, config, user, receivers, amount, tokenID, cardanofw.BridgingTypeColoredCoinOnSource,
+		maxWaitTimeSec, retryIntervalSec, addrIndex, refundOption, nil)
+}
+
 func executeInvalidMismatchSendAmountMultipleInstances(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig,
 	maxWaitTimeSec, retryIntervalSec uint, bridgingType cardanofw.BridgingType, refundEnabled bool, addrIndex uint8,
