@@ -1869,7 +1869,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 	})
 }
 
-func TestE2E_ApexBridge_ValidatorSyncWithoutValidatorChange(t *testing.T) {
+func TestE2E_ApexBridge_ValidatorSync(t *testing.T) {
 	// this test requires manual execution.
 	t.Skip()
 
@@ -1903,7 +1903,7 @@ func TestE2E_ApexBridge_ValidatorSyncWithoutValidatorChange(t *testing.T) {
 
 	validatorForSync := cluster.Servers[numberOfValidators-1]
 
-	validatorForSync.Stop()
+	require.NoError(t, validatorForSync.Stop())
 
 	const (
 		sequentialInstances = 5
@@ -1912,7 +1912,7 @@ func TestE2E_ApexBridge_ValidatorSyncWithoutValidatorChange(t *testing.T) {
 
 	PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, user, sequentialInstances, parallelInstances)
 
-	validatorForSync.Start()
+	require.NoError(t, validatorForSync.Start())
 
 	// time for sync
 	time.Sleep(2 * time.Minute)
