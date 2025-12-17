@@ -581,9 +581,8 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("5. Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		// wTODO: change refundEnabled to true here, after testnet is redeployed
 		executeInvalidDestination(
-			t, ctx, apex, cardanoVectorTestConfig, apex.Users[3], requestStateTimeoutSec, retryIntervalSec, bridgingType, false, 0)
+			t, ctx, apex, cardanoVectorTestConfig, apex.Users[3], requestStateTimeoutSec, retryIntervalSec, bridgingType, true, 0)
 	})
 
 	t.Run("6. Submitted invalid metadata - invalid sender", func(t *testing.T) {
