@@ -27,6 +27,10 @@ type IApexSystem interface {
 		ctx context.Context, user *cardanofw.TestApexUser, dstChain cardanofw.ChainID, srcChain cardanofw.ChainID,
 		cmpHandler func(*big.Int) bool, numRetries int, waitTime time.Duration, currency string,
 	) (*big.Int, error)
+	WaitForAmountInRange(
+		ctx context.Context, user *cardanofw.TestApexUser, dstChain cardanofw.ChainID, srcChain cardanofw.ChainID,
+		lowerBoundaryDfm *big.Int, higherBoundaryDfm *big.Int, numRetries int, retryDelay time.Duration, tokenName string,
+	) error
 	SubmitTx(
 		ctx context.Context, sourceChain cardanofw.ChainID, sender *cardanofw.TestApexUser,
 		receiver string, dfmAmount *big.Int, nativeTokenAmounts []cardanowallet.TokenAmount, data []byte,

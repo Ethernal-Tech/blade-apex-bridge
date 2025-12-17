@@ -11,6 +11,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
+	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -164,6 +165,80 @@ func ExecuteBridgingWaitAfterSubmits(
 
 		expectedAmount = expectedAmount.Add(expectedAmount, sendAmount)
 	}
+
+	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, srcChain, expectedAmount,
+		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, tokensInfo.DstTokenName)
+
+	require.NoError(t, err)
+}
+
+func ExecuteBridgingWithRefund(
+	t *testing.T, ctx context.Context, apex IApexSystem, senderUser, receiverUser *cardanofw.TestApexUser,
+	srcChain, dstChain string, sendAmount *big.Int, bridgingType cardanofw.BridgingType,
+	bridgingTypeForRefund cardanofw.BridgingType, refundTrigger func(t *testing.T, ctx context.Context,
+		apex *cardanofw.ApexSystem, srcChain, dstChain string, user *cardanofw.TestApexUser,
+		tokenID uint16, bridgingType cardanofw.BridgingType),
+	options ...ExecuteBridgingOption,
+) {
+	t.Helper()
+
+	config := newExecuteBridgingConfig(options...)
+
+	tokensInfo := apex.GetBridgingTokensInfo(srcChain, dstChain, bridgingType, config.coloredCoins...)
+	require.NotNil(t, tokensInfo, "tokens info must not be nil")
+
+	fmt.Printf("Tokens Info: %+v\n", tokensInfo)
+
+	balance, err := apex.GetBalanceWithTokenName(ctx, receiverUser, dstChain, tokensInfo.DstTokenName)
+	fmt.Printf("Receiver balance: %+v\n", balance)
+	require.NoError(t, err)
+
+	prevAmount := cardanofw.SetOrDefault(balance[tokensInfo.DstTokenName], big.NewInt(0))
+
+	apexSystem, ok := apex.(*cardanofw.ApexSystem)
+	require.True(t, ok, "apex should be of type *cardanofw.ApexSystem")
+
+	refundTrigger(t, ctx, apexSystem, dstChain, srcChain, senderUser, tokensInfo.DstTokenID, bridgingTypeForRefund)
+
+	txHash, err := apex.SubmitBridgingRequest(
+		cardanofw.SubmitBridgingRequestData{
+			Context:          ctx,
+			SourceChain:      srcChain,
+			DestinationChain: dstChain,
+			Sender:           senderUser,
+			DFMAmount:        sendAmount,
+			BridgingType:     bridgingType,
+			Receivers:        []*cardanofw.TestApexUser{receiverUser},
+			TokensInfo:       tokensInfo,
+		},
+	)
+	require.NoError(t, err)
+
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+	// Destination currency (e.g. ADA) may lose fees on refund,
+	// so we validate amount in a range instead of exact match.
+	if tokensInfo.DstTokenName == cardanowallet.AdaTokenName {
+		// decrease upper boundary by 1 to ensure refund has happened, not only bridging
+		upperBoundaryDfm := new(big.Int).Sub(
+			new(big.Int).Add(prevAmount, sendAmount),
+			big.NewInt(1),
+		)
+
+		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, prevAmount,
+			upperBoundaryDfm)
+
+		err = apex.WaitForAmountInRange(ctx, receiverUser, dstChain, srcChain, prevAmount,
+			upperBoundaryDfm, config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime,
+			tokensInfo.DstTokenName)
+		require.NoError(t, err)
+
+		return
+	}
+
+	expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
+
+	fmt.Printf("Expected amount: %+v\n", expectedAmount)
 
 	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, srcChain, expectedAmount,
 		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, tokensInfo.DstTokenName)

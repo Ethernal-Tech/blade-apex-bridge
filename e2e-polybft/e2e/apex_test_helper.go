@@ -16,12 +16,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type RefundOption int
+type WaitOption int
 
 const (
-	RefundDisabled RefundOption = iota
-	RefundEnabled
-	RefundDisabledTimeout
+	WaitRefundDisabled WaitOption = iota
+	WaitRefundEnabled
+	WaitTimeoutRefundDisabled
+	NoWait
 )
 
 const (
@@ -32,7 +33,7 @@ const (
 type colCoinInvalidOpts struct {
 	receivers        []sendtx.BridgingTxReceiver
 	amount           uint64
-	refundOption     RefundOption
+	waitOption       WaitOption
 	metadataModifier func([]byte) []byte
 }
 
@@ -132,7 +133,7 @@ func WaitForTestResult(
 func submitMismatchAndWait(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
 	metadata []byte, lovelaceAmount *big.Int, sentTokenAmount []wallet.TokenAmount, waitForAmount uint64,
-	bridgingType cardanofw.BridgingType, refundOption RefundOption, maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8,
+	bridgingType cardanofw.BridgingType, waitOption WaitOption, maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8,
 	coloredCoins ...uint16,
 ) {
 	t.Helper()
@@ -145,13 +146,17 @@ func submitMismatchAndWait(
 		lovelaceAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
-	if refundOption == RefundDisabledTimeout {
+	if waitOption == WaitTimeoutRefundDisabled {
 		_, err = cardanofw.WaitForRequestStates(ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, nil, maxWaitTimeSec)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "timeout")
-	} else {
+
+		return
+	}
+
+	if waitOption != NoWait {
 		WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
-			bridgingType, refundOption == RefundEnabled, maxWaitTimeSec, retryIntervalSec, coloredCoins...)
+			bridgingType, waitOption == WaitRefundEnabled, maxWaitTimeSec, retryIntervalSec, coloredCoins...)
 	}
 }
 
@@ -159,7 +164,7 @@ func submitColCoinsMismatchAndWait(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
 	receivers []sendtx.BridgingTxReceiver, amount uint64, tokenID uint16, bridgingType cardanofw.BridgingType,
 	maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8,
-	refundOption RefundOption, metadataModifier func([]byte) []byte,
+	waitOption WaitOption, metadataModifier func([]byte) []byte,
 ) {
 	t.Helper()
 
@@ -189,7 +194,7 @@ func submitColCoinsMismatchAndWait(
 	}}
 
 	submitMismatchAndWait(t, ctx, apex, config, user, metadata, lovelaceAmount, sentTokenAmount, waitForAmount,
-		cardanofw.BridgingTypeColoredCoinOnSource, refundOption, maxWaitTimeSec, retryIntervalSec, addrIndex, tokenID)
+		cardanofw.BridgingTypeColoredCoinOnSource, waitOption, maxWaitTimeSec, retryIntervalSec, addrIndex, tokenID)
 }
 
 func executeInvalidMismatchSendLovelaceAmount(
@@ -210,13 +215,13 @@ func executeInvalidMismatchSendLovelaceAmount(
 	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee, bridgingType)
 
-	refundOption := RefundDisabled
+	waitOption := WaitRefundDisabled
 	if refundEnabled {
-		refundOption = RefundEnabled
+		waitOption = WaitRefundEnabled
 	}
 
 	submitMismatchAndWait(t, ctx, apex, config, user, metadata, lovelaceAmount, sentTokenAmount, waitForAmount,
-		bridgingType, refundOption, maxWaitTimeSec, retryIntervalSec, addrIndex)
+		bridgingType, waitOption, maxWaitTimeSec, retryIntervalSec, addrIndex)
 }
 
 func executeInvalidColCoin(
@@ -227,7 +232,7 @@ func executeInvalidColCoin(
 
 	submitColCoinsMismatchAndWait(
 		t, ctx, apex, config, user, opts.receivers, opts.amount, tokenID, cardanofw.BridgingTypeColoredCoinOnSource,
-		maxWaitTimeSec, retryIntervalSec, addrIndex, opts.refundOption, opts.metadataModifier)
+		maxWaitTimeSec, retryIntervalSec, addrIndex, opts.waitOption, opts.metadataModifier)
 }
 
 func executeInvalidMismatchSendColCoinsMultipleInstancesParalel(
@@ -249,13 +254,13 @@ func executeInvalidMismatchSendColCoinsMultipleInstancesParalel(
 
 			receivers := createReceiversColCoin(apex, 1, config.dstChainID, amount*10, tokenID)
 
-			refundOption := RefundDisabled
+			waitOption := WaitRefundDisabled
 			if refundEnabled {
-				refundOption = RefundEnabled
+				waitOption = WaitRefundEnabled
 			}
 
 			submitColCoinsMismatchAndWait(t, ctx, apex, config, apex.Users[idx], receivers, amount, tokenID, bridgingType,
-				maxWaitTimeSec, retryIntervalSec, addrIndex, refundOption, nil)
+				maxWaitTimeSec, retryIntervalSec, addrIndex, waitOption, nil)
 		}(i)
 	}
 

@@ -346,9 +346,9 @@ func Test_SkylineBridgeMint_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:    createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge*10, cardanofw.USDTTokenID),
-				amount:       minColCoinsAllowedToBridge,
-				refundOption: RefundDisabled,
+				receivers:  createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge*10, cardanofw.USDTTokenID),
+				amount:     minColCoinsAllowedToBridge,
+				waitOption: WaitRefundDisabled,
 			},
 		)
 	})
@@ -372,9 +372,9 @@ func Test_SkylineBridgeMint_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:    createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
-				amount:       minColCoinsAllowedToBridge,
-				refundOption: RefundDisabled,
+				receivers:  createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
+				amount:     minColCoinsAllowedToBridge,
+				waitOption: WaitRefundDisabled,
 				metadataModifier: func(metadata []byte) []byte {
 					return bytes.Replace(metadata, fmt.Appendf(nil, "\"%s\"", vectorTestConfig.dstChainID), []byte("\"unknown\""), 1)
 				},
@@ -389,9 +389,9 @@ func Test_SkylineBridgeMint_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, 60, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:    createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
-				amount:       minColCoinsAllowedToBridge,
-				refundOption: RefundDisabledTimeout,
+				receivers:  createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
+				amount:     minColCoinsAllowedToBridge,
+				waitOption: WaitTimeoutRefundDisabled,
 				metadataModifier: func(metadata []byte) []byte {
 					return bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
 				},
@@ -407,9 +407,9 @@ func Test_SkylineBridgeMint_InvalidScenarios_RefundDisabled(t *testing.T) {
 		invalidAmount := minColCoinsAllowedToBridge - 1
 		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:    createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, invalidAmount, cardanofw.USDTTokenID),
-				amount:       invalidAmount,
-				refundOption: RefundDisabled,
+				receivers:  createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, invalidAmount, cardanofw.USDTTokenID),
+				amount:     invalidAmount,
+				waitOption: WaitRefundDisabled,
 			},
 		)
 	})
@@ -428,8 +428,8 @@ func Test_SkylineBridgeMint_InvalidScenarios_RefundDisabled(t *testing.T) {
 						TokenID: cardanofw.USDTTokenID,
 					},
 				},
-				amount:       minColCoinsAllowedToBridge,
-				refundOption: RefundDisabled,
+				amount:     minColCoinsAllowedToBridge,
+				waitOption: WaitRefundDisabled,
 			},
 		)
 	})
@@ -860,6 +860,24 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 			cardanofw.BridgingTypeWrappedTokenOnSource)
 	})
 
+	t.Run("3. Cardano -> Nexus; Cardano -> Vector -> Nexus; Nexus -> Vector - ADA/xADA", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, sendAmount,
+			cardanofw.BridgingTypeCurrencyOnSource)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmount,
+			cardanofw.BridgingTypeCurrencyOnSource)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, sendAmount,
+			cardanofw.BridgingTypeWrappedTokenOnSource)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, new(big.Int).Mul(sendAmount, big.NewInt(2)),
+			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.XADATokenID}))
+	})
+
 	type bridgingRequest struct {
 		src             string
 		dest            string
@@ -897,7 +915,7 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 	// nor nexus users with xADA tokens
 	// and it is requirement for the tests that test bridging Vector -> Nexus with USDT tokens
 	// and Nexus -> Vector with xADA tokens
-	fundingPassed := t.Run("3. Nexus -> Vector USDT, Vector -> Nexus xADA funding test", func(t *testing.T) {
+	fundingPassed := t.Run("4. Nexus -> Vector USDT, Vector -> Nexus xADA funding test", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
 			t.Skip()
 		}
@@ -949,7 +967,7 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 		wg.Wait()
 	})
 
-	t.Run("4. Parallel bridging tests", func(t *testing.T) {
+	t.Run("5. Parallel bridging tests", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() || !fundingPassed {
 			t.Skip()
 		}
@@ -960,7 +978,7 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 		)
 
 		for idx, br := range bridgingRequests {
-			fmt.Printf("4.%d %s -> %s - %s\n", idx+1, br.src, br.dest, br.requestType)
+			fmt.Printf("5.%d %s -> %s - %s\n", idx+1, br.src, br.dest, br.requestType)
 
 			e2ehelper.ExecuteBridging(
 				t, ctx, apex, 1, apex.Users[:instances], []*cardanofw.TestApexUser{user},
@@ -975,7 +993,7 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 		}
 	})
 
-	t.Run("5. Sequential bridging tests", func(t *testing.T) {
+	t.Run("6. Sequential bridging tests", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() || !fundingPassed {
 			t.Skip()
 		}
@@ -988,7 +1006,7 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 		)
 
 		for idx, br := range bridgingRequests {
-			fmt.Printf("5.%d %s -> %s - %s\n", idx+1, br.src, br.dest, br.requestType)
+			fmt.Printf("6.%d %s -> %s - %s\n", idx+1, br.src, br.dest, br.requestType)
 
 			e2ehelper.ExecuteBridging(
 				t, ctx, apex, sequentialInstances,
@@ -1006,7 +1024,7 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 		}
 	})
 
-	t.Run("6. All directions parallel", func(t *testing.T) {
+	t.Run("7. All directions parallel", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() || !fundingPassed {
 			t.Skip()
 		}
@@ -1025,7 +1043,7 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 		)
 	})
 
-	t.Run("7. All directions sequential and parallel", func(t *testing.T) {
+	t.Run("8. All directions sequential and parallel", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() || !fundingPassed {
 			t.Skip()
 		}
@@ -1042,5 +1060,128 @@ func Test_SkylineBridgeMint_ValidScenarios(t *testing.T) {
 			getBridgingRequests(bridgingRequests),
 			new(big.Int).SetUint64(sendAmount),
 		)
+	})
+}
+
+func Test_SkylineBridgeMint_WithRefund(t *testing.T) {
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 10
+
+		maxWaitTimeSec = 600
+		retryDelaySec  = 5
+
+		colCoinsAmount = uint64(2)
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{cardanofw.USDTTokenID: cardanofw.USDTTokenName})
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+	vectorConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+
+	tokens := fundTestUsersWithToken(
+		t, ctx, apex, []*testConfig{
+			{
+				srcChainID:      cardanofw.ChainIDVector,
+				srcMinterWallet: apex.VectorInfo.GenesisWallet,
+			},
+			{
+				srcChainID:      cardanofw.ChainIDCardano,
+				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
+			},
+		}, apex.Users[:userCnt], uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
+	vectorToken, cardanoToken := tokens[0], tokens[1]
+
+	cardanoNexusTestConfig := newTestConfig(
+		t, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDNexus, cardanoToken.TokenName())
+	vectorNexusTestConfig := newTestConfig(
+		t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDNexus, vectorToken.TokenName())
+	vectorCardanoTestConfig := newTestConfig(
+		t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDCardano, vectorToken.TokenName())
+
+	// Fund user on Nexus with USDT token
+	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+	err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(100), cardanofw.USDTTokenID)
+	require.NoError(t, err)
+
+	fmt.Printf("User: %+v\n", user.GetAddress(cardanofw.ChainIDNexus))
+
+	refundTrigger := func(t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, srcChain, dstChain string,
+		user *cardanofw.TestApexUser, tokenID uint16, bridgingType cardanofw.BridgingType) {
+		t.Helper()
+
+		var testConfig *testConfig
+
+		switch {
+		case srcChain == cardanofw.ChainIDVector && dstChain == cardanofw.ChainIDNexus:
+			testConfig = vectorNexusTestConfig
+		case srcChain == cardanofw.ChainIDCardano && dstChain == cardanofw.ChainIDNexus:
+			testConfig = cardanoNexusTestConfig
+		case srcChain == cardanofw.ChainIDVector && dstChain == cardanofw.ChainIDCardano:
+			testConfig = vectorCardanoTestConfig
+		default:
+			require.Fail(t, "unsupported chain combination: src=%s dst=%s", srcChain, dstChain)
+		}
+
+		switch bridgingType {
+		case cardanofw.BridgingTypeColoredCoinOnSource:
+			executeInvalidColCoin(t, ctx, apex, testConfig, user, tokenID, maxWaitTimeSec, retryDelaySec, 0,
+				colCoinInvalidOpts{
+					receivers:  createReceiversColCoin(apex, 1, testConfig.dstChainID, colCoinsAmount*10, tokenID),
+					amount:     colCoinsAmount,
+					waitOption: NoWait,
+				},
+			)
+		case cardanofw.BridgingTypeCurrencyOnSource:
+			executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, testConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeCurrencyOnSource, true, 0)
+		case cardanofw.BridgingTypeWrappedTokenOnSource:
+			executeInvalidEmptyReceivers(t, ctx, apex, testConfig, user, maxWaitTimeSec, retryDelaySec, cardanofw.BridgingTypeWrappedTokenOnSource, true, 0)
+		}
+	}
+
+	t.Run("1. Bridging xADA from Nexus to Cardano (ADA), Refund ADA on Cardano", func(t *testing.T) {
+		// mint some xADA on Nexus for user
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, big.NewInt(100_000_000),
+			cardanofw.BridgingTypeCurrencyOnSource)
+
+		e2ehelper.ExecuteBridgingWithRefund(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
+			cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.BridgingTypeCurrencyOnSource, refundTrigger, e2ehelper.WithColoredCoins([]uint16{cardanofw.XADATokenID}))
+	})
+
+	t.Run("2. Bridging USDT from Nexus to Vector (USDT), Refund USDT on Vector", func(t *testing.T) {
+		// mint some USDT on Nexus for user
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(10*colCoinsAmount)),
+			cardanofw.BridgingTypeColoredCoinOnSource, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+
+		e2ehelper.ExecuteBridgingWithRefund(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(colCoinsAmount)),
+			cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.BridgingTypeColoredCoinOnSource, refundTrigger, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
+	})
+
+	t.Run("3. Bridging ADA from Cardano to Vector (xADA), Refund xADA on Vector", func(t *testing.T) {
+		e2ehelper.ExecuteBridgingWithRefund(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, big.NewInt(10_000_000),
+			cardanofw.BridgingTypeCurrencyOnSource, cardanofw.BridgingTypeWrappedTokenOnSource, refundTrigger, e2ehelper.WithColoredCoins([]uint16{cardanofw.XADATokenID}))
 	})
 }

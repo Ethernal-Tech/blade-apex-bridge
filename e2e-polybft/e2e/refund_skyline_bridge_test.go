@@ -325,9 +325,9 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 
 		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:    createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge*10, cardanofw.USDTTokenID),
-				amount:       minColCoinsAllowedToBridge,
-				refundOption: RefundEnabled,
+				receivers:  createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge*10, cardanofw.USDTTokenID),
+				amount:     minColCoinsAllowedToBridge,
+				waitOption: WaitRefundEnabled,
 			},
 		)
 	})
@@ -351,9 +351,9 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 
 		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:    createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
-				amount:       minColCoinsAllowedToBridge,
-				refundOption: RefundEnabled,
+				receivers:  createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
+				amount:     minColCoinsAllowedToBridge,
+				waitOption: WaitRefundEnabled,
 				metadataModifier: func(metadata []byte) []byte {
 					return bytes.Replace(metadata, fmt.Appendf(nil, "\"%s\"", vectorTestConfig.dstChainID), []byte("\"unknown\""), 1)
 				},
@@ -368,9 +368,9 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 
 		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:    createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
-				amount:       minColCoinsAllowedToBridge,
-				refundOption: RefundEnabled,
+				receivers:  createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
+				amount:     minColCoinsAllowedToBridge,
+				waitOption: WaitRefundEnabled,
 				metadataModifier: func(metadata []byte) []byte {
 					return bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
 				},
@@ -386,9 +386,9 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 		invalidAmount := minColCoinsAllowedToBridge - 1
 		executeInvalidColCoin(t, ctx, apex, vectorTestConfig, user, cardanofw.USDTTokenID, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:    createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, invalidAmount, cardanofw.USDTTokenID),
-				amount:       invalidAmount,
-				refundOption: RefundEnabled,
+				receivers:  createReceiversColCoin(apex, 1, vectorTestConfig.dstChainID, invalidAmount, cardanofw.USDTTokenID),
+				amount:     invalidAmount,
+				waitOption: WaitRefundEnabled,
 			},
 		)
 	})
@@ -407,8 +407,8 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 						TokenID: cardanofw.USDTTokenID,
 					},
 				},
-				amount:       minColCoinsAllowedToBridge,
-				refundOption: RefundEnabled,
+				amount:     minColCoinsAllowedToBridge,
+				waitOption: WaitRefundEnabled,
 			},
 		)
 	})
