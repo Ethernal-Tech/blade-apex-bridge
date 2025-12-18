@@ -867,8 +867,6 @@ func (ec *TestEVMChain) BridgingRequest(
 
 	var outb bytes.Buffer
 
-	fmt.Printf("Params: %+v\n", params)
-
 	if err := RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &outb)); err != nil {
 		return "", err
 	}

@@ -322,8 +322,6 @@ func executeInvalidNexusBridgingRequest(
 		cardanofw.ChainIDNexus, new(big.Int).SetUint64(
 			apex.GetMinBridgingFee(cardanofw.ChainIDNexus, true)))
 
-	fmt.Printf("feeAmount: %d\n", feeAmount)
-
 	if data.feeAmount != nil {
 		feeAmount = data.feeAmount
 	}

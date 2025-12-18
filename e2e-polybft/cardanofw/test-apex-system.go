@@ -1711,7 +1711,6 @@ func (a *ApexSystem) GetBridgingTokensInfo(
 			return nil
 		}
 
-		fmt.Printf("Colored coins: %+v\n", coloredCoins)
 		srcTokenID := coloredCoins[0]
 
 		//nolint:gocritic
