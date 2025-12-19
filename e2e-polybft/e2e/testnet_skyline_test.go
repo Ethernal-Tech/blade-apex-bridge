@@ -562,11 +562,12 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 		receiversCnt        = 2
 	)
 
+	senders := apex.Users[len(apex.Users)-parallelInstances:]
+
 	executeAllDirectionsMulReceiversTest := func(t *testing.T, bridgingDirections []e2ehelper.BridgingDirectionConfig) {
 		t.Helper()
 
 		options := append(slices.Clone(bridgingOpts), e2ehelper.WithWaitForUnexpectedBridges(true))
-		senders := apex.Users[len(apex.Users)-parallelInstances:]
 		receivers := apex.Users[:receiversCnt]
 
 		e2ehelper.ExecuteBridgingExtended(
@@ -581,7 +582,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 		options := append([]e2ehelper.ExecuteBridgingOption{}, bridgingOpts...)
 		options = append(options, e2ehelper.WithColoredCoins([]uint16{cardanofw.USDTTokenID}))
 
-		for _, user := range apex.Users[len(apex.Users)-parallelInstances:] {
+		for _, user := range senders {
 			e2ehelper.ExecuteSingleBridging(
 				t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, fundAmount,
 				cardanofw.BridgingTypeColoredCoinOnSource, options...)
@@ -598,7 +599,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 	t.Run("11. Nexus <-> Vector xADA both directions parallel", func(t *testing.T) {
 		fundAmount := new(big.Int).Mul(sendAmountDfm, big.NewInt(sequentialInstances*parallelInstances))
 
-		for _, user := range apex.Users[len(apex.Users)-parallelInstances:] {
+		for _, user := range senders {
 			e2ehelper.ExecuteSingleBridging(
 				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, fundAmount,
 				cardanofw.BridgingTypeCurrencyOnSource)
@@ -615,7 +616,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 	t.Run("12. Nexus <-> Cardano xADA both directions parallel", func(t *testing.T) {
 		fundAmount := new(big.Int).Mul(sendAmountDfm, big.NewInt(sequentialInstances*parallelInstances))
 
-		for _, user := range apex.Users[len(apex.Users)-parallelInstances:] {
+		for _, user := range senders {
 			e2ehelper.ExecuteSingleBridging(
 				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, fundAmount,
 				cardanofw.BridgingTypeCurrencyOnSource)
