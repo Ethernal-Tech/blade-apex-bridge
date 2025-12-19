@@ -611,10 +611,7 @@ func (ec *TestEVMChain) InitContracts(
 		return err
 	}
 
-	workingDirectory, err := os.MkdirTemp("", "deploy-apex-bridge-evm-gateway")
-	if err != nil {
-		return err
-	}
+	workingDirectory := filepath.Join(os.TempDir(), "deploy-apex-bridge-evm-gateway")
 
 	params := []string{
 		"deploy-evm",
