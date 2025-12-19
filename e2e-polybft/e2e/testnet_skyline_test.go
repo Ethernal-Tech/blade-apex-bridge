@@ -431,7 +431,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
 
-	user := apex.Users[1]
+	user := apex.Users[6]
 	sendAmountDfm := big.NewInt(1_050_000)
 
 	const numOfInstanceForSequentialTests = 3
@@ -566,8 +566,8 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 		t.Helper()
 
 		options := append(slices.Clone(bridgingOpts), e2ehelper.WithWaitForUnexpectedBridges(true))
-		senders := apex.Users[:parallelInstances]
-		receivers := apex.Users[len(apex.Users)-receiversCnt:]
+		senders := apex.Users[len(apex.Users)-parallelInstances:]
+		receivers := apex.Users[:receiversCnt]
 
 		e2ehelper.ExecuteBridgingExtended(
 			t, ctx, apex, sequentialInstances, senders, receivers,
@@ -730,7 +730,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios_NexusSrc(t *testing.T) {
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
 
-	user := apex.Users[2]
+	user := apex.Users[5]
 
 	tokenInfo := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.BridgingTypeColoredCoinOnSource, cardanofw.USDTTokenID)
 	require.NotNil(t, tokenInfo)
