@@ -602,7 +602,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 
 		bridgingDirections := []e2ehelper.BridgingDirectionConfig{
 			{SrcChain: cardanofw.ChainIDNexus, DstChain: cardanofw.ChainIDCardano, SrcTokenID: cardanofw.XADATokenID},
-			{SrcChain: cardanofw.ChainIDCardano, DstChain: cardanofw.ChainIDNexus, SrcTokenID: cardanofw.XADATokenID},
+			{SrcChain: cardanofw.ChainIDCardano, DstChain: cardanofw.ChainIDNexus, SrcTokenID: cardanofw.ADATokenID},
 		}
 
 		executeAllDirectionsMulReceiversTest(t, bridgingDirections)
