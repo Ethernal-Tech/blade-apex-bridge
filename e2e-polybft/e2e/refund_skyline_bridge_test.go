@@ -98,10 +98,18 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("1.2 Cardano -> Prime - Mismatch submitted and receiver amounts", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("1.3 Cardano -> Vector - Mismatch submitted and receiver amounts", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, cardanoVectorTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
@@ -110,10 +118,18 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("2.2 Cardano -> Prime - Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, cardanoPrimeTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("2.3 Vector -> Cardano - Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, vectorCardanoTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
@@ -122,10 +138,18 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("3.2 Cardano -> Prime - Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, cardanoPrimeTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("3.3 Cardano -> Vector - Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, cardanoVectorTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
@@ -134,10 +158,18 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("4.2 Cardano -> Prime - Submitted invalid metadata - sliced off", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMetadataSlicedOff(t, ctx, apex, cardanoPrimeTestConfig, 0)
 	})
 
 	t.Run("4.3 Vector -> Cardano - Submitted invalid metadata - sliced off", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMetadataSlicedOff(t, ctx, apex, vectorCardanoTestConfig, 0)
 	})
 
@@ -146,10 +178,18 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("5.2 Cardano -> Prime - Submitted invalid metadata - wrong type", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMetadataType(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("5.3 Cardano -> Vector - Submitted invalid metadata - wrong type", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMetadataType(t, ctx, apex, cardanoVectorTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
@@ -158,10 +198,18 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("6.2 Cardano -> Prime - Submitted invalid metadata - invalid sender", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMetadataInvalidSender(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, 0)
 	})
 
 	t.Run("6.3 Cardano -> Vector - Submitted invalid metadata - invalid sender", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMetadataInvalidSender(t, ctx, apex, cardanoVectorTestConfig, user, maxWaitTimeSec, 0)
 	})
 
@@ -170,10 +218,18 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("7.2 Cardano -> Prime - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidBridgingFee(t, ctx, apex, cardanoPrimeTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("7.3 Vector -> Cardano - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidBridgingFee(t, ctx, apex, vectorCardanoTestConfig, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
@@ -182,6 +238,10 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("8.2 Cardano -> Vector - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoVectorTestConfig, cardanofw.CAP3XTokenID, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
@@ -190,10 +250,18 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("9.2 Cardano -> Prime - Submitted invalid metadata - empty receivers", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidEmptyReceivers(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("9.3 Vector -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidEmptyReceivers(t, ctx, apex, vectorCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
@@ -472,38 +540,74 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 	fmt.Printf("Cardano test config: %+v\n", cardanoPrimeTestConfig.tokensInfo.SrcTokenName)
 
 	t.Run("1. Prime -> Cardano - Mismatch submitted and receiver amounts", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 1)
 	})
 
 	t.Run("2. Prime -> Cardano - Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeCardanoTestConfig, maxWaitTimeSec, retryDelaySec, true, 2)
 	})
 
 	t.Run("3. Prime -> Cardano - Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeCardanoTestConfig, maxWaitTimeSec, retryDelaySec, true, 3)
 	})
 
 	t.Run("4. Prime -> Cardano - Submitted invalid metadata - sliced off", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMetadataSlicedOff(t, ctx, apex, primeCardanoTestConfig, 1)
 	})
 
 	t.Run("5. Prime -> Cardano - Submitted invalid metadata - wrong type", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMetadataType(t, ctx, apex, primeCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 2)
 	})
 
 	t.Run("6. Prime -> Cardano - Submitted invalid metadata - invalid sender", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidMetadataInvalidSender(t, ctx, apex, primeCardanoTestConfig, user, maxWaitTimeSec, 1)
 	})
 
 	t.Run("7. Prime -> Cardano - Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidBridgingFee(t, ctx, apex, primeCardanoTestConfig, maxWaitTimeSec, retryDelaySec, true, 2)
 	})
 
 	t.Run("8. Cardano -> Prime - Submitted invalid metadata - invalid fee receiver address", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidFeeReceiverAddr(t, ctx, apex, cardanoPrimeTestConfig, cardanofw.CAP3XTokenID, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("9. Prime -> Cardano - Submitted invalid metadata - empty receivers", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		executeInvalidEmptyReceivers(t, ctx, apex, primeCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec, true, 1)
 	})
 

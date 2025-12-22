@@ -184,6 +184,10 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 }
 
 func TestE2E_ApexRefund_BatchRecreated(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
 	const (
 		apiKey = "test_api_key"
 	)

@@ -240,6 +240,10 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 // this runs with refund tests because that job is underutilized, and the ApexBridgeWithNexus job seems to be
 // struggling on GH Actions
 func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 1

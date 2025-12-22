@@ -84,6 +84,10 @@ func Test_CardanoToNexus(t *testing.T) {
 }
 
 func Test_SkylineBridgeCC_General(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
 	const apiKey = "test_api_key"
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -940,10 +944,6 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 	// and it is requirement for the tests that test bridging Vector -> Nexus with USDT tokens
 	// and Nexus -> Vector with xADA tokens
 	fundingPassed := t.Run("4. Nexus -> Vector USDT, Vector -> Nexus xADA funding test", func(t *testing.T) {
-		if cardanofw.ShouldSkipE2RRedundantTests() {
-			t.Skip()
-		}
-
 		// end goal for every user:
 		// - 100_000_000 USDT and 200_000_000 xADA on Nexus and Vector
 		// this way we don't need to fund users with tokens in every following test
@@ -1068,10 +1068,6 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("8. All directions sequential and parallel", func(t *testing.T) {
-		if cardanofw.ShouldSkipE2RRedundantTests() || !fundingPassed {
-			t.Skip()
-		}
-
 		const (
 			sendAmount = uint64(1_000_000)
 			instances  = 5
