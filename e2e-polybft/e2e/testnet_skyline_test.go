@@ -834,6 +834,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios_NexusSrc(t *testing.T) {
 			tokenInfo:    tokenInfo,
 		})
 		require.Error(t, err)
+		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
 	})
 
 	t.Run("9. Negative amount in receivers", func(t *testing.T) {
@@ -854,6 +855,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios_NexusSrc(t *testing.T) {
 			tokenInfo:    tokenInfo,
 		})
 		require.Error(t, err)
+		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
 	})
 
 	t.Run("10. Incorrect token id in receivers", func(t *testing.T) {

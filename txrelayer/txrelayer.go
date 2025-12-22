@@ -260,15 +260,42 @@ func (t *TxRelayerImpl) sendTransactionLocked(txn *types.Transaction, key crypto
 	}
 
 	if t.writer != nil {
-		var msg string
+		var (
+			msg          string
+			estimatedFee *big.Int
+		)
 
 		if txn.Type() == types.DynamicFeeTxType {
-			msg = fmt.Sprintf("[TxRelayer.SendTransaction]\nFrom = %s\nGas = %d\n"+
-				"Max Fee Per Gas = %d\nMax Priority Fee Per Gas = %d\n",
+			// For dynamic fee txs, approximate fee using gas fee cap
+			if txn.GasFeeCap() != nil {
+				estimatedFee = new(big.Int).Mul(
+					new(big.Int).SetUint64(txn.Gas()),
+					txn.GasFeeCap(),
+				)
+			}
+
+			msg = fmt.Sprintf(
+				"[TxRelayer.SendTransaction]\nFrom = %s\nGas = %d\n"+
+					"Max Fee Per Gas = %d\nMax Priority Fee Per Gas = %d\n",
 				txn.From(), txn.Gas(), txn.GasFeeCap(), txn.GasTipCap())
 		} else {
-			msg = fmt.Sprintf("[TxRelayer.SendTransaction]\nFrom = %s\nGas = %d\nGas Price = %d\n",
+			if txn.GasPrice() != nil {
+				estimatedFee = new(big.Int).Mul(
+					new(big.Int).SetUint64(txn.Gas()),
+					txn.GasPrice(),
+				)
+			}
+
+			msg = fmt.Sprintf(
+				"[TxRelayer.SendTransaction]\nFrom = %s\nGas = %d\nGas Price = %d\n",
 				txn.From(), txn.Gas(), txn.GasPrice())
+		}
+
+		if estimatedFee != nil {
+			// Also log the estimated total fee in wei and whole ether units
+			feeInEth := new(big.Int).Div(new(big.Int).Set(estimatedFee), ethgo.Ether(1))
+
+			msg += fmt.Sprintf("Estimated Fee = %s wei (~%s ether)\n", estimatedFee.String(), feeInEth.String())
 		}
 
 		_, _ = t.writer.Write([]byte(msg))

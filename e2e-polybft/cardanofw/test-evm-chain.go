@@ -922,6 +922,7 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 		txrelayer.WithIPAddress(ec.jsonRPCAddr),
 		txrelayer.WithReceiptsTimeout(1*time.Minute),
 		txrelayer.WithEstimateGasFallback(),
+		txrelayer.WithWriter(os.Stdout),
 	)
 	if err != nil {
 		return "", err

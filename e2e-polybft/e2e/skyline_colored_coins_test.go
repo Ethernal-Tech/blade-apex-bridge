@@ -845,21 +845,36 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 			vectorChain.GetCardanoScriptInfo().PlutusAddress,
 		}
 
-		for _, addr := range addresses {
+		apexUsers := make([]*cardanofw.TestApexUser, len(addresses))
+
+		for i, addr := range addresses {
 			vectorAddr, err := wallet.NewCardanoAddressFromString(addr)
 			require.NoError(t, err)
 
-			apexUser := &cardanofw.TestApexUser{
+			apexUsers[i] = &cardanofw.TestApexUser{
 				HasVectorWallet: true,
 				VectorAddress:   vectorAddr,
 			}
-
-			for range 2 {
-				e2ehelper.ExecuteSingleBridging(
-					t, ctx, apex, user, apexUser, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmountDfm,
-					cardanofw.ADATokenID)
-			}
 		}
+
+		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+		err := nexusChain.FundUsersWithToken(
+			user.GetAddress(cardanofw.ChainIDNexus),
+			big.NewInt(200_000_000),
+			cardanofw.USDTTokenID,
+		)
+		require.NoError(t, err)
+
+		e2ehelper.ExecuteBridgingExtended(
+			t, ctx, apex, 1,
+			[]*cardanofw.TestApexUser{user},
+			apexUsers,
+			[]e2ehelper.BridgingDirectionConfig{
+				{SrcChain: cardanofw.ChainIDCardano, DstChain: cardanofw.ChainIDVector, SrcTokenID: cardanofw.ADATokenID},
+				{SrcChain: cardanofw.ChainIDNexus, DstChain: cardanofw.ChainIDVector, SrcTokenID: cardanofw.USDTTokenID},
+			},
+			sendAmountDfm,
+		)
 	})
 
 	t.Run("1. Cardano -> Vector -> Nexus -> Cardano - ADA/xADA", func(t *testing.T) {
