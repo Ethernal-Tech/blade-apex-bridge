@@ -877,6 +877,10 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("2. Cardano -> Nexus -> Vector -> Cardano - ADA/xADA", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, sendAmount,
 			cardanofw.ADATokenID)
@@ -891,6 +895,10 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("3. Cardano -> Nexus; Cardano -> Vector -> Nexus; Nexus -> Vector - ADA/xADA", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, sendAmount,
 			cardanofw.ADATokenID)
@@ -947,7 +955,6 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 		// end goal for every user:
 		// - 100_000_000 USDT and 200_000_000 xADA on Nexus and Vector
 		// this way we don't need to fund users with tokens in every following test
-
 		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
 		vectorChain := apex.GetChainMust(t, cardanofw.ChainIDVector).(*cardanofw.TestCardanoChain)
 
@@ -1084,6 +1091,10 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 }
 
 func Test_SkylineBridgeCC_WithRefund(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 10
