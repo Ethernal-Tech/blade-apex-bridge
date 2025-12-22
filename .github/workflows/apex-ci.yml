@@ -39,8 +39,8 @@ on: # yamllint disable-line rule:truthy
         description: E2E Skyline MBA Tests
         type: boolean
         default: false
-      e2e_skyline_mint_test:
-        description: E2E Skyline Mint Tests
+      e2e_skyline_cc_test:
+        description: E2E Skyline CC Tests
         type: boolean
         default: false
       e2e_apex_skip_redundant_tests:
@@ -73,8 +73,8 @@ on: # yamllint disable-line rule:truthy
         description: E2E Skyline MBA Tests
         type: boolean
         required: true
-      e2e_skyline_mint_test:
-        description: E2E Skyline Mint Tests
+      e2e_skyline_cc_test:
+        description: E2E Skyline CC Tests
         type: boolean
         required: true
       e2e_apex_big_test:
@@ -125,9 +125,9 @@ on: # yamllint disable-line rule:truthy
       e2e_skyline_mba_test:
         description: E2E Skyline MBA Tests output
         value: ${{ jobs.e2e_skyline_mba_test.outputs.workflow_output }}
-      e2e_skyline_mint_test:
-        description: E2E Skyline Mint Tests output
-        value: ${{ jobs.e2e_skyline_mint_test.outputs.workflow_output }}
+      e2e_skyline_cc_test:
+        description: E2E Skyline CC Tests output
+        value: ${{ jobs.e2e_skyline_cc_test.outputs.workflow_output }}
       e2e_dynamic_validators_test:
         description: E2E Dynamic Validators Tests output
         value: ${{ jobs.e2e_dynamic_validators_test.outputs.workflow_output }}
@@ -322,12 +322,12 @@ jobs:
       e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-  e2e_skyline_mint_test:
-    name: E2E Skyline Mint Tests
-    uses: ./.github/workflows/e2e-skyline-mint-test.yml
+  e2e_skyline_cc_test:
+    name: E2E Skyline CC Tests
+    uses: ./.github/workflows/e2e-skyline-cc-test.yml
     needs: [inputs_check, build_blade]
     if: |
-      inputs.e2e_skyline_mint_test ||
+      inputs.e2e_skyline_cc_test ||
       (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline')
     with:
       apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
@@ -335,9 +335,9 @@ jobs:
       e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-  e2e_skyline_mint_test_push:
-    name: E2E Skyline Mint Tests (push on feat/skyline branch)
-    uses: ./.github/workflows/e2e-skyline-mint-test.yml
+  e2e_skyline_cc_test_push:
+    name: E2E Skyline CC Tests (push on feat/skyline branch)
+    uses: ./.github/workflows/e2e-skyline-cc-test.yml
     needs: build_blade
     if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/skyline')
     with:
