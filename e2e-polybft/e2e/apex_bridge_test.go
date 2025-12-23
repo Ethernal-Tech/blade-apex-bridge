@@ -1869,55 +1869,6 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 	})
 }
 
-func TestE2E_ApexBridge_ValidatorSync(t *testing.T) {
-	// this test requires manual execution.
-	t.Skip()
-
-	const (
-		apiKey  = "test_api_key"
-		userCnt = 40
-	)
-
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	primerConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(true)
-	primerConfig.UseIndexer = true
-	vectorConfig.UseIndexer = true
-
-	apex := cardanofw.SetupAndRunApexBridge(
-		t, ctx,
-		cardanofw.WithAPIKey(apiKey),
-		cardanofw.WithUserCnt(userCnt),
-		cardanofw.WithPrimeConfig(primerConfig),
-		cardanofw.WithVectorConfig(vectorConfig),
-	)
-
-	defer require.True(t, apex.ApexBridgeProcessesRunning())
-
-	user := apex.Users[userCnt-1]
-
-	cluster := apex.BridgeCluster
-
-	numberOfValidators := len(cluster.Servers)
-
-	validatorForSync := cluster.Servers[numberOfValidators-1]
-
-	require.NoError(t, validatorForSync.Stop())
-
-	const (
-		sequentialInstances = 5
-		parallelInstances   = 6
-	)
-
-	PrimeVectorBothDirectionsSequentialAndParallel(t, ctx, apex, user, sequentialInstances, parallelInstances)
-
-	require.NoError(t, validatorForSync.Start())
-
-	// time for sync
-	time.Sleep(2 * time.Minute)
-}
-
 type chainStageKey struct {
 	chain    string
 	receiver uint
