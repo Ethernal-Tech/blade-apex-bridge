@@ -77,6 +77,7 @@ var (
 	ZexCoinERC20           *contracts.Artifact
 	ZexNFT                 *contracts.Artifact
 	TestCardanoVerifySign  *contracts.Artifact
+	SimpleERC20            *contracts.Artifact
 
 	contractArtifacts map[string]*contracts.Artifact
 )
@@ -354,6 +355,11 @@ func init() {
 		log.Fatal(err)
 	}
 
+	SimpleERC20, err = contracts.DecodeArtifact(readTestContractContent("SimpleERC20.json"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Apex contracts
 	if err = initApexContracts(); err != nil {
 		log.Fatal(err)
@@ -421,6 +427,7 @@ func init() {
 		"Validators":                      ApexBridgeContracts.Validators,
 		"ApexBridgeAdmin":                 ApexBridgeContracts.Admin,
 		"TestCardanoVerifySignature":      TestCardanoVerifySign,
+		"SimpleERC20":                     SimpleERC20,
 	}
 }
 

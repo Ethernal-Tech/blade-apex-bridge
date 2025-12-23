@@ -25,6 +25,24 @@ const (
 	PrometheusAndDataDogTelemetry
 )
 
+// Token IDs
+const (
+	AP3XTokenID  uint16 = 1
+	ADATokenID   uint16 = 2
+	CAP3XTokenID uint16 = 3
+	XADATokenID  uint16 = 4
+	USDTTokenID  uint16 = 5
+)
+
+// Human readable token names
+const (
+	AP3XTokenName  = "AP3X"
+	ADATokenName   = "ADA"
+	CAP3XTokenName = "cAP3X"
+	XADATokenName  = "xADA"
+	USDTTokenName  = "USDT"
+)
+
 type ApexSystemConfig struct {
 	APIValidatorID int // -1 all validators
 	APIPortStart   int
@@ -40,8 +58,9 @@ type ApexSystemConfig struct {
 	CardanoConfig *TestCardanoChainConfig
 	NexusConfig   *TestEVMChainConfig
 
-	CustomOracleConfigHandler  CustomConfigHandler
-	CustomRelayerConfigHandler CustomConfigHandler
+	CustomOracleConfigHandler     CustomConfigHandler
+	CustomRelayerConfigHandler    CustomConfigHandler
+	CustomDirectionsConfigHandler CustomConfigHandler
 
 	UserCnt                  uint
 	UpdateAddressCountChains []ChainID
@@ -64,12 +83,6 @@ func WithAPIPortStart(apiPortStart int) ApexSystemOptions {
 func WithAPIKey(apiKey string) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.APIKey = apiKey
-	}
-}
-
-func WithVectorEnabled(enabled bool) ApexSystemOptions {
-	return func(h *ApexSystemConfig) {
-		h.VectorConfig.IsEnabled = enabled
 	}
 }
 
@@ -121,10 +134,12 @@ func WithNexusConfig(config *TestEVMChainConfig) ApexSystemOptions {
 	}
 }
 
-func WithCustomConfigHandlers(callbackOracle, callbackRelayer CustomConfigHandler) ApexSystemOptions {
+func WithCustomConfigHandlers(
+	callbackOracle, callbackRelayer, callbackDirections CustomConfigHandler) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.CustomOracleConfigHandler = callbackOracle
 		h.CustomRelayerConfigHandler = callbackRelayer
+		h.CustomDirectionsConfigHandler = callbackDirections
 	}
 }
 
@@ -166,7 +181,7 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 	}
 }
 
-func getDefaultSkylinexSystemConfig() *ApexSystemConfig {
+func getDefaultSkylineSystemConfig() *ApexSystemConfig {
 	return &ApexSystemConfig{
 		APIValidatorID: 1,
 		APIPortStart:   40000,
@@ -180,34 +195,6 @@ func getDefaultSkylinexSystemConfig() *ApexSystemConfig {
 		NexusConfig:   NewNexusChainConfig(false),
 
 		UserCnt: 10,
-	}
-}
-
-func initAllowedDirections(config *ApexSystemConfig, isSkyline bool) {
-	if isSkyline {
-		if len(config.CardanoConfig.AllowedDirections) == 0 {
-			config.CardanoConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
-		}
-
-		if len(config.VectorConfig.AllowedDirections) == 0 {
-			config.VectorConfig.AllowedDirections = []ChainID{ChainIDCardano}
-		}
-
-		if len(config.PrimeConfig.AllowedDirections) == 0 {
-			config.PrimeConfig.AllowedDirections = []ChainID{ChainIDCardano}
-		}
-	} else {
-		if len(config.NexusConfig.AllowedDirections) == 0 {
-			config.NexusConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDVector}
-		}
-
-		if len(config.VectorConfig.AllowedDirections) == 0 {
-			config.VectorConfig.AllowedDirections = []ChainID{ChainIDPrime, ChainIDNexus}
-		}
-
-		if len(config.PrimeConfig.AllowedDirections) == 0 {
-			config.PrimeConfig.AllowedDirections = []ChainID{ChainIDVector, ChainIDNexus}
-		}
 	}
 }
 

@@ -605,6 +605,21 @@ func GetUsersBalances(
 					},
 				)
 
+				if chain == ChainIDNexus {
+					for _, token := range apex.NexusInfo.Tokens {
+						if token.ChainSpecific == wallet.AdaTokenName {
+							continue
+						}
+
+						tokenBalance, err := apex.GetBalanceWithTokenName(ctx, user, chain, token.ChainSpecific)
+						if err != nil {
+							errs = append(errs, fmt.Errorf("failed to get balance for (%s, %s): %w", chain, addr, err))
+						}
+
+						balance[token.ChainSpecific] = tokenBalance[token.ChainSpecific]
+					}
+				}
+
 				mu.Lock()
 				defer mu.Unlock()
 
@@ -620,28 +635,6 @@ func GetUsersBalances(
 	wg.Wait()
 
 	return balances, errors.Join(errs...)
-}
-
-func GetAllTokensForChainWithAmounts(
-	t *testing.T, apex *ApexSystem, chain ChainID, chains []ChainID, amount uint64,
-) (tokens []wallet.TokenAmount) {
-	t.Helper()
-
-	for _, otherChain := range chains {
-		if otherChain != chain {
-			tokenName := apex.GetTokenNameForChains(chain, otherChain)
-			if tokenName == "" {
-				continue
-			}
-
-			token, err := wallet.NewTokenWithFullNameTry(tokenName)
-			require.NoError(t, err)
-
-			tokens = append(tokens, wallet.NewTokenAmount(token, amount))
-		}
-	}
-
-	return tokens
 }
 
 func GetTokenAndPolicyForVerificationKey(

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
-	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +17,8 @@ type SubmittedTxData struct {
 	SrcChainID, DstChainID cardanofw.ChainID
 	TxHash                 string
 	SendAmountDfm          *big.Int
-	BridgingTxType         sendtx.BridgingType
+	TokensInfo             *cardanofw.BridgingTokensInfo
+	err                    error
 }
 
 type TimeoutConfig struct {
@@ -87,9 +87,9 @@ type RestartValidatorsConfig struct {
 
 // returns map chainID -> receiverIdx -> txHash
 type SendTxStrategyFn func(
-	t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
+	ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-	bridgingTypes map[SrcDstChainPair]sendtx.BridgingType) []*SubmittedTxData
+	srcTokenIDs map[SrcDstChainPair]uint16) []*SubmittedTxData
 
 type RestartValidatorStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig)
@@ -152,10 +152,9 @@ func WithTimeoutConfig(tc TimeoutConfig) ExecuteBridgingOption {
 
 var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
-		t *testing.T, ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
+		ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
 		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
-		bridgingTypes map[SrcDstChainPair]sendtx.BridgingType) []*SubmittedTxData {
-		t.Helper()
+		srcTokenIDs map[SrcDstChainPair]uint16) []*SubmittedTxData {
 
 		var (
 			wg              sync.WaitGroup
@@ -172,21 +171,53 @@ var (
 
 					for j := 0; j < txCountPerSender; j++ {
 						for _, dstChain := range dstChains {
+							tokensInfo, err := apex.GetBridgingTokensInfo(
+								srcChain, dstChain, srcTokenIDs[NewChainPair(srcChain, dstChain)])
+							if err != nil {
+								mu.Lock()
+
+								submittedTxData = append(submittedTxData, &SubmittedTxData{
+									err: err,
+								})
+
+								mu.Unlock()
+
+								continue
+							}
+
 							txHash, err := apex.SubmitBridgingRequest(
-								ctx, srcChain, dstChain, senderUser, sendAmountDfm,
-								bridgingTypes[NewChainPair(srcChain, dstChain)], receivers...)
-							require.NoError(t, err)
+								cardanofw.SubmitBridgingRequestData{
+									Context:          ctx,
+									SourceChain:      srcChain,
+									DestinationChain: dstChain,
+									Sender:           senderUser,
+									DFMAmount:        sendAmountDfm,
+									SrcTokenID:       srcTokenIDs[NewChainPair(srcChain, dstChain)],
+									Receivers:        receivers,
+									TokensInfo:       tokensInfo,
+								})
+							if err != nil {
+								mu.Lock()
+
+								submittedTxData = append(submittedTxData, &SubmittedTxData{
+									err: err,
+								})
+
+								mu.Unlock()
+
+								continue
+							}
 
 							fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
 								idx+1, j+1, srcChain, dstChain, txHash)
 
 							mu.Lock()
 							submittedTxData = append(submittedTxData, &SubmittedTxData{
-								SrcChainID:     srcChain,
-								DstChainID:     dstChain,
-								TxHash:         txHash,
-								SendAmountDfm:  sendAmountDfm,
-								BridgingTxType: bridgingTypes[NewChainPair(srcChain, dstChain)],
+								SrcChainID:    srcChain,
+								DstChainID:    dstChain,
+								TxHash:        txHash,
+								SendAmountDfm: sendAmountDfm,
+								TokensInfo:    tokensInfo,
 							})
 							mu.Unlock()
 						}

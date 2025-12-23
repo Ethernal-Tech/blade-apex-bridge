@@ -22,6 +22,11 @@ type GenericTxReceiver struct {
 	NativeTokens []infrawallet.TokenAmount
 }
 
+type ReceiverAmount struct {
+	TokenID uint16
+	Amount  *big.Int
+}
+
 type ITestApexChain interface {
 	RunChain(t *testing.T) error
 	Stop() error
@@ -33,21 +38,21 @@ type ITestApexChain interface {
 	GenerateChainConfigs(
 		indx int,
 		validator *TestApexValidator,
-		tokens []sendtx.TokenExchangeConfig,
 	) error
 	PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error
 	UpdateTxSendChainConfiguration(configs map[string]sendtx.ChainConfig)
-	DeployCardanoContract() error
+	DeployMintingContract(ctx context.Context) error
 	ChainID() string
 	GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error)
+	GetAddressBalanceWithTokenName(ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error)
 	BridgingRequest(
 		ctx context.Context,
 		destChainID ChainID,
 		privateKey string,
-		receivers map[string]*big.Int,
+		receivers map[string]ReceiverAmount,
 		feeAmount *big.Int,
 		operationFee uint64,
-		bridgingTypes ...sendtx.BridgingType,
+		isCurrency bool,
 	) (string, error)
 	SendTx(
 		ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
@@ -79,8 +84,8 @@ type ITestApexChain interface {
 		indx uint8,
 		expectError bool,
 	) (infrawallet.QueryStakeAddressInfo, error)
-	GetAddressToBridgeTo(ctx context.Context, bridgingType sendtx.BridgingType) (string, error)
-	GetMintableTokens() []infrawallet.Token
+	GetAddressToBridgeTo(ctx context.Context, hasTokens bool) (string, error)
+	GetMintableTokens() map[uint16]string
 	GetCardanoScriptInfo() *CardanoScriptInfo
 	GetRelayerAddress() string
 	GetCustodialAddress() string
@@ -119,10 +124,10 @@ func (td *TestApexChainDummy) BridgingRequest(
 	ctx context.Context,
 	destChainID string,
 	privateKey string,
-	receivers map[string]*big.Int,
+	receivers map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
-	bridgingTypes ...sendtx.BridgingType,
+	isCurrency bool,
 ) (string, error) {
 	return "", nil
 }
@@ -139,7 +144,7 @@ func (td *TestApexChainDummy) CreateWallets(validator *TestApexValidator) error 
 	return nil
 }
 
-func (td *TestApexChainDummy) DeployCardanoContract() error {
+func (td *TestApexChainDummy) DeployMintingContract(ctx context.Context) error {
 	return nil
 }
 
@@ -153,8 +158,7 @@ func (td *TestApexChainDummy) GetAddressBalance(ctx context.Context, addr string
 
 func (td *TestApexChainDummy) GenerateChainConfigs(
 	indx int,
-	validator *TestApexValidator,
-	tokens []sendtx.TokenExchangeConfig) error {
+	validator *TestApexValidator) error {
 	return nil
 }
 
@@ -233,14 +237,14 @@ func (td *TestApexChainDummy) GetIndexer() e2eindexer.TxsExecutedComponent {
 
 func (td *TestApexChainDummy) GetAddressToBridgeTo(
 	ctx context.Context,
-	bridgingType sendtx.BridgingType,
+	hasTokens bool,
 ) (string, error) {
 	return "", nil
 }
 
 // GetMintableTokens implements ITestApexChain.
-func (td *TestApexChainDummy) GetMintableTokens() []infrawallet.Token {
-	return []infrawallet.Token{}
+func (td *TestApexChainDummy) GetMintableTokens() map[uint16]string {
+	return make(map[uint16]string)
 }
 
 // GetRelayerAddress implements ITestApexChain.
@@ -259,6 +263,11 @@ func (td *TestApexChainDummy) SetCustodialNFT(token infrawallet.Token) {}
 // GetCardanoScriptInfo implements ITestApexChain.
 func (td *TestApexChainDummy) GetCardanoScriptInfo() *CardanoScriptInfo {
 	return &CardanoScriptInfo{}
+}
+
+func (td *TestApexChainDummy) GetAddressBalanceWithTokenName(
+	ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
+	return nil, nil
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)

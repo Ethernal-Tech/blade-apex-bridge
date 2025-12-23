@@ -12,7 +12,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
-	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
@@ -59,12 +58,12 @@ func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 		fmt.Printf("bridging %v apex to vector\n", apexAmountToBridge)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm, sendtx.BridgingTypeNormal, bridgingOpts...)
+			t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm, cardanofw.AP3XTokenID, bridgingOpts...)
 	}
 
 	fmt.Printf("bridging %v apex to nexus\n", apexAmountToBridge)
 	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm, sendtx.BridgingTypeNormal, bridgingOpts...)
+		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm, cardanofw.AP3XTokenID, bridgingOpts...)
 
 	balances = getUserLovelaceBalances(ctx, apex, nil)
 	printUserBalances(apex, nil, balances)
@@ -270,7 +269,7 @@ func Test_E2E_SanityCheck(t *testing.T) {
 		fmt.Printf("bridging from %s to %s\n", dir.src, dir.dest)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, sendtx.BridgingTypeNormal, bridgingOpts...)
+			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, cardanofw.AP3XTokenID, bridgingOpts...)
 	}
 }
 
@@ -365,15 +364,14 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	)
 
 	primeTestConfig := newTestConfig(
-		t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, "")
-	bridgingType := sendtx.BridgingTypeNormal
+		t, apex, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector, cardanofw.AP3XTokenID)
 
 	srcChain := cardanofw.ChainIDPrime
 
 	if IsVectorEnabled(apex) {
 		t.Run("1. Prime to Vector mismatch submitted and receiver amounts", func(t *testing.T) {
 			executeInvalidMismatchSendLovelaceAmount(
-				t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
+				t, ctx, apex, primeTestConfig, apex.Users[0], requestStateTimeoutSec, retryDelaySec, true, 0)
 		})
 
 		t.Run("2. Prime to Vector submitted invalid metadata - sliced off", func(t *testing.T) {
@@ -382,22 +380,22 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 
 		t.Run("3. Prime to Vector submitted invalid metadata - wrong type", func(t *testing.T) {
 			executeInvalidMetadataType(
-				t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
+				t, ctx, apex, primeTestConfig, apex.Users[2], requestStateTimeoutSec, retryDelaySec, true, 0)
 		})
 
 		t.Run("4. Prime to Vector submitted invalid metadata - invalid destination", func(t *testing.T) {
 			executeInvalidDestination(
-				t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryDelaySec, bridgingType, true, 0)
+				t, ctx, apex, primeTestConfig, apex.Users[3], requestStateTimeoutSec, retryDelaySec, true, 0)
 		})
 
 		t.Run("5. Prime to Vector submitted invalid metadata - invalid sender", func(t *testing.T) {
 			executeInvalidMetadataInvalidSender(
-				t, ctx, apex, primeTestConfig, apex.Users[4], requestStateTimeoutSec, bridgingType, 0)
+				t, ctx, apex, primeTestConfig, apex.Users[4], requestStateTimeoutSec, 0)
 		})
 
 		t.Run("6. Prime to Vector submitted invalid metadata - empty receivers", func(t *testing.T) {
 			executeInvalidEmptyReceivers(
-				t, ctx, apex, primeTestConfig, apex.Users[5], requestStateTimeoutSec, retryDelaySec, bridgingType, false, 0)
+				t, ctx, apex, primeTestConfig, apex.Users[5], requestStateTimeoutSec, retryDelaySec, false, 0)
 		})
 	}
 

@@ -16,6 +16,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/command/genesis"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft"
+	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
@@ -26,6 +27,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/Ethernal-Tech/ethgo/abi"
 
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
@@ -33,12 +35,18 @@ import (
 
 const (
 	defaultFundEthTokenAmount        = uint64(100_000)
-	defaultPremineEthTokenAmount     = uint64(100_000)
+	defaultPremineEthTokenAmount     = uint64(1_000_000_000_000)
 	defaultFundRelayerEthTokenAmount = uint64(5)
 
 	initContractsTryCount      = 3
 	initContractsRetryWaitTime = time.Second * 5
 )
+
+type EVMTokenInfo struct {
+	ID     uint16
+	Name   string
+	Symbol string
+}
 
 type TestEVMChainConfig struct {
 	ChainID   string
@@ -53,9 +61,21 @@ type TestEVMChainConfig struct {
 	StartingPort           int64
 	ApexConfig             uint8
 	BurnContractInfo       *polybft.BurnContractInfo
-	MinBridgingFee         uint64
 
-	AllowedDirections []ChainID
+	MinBridgingFee         *big.Int
+	MinBridgingAmount      *big.Int
+	MinTokenBridgingAmount *big.Int
+	MinOperationFee        *big.Int
+	CurrencyID             uint16
+
+	// Tokens that should be locked/unlocked on this chain
+	LockUnlockTokens []EVMTokenInfo
+
+	// Tokens that should be minted on this chain
+	MintTokens []EVMTokenInfo
+
+	// Tokens that are being configured while starting the system (minting or locking/unlocking)
+	ConfigurableTokens map[uint16]string
 }
 
 func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
@@ -70,30 +90,71 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 		},
 		ApexConfig:             genesis.ApexConfigNexus,
 		InitialHotWalletAmount: big.NewInt(0),
-		PremineAmount:          ethgo.Ether(defaultPremineEthTokenAmount),
-		FundAmount:             ethgo.Ether(defaultFundEthTokenAmount),
-		FundRelayerAmount:      ethgo.Ether(defaultFundRelayerEthTokenAmount),
-		MinBridgingFee:         defaultMinBridgingFeeAmount,
+		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
+		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
+		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
+		MinBridgingFee:         DfmToWei(new(big.Int).SetUint64(defaultMinBridgingFeeAmount)),
+		MinBridgingAmount:      DfmToWei(new(big.Int).SetUint64(MinUTxODefaultValue)),
+		MinTokenBridgingAmount: DfmToWei(new(big.Int).SetUint64(1)),
+		MinOperationFee:        big.NewInt(0),
+		CurrencyID:             AP3XTokenID,
+
+		LockUnlockTokens: []EVMTokenInfo{
+			{
+				ID:     USDTTokenID,
+				Name:   USDTTokenName,
+				Symbol: USDTTokenName,
+			},
+		},
+		MintTokens: []EVMTokenInfo{
+			{
+				ID:     XADATokenID,
+				Name:   XADATokenName,
+				Symbol: XADATokenName,
+			},
+		},
 	}
 }
 
-func NewRemoteNexusChainConfig(isEnabled bool, minBridgingFeeAmount uint64) *TestEVMChainConfig {
+func NewRemoteNexusChainConfig(
+	isEnabled bool, minBridgingFeeAmount uint64, minOperationFee uint64) *TestEVMChainConfig {
 	return &TestEVMChainConfig{
-		IsEnabled:      isEnabled,
-		ChainID:        ChainIDNexus,
-		MinBridgingFee: minBridgingFeeAmount,
+		IsEnabled:       isEnabled,
+		ChainID:         ChainIDNexus,
+		MinBridgingFee:  DfmToWei(new(big.Int).SetUint64(minBridgingFeeAmount)),
+		MinOperationFee: DfmToWei(new(big.Int).SetUint64(minOperationFee)),
+		CurrencyID:      AP3XTokenID,
+		LockUnlockTokens: []EVMTokenInfo{
+			{
+				ID:     USDTTokenID,
+				Name:   USDTTokenName,
+				Symbol: USDTTokenName,
+			},
+		},
+		MintTokens: []EVMTokenInfo{
+			{
+				ID:     XADATokenID,
+				Name:   XADATokenName,
+				Symbol: XADATokenName,
+			},
+		},
+		ConfigurableTokens: map[uint16]string{
+			USDTTokenID: "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0",
+			XADATokenID: "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f",
+		},
 	}
 }
 
 type TestEVMChain struct {
-	config        *TestEVMChainConfig
-	admin         *crypto.ECDSAKey
-	cluster       *framework.TestCluster
-	jsonRPCAddr   string
-	gatewayAddr   types.Address
-	relayerWallet *crypto.ECDSAKey
-	fundBlockNum  uint64
-	indexer       e2eindexer.TxsExecutedComponent
+	config                *TestEVMChainConfig
+	admin                 *crypto.ECDSAKey
+	cluster               *framework.TestCluster
+	jsonRPCAddr           string
+	gatewayAddr           types.Address
+	nativeTokenWalletAddr types.Address
+	relayerWallet         *crypto.ECDSAKey
+	fundBlockNum          uint64
+	indexer               e2eindexer.TxsExecutedComponent
 }
 
 // GetCustodialAddress implements ITestApexChain.
@@ -102,9 +163,7 @@ func (ec *TestEVMChain) GetCustodialAddress() string {
 }
 
 // SetCustodialNFT implements ITestApexChain.
-func (ec *TestEVMChain) SetCustodialNFT(token infrawallet.Token) {
-	panic("unimplemented") //nolint:gocritic
-}
+func (ec *TestEVMChain) SetCustodialNFT(token infrawallet.Token) {}
 
 // GetRelayerAddress implements ITestApexChain.
 func (ec *TestEVMChain) GetRelayerAddress() string {
@@ -112,8 +171,10 @@ func (ec *TestEVMChain) GetRelayerAddress() string {
 }
 
 // GetMintableTokens implements ITestApexChain.
-func (ec *TestEVMChain) GetMintableTokens() []infrawallet.Token {
-	panic("unimplemented") //nolint:gocritic
+func (ec *TestEVMChain) GetMintableTokens() map[uint16]string {
+	// We return the tokens that are being configured while starting the system (minting or locking/unlocking)
+	// We use this to populate the apex system config with the tokens that are being configured while starting the system
+	return ec.config.ConfigurableTokens
 }
 
 // GetMintTokenPolicyID implements ITestApexChain.
@@ -227,7 +288,252 @@ func (ec *TestEVMChain) CreateWallets(validator *TestApexValidator) error {
 	return nil
 }
 
-func (ec *TestEVMChain) DeployCardanoContract() error {
+func (ec *TestEVMChain) DeployMintingContract(ctx context.Context) error {
+	fmt.Println("Deploying minting contract for chain =", ec.ChainID())
+
+	pk, err := ec.admin.MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	regexHelper := func(params []string, expression string) (types.Address, error) {
+		var b bytes.Buffer
+
+		err := RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
+		if err != nil {
+			return types.Address{}, err
+		}
+
+		output := b.String()
+		reGateway := regexp.MustCompile(fmt.Sprintf(`%s\s*=\s*0x([a-fA-F0-9]+)`, expression))
+
+		if match := reGateway.FindStringSubmatch(output); len(match) > 0 {
+			return types.StringToAddress(match[1]), nil
+		}
+
+		return types.Address{}, errors.New("cannot find gateway address")
+	}
+
+	// For mint tokens we just register the token on gateway
+	tokenAddrs := make(map[uint16]string)
+
+	var (
+		execErr   error
+		tokenAddr types.Address
+	)
+
+	// For lock unlock tokens we need to
+	// 1. deploy ERC20 contract for the token
+	// 2. register the token on gateway
+	for _, token := range ec.config.LockUnlockTokens {
+		fmt.Printf("Deploying ERC20 token for token = %+v\n", token)
+
+		if tokenAddr, execErr = ec.deployERC20Token(token); execErr != nil {
+			fmt.Printf("Failed to deploy ERC20 token for token = %+v: %+v\n", token, execErr)
+
+			return err
+		}
+
+		fmt.Printf("Deployed ERC20 token for token = %+v and token addr = %+v\n", token, tokenAddr)
+
+		params := []string{
+			"bridge-admin",
+			"register-gateway-token",
+			"--node-url", ec.jsonRPCAddr,
+			"--key", hex.EncodeToString(pk),
+			"--gateway-addr", ec.gatewayAddr.String(),
+			"--token-sc-addr", tokenAddr.String(),
+			"--token-id", fmt.Sprint(token.ID),
+			"--token-name", token.Name,
+			"--token-symbol", token.Symbol,
+		}
+
+		if err := retry(ctx, "", func() error {
+			tokenAddr, execErr = regexHelper(params, "contractAddr")
+
+			return execErr
+		}); err != nil {
+			return err
+		}
+
+		tokenAddrs[token.ID] = tokenAddr.String()
+	}
+
+	for _, token := range ec.config.MintTokens {
+		params := []string{
+			"bridge-admin",
+			"register-gateway-token",
+			"--node-url", ec.jsonRPCAddr,
+			"--key", hex.EncodeToString(pk),
+			"--gateway-addr", ec.gatewayAddr.String(),
+			"--token-sc-addr", "0x0000000000000000000000000000000000000000",
+			"--token-id", fmt.Sprint(token.ID),
+			"--token-name", token.Name,
+			"--token-symbol", token.Symbol,
+		}
+
+		if err := retry(ctx, "", func() error {
+			tokenAddr, execErr = regexHelper(params, "contractAddr")
+
+			return execErr
+		}); err != nil {
+			return err
+		}
+
+		tokenAddrs[token.ID] = tokenAddr.String()
+	}
+
+	ec.config.ConfigurableTokens = tokenAddrs
+	fmt.Println("Mintable tokens =", ec.config.ConfigurableTokens)
+
+	return nil
+}
+
+func (ec *TestEVMChain) deployERC20Token(token EVMTokenInfo) (types.Address, error) {
+	privateKey, err := ec.GetAdminPrivateKey()
+	if err != nil {
+		return types.ZeroAddress, fmt.Errorf("failed to get admin private key: %w", err)
+	}
+
+	privateKeyECDSA, err := crypto.HexToECDSA(privateKey)
+	if err != nil {
+		return types.ZeroAddress, fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	key := crypto.NewECDSAKey(privateKeyECDSA)
+
+	// Check if SimpleERC20 artifact is loaded
+	if contractsapi.SimpleERC20 == nil {
+		return types.ZeroAddress, fmt.Errorf("SimpleERC20 artifact is nil")
+	}
+
+	if contractsapi.SimpleERC20.Abi == nil {
+		return types.ZeroAddress, fmt.Errorf("SimpleERC20 ABI is nil")
+	}
+
+	if contractsapi.SimpleERC20.Abi.Constructor == nil {
+		return types.ZeroAddress, fmt.Errorf("SimpleERC20 Constructor is nil")
+	}
+
+	// Encode constructor with name, symbol
+	constructorArgs, err := contractsapi.SimpleERC20.Abi.Constructor.Inputs.Encode([]interface{}{
+		token.Name,
+		token.Symbol,
+	})
+	if err != nil {
+		return types.ZeroAddress, fmt.Errorf("failed to encode constructor args: %w", err)
+	}
+
+	// Combine bytecode + constructor args
+	deploymentData := append([]byte{}, contractsapi.SimpleERC20.Bytecode...)
+	deploymentData = append(deploymentData, constructorArgs...)
+
+	txRelayer, err := txrelayer.NewTxRelayer(
+		txrelayer.WithIPAddress(ec.jsonRPCAddr),
+		txrelayer.WithReceiptsTimeout(1*time.Minute),
+		txrelayer.WithEstimateGasFallback(),
+	)
+	if err != nil {
+		return types.ZeroAddress, fmt.Errorf("failed to create tx relayer: %w", err)
+	}
+
+	tx := types.NewTx(types.NewLegacyTx(
+		types.WithFrom(key.Address()),
+		types.WithInput(deploymentData),
+	))
+
+	receipt, err := txRelayer.SendTransaction(tx, key)
+	if err != nil {
+		return types.ZeroAddress, fmt.Errorf("failed to send deployment tx: %w", err)
+	}
+
+	if receipt.Status != uint64(types.ReceiptSuccess) {
+		return types.ZeroAddress, fmt.Errorf(
+			"ERC20 deployment failed with status: %d (tx: %s)",
+			receipt.Status, receipt.TransactionHash.String())
+	}
+
+	if receipt.ContractAddress.String() == "" ||
+		receipt.ContractAddress.String() == "0x0000000000000000000000000000000000000000" {
+		return types.ZeroAddress, fmt.Errorf("no contract address in receipt")
+	}
+
+	fmt.Printf("Successfully deployed ERC20 at: %s\n", receipt.ContractAddress.String())
+
+	return types.StringToAddress(receipt.ContractAddress.String()), nil
+}
+
+func (ec *TestEVMChain) FundUsersWithToken(address string, amount *big.Int, tokenID uint16) error {
+	// Look up the token contract address
+	amount = DfmToWei(amount)
+
+	tokenAddrHex, ok := ec.config.ConfigurableTokens[tokenID]
+	if !ok || tokenAddrHex == "" {
+		return fmt.Errorf("token with ID %d not found in configured tokens", tokenID)
+	}
+
+	tokenAddr := types.StringToAddress(tokenAddrHex)
+	recipient := types.StringToAddress(address)
+
+	fmt.Printf("Minting %s tokens (ID: %d) to user %s from contract: %s\n",
+		amount.String(), tokenID, recipient.String(), tokenAddr.String())
+
+	// Get admin private key (owner of the ERC20 contract)
+	privateKey, err := ec.GetAdminPrivateKey()
+	if err != nil {
+		return fmt.Errorf("failed to get admin private key: %w", err)
+	}
+
+	privateKeyECDSA, err := crypto.HexToECDSA(privateKey)
+	if err != nil {
+		return fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	key := crypto.NewECDSAKey(privateKeyECDSA)
+	adminAddr := key.Address()
+
+	// Check if SimpleERC20 artifact is loaded
+	if contractsapi.SimpleERC20 == nil || contractsapi.SimpleERC20.Abi == nil {
+		return fmt.Errorf("SimpleERC20 artifact not loaded")
+	}
+
+	// Encode mint(address, uint256) call
+	mintMethod := contractsapi.SimpleERC20.Abi.Methods["mint"]
+	if mintMethod == nil {
+		return fmt.Errorf("mint method not found in SimpleERC20 ABI")
+	}
+
+	mintData, err := mintMethod.Encode([]interface{}{recipient, amount})
+	if err != nil {
+		return fmt.Errorf("failed to encode mint call: %w", err)
+	}
+
+	// Send mint transaction
+	txRelayer, err := txrelayer.NewTxRelayer(
+		txrelayer.WithIPAddress(ec.jsonRPCAddr),
+		txrelayer.WithReceiptsTimeout(1*time.Minute),
+		txrelayer.WithEstimateGasFallback(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create tx relayer: %w", err)
+	}
+
+	receipt, err := txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
+		types.WithFrom(adminAddr),
+		types.WithTo(&tokenAddr),
+		types.WithInput(mintData),
+	)), key)
+	if err != nil {
+		return fmt.Errorf("failed to send mint tx: %w", err)
+	}
+
+	if receipt.Status != uint64(types.ReceiptSuccess) {
+		return fmt.Errorf("token mint failed with status: %d (tx: %s)", receipt.Status, receipt.TransactionHash.String())
+	}
+
+	fmt.Printf("Successfully minted %s tokens to user %s (tx: %s)\n",
+		amount.String(), recipient.String(), receipt.TransactionHash.String())
+
 	return nil
 }
 
@@ -270,12 +576,43 @@ func (ec *TestEVMChain) InitContracts(
 		return err
 	}
 
+	regexHelper := func(workingDirectory string, params []string) (types.Address, types.Address, error) {
+		// if everything works fine, the working directory will be reused
+		if err := common.CreateDirSafe(workingDirectory, 0750); err != nil {
+			return types.Address{}, types.Address{}, err
+		}
+
+		var b bytes.Buffer
+
+		err := RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
+		if err != nil {
+			return types.Address{}, types.Address{}, err
+		}
+
+		output := b.String()
+		reGateway := regexp.MustCompile(`Gateway Proxy Address\s*=\s*0x([a-fA-F0-9]+)`)
+		reNativeTokenWallet := regexp.MustCompile(`NativeTokenWallet Proxy Address\s*=\s*0x([a-fA-F0-9]+)`)
+
+		gatewayMatch := reGateway.FindStringSubmatch(output)
+		if gatewayMatch == nil {
+			return types.Address{}, types.Address{}, errors.New("cannot find gateway address")
+		}
+
+		nativeTokenWalletMatch := reNativeTokenWallet.FindStringSubmatch(output)
+		if nativeTokenWalletMatch == nil {
+			return types.Address{}, types.Address{}, errors.New("cannot find native token wallet address")
+		}
+
+		return types.StringToAddress(gatewayMatch[1]), types.StringToAddress(nativeTokenWalletMatch[1]), nil
+	}
+
 	bridgeAdminPk, err := bridgeAdmin.MarshallPrivateKey()
 	if err != nil {
 		return err
 	}
 
 	workingDirectory := filepath.Join(os.TempDir(), "deploy-apex-bridge-evm-gateway")
+
 	params := []string{
 		"deploy-evm",
 		"--url", ec.jsonRPCAddr,
@@ -284,56 +621,48 @@ func (ec *TestEVMChain) InitContracts(
 		"--bridge-addr", contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
 		"--dir", workingDirectory,
+		"--min-fee", ec.config.MinBridgingFee.String(),
+		"--min-bridging-amount", ec.config.MinBridgingAmount.String(),
+		"--min-token-bridging-amount", ec.config.MinTokenBridgingAmount.String(),
+		"--min-operation-fee", ec.config.MinOperationFee.String(),
+		"--currency-token-id", fmt.Sprint(ec.config.CurrencyID),
 		"--clone",
 	}
 
-	execute := func() (types.Address, error) {
-		// if everything works fine, the working directory will be reused
-		if err := common.CreateDirSafe(workingDirectory, 0750); err != nil {
-			return types.Address{}, err
-		}
+	if err := retry(ctx, workingDirectory, func() error {
+		var execErr error
+		ec.gatewayAddr, ec.nativeTokenWalletAddr, execErr = regexHelper(workingDirectory, params)
 
-		var b bytes.Buffer
-
-		err = RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
-		if err != nil {
-			return types.Address{}, err
-		}
-
-		output := b.String()
-		reGateway := regexp.MustCompile(`Gateway Proxy Address\s*=\s*0x([a-fA-F0-9]+)`)
-
-		if match := reGateway.FindStringSubmatch(output); len(match) > 0 {
-			return types.StringToAddress(match[1]), nil
-		}
-
-		return types.Address{}, errors.New("cannot find gateway address")
+		return execErr
+	}); err != nil {
+		return err
 	}
 
+	return nil
+}
+
+func retry(ctx context.Context, workingDirectory string, action func() error) error {
 	tryCounter := 0
 
 	for {
-		gatewayAddr, err := execute()
-		if err == nil {
-			ec.gatewayAddr = gatewayAddr
-
+		if err := action(); err == nil {
 			return nil
-		}
-
-		tryCounter++
-		if tryCounter >= initContractsTryCount {
-			return err
-		}
-
-		// remove directory if something went wrong and try again
-		if err := common.RemoveDirSafe(workingDirectory); err != nil {
-			return err
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(initContractsRetryWaitTime):
+		} else {
+			tryCounter++
+			if tryCounter >= initContractsTryCount {
+				return err
+			}
+			// remove directory if something went wrong and try again
+			if workingDirectory != "" {
+				if err := common.RemoveDirSafe(workingDirectory); err != nil {
+					return err
+				}
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(initContractsRetryWaitTime):
+			}
 		}
 	}
 }
@@ -346,7 +675,6 @@ func (ec *TestEVMChain) RegisterChain(validator *TestApexValidator) error {
 func (ec *TestEVMChain) GenerateChainConfigs(
 	indx int,
 	validator *TestApexValidator,
-	tokens []sendtx.TokenExchangeConfig,
 ) error {
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
@@ -360,11 +688,8 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 		"--output-relayer-file-name", RelayerConfigFileName,
 		"--dbs-path", dbsPath,
 		"--relayer-data-dir", validator.server.DataDir(),
-		"--evm-min-fee-for-bridging", fmt.Sprint(ec.config.MinBridgingFee),
-	}
-
-	for _, direction := range ec.config.AllowedDirections {
-		args = append(args, "--allowed-directions", direction)
+		"--evm-min-fee-for-bridging", WeiToDfm(ec.config.MinBridgingFee).String(),
+		"--min-operation-fee", WeiToDfm(ec.config.MinOperationFee).String(),
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
@@ -409,6 +734,45 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (map
 	}, err
 }
 
+func (ec *TestEVMChain) GetAddressBalanceWithTokenName(
+	ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
+	if tokenName == infrawallet.AdaTokenName {
+		return ec.GetAddressBalance(ctx, addr)
+	}
+
+	rpc, err := ec.JSONRPC()
+	if err != nil {
+		return nil, err
+	}
+
+	tokenAddr := types.StringToAddress(tokenName)
+	receiverAddress := types.StringToAddress(addr)
+
+	callData, err := (&contractsapi.BalanceOfRootERC20Fn{
+		Account: receiverAddress,
+	}).EncodeAbi()
+	if err != nil {
+		return nil, err
+	}
+
+	outHex, err := rpc.Call(&jsonrpc.CallMsg{
+		To:   &tokenAddr,
+		Data: callData,
+	}, jsonrpc.LatestBlockNumber, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	balance, err := common.ParseUint256orHex(&outHex)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]*big.Int{
+		tokenName: balance,
+	}, nil
+}
+
 func (ec *TestEVMChain) GetBridgingFee(
 	_ context.Context,
 	_ string,
@@ -434,25 +798,67 @@ func (ec *TestEVMChain) BridgingRequest(
 	ctx context.Context,
 	destChainID ChainID,
 	privateKey string,
-	receivers map[string]*big.Int,
+	receivers map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
-	bridgingTypes ...sendtx.BridgingType,
+	isCurrency bool,
 ) (string, error) {
-	params := []string{
-		"sendtx",
-		"--tx-type", "evm",
-		"--gateway-addr", ec.gatewayAddr.String(),
-		fmt.Sprintf("--%s-url", ec.config.ChainID), ec.jsonRPCAddr,
-		"--key", privateKey,
-		"--chain-src", ec.config.ChainID,
-		"--chain-dst", destChainID,
-		"--fee", feeAmount.String(),
+	//nolint:prealloc
+	var params []string
+
+	if !isCurrency {
+		receiverTokenID := uint16(0)
+		for _, receiver := range receivers {
+			receiverTokenID = receiver.TokenID
+
+			break
+		}
+
+		isTokenLockUnlock := false
+
+		for _, token := range ec.config.LockUnlockTokens {
+			if token.ID == receiverTokenID {
+				isTokenLockUnlock = true
+
+				break
+			}
+		}
+
+		params = []string{
+			"sendtx",
+			"skyline",
+			"--tx-type", "evm",
+			"--gateway-addr", ec.gatewayAddr.String(),
+			fmt.Sprintf("--%s-url", ec.config.ChainID), ec.jsonRPCAddr,
+			"--key", privateKey,
+			"--chain-src", ec.config.ChainID,
+			"--chain-dst", destChainID,
+			"--fee", feeAmount.String(),
+			"--operation-fee", ec.config.MinOperationFee.String(),
+			"--src-token-id", fmt.Sprint(receiverTokenID),
+		}
+
+		if isTokenLockUnlock {
+			params = append(params,
+				"--native-token-wallet-contract-addr", ec.nativeTokenWalletAddr.String(),
+				"--src-token-contract-addr", ec.config.ConfigurableTokens[receiverTokenID])
+		}
+	} else {
+		params = []string{
+			"sendtx",
+			"--tx-type", "evm",
+			"--gateway-addr", ec.gatewayAddr.String(),
+			fmt.Sprintf("--%s-url", ec.config.ChainID), ec.jsonRPCAddr,
+			"--key", privateKey,
+			"--chain-src", ec.config.ChainID,
+			"--chain-dst", destChainID,
+			"--fee", feeAmount.String(),
+		}
 	}
 
 	for addr, amount := range receivers {
 		params = append(params,
-			"--receiver", fmt.Sprintf("%s:%s", addr, amount),
+			"--receiver", fmt.Sprintf("%s:%s", addr, amount.Amount.String()),
 		)
 	}
 
@@ -474,6 +880,128 @@ func (ec *TestEVMChain) BridgingRequest(
 	return "", errors.New("tx hash not found in command output")
 }
 
+func (ec *TestEVMChain) DirectBridgingRequest(
+	dstChainID uint8,
+	privateKey string,
+	receivers map[string]ReceiverAmount,
+	feeAmount *big.Int,
+	operationFee *big.Int,
+	tokenContractAddrSrc string,
+) (
+	string, error,
+) {
+	contractAddress := types.StringToAddress(ec.gatewayAddr.String())
+
+	// Build ReceiverWithdraw tuples from the receivers map
+	type gatewayReceiverWithdraw struct {
+		Receiver string   `abi:"receiver"`
+		Amount   *big.Int `abi:"amount"`
+		TokenID  uint16   `abi:"tokenId"`
+	}
+
+	gatewayReceivers := make([]gatewayReceiverWithdraw, 0, len(receivers))
+	totalTokenAmount := big.NewInt(0)
+
+	for addr, ra := range receivers {
+		gatewayReceivers = append(gatewayReceivers, gatewayReceiverWithdraw{
+			Receiver: addr,
+			Amount:   ra.Amount,
+			TokenID:  ra.TokenID,
+		})
+
+		if tokenContractAddrSrc != "" {
+			totalTokenAmount.Add(totalTokenAmount, ra.Amount)
+		}
+	}
+
+	totalAmount := big.NewInt(0)
+	totalAmount.Add(totalAmount, feeAmount)
+	totalAmount.Add(totalAmount, operationFee)
+
+	txRelayer, err := txrelayer.NewTxRelayer(
+		txrelayer.WithIPAddress(ec.jsonRPCAddr),
+		txrelayer.WithReceiptsTimeout(1*time.Minute),
+		txrelayer.WithEstimateGasFallback(),
+		txrelayer.WithWriter(os.Stdout),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	privateKeyECDSA, err := crypto.HexToECDSA(privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	key := crypto.NewECDSAKey(privateKeyECDSA)
+
+	if tokenContractAddrSrc != "" {
+		approveMethod, err := abi.NewMethod("function approve(address spender, uint256 value)")
+		if err != nil {
+			return "", err
+		}
+
+		// Approve the gateway / native token wallet to transfer tokens
+		spenderAddr := ec.nativeTokenWalletAddr
+
+		approveData, err := approveMethod.Encode([]interface{}{spenderAddr, totalTokenAmount})
+		if err != nil {
+			return "", fmt.Errorf("failed to encode approve call: %w", err)
+		}
+
+		tokenAddr := types.StringToAddress(tokenContractAddrSrc)
+
+		receipt, err := txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
+			types.WithFrom(key.Address()),
+			types.WithTo(&tokenAddr),
+			types.WithInput(approveData),
+		)), key)
+		if err != nil {
+			return "", fmt.Errorf("failed to send approve tx: %w", err)
+		}
+
+		if receipt.Status != uint64(types.ReceiptSuccess) {
+			return "", fmt.Errorf("approve transaction receipt status is unsuccessful: %d", receipt.Status)
+		}
+	}
+
+	// Encode and send Gateway.withdraw(chainID, receivers, feeAmount, operationFee)
+	withdrawMethod, err := abi.NewMethod(
+		"function withdraw(uint8 _destinationChainId, " +
+			"(string receiver,uint256 amount,uint16 tokenId)[] _receivers, " +
+			"uint256 _fee, uint256 _operationFee) payable",
+	)
+	if err != nil {
+		return "", err
+	}
+
+	withdrawData, err := withdrawMethod.Encode([]interface{}{
+		dstChainID,
+		gatewayReceivers,
+		feeAmount,
+		operationFee,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to encode withdraw call: %w", err)
+	}
+
+	receipt, err := txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
+		types.WithFrom(key.Address()),
+		types.WithTo(&contractAddress),
+		types.WithValue(totalAmount),
+		types.WithInput(withdrawData),
+	)), key)
+	if err != nil {
+		return "", fmt.Errorf("failed to send withdraw tx: %w", err)
+	}
+
+	if receipt.Status != uint64(types.ReceiptSuccess) {
+		return "", fmt.Errorf("transaction receipt status is unsuccessful: %d", receipt.Status)
+	}
+
+	return receipt.TransactionHash.String(), nil
+}
+
 func (ec *TestEVMChain) SendTx(
 	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
 ) (string, error) {
@@ -481,7 +1009,8 @@ func (ec *TestEVMChain) SendTx(
 		return "", fmt.Errorf("evm SendTx currently supports only one receiver but got %d", ln)
 	}
 
-	rec, err := ec.sendTx(privateKey, receivers[0].Addr, receivers[0].Amount, metadata)
+	rec, err := ec.sendTxWithNativeTokens(privateKey, receivers[0].Addr, receivers[0].Amount,
+		metadata, receivers[0].NativeTokens)
 	if err != nil {
 		return "", err
 	}
@@ -541,6 +1070,77 @@ func (ec *TestEVMChain) sendTx(
 	return receipt, nil
 }
 
-func (ec *TestEVMChain) GetAddressToBridgeTo(ctx context.Context, bridgingType sendtx.BridgingType) (string, error) {
+func (ec *TestEVMChain) sendTxWithNativeTokens(
+	privateKey string, receiver string, amount *big.Int, data []byte, nativeTokens []infrawallet.TokenAmount,
+) (*ethgo.Receipt, error) {
+	privateKeyECDSA, err := crypto.HexToECDSA(privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	txRelayer, err := txrelayer.NewTxRelayer(
+		txrelayer.WithIPAddress(ec.jsonRPCAddr),
+		txrelayer.WithReceiptsTimeout(1*time.Minute),
+		txrelayer.WithEstimateGasFallback(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	key := crypto.NewECDSAKey(privateKeyECDSA)
+	receiverAddr := types.StringToAddress(receiver)
+	recipient := receiverAddr
+
+	for _, nativeToken := range nativeTokens {
+		// We interpret the Cardano token PolicyID as the ERC20 contract address on the EVM chain.
+		tokenAddr := types.StringToAddress(nativeToken.Token.PolicyID)
+		tokenAmount := DfmToWei(big.NewInt(0).SetUint64(nativeToken.Amount))
+
+		// Encode ERC20 transfer(recipient, amount)
+		if contractsapi.SimpleERC20 == nil || contractsapi.SimpleERC20.Abi == nil {
+			return nil, fmt.Errorf("SimpleERC20 artifact not loaded")
+		}
+
+		transferMethod := contractsapi.SimpleERC20.Abi.Methods["transfer"]
+		if transferMethod == nil {
+			return nil, fmt.Errorf("transfer method not found in SimpleERC20 ABI")
+		}
+
+		transferData, err := transferMethod.Encode([]interface{}{recipient, tokenAmount})
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode transfer call: %w", err)
+		}
+
+		receipt, err := txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
+			types.WithFrom(key.Address()),
+			types.WithTo(&tokenAddr),
+			types.WithInput(transferData),
+		)), key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to send transfer tx for token %s: %w", nativeToken.Token.PolicyID, err)
+		}
+
+		if receipt.Status != uint64(types.ReceiptSuccess) {
+			return nil, fmt.Errorf("token transfer for token %s failed with status: %d (tx: %s)", nativeToken.Token.PolicyID,
+				receipt.Status, receipt.TransactionHash.String())
+		}
+	}
+
+	receipt, err := txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
+		types.WithFrom(key.Address()),
+		types.WithValue(amount),
+		types.WithInput(data),
+		types.WithTo(&receiverAddr),
+	)), key)
+	if err != nil {
+		return nil, err
+	} else if receipt.Status != uint64(types.ReceiptSuccess) {
+		return nil, fmt.Errorf("currency transfer for chain %s failed: %d", ec.config.ChainID, receipt.Status)
+	}
+
+	return receipt, nil
+}
+
+func (ec *TestEVMChain) GetAddressToBridgeTo(ctx context.Context, hasTokens bool) (string, error) {
 	return ec.gatewayAddr.String(), nil
 }

@@ -51,6 +51,7 @@ type TestCardanoChainConfig struct {
 	FundAmount                  uint64
 	FundFeeAmount               uint64
 	FundTokenAmount             uint64
+	FundTokenName               string
 	FundUTxOCount               int
 	FundFeeUTxOCount            int
 	PreminesAddresses           []string
@@ -63,7 +64,6 @@ type TestCardanoChainConfig struct {
 	BridgeAddrHasStake          bool
 	BridgingAddressCnt          int
 	UseIndexer                  bool
-	AllowedDirections           []ChainID
 
 	// Minting
 	FundRelayerAmount          uint64
@@ -74,7 +74,7 @@ type TestCardanoChainConfig struct {
 	CardanoScriptInfo CardanoScriptInfo
 
 	// Human readable names of tokens that should be mintable on this chain
-	MintableTokens []string
+	MintableTokens map[uint16]string
 	// Custodial NFT
 	CustodialNFT *infrawallet.Token
 }
@@ -103,8 +103,8 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 	}
 }
 
-func NewVectorChainConfig() *TestCardanoChainConfig {
-	return &TestCardanoChainConfig{
+func NewVectorChainConfig(mintableTokens ...map[uint16]string) *TestCardanoChainConfig {
+	cfg := &TestCardanoChainConfig{
 		IsEnabled:                   true,
 		ID:                          1,
 		NetworkType:                 infrawallet.TestNetNetwork,
@@ -117,6 +117,7 @@ func NewVectorChainConfig() *TestCardanoChainConfig {
 		FundAmount:                  defaultFundTokenAmount,
 		FundFeeAmount:               defaultFundTokenAmount,
 		FundTokenAmount:             defaultNativeTokenAmount,
+		FundTokenName:               XADATokenName,
 		FundUTxOCount:               1,
 		FundFeeUTxOCount:            1,
 		DefaultMinBridgingFee:       defaultMinBridgingFeeAmount,
@@ -124,6 +125,14 @@ func NewVectorChainConfig() *TestCardanoChainConfig {
 		MinOperationFee:             uint64(0),
 		BridgingAddressCnt:          1,
 	}
+
+	if len(mintableTokens) > 0 {
+		cfg.FundRelayerAmount = defaultFundTokenAmount
+		cfg.CustodialAddressGeneration = true
+		cfg.MintableTokens = mintableTokens[0]
+	}
+
+	return cfg
 }
 
 func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
@@ -140,22 +149,12 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		FundAmount:                  defaultFundTokenAmount,
 		FundFeeAmount:               defaultFundTokenAmount,
 		FundTokenAmount:             defaultNativeTokenAmount,
+		FundTokenName:               CAP3XTokenName,
 		DefaultMinBridgingFee:       defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens:     defaultMinBridgingFeeAmountForTokens,
 		MinOperationFee:             DefaultMinOperationFee,
 		BridgingAddressCnt:          1,
 	}
-}
-
-func NewCardanoChainConfigWithMinting(isEnabled bool) *TestCardanoChainConfig {
-	config := NewCardanoChainConfig(isEnabled)
-
-	config.FundTokenAmount = 0
-	config.FundRelayerAmount = 100_000_000
-	config.CustodialAddressGeneration = true
-	config.MintableTokens = []string{DefaultTokenName}
-
-	return config
 }
 
 func NewRemotePrimeChainConfig(
@@ -386,7 +385,7 @@ func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) error {
 	return validator.CardanoWalletCreate(ec.ChainID(), walletType)
 }
 
-func (ec *TestCardanoChain) DeployCardanoContract() error {
+func (ec *TestCardanoChain) DeployMintingContract(_ context.Context) error {
 	custodialNFT := ec.config.CustodialNFT
 	if custodialNFT == nil {
 		return nil
@@ -574,13 +573,13 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		tokenAmount := new(big.Int).SetUint64(ec.config.FundTokenAmount)
 
 		token, _, err := GetTokenAndPolicyForVerificationKey(
-			ec.ChainID(), ec.config.NetworkType, minterWallet.VerificationKey, DefaultTokenName)
+			ec.ChainID(), ec.config.NetworkType, minterWallet.VerificationKey, ec.config.FundTokenName)
 		if err != nil {
 			return err
 		}
 
 		if ta := ec.config.FundTokenAmount; ta != 0 {
-			if err := MintToken(ec, minterWallet, DefaultTokenName, ta); err != nil {
+			if err := MintToken(ec, minterWallet, ec.config.FundTokenName, ta); err != nil {
 				return err
 			}
 		}
@@ -607,11 +606,6 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	}
 
 	if ec.config.CustodialAddress != "" && ec.config.CustodialNFT != nil {
-		minterWallet, err := GetGenesisWalletFromCluster(ec.cluster.Config.TmpDir, 1)
-		if err != nil {
-			return err
-		}
-
 		lovelaceFundAmount := 2 * MinUTxODefaultValue
 
 		if err := MintToken(ec, minterWallet, MintNFTTokenName, 1); err != nil {
@@ -651,7 +645,6 @@ func (ec *TestCardanoChain) RegisterChain(validator *TestApexValidator) error {
 func (ec *TestCardanoChain) GenerateChainConfigs(
 	indx int,
 	validator *TestApexValidator,
-	tokens []sendtx.TokenExchangeConfig,
 ) error {
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
@@ -669,22 +662,10 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		"--output-relayer-file-name", RelayerConfigFileName,
 		"--dbs-path", dbsPath,
 		"--min-fee-for-bridging", fmt.Sprint(ec.config.DefaultMinBridgingFee),
+		"--min-operation-fee", fmt.Sprint(ec.config.MinOperationFee),
 	}
 
-	containsMintableTokens := false
-
-	for _, token := range tokens {
-		args = append(args,
-			"--native-token-name", token.TokenName,
-			"--native-token-destination-chain-id", token.DstChainID,
-		)
-
-		if token.Mint {
-			containsMintableTokens = true
-		}
-	}
-
-	if containsMintableTokens {
+	if ec.config.CustodialNFT != nil {
 		scriptInfo := ec.GetCardanoScriptInfo()
 		custodialNFT := ec.GetCustodialNFT()
 
@@ -701,10 +682,6 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 	if relayerAddr != "" {
 		args = append(args, "--relayer-address", relayerAddr)
 		args = append(args, "--relayer-data-dir", validator.GetRelayerDataDir())
-	}
-
-	for _, direction := range ec.config.AllowedDirections {
-		args = append(args, "--allowed-directions", direction)
 	}
 
 	if ec.config.TTLInc > 0 {
@@ -780,11 +757,16 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 	return balanceTransformed, nil
 }
 
-func (ec *TestCardanoChain) GetMintableTokens() []infrawallet.Token {
-	tokens := make([]infrawallet.Token, len(ec.config.MintableTokens))
+func (ec *TestCardanoChain) GetAddressBalanceWithTokenName(
+	ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
+	return ec.GetAddressBalance(ctx, addr)
+}
 
-	for i, tokenName := range ec.config.MintableTokens {
-		tokens[i] = infrawallet.NewToken(ec.GetCardanoScriptInfo().PolicyID, tokenName)
+func (ec *TestCardanoChain) GetMintableTokens() map[uint16]string {
+	tokens := make(map[uint16]string, len(ec.config.MintableTokens))
+
+	for id, tokenName := range ec.config.MintableTokens {
+		tokens[id] = infrawallet.NewToken(ec.GetCardanoScriptInfo().PolicyID, tokenName).String()
 	}
 
 	return tokens
@@ -852,10 +834,10 @@ func (ec *TestCardanoChain) BridgingRequest(
 	ctx context.Context,
 	dstChainID ChainID,
 	privateKey string,
-	receiversMap map[string]*big.Int,
+	receiversMap map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
-	bridgingTypes ...sendtx.BridgingType,
+	isCurrency bool,
 ) (string, error) {
 	wallets, policyScript, senderAddr, err := FromCardanoPrivateKeyString(
 		privateKey, ec.config.NetworkType, ec.config.NetworkMagic)
@@ -865,20 +847,15 @@ func (ec *TestCardanoChain) BridgingRequest(
 
 	receivers := make([]sendtx.BridgingTxReceiver, 0, len(receiversMap))
 
-	bridgingType := sendtx.BridgingTypeNormal
-	if len(bridgingTypes) > 0 {
-		bridgingType = bridgingTypes[0]
-	}
-
 	for receiverAddress, receiverAmount := range receiversMap {
 		receivers = append(receivers, sendtx.BridgingTxReceiver{
-			Addr:         receiverAddress,
-			Amount:       DfmToChainNativeTokenAmount(ec.ChainID(), receiverAmount).Uint64(),
-			BridgingType: bridgingType,
+			Addr:    receiverAddress,
+			Amount:  DfmToChainNativeTokenAmount(ec.ChainID(), receiverAmount.Amount).Uint64(),
+			TokenID: receiverAmount.TokenID,
 		})
 	}
 
-	multisigAddr, err := ec.GetAddressToBridgeTo(ctx, bridgingType)
+	multisigAddr, err := ec.GetAddressToBridgeTo(ctx, !isCurrency)
 	if err != nil {
 		return "", err
 	}
@@ -908,14 +885,14 @@ func (ec *TestCardanoChain) BridgingRequest(
 
 func (ec *TestCardanoChain) GetAddressToBridgeTo(
 	ctx context.Context,
-	bridgingType sendtx.BridgingType,
+	hasTokens bool,
 ) (string, error) {
 	txProvider, err := ec.GetTxProvider()
 	if err != nil {
 		return "", err
 	}
 
-	if len(ec.multisigAddr) == 1 || bridgingType == sendtx.BridgingTypeNativeTokenOnSource {
+	if len(ec.multisigAddr) == 1 || hasTokens {
 		return ec.multisigAddr[0], nil
 	}
 

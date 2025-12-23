@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"math/big"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 
@@ -31,6 +33,7 @@ const (
 
 	ValidatorComponentsConfigFileName = "vc_config.json"
 	RelayerConfigFileName             = "relayer_config.json"
+	DirectionsConfigFileName          = "directions_config.json"
 )
 
 type CardanoWallet struct {
@@ -68,6 +71,10 @@ func (cv *TestApexValidator) GetValidatorComponentsConfig() string {
 
 func (cv *TestApexValidator) GetRelayerConfig() string {
 	return filepath.Join(cv.GetBridgingConfigsDir(), RelayerConfigFileName)
+}
+
+func (cv *TestApexValidator) GetDirectionsConfig() string {
+	return filepath.Join(cv.GetBridgingConfigsDir(), DirectionsConfigFileName)
 }
 
 func (cv *TestApexValidator) GetRelayerDataDir() string {
@@ -176,6 +183,22 @@ func (cv *TestApexValidator) GenerateConfigs(
 	return common.CreateDirSafe(dbsPath, 0770)
 }
 
+func (cv *TestApexValidator) GenerateDirectionsConfig(directionConfigFile *DirectionConfigFile) error {
+	fileName := path.Join(cv.GetBridgingConfigsDir(), DirectionsConfigFileName)
+
+	json, err := json.Marshal(*directionConfigFile)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(fileName, json, 0600)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (cv *TestApexValidator) GenerateSkylineConfigs(
 	apiPort int,
 	apiKey string,
@@ -215,6 +238,7 @@ func (cv *TestApexValidator) Start(ctx context.Context, runAPI bool) (err error)
 	args := []string{
 		"run-validator-components",
 		"--config", cv.GetValidatorComponentsConfig(),
+		"--direction-config", cv.GetDirectionsConfig(),
 	}
 
 	if runAPI {

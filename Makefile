@@ -104,12 +104,12 @@ test-e2e-skyline-bridge-mba: check-go
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
 	go test -v -timeout=7h ./e2e-polybft/e2e/... -run 'SkylineBridgeMBA_'
 
-.PHONY: test-e2e-skyline-bridge-mint
-test-e2e-skyline-bridge-mint: check-go check-npm
+.PHONY: test-e2e-skyline-bridge-cc
+test-e2e-skyline-bridge-cc: check-go check-npm
 	go build -o artifacts/blade .
 	cd cardano-smart-contracts/ && npm i && cd ..
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
-	go test -v -timeout=7h ./e2e-polybft/e2e/... -run 'SkylineBridgeMint_'
+	go test -v -timeout=7h ./e2e-polybft/e2e/... -run 'SkylineBridgeCC_'
 
 .PHONY: test-e2e-refund-apex-bridge
 test-e2e-refund-apex-bridge: check-go
@@ -120,6 +120,7 @@ test-e2e-refund-apex-bridge: check-go
 .PHONY: test-e2e-refund-skyline-bridge
 test-e2e-refund-skyline-bridge: check-go
 	go build -o artifacts/blade .
+	cd cardano-smart-contracts/ && npm i && cd ..
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
 	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "SkylineRefund"
 
@@ -250,7 +251,7 @@ help:
 	@printf "  %-35s - %s\n" "test-e2e-apex-bridge" "Run end-to-end tests for Apex Bridge"
 	@printf "  %-35s - %s\n" "test-e2e-skyline-bridge" "Run end-to-end tests for Skyline Bridge"
 	@printf "  %-35s - %s\n" "test-e2e-skyline-bridge-mba" "Run end-to-end tests for Skyline Bridge MBA (Multiple Bridging Addresses)"
-	@printf "  %-35s - %s\n" "test-e2e-skyline-bridge-mint" "Run end-to-end tests for Skyline Bridge Mint (Minting Sc)"
+	@printf "  %-35s - %s\n" "test-e2e-skyline-bridge-cc" "Run end-to-end tests for Skyline Bridge Colored coins"
 	@printf "  %-35s - %s\n" "test-e2e-refund-apex-bridge" "Run end-to-end Refund tests for Apex Bridge"
 	@printf "  %-35s - %s\n" "fund-testnet-e2e-apex-bridge" "Fund wallets for end-to-end tests for Apex Bridge Testnet"
 	@printf "  %-35s - %s\n" "defund-testnet-e2e-apex-bridge" "Defund wallets for end-to-end tests for Apex Bridge Testnet"
