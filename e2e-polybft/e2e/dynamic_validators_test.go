@@ -1122,7 +1122,7 @@ func TestE2E_DynamicValidators_AddValidatorSyncFromStart(t *testing.T) {
 		return multisig == vectorConfig.FundAmount && fee == vectorConfig.FundFeeAmount
 	}))
 
-	newValidatorSrv.Stop(true)
+	require.NoError(t, newValidatorSrv.Stop(true))
 
 	PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances)
 

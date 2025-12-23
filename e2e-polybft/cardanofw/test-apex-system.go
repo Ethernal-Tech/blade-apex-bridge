@@ -272,7 +272,6 @@ func (a *ApexSystem) AddNewValidator(t *testing.T, ctx context.Context, bladeNod
 		require.NoError(t, chain.CreateWallets(validator))
 		require.NoError(t, chain.CreateAddresses(a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr()))
 	}
-
 }
 
 func (a *ApexSystem) StartValidator(t *testing.T, ctx context.Context, bladeNode *framework.TestServer) {
