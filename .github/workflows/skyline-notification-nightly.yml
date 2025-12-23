@@ -39,8 +39,8 @@ on: # yamllint disable-line rule:truthy
         description: E2E Skyline MBA Tests output
         type: string
         required: true
-      e2e_skyline_mint_test_output:
-        description: E2E Skyline Mint Tests output
+      e2e_skyline_cc_test_output:
+        description: E2E Skyline CC Tests output
         type: string
         required: true
       e2e_refund_test_output:
@@ -162,7 +162,7 @@ jobs:
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "${{ inputs.e2e_skyline_mint_test_output == '' && env.succeed_job || env.failed_job }} *E2E Skyline Mint Tests*"
+                      "text": "${{ inputs.e2e_skyline_cc_test_output == '' && env.succeed_job || env.failed_job }} *E2E Skyline CC Tests*"
                     }
                   ]
                 }
