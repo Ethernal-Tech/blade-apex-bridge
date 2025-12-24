@@ -1157,7 +1157,6 @@ func TestE2E_DynamicValidators_AddValidatorSyncFromStart(t *testing.T) {
 	require.NoError(t, newValidatorSrv.Start())
 	time.Sleep(90 * time.Second)
 	require.NoError(t, newValidator.Start(ctx, false))
-	time.Sleep(30 * time.Second)
 
 	checkValidatorActive(t, newValidatorAcc.Address(), relayer, true)
 	// check stake amount to be equal to staked amount on the 1st validator
@@ -1173,7 +1172,7 @@ func TestE2E_DynamicValidators_AddValidatorSyncFromStart(t *testing.T) {
 	// restart all validators except the one with index 1
 	require.NoError(t, apex.RestartBridges(ctx, 1))
 
-	time.Sleep(1 * time.Minute)
+	time.Sleep(20 * time.Second)
 	// check if bridging is working with the new validator added without validator with index 1
 	executeBridging()
 }
