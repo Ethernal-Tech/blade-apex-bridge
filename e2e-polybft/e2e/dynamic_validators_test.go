@@ -1151,8 +1151,11 @@ func TestE2E_DynamicValidators_AddValidatorSyncFromStart(t *testing.T) {
 
 	t.Log("Finished VSC")
 
+	// The blade must start first because its synchronization lags behind;
+	// multisig addresses must be updated before the Cardano indexers
+	// process the corresponding blocks.
 	require.NoError(t, newValidatorSrv.Start())
-	time.Sleep(120 * time.Second)
+	time.Sleep(90 * time.Second)
 	require.NoError(t, newValidator.Start(ctx, false))
 	time.Sleep(30 * time.Second)
 
