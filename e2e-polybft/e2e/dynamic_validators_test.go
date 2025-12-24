@@ -99,7 +99,7 @@ func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	// generate for non validator
-	apex.AddNewValidator(t, ctx, newValidatorSrv).Start(ctx, false)
+	require.NoError(t, apex.AddNewValidator(t, ctx, newValidatorSrv).Start(ctx, false))
 
 	primeKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "prime")
 	vectorKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "vector")
@@ -363,7 +363,7 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	// generate for non validator
-	apex.AddNewValidator(t, ctx, newValidatorSrv).Start(ctx, false)
+	require.NoError(t, apex.AddNewValidator(t, ctx, newValidatorSrv).Start(ctx, false))
 
 	primeKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "prime")
 	vectorKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "vector")
@@ -924,7 +924,7 @@ func TestE2E_DynamicValidators_AddRemoveAndRemoveValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	// generate for non validator
-	apex.AddNewValidator(t, ctx, newValidatorSrv).Start(ctx, false)
+	require.NoError(t, apex.AddNewValidator(t, ctx, newValidatorSrv).Start(ctx, false))
 
 	primeKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "prime")
 	vectorKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "vector")
