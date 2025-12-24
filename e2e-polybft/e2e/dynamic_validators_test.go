@@ -1152,8 +1152,8 @@ func TestE2E_DynamicValidators_AddValidatorSyncFromStart(t *testing.T) {
 	t.Log("Finished VSC")
 
 	require.NoError(t, newValidatorSrv.Start())
+	time.Sleep(120 * time.Second)
 	require.NoError(t, newValidator.Start(ctx, false))
-
 	time.Sleep(30 * time.Second)
 
 	checkValidatorActive(t, newValidatorAcc.Address(), relayer, true)
