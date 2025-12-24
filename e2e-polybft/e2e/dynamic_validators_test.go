@@ -99,20 +99,10 @@ func TestE2E_DynamicValidators_AddValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	// generate for non validator
-	apex.GenerateForNonValidator(t, ctx, newValidatorSrv)
+	apex.AddNewValidator(t, ctx, newValidatorSrv).Start(ctx, false)
 
 	primeKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "prime")
 	vectorKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "vector")
-
-	keysToStr := func(chain string, keys *cardanofw.CardanoWallet) string {
-		return fmt.Sprintf("%s:%s:%s:%s:%s",
-			chain,
-			addressToHex(keys.Multisig.VerificationKey),
-			addressToHex(keys.MultisigFee.VerificationKey),
-			addressToHex(keys.Multisig.StakeVerificationKey),
-			addressToHex(keys.MultisigFee.StakeVerificationKey),
-		)
-	}
 
 	executeValidatorChangeProposal(t, ctx, relayer, proposerAcc, []*addedValidator{
 		{
@@ -373,20 +363,10 @@ func TestE2E_DynamicValidators_AddAndRemoveValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	// generate for non validator
-	apex.GenerateForNonValidator(t, ctx, newValidatorSrv)
+	apex.AddNewValidator(t, ctx, newValidatorSrv).Start(ctx, false)
 
 	primeKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "prime")
 	vectorKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "vector")
-
-	keysToStr := func(chain string, keys *cardanofw.CardanoWallet) string {
-		return fmt.Sprintf("%s:%s:%s:%s:%s",
-			chain,
-			addressToHex(keys.Multisig.VerificationKey),
-			addressToHex(keys.MultisigFee.VerificationKey),
-			addressToHex(keys.Multisig.StakeVerificationKey),
-			addressToHex(keys.MultisigFee.StakeVerificationKey),
-		)
-	}
 
 	// wait some time until funding is processed and last observed slot updated on Bridge SC
 	<-time.After(time.Minute)
@@ -944,20 +924,10 @@ func TestE2E_DynamicValidators_AddRemoveAndRemoveValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	// generate for non validator
-	apex.GenerateForNonValidator(t, ctx, newValidatorSrv)
+	apex.AddNewValidator(t, ctx, newValidatorSrv).Start(ctx, false)
 
 	primeKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "prime")
 	vectorKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "vector")
-
-	keysToStr := func(chain string, keys *cardanofw.CardanoWallet) string {
-		return fmt.Sprintf("%s:%s:%s:%s:%s",
-			chain,
-			addressToHex(keys.Multisig.VerificationKey),
-			addressToHex(keys.MultisigFee.VerificationKey),
-			addressToHex(keys.Multisig.StakeVerificationKey),
-			addressToHex(keys.MultisigFee.StakeVerificationKey),
-		)
-	}
 
 	// wait some time until funding is processed and last observed slot updated on Bridge SC
 	<-time.After(time.Minute)
@@ -1093,6 +1063,7 @@ func TestE2E_DynamicValidators_AddValidatorSyncFromStart(t *testing.T) {
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithAPIValidatorID(-1),
+		cardanofw.WithValidators(4),
 		cardanofw.WithNonValidators(1),
 		cardanofw.WithNexusEnabled(true),
 	)
@@ -1104,11 +1075,6 @@ func TestE2E_DynamicValidators_AddValidatorSyncFromStart(t *testing.T) {
 	newValidatorSrv := cluster.Servers[4]
 
 	t.Log("Cluster started")
-
-	const (
-		sequentialInstances = 4
-		parallelInstances   = 6
-	)
 
 	require.NoError(t, cluster.WaitUntil(3*time.Minute, 2*time.Second, func() bool {
 		multisig, fee := getMultisigAndFeeAmount(t, ctx, apex, apiKey, cardanofw.ChainIDPrime)
@@ -1124,9 +1090,22 @@ func TestE2E_DynamicValidators_AddValidatorSyncFromStart(t *testing.T) {
 
 	require.NoError(t, newValidatorSrv.Stop(true))
 
-	PrimeToVectorSequentialAndParallelWithMaxReceivers(t, ctx, apex, sequentialInstances, parallelInstances)
+	executeBridging := func() {
+		t.Helper()
 
-	sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+		e2ehelper.ExecuteBridging(t, ctx, apex, 1,
+			apex.Users[:1],
+			apex.Users[1:2],
+			[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
+			map[string][]string{
+				cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
+				cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
+				cardanofw.ChainIDNexus:  {cardanofw.ChainIDPrime},
+			},
+			cardanofw.WeiToDfm(ethgo.Ether(1)))
+	}
+
+	executeBridging()
 
 	proposer := cluster.Servers[0]
 
@@ -1143,20 +1122,10 @@ func TestE2E_DynamicValidators_AddValidatorSyncFromStart(t *testing.T) {
 	require.NoError(t, err)
 
 	// generate for non validator
-	apex.AddNewValidator(t, ctx, newValidatorSrv)
+	newValidator := apex.AddNewValidator(t, ctx, newValidatorSrv)
 
 	primeKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "prime")
 	vectorKeys := getMultisigAndFeeFromDataDir(t, newValidatorSrv.DataDir(), "vector")
-
-	keysToStr := func(chain string, keys *cardanofw.CardanoWallet) string {
-		return fmt.Sprintf("%s:%s:%s:%s:%s",
-			chain,
-			addressToHex(keys.Multisig.VerificationKey),
-			addressToHex(keys.MultisigFee.VerificationKey),
-			addressToHex(keys.Multisig.StakeVerificationKey),
-			addressToHex(keys.MultisigFee.StakeVerificationKey),
-		)
-	}
 
 	executeValidatorChangeProposal(t, ctx, relayer, proposerAcc, []*addedValidator{
 		{
@@ -1177,14 +1146,15 @@ func TestE2E_DynamicValidators_AddValidatorSyncFromStart(t *testing.T) {
 
 	require.NoError(t, cluster.WaitForBlock(currentBlock+10, time.Minute))
 
-	require.NoError(t, newValidatorSrv.Start())
-
-	apex.StartValidator(t, ctx, newValidatorSrv)
-
 	// wait for validator set change to finish
 	waitUntilValidatorSetUpdateIsFinished(t, cluster, relayer, 5*time.Minute, 10*time.Second)
 
 	t.Log("Finished VSC")
+
+	require.NoError(t, newValidatorSrv.Start())
+	require.NoError(t, newValidator.Start(ctx, false))
+
+	time.Sleep(30 * time.Second)
 
 	checkValidatorActive(t, newValidatorAcc.Address(), relayer, true)
 	// check stake amount to be equal to staked amount on the 1st validator
@@ -1194,24 +1164,15 @@ func TestE2E_DynamicValidators_AddValidatorSyncFromStart(t *testing.T) {
 
 	require.NoError(t, apex.UpdateConfigs())
 
-	// stop one of validators to check if new validator participates in voting
+	// stop blade node for validator with index 1
 	require.NoError(t, cluster.Servers[1].Stop())
 
-	// restart validators
+	// restart all validators except the one with index 1
 	require.NoError(t, apex.RestartBridges(ctx, 1))
 
 	time.Sleep(1 * time.Minute)
-
-	e2ehelper.ExecuteBridging(t, ctx, apex, 1,
-		apex.Users[:1],
-		apex.Users[1:2],
-		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
-		map[string][]string{
-			cardanofw.ChainIDPrime:  {cardanofw.ChainIDVector, cardanofw.ChainIDNexus},
-			cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
-			cardanofw.ChainIDNexus:  {cardanofw.ChainIDPrime},
-		},
-		sendAmountDfm)
+	// check if bridging is working with the new validator added without validator with index 1
+	executeBridging()
 }
 
 func addressToHex(address []byte) string {
@@ -1488,4 +1449,14 @@ func waitUntilValidatorSetUpdateIsFinished(
 
 		return num == 0
 	}))
+}
+
+func keysToStr(chain string, keys *cardanofw.CardanoWallet) string {
+	return fmt.Sprintf("%s:%s:%s:%s:%s",
+		chain,
+		addressToHex(keys.Multisig.VerificationKey),
+		addressToHex(keys.MultisigFee.VerificationKey),
+		addressToHex(keys.Multisig.StakeVerificationKey),
+		addressToHex(keys.MultisigFee.StakeVerificationKey),
+	)
 }

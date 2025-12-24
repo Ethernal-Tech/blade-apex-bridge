@@ -243,7 +243,7 @@ func (a *ApexSystem) GetBridgeNode(t *testing.T, idx int) *framework.TestServer 
 	return a.BridgeCluster.Servers[idx]
 }
 
-func (a *ApexSystem) GenerateForNonValidator(t *testing.T, ctx context.Context, bladeNode *framework.TestServer) {
+func (a *ApexSystem) AddNewValidator(t *testing.T, ctx context.Context, bladeNode *framework.TestServer) *TestApexValidator {
 	t.Helper()
 
 	idx := len(a.validators)
@@ -257,34 +257,8 @@ func (a *ApexSystem) GenerateForNonValidator(t *testing.T, ctx context.Context, 
 	}
 
 	require.NoError(t, a.generateConfigForValidator(idx))
-	require.NoError(t, validator.Start(ctx, false))
-}
 
-func (a *ApexSystem) AddNewValidator(t *testing.T, ctx context.Context, bladeNode *framework.TestServer) {
-	t.Helper()
-
-	idx := len(a.validators)
-	validator := NewTestApexValidator(a.dataDirPath, idx+1, bladeNode)
-
-	a.validators = append(a.validators, validator)
-
-	for _, chain := range a.chains {
-		require.NoError(t, chain.CreateWallets(validator))
-		require.NoError(t, chain.CreateAddresses(a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr()))
-	}
-}
-
-func (a *ApexSystem) StartValidator(t *testing.T, ctx context.Context, bladeNode *framework.TestServer) {
-	t.Helper()
-
-	idx := len(a.validators)
-
-	validator := a.validators[idx-1]
-
-	validator.server = bladeNode
-
-	require.NoError(t, a.generateConfigForValidator(idx-1))
-	require.NoError(t, validator.Start(ctx, false))
+	return validator
 }
 
 func (a *ApexSystem) CreateWallets() (err error) {
