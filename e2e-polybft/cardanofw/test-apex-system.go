@@ -243,7 +243,9 @@ func (a *ApexSystem) GetBridgeNode(t *testing.T, idx int) *framework.TestServer 
 	return a.BridgeCluster.Servers[idx]
 }
 
-func (a *ApexSystem) GenerateForNonValidator(t *testing.T, ctx context.Context, bladeNode *framework.TestServer) {
+func (a *ApexSystem) AddNewValidator(
+	t *testing.T, ctx context.Context, bladeNode *framework.TestServer,
+) *TestApexValidator {
 	t.Helper()
 
 	idx := len(a.validators)
@@ -257,7 +259,8 @@ func (a *ApexSystem) GenerateForNonValidator(t *testing.T, ctx context.Context, 
 	}
 
 	require.NoError(t, a.generateConfigForValidator(idx))
-	require.NoError(t, validator.Start(ctx, false))
+
+	return validator
 }
 
 func (a *ApexSystem) CreateWallets() (err error) {
