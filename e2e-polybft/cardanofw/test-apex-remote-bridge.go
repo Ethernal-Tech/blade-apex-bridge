@@ -446,7 +446,12 @@ func SetupRemoteApexBridge(
 	enabledChains = append(enabledChains, nexusChain)
 
 	usersData, err := GetTestnetApexUsers(
-		NewApexNetworkTypes(apexConfig.PrimeConfig, apexConfig.VectorConfig, nil, apexConfig.NexusConfig))
+		NewApexNetworkTypes(ApexNetworkTypesParams{
+			PrimeConfig:  apexConfig.PrimeConfig,
+			VectorConfig: apexConfig.VectorConfig,
+			NexusConfig:  apexConfig.NexusConfig,
+		}),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -536,8 +541,14 @@ func SetupSkylineRemoteBridge(
 	}
 
 	usersData, err := GetTestnetApexUsers(
-		NewApexNetworkTypes(
-			apexConfig.PrimeConfig, apexConfig.VectorConfig, apexConfig.CardanoConfig, apexConfig.NexusConfig))
+		NewApexNetworkTypes(ApexNetworkTypesParams{
+			PrimeConfig:   apexConfig.PrimeConfig,
+			VectorConfig:  apexConfig.VectorConfig,
+			CardanoConfig: apexConfig.CardanoConfig,
+			NexusConfig:   apexConfig.NexusConfig,
+			PolygonConfig: apexConfig.PolygonConfig,
+		}),
+	)
 	if err != nil {
 		return nil, err
 	}

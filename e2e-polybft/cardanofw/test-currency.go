@@ -8,7 +8,7 @@ const (
 )
 
 func DfmToChainNativeTokenAmount(chainID string, dfmAmount *big.Int) *big.Int {
-	if chainID == ChainIDNexus {
+	if chainID == ChainIDNexus || chainID == ChainIDPolygon {
 		return DfmToWei(dfmAmount)
 	}
 
@@ -16,7 +16,7 @@ func DfmToChainNativeTokenAmount(chainID string, dfmAmount *big.Int) *big.Int {
 }
 
 func ChainNativeTokenAmountToDfm(chainID string, nativeTokenAmount *big.Int) *big.Int {
-	if chainID == ChainIDNexus {
+	if chainID == ChainIDNexus || chainID == ChainIDPolygon {
 		return WeiToDfm(nativeTokenAmount)
 	}
 

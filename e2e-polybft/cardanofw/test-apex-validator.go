@@ -258,10 +258,10 @@ func (cv *TestApexValidator) Stop() error {
 	return cv.node.Stop()
 }
 
-func (cv *TestApexValidator) createEvmSpecificWallet(walletType string) error {
+func (cv *TestApexValidator) createEvmSpecificWallet(chainID, walletType string) error {
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"wallet-create",
-		"--chain", ChainIDNexus,
+		"--chain", chainID,
 		"--validator-data-dir", cv.server.DataDir(),
 		"--type", walletType,
 	}, os.Stdout)
@@ -286,13 +286,13 @@ func (cv *TestApexValidator) getEvmBatcherWallet() (*bn256.PrivateKey, error) {
 	return bn256, nil
 }
 
-func (cv *TestApexValidator) getEvmRelayerWallet() (*crypto.ECDSAKey, error) {
+func (cv *TestApexValidator) getEvmRelayerWallet(chainID string) (*crypto.ECDSAKey, error) {
 	secretsMngr, err := cv.getSecretsManager(cv.server.DataDir())
 	if err != nil {
 		return nil, fmt.Errorf("failed to load wallet: %w", err)
 	}
 
-	keyName := fmt.Sprintf("%s%s_%s", secretsCardano.OtherKeyLocalPrefix, ChainIDNexus, "relayer_evm_key")
+	keyName := fmt.Sprintf("%s%s_%s", secretsCardano.OtherKeyLocalPrefix, chainID, "relayer_evm_key")
 
 	strBytes, err := secretsMngr.GetSecret(keyName)
 	if err != nil {
