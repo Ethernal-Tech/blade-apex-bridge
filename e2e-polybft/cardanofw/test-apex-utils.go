@@ -572,6 +572,8 @@ func ChainIDToInt(chainID string) uint8 {
 		return 3
 	case ChainIDCardano:
 		return 4
+	case ChainIDPolygon:
+		return 5
 	default:
 		return 0
 	}
@@ -605,8 +607,9 @@ func GetUsersBalances(
 					},
 				)
 
-				if chain == ChainIDNexus {
-					for _, token := range apex.NexusInfo.Tokens {
+				if chain == ChainIDNexus || chain == ChainIDPolygon {
+					chainInfo := apex.GetEvmInfo(chain)
+					for _, token := range chainInfo.Tokens {
 						if token.ChainSpecific == wallet.AdaTokenName {
 							continue
 						}
