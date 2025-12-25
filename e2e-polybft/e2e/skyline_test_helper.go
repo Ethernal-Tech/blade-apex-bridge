@@ -315,3 +315,42 @@ func executeInvalidNexusBridgingRequest(
 
 	return err
 }
+
+func validateTreasuryAddressAmount(t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, chainID cardanofw.ChainID,
+	chainConfigs map[string]*cardanofw.TestCardanoChainConfig, treasuryBalancesBefore map[string]uint64,
+	txCountPerSender, senderUsersCount uint64,
+) {
+	t.Helper()
+
+	chainConfig := chainConfigs[chainID]
+	treasuryBalance, err := apex.GetChainMust(
+		t, chainConfig.ChainType).GetAddressBalance(ctx, chainConfig.TreasuryAddress)
+	require.NoError(t, err)
+
+	require.Equal(t,
+		treasuryBalancesBefore[chainID]+senderUsersCount*txCountPerSender*chainConfig.MinOperationFee,
+		treasuryBalance[wallet.AdaTokenName].Uint64())
+}
+
+func getTreasuryAmountForChains(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
+	chainConfigs map[string]*cardanofw.TestCardanoChainConfig,
+) (treasuryAmountLovelace map[string]uint64) {
+	t.Helper()
+
+	treasuryAmountLovelace = make(map[string]uint64)
+
+	for chain, config := range chainConfigs {
+		treasuryBalance, err := apex.GetChainMust(
+			t, config.ChainType).GetAddressBalance(ctx, config.TreasuryAddress)
+		require.NoError(t, err)
+
+		if balance, exists := treasuryBalance[wallet.AdaTokenName]; exists {
+			treasuryAmountLovelace[chain] = balance.Uint64()
+		} else {
+			treasuryAmountLovelace[chain] = 0
+		}
+	}
+
+	return treasuryAmountLovelace
+}

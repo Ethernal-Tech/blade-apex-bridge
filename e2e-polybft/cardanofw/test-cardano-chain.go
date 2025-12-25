@@ -35,6 +35,10 @@ const (
 	defaultNativeTokenAmount = uint64(0)
 
 	cardanoSmartContractDir = "cardano-smart-contracts"
+
+	defaultCardanoTreasuryAddress = "addr_test1wrphkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtcl6szpr"
+	defaultPrimeTreasuryAddress   = "addr_test1vqeux7xwusdju9dvsj8h7mca9aup2k439kfmwy773xxc2hcu7zy99"
+	defaultVectorTreasuryAddress  = "addr_test1vq6xsx99frfepnsjuhzac48vl9s2lc9awkvfknkgs89srqqslj660"
 )
 
 type TestCardanoChainConfig struct {
@@ -61,6 +65,7 @@ type TestCardanoChainConfig struct {
 	DefaultMinBridgingFee       uint64
 	MinBridgingFeeForTokens     uint64
 	MinOperationFee             uint64
+	TreasuryAddress             string
 	BridgeAddrHasStake          bool
 	BridgingAddressCnt          int
 	UseIndexer                  bool
@@ -98,6 +103,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		DefaultMinBridgingFee:       defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens:     defaultMinBridgingFeeAmountForTokens,
 		MinOperationFee:             uint64(0),
+		TreasuryAddress:             defaultPrimeTreasuryAddress,
 		BridgeAddrHasStake:          true,
 		BridgingAddressCnt:          1,
 	}
@@ -123,6 +129,7 @@ func NewVectorChainConfig(mintableTokens ...map[uint16]string) *TestCardanoChain
 		DefaultMinBridgingFee:       defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens:     defaultMinBridgingFeeAmountForTokens,
 		MinOperationFee:             uint64(0),
+		TreasuryAddress:             defaultVectorTreasuryAddress,
 		BridgingAddressCnt:          1,
 	}
 
@@ -153,6 +160,7 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		DefaultMinBridgingFee:       defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens:     defaultMinBridgingFeeAmountForTokens,
 		MinOperationFee:             DefaultMinOperationFee,
+		TreasuryAddress:             defaultCardanoTreasuryAddress,
 		BridgingAddressCnt:          1,
 	}
 }
@@ -697,6 +705,10 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		args = append(args, "--min-fee-for-bridging-tokens", fmt.Sprint(ec.config.MinBridgingFeeForTokens))
 	}
 
+	if ec.config.TreasuryAddress != "" {
+		args = append(args, "--treasury-address", ec.config.TreasuryAddress)
+	}
+
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
 }
 
@@ -1035,12 +1047,13 @@ func (ec *TestCardanoChain) getChainInfo(t *testing.T) CardanoChainInfo {
 	require.NoError(t, err)
 
 	return CardanoChainInfo{
-		NetworkAddress: ec.cluster.Servers[0].NetworkAddress(),
-		OgmiosURL:      ec.ogmiosURL,
-		MultisigAddr:   ec.multisigAddr,
-		FeeAddr:        ec.multisigFeeAddr,
-		SocketPath:     ec.cluster.OgmiosServer.SocketPath(),
-		GenesisWallet:  genesisWallet,
+		NetworkAddress:  ec.cluster.Servers[0].NetworkAddress(),
+		OgmiosURL:       ec.ogmiosURL,
+		MultisigAddr:    ec.multisigAddr,
+		FeeAddr:         ec.multisigFeeAddr,
+		SocketPath:      ec.cluster.OgmiosServer.SocketPath(),
+		GenesisWallet:   genesisWallet,
+		TreasuryAddress: ec.config.TreasuryAddress,
 	}
 }
 

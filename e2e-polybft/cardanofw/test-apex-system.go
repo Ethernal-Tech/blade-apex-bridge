@@ -23,6 +23,7 @@ import (
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	wallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,6 +40,7 @@ type CardanoChainInfo struct {
 	BlockfrostAPIKey string
 	MultisigAddr     []string
 	FeeAddr          string
+	TreasuryAddress  string
 	SocketPath       string
 
 	// Bridging directions
@@ -810,6 +812,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinFeeForBridgingTokens:  a.Config.PrimeConfig.MinBridgingFeeForTokens,
 			MinOperationFeeAmount:    a.Config.PrimeConfig.MinOperationFee,
 			PotentialFee:             PotentialFee,
+			TreasuryAddress:          a.Config.PrimeConfig.TreasuryAddress,
 			Tokens:                   primeTokens,
 		},
 	}
@@ -832,6 +835,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			DefaultMinFeeForBridging: a.Config.VectorConfig.DefaultMinBridgingFee,
 			MinFeeForBridgingTokens:  a.Config.VectorConfig.MinBridgingFeeForTokens,
 			PotentialFee:             PotentialFee,
+			TreasuryAddress:          a.Config.VectorConfig.TreasuryAddress,
 			Tokens:                   vectorTokens,
 		}
 	}
@@ -855,6 +859,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinFeeForBridgingTokens:  a.Config.CardanoConfig.MinBridgingFeeForTokens,
 			MinOperationFeeAmount:    a.Config.CardanoConfig.MinOperationFee,
 			Tokens:                   cardanoTokens,
+			TreasuryAddress:          a.Config.CardanoConfig.TreasuryAddress,
 			PotentialFee:             PotentialFee,
 		}
 	}
@@ -1349,6 +1354,33 @@ func (a *ApexSystem) GetBalance(
 	}
 
 	return balance, err
+}
+
+func (a *ApexSystem) GetTreasuryAddressBalance(ctx context.Context, t *testing.T, chainID ChainID) (*big.Int, error) {
+	if chainID == ChainIDNexus {
+		//treasuryAddress := a.GetEvmInfo(chainID).TreasuryAddress
+		return nil, nil
+	} else {
+		treasuryAddress := a.GetCardanoInfo(chainID).TreasuryAddress
+		chain := a.GetChainMust(t, chainID).(*TestCardanoChain)
+		balance, err := chain.GetAddressBalance(ctx, treasuryAddress)
+		return balance[wallet.AdaTokenName], err
+	}
+}
+
+func (a *ApexSystem) ValidateTreasuryAddressBalance(ctx context.Context, t *testing.T, chainID ChainID, previousBalance *big.Int, numberOfBridgingRequests uint64) error {
+	treasuryBalance, err := a.GetTreasuryAddressBalance(ctx, t, chainID)
+	if err != nil {
+		return err
+	}
+
+	expectedBalance := previousBalance.Add(previousBalance, new(big.Int).Mul(new(big.Int).SetUint64(numberOfBridgingRequests), new(big.Int).SetUint64(a.GetMinOperationFee(chainID))))
+
+	if treasuryBalance.Cmp(expectedBalance) != 0 {
+		return fmt.Errorf("treasury address balance mismatch: expected %s, but received %s", expectedBalance, treasuryBalance)
+	}
+
+	return nil
 }
 
 func (a *ApexSystem) GetBalanceWithTokenName(

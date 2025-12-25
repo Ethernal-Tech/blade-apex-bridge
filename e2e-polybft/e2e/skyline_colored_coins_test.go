@@ -546,6 +546,8 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 	tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.USDTTokenID)
 	require.NoError(t, err)
 
+	opFee := apex.Config.NexusConfig.MinOperationFee
+
 	//nolint:dupl
 	t.Run("1. Invalid destination in bridging request", func(t *testing.T) {
 		t.Run("1.1. Destination is Nexus", func(t *testing.T) {
@@ -558,7 +560,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 						Amount:  sendAmount,
 					},
 				},
-				operationFee: big.NewInt(0),
+				operationFee: opFee,
 				tokenInfo:    tokenInfo,
 			})
 			require.NoError(t, err)
@@ -574,7 +576,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 						Amount:  sendAmount,
 					},
 				},
-				operationFee: big.NewInt(0),
+				operationFee: opFee,
 				tokenInfo:    tokenInfo,
 			})
 			require.NoError(t, err)
@@ -591,7 +593,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 					Amount:  sendAmount,
 				},
 			},
-			operationFee: big.NewInt(0),
+			operationFee: opFee,
 			tokenInfo:    tokenInfo,
 		})
 		require.NoError(t, err)
@@ -601,7 +603,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
 			dstChainID:   cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
 			sender:       user,
-			operationFee: big.NewInt(0),
+			operationFee: opFee,
 			tokenInfo:    tokenInfo,
 		})
 		require.NoError(t, err)
@@ -620,7 +622,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 			dstChainID:   cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
 			sender:       user,
 			receivers:    receivers,
-			operationFee: big.NewInt(0),
+			operationFee: opFee,
 			tokenInfo:    tokenInfo,
 		})
 		require.NoError(t, err)
@@ -636,7 +638,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 					Amount:  sendAmount,
 				},
 			},
-			operationFee: big.NewInt(0),
+			operationFee: opFee,
 			tokenInfo:    tokenInfo,
 		})
 		require.NoError(t, err)
@@ -668,7 +670,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 					Amount:  sendAmount,
 				},
 			},
-			operationFee: big.NewInt(0),
+			operationFee: opFee,
 			tokenInfo:    tokenInfo,
 		})
 		require.NoError(t, err)
@@ -684,7 +686,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 					Amount:  big.NewInt(0),
 				},
 			},
-			operationFee: big.NewInt(0),
+			operationFee: opFee,
 			tokenInfo:    tokenInfo,
 		})
 		require.Error(t, err)
@@ -705,7 +707,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 					Amount:  big.NewInt(-1),
 				},
 			},
-			operationFee: big.NewInt(0),
+			operationFee: opFee,
 			tokenInfo:    tokenInfo,
 		})
 		require.Error(t, err)
@@ -722,7 +724,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 					Amount:  sendAmount,
 				},
 			},
-			operationFee: big.NewInt(0),
+			operationFee: opFee,
 			tokenInfo:    tokenInfo,
 		}
 
@@ -774,7 +776,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 						Amount:  cardanofw.DfmToWei(big.NewInt(1000000000001)),
 					},
 				},
-				operationFee: big.NewInt(0),
+				operationFee: opFee,
 				tokenInfo:    tokenInfo,
 			})
 			require.NoError(t, err)
@@ -810,7 +812,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 						Amount:  cardanofw.DfmToWei(big.NewInt(1000000000001)),
 					},
 				},
-				operationFee: big.NewInt(0),
+				operationFee: opFee,
 				tokenInfo:    tokenInfo,
 			})
 			require.NoError(t, err)
@@ -829,11 +831,30 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 						Amount:  cardanofw.DfmToWei(big.NewInt(1000000000001)),
 					},
 				},
-				operationFee: big.NewInt(0),
+				operationFee: opFee,
 				tokenInfo:    tokenInfo,
 			})
 			require.NoError(t, err)
 		})
+	})
+
+	t.Run("13. Wrong operation fee", func(t *testing.T) {
+		tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.USDTTokenID)
+		require.NoError(t, err)
+		err = executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			sender:     user,
+			receivers: map[string]cardanofw.ReceiverAmount{
+				user.GetAddress(cardanofw.ChainIDVector): {
+					TokenID: cardanofw.USDTTokenID,
+					Amount:  sendAmount,
+				},
+			},
+			operationFee: new(big.Int).Sub(opFee, big.NewInt(1)),
+			tokenInfo:    tokenInfo,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
 	})
 
 	t.Run("14. Insufficient balance", func(t *testing.T) {
@@ -846,34 +867,12 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 					Amount:  new(big.Int).Mul(sendAmount, big.NewInt(1000000000000000000)),
 				},
 			},
-			operationFee: big.NewInt(0),
+			operationFee: opFee,
 			tokenInfo:    tokenInfo,
 		})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
 	})
-	/*
-		Uncomment when the operation fee is set to != 0 in settings
-		t.Run("13. Wrong operation fee", func(t *testing.T) {
-			tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.USDTTokenID)
-			require.NoError(t, err)
-
-			err = executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
-				dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
-				sender:     user,
-				receivers: map[string]cardanofw.ReceiverAmount{
-					user.GetAddress(cardanofw.ChainIDVector): {
-						TokenID: cardanofw.USDTTokenID,
-						Amount:  validSendAmount,
-					},
-				},
-				operationFee: new(big.Int).Sub(apex.Config.NexusConfig.MinOperationFee, big.NewInt(1)),
-				tokenInfo:    tokenInfo,
-			})
-			require.Error(t, err)
-			require.ErrorContains(t, err, "timeout")
-		})
-	*/
 
 	t.Run("15. Insufficient fee", func(t *testing.T) {
 		tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.USDTTokenID)
@@ -888,7 +887,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 					Amount:  sendAmount,
 				},
 			},
-			operationFee: big.NewInt(0),
+			operationFee: opFee,
 			feeAmount:    big.NewInt(1000000000),
 			tokenInfo:    tokenInfo,
 		})

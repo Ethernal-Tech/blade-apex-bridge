@@ -38,6 +38,11 @@ func ExecuteSingleBridging(
 
 	prevAmount := cardanofw.SetOrDefault(balance[tokensInfo.DstTokenName], big.NewInt(0))
 
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, srcChain)
+	require.NoError(t, err)
+
+	shouldCheckTreasuryBalance := initialTreasuryBalance != nil
+
 	txHash, err := apex.SubmitBridgingRequest(
 		cardanofw.SubmitBridgingRequestData{
 			Context:          ctx,
@@ -60,8 +65,13 @@ func ExecuteSingleBridging(
 
 	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmount,
 		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, tokensInfo.DstTokenName)
-
 	require.NoError(t, err)
+
+	if shouldCheckTreasuryBalance {
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, srcChain, initialTreasuryBalance, 1)
+		require.NoError(t, err)
+		fmt.Printf("Treasury address balance validated\n")
+	}
 }
 
 func ExecuteTokenRedistribution(
