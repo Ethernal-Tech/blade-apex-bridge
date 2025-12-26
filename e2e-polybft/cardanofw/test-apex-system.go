@@ -919,16 +919,18 @@ func (a *ApexSystem) DeployMintingContracts(ctx context.Context) error {
 				case ChainIDCardano, ChainIDPrime, ChainIDVector:
 					chainInfo := a.GetCardanoInfo(chain.ChainID())
 					for tokenID, tokenName := range mintableTokens {
-						token := chainInfo.Tokens[tokenID]
-						token.ChainSpecific = tokenName
-						chainInfo.Tokens[tokenID] = token
+						if token, ok := chainInfo.Tokens[tokenID]; ok {
+							token.ChainSpecific = tokenName
+							chainInfo.Tokens[tokenID] = token
+						}
 					}
 				case ChainIDNexus, ChainIDPolygon:
 					chainInfo := a.GetEvmInfo(chain.ChainID())
 					for tokenID, tokenName := range mintableTokens {
-						token := chainInfo.Tokens[tokenID]
-						token.ChainSpecific = tokenName
-						chainInfo.Tokens[tokenID] = token
+						if token, ok := chainInfo.Tokens[tokenID]; ok {
+							token.ChainSpecific = tokenName
+							chainInfo.Tokens[tokenID] = token
+						}
 					}
 				default:
 					return fmt.Errorf("unimplemented cardano contract setup for chain %s", chain.ChainID())
