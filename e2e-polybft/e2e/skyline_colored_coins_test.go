@@ -65,7 +65,7 @@ func Test_CardanoToNexus(t *testing.T) {
 			[]wallet.TokenAmount{
 				{Token: wallet.Token{PolicyID: apex.NexusInfo.Tokens[cardanofw.USDTTokenID].ChainSpecific}, Amount: 2},
 			},
-			[]byte{})
+			[]byte{}, new(big.Int).SetUint64(0))
 		require.NoError(t, err)
 
 		balance, err = nexusChain.GetAddressBalance(ctx, receiver.GetAddress(cardanofw.ChainIDNexus))
@@ -351,7 +351,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			[]wallet.TokenAmount{
 				{Token: tokensFunded.Token, Amount: sendAmount},
 			},
-			metadata)
+			metadata, new(big.Int).SetUint64(operationFee))
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDVector, txHash, apex.Config.APIKey, 0)

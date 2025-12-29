@@ -34,6 +34,7 @@ type IApexSystem interface {
 	SubmitTx(
 		ctx context.Context, sourceChain cardanofw.ChainID, sender *cardanofw.TestApexUser,
 		receiver string, dfmAmount *big.Int, nativeTokenAmounts []cardanowallet.TokenAmount, data []byte,
+		opFee *big.Int,
 	) (string, error)
 	RedistributeTokens(
 		ctx context.Context, chainID cardanofw.ChainID,

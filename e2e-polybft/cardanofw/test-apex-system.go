@@ -1356,7 +1356,19 @@ func (a *ApexSystem) GetBalance(
 	return balance, err
 }
 
+func (a *ApexSystem) GetTreasuryAddress(chainID ChainID) string {
+	if chainID == ChainIDNexus {
+		return "" //a.GetEvmInfo(chainID).TreasuryAddress
+	}
+
+	return a.GetCardanoInfo(chainID).TreasuryAddress
+}
+
 func (a *ApexSystem) GetTreasuryAddressBalance(ctx context.Context, t *testing.T, chainID ChainID) (*big.Int, error) {
+	if !a.IsSkyline {
+		return nil, nil
+	}
+
 	if chainID == ChainIDNexus {
 		//treasuryAddress := a.GetEvmInfo(chainID).TreasuryAddress
 		return nil, nil
@@ -1364,7 +1376,15 @@ func (a *ApexSystem) GetTreasuryAddressBalance(ctx context.Context, t *testing.T
 		treasuryAddress := a.GetCardanoInfo(chainID).TreasuryAddress
 		chain := a.GetChainMust(t, chainID).(*TestCardanoChain)
 		balance, err := chain.GetAddressBalance(ctx, treasuryAddress)
-		return balance[wallet.AdaTokenName], err
+		if err != nil {
+			return nil, err
+		}
+
+		if balance[wallet.AdaTokenName] == nil {
+			return big.NewInt(0), nil
+		}
+
+		return balance[wallet.AdaTokenName], nil
 	}
 }
 
@@ -1705,7 +1725,7 @@ func (a *ApexSystem) RedistributeTokens(
 
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
-	receiverAddr string, lovelaceDfmAmount *big.Int, nativeTokens []cardanowallet.TokenAmount, data []byte,
+	receiverAddr string, lovelaceDfmAmount *big.Int, nativeTokens []cardanowallet.TokenAmount, data []byte, opFee *big.Int,
 ) (string, error) {
 	const (
 		numRetries = 5
@@ -1728,6 +1748,13 @@ func (a *ApexSystem) SubmitTx(
 			Amount:       DfmToChainNativeTokenAmount(sourceChain, lovelaceDfmAmount),
 			NativeTokens: nativeTokens,
 		},
+	}
+
+	if opFee != nil {
+		receivers = append(receivers, GenericTxReceiver{
+			Addr:   a.GetTreasuryAddress(sourceChain),
+			Amount: opFee,
+		})
 	}
 
 	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {

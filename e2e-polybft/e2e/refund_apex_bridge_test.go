@@ -96,7 +96,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 		txHash, err := apex.SubmitTx(
 			ctx, cardanofw.ChainIDPrime, user,
-			multisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
+			multisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata, nil)
 		require.NoError(t, err)
 
 		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[infrawallet.AdaTokenName], new(big.Int).SetUint64(sendAmount+feeAmount))
@@ -174,7 +174,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, multisigAddr,
-			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata)
+			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata, nil)
 		require.NoError(t, err)
 
 		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[infrawallet.AdaTokenName], new(big.Int).SetUint64(sendAmount+feeAmount))

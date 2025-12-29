@@ -377,8 +377,8 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 		GetPolicyScriptEnterpriseAddress(primeConfig.NetworkMagic, policyScript)
 	require.NoError(t, err)
 
-	// fund multsig addr
-	txHashFund, err := apex.SubmitTx(ctx, srcChain, apex.Users[0], multisigAddr, big.NewInt(10_000_000), nil, nil)
+	//fund multsig addr
+	txHashFund, err := apex.SubmitTx(ctx, srcChain, apex.Users[0], multisigAddr, big.NewInt(10_000_000), nil, nil, nil)
 	require.NoError(t, err)
 
 	fmt.Printf("multsig addr %s funded: %s\n", multisigAddr, txHashFund)
@@ -756,7 +756,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr[0],
-			new(big.Int).SetUint64(sendAmount), nil, metadata)
+			new(big.Int).SetUint64(sendAmount), nil, metadata, nil)
 		require.NoError(t, err)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -868,7 +868,7 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
-			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata)
+			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata, nil)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
@@ -986,7 +986,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
-			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata)
+			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata, nil)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
@@ -1955,7 +1955,7 @@ func sendWithoutWaitInvalidMetadataWrongType(
 	}
 
 	_, err = apex.SubmitTx(ctx, originChainID, sender, multisigAddress, new(big.Int).SetUint64(sendAmount+feeAmount), nil,
-		metadata)
+		metadata, nil)
 	if err != nil {
 		return err
 	}
@@ -2195,7 +2195,7 @@ func submitInvalidSendAmountTransaction(
 	require.NoError(t, err)
 
 	_, err = apex.SubmitTx(ctx, src, senderUser, srcTestChain.GetHotWalletAddresses()[0],
-		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount)), nil, bridgingRequestMetadata)
+		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount)), nil, bridgingRequestMetadata, nil)
 	require.NoError(t, err)
 }
 
@@ -2230,7 +2230,7 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 
 	_, err = apex.SubmitTx(
 		ctx, cardanofw.ChainIDPrime, user,
-		apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
+		apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata, nil)
 	require.Error(t, err)
 }
 

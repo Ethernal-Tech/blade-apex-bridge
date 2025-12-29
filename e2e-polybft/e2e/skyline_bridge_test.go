@@ -721,15 +721,33 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	fmt.Printf("cardano user tokenAmount: %+v\n", cardanoTokenAmount)
 
 	t.Run("1. Mismatch submitted and receiver amounts", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
 		executeInvalidMismatchSendLovelaceAmount(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("2 Multiple submitters mismatch submitted and receiver amounts", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
 		executeInvalidMismatchSendAmountMultipleInstances(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 5)
+		require.NoError(t, err)
 	})
 
 	t.Run("3. Multiple submitters mismatch submitted and receiver amounts parallel", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
 		executeInvalidMismatchSendAmountMultipleInstancesParalel(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 5)
+		require.NoError(t, err)
 	})
 
 	t.Run("4. Invalid receiver vector -> cardano - currency on src", func(t *testing.T) {
@@ -737,7 +755,13 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			t.Skip()
 		}
 
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector)
+		require.NoError(t, err)
+
 		executeInvalidTokenDirection(t, ctx, apex, vectorTestConfig, cardanofw.AP3XTokenID, user, maxWaitTimeSec, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	//nolint:dupl
@@ -776,40 +800,82 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			receivers, feeAmount, operationFee)
 		require.NoError(t, err)
 
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector)
+		require.NoError(t, err)
+
 		txHash, err := apex.SubmitTx(
 			ctx, cardanofw.ChainIDVector, user,
 			apex.VectorInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount+operationFee),
 			[]wallet.TokenAmount{
 				{Token: tokensFunded.Token, Amount: sendAmount},
 			},
-			metadata)
+			metadata, new(big.Int).SetUint64(operationFee))
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDVector, txHash, apex.Config.APIKey, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("6. Submitted invalid metadata - wrong type", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
 		executeInvalidMetadataType(t, ctx, apex, primeTestConfig, user, 60, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("7. Submitted invalid metadata - invalid destination", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
 		executeInvalidDestination(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("8. Submitted invalid metadata - invalid sender", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
 		executeInvalidMetadataInvalidSender(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("9. Submitted invalid metadata - invalid bridging fee", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
 		executeInvalidBridgingFee(t, ctx, apex, primeTestConfig, maxWaitTimeSec, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("10. Submitted invalid metadata - invalid fee receiver address - token on source", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector)
+		require.NoError(t, err)
+
 		executeInvalidFeeReceiverAddr(t, ctx, apex, vectorTestConfig, cardanofw.XADATokenID, 2*60, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("11. Submitted invalid metadata - empty receivers", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
 		executeInvalidEmptyReceivers(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("12. Submitted with unknown tokens to bridging addr", func(t *testing.T) {
@@ -823,7 +889,13 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			uint64(1_500_000), uint64(1_000_000))
 		require.NoError(t, err)
 
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector)
+		require.NoError(t, err)
+
 		executeInvalidSendNativeToken(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("13. Submitted invalid metadata - invalid send amount - token on source", func(t *testing.T) {
@@ -837,26 +909,78 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			uint64(10_000_000), uint64(1_123_000))
 		require.NoError(t, err)
 
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector)
+		require.NoError(t, err)
+
 		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("14.1 Prime -> Cardano - Submitted invalid metadata - invalid destination", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
 		executeInvalidDestination(t, ctx, apex, primeTestConfig, user, maxWaitTimeSec, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("14.2 Cardano -> Prime - Submitted invalid metadata - invalid destination", func(t *testing.T) {
 		cardanoPrimeTestConfig := newTestConfig(
 			t, apex, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDPrime, cardanofw.CAP3XTokenID)
 
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDCardano)
+		require.NoError(t, err)
+
 		executeInvalidDestination(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDCardano, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("14.3 Vector -> Cardano - Submitted invalid metadata - invalid destination", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector)
+		require.NoError(t, err)
+
 		executeInvalidDestination(t, ctx, apex, vectorTestConfig, user, maxWaitTimeSec, retryDelaySec, false, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("15. Submitted invalid metadata - wrong label", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
 		executeInvalidMetadataWrongLabel(t, ctx, apex, user)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 1)
+		require.NoError(t, err)
+	})
+
+	t.Run("16. Bridging request without operation fee", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
+		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, nil, false)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 0)
+		require.NoError(t, err)
+	})
+
+	t.Run("17. Bridging request with wrong amount of operation fee in metadata", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
+		opFee := new(big.Int).SetUint64(apex.GetMinOperationFee(cardanofw.ChainIDPrime))
+
+		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, opFee, true)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 }
 
@@ -2369,7 +2493,7 @@ func sendInvalidSendAmountTransaction(
 
 	_, err = apex.SubmitTx(
 		ctx, src, senderUser, srcTestChain.GetHotWalletAddresses()[0],
-		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount+operationFee)), nil, metadata)
+		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount+operationFee)), nil, metadata, new(big.Int).SetUint64(operationFee))
 	require.NoError(t, err)
 }
 

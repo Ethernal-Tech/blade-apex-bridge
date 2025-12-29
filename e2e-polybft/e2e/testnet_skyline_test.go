@@ -93,7 +93,7 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 				// resubmit the transaction in case of error because of a possible rollback
 				_, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
 					txHash, err := apex.SubmitTx(ctx, chain, apex.FunderUser, receiverAddr,
-						tokensToFundBigInt, tokens, nil)
+						tokensToFundBigInt, tokens, nil, nil)
 					if errors.Is(err, common.ErrRetryTimeout) {
 						return "", common.ErrRetryTryAgain
 					}
@@ -191,7 +191,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 					fmt.Printf("Defunding %s address: %s\n", chain, user.GetAddress(chain))
 
 					_, err := apex.SubmitTx(ctx, chain, user, apex.FunderUser.GetAddress(chain),
-						refundAmountDfm, tokens, nil)
+						refundAmountDfm, tokens, nil, nil)
 
 					if err != nil {
 						mu.Lock()
@@ -269,7 +269,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 				fmt.Printf("Defunding %s address: %s\n", chain, senderAddr)
 
 				_, err := apex.SubmitTx(ctx, chain, user, funderReceiverAddr,
-					new(big.Int).SetUint64(refundAmountLovelace), tokens, nil)
+					new(big.Int).SetUint64(refundAmountLovelace), tokens, nil, nil)
 
 				if err != nil {
 					mu.Lock()
