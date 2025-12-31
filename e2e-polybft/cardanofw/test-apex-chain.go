@@ -94,6 +94,7 @@ type ITestApexChain interface {
 	GetRelayerAddress() string
 	GetCustodialAddress() string
 	SetCustodialNFT(token infrawallet.Token)
+	GetTreasuryAddress() string
 }
 
 type TestApexChainDummy struct {
@@ -266,6 +267,10 @@ func (td *TestApexChainDummy) GetCardanoScriptInfo() *CardanoScriptInfo {
 func (td *TestApexChainDummy) GetAddressBalanceWithTokenName(
 	ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
 	return nil, nil
+}
+
+func (td *TestApexChainDummy) GetTreasuryAddress() string {
+	return ""
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)

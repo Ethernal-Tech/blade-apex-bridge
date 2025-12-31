@@ -40,11 +40,14 @@ func Test_OnlyRunSkylineBridge(t *testing.T) {
 	defer cncl()
 
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-	primeConfig.FundTokenAmount = 1_000_000_000
+	// primeConfig.FundTokenAmount = 1_000_000_000
 	cardanoConfig.FundTokenAmount = 1_000_000_000
 
 	vectorConfig := cardanofw.NewVectorChainConfig()
 	vectorConfig.FundTokenAmount = 1_000_000_000
+
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
+	cardanoConfig.FundTokenAmount = 1_000_000_000
 
 	apex := cardanofw.SetupAndRunSkylineBridge(
 		t, ctx,
@@ -52,6 +55,7 @@ func Test_OnlyRunSkylineBridge(t *testing.T) {
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
 		cardanofw.WithUserCnt(1),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
@@ -75,6 +79,15 @@ func Test_OnlyRunSkylineBridge(t *testing.T) {
 	fmt.Printf("cardano bridging addr: %s\n", apex.CardanoInfo.MultisigAddr[0])
 	fmt.Printf("cardano fee addr: %s\n", apex.CardanoInfo.FeeAddr)
 	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
+
+	nexusAdminPrivateKey, err := apex.NexusInfo.AdminKey.MarshallPrivateKey()
+	require.NoError(t, err)
+
+	fmt.Printf("nexus gateway address: %s\n", apex.NexusInfo.GatewayAddress)
+	fmt.Printf("nexus native token wallet address: %s\n", apex.NexusInfo.NativeTokenWalletAddress)
+	fmt.Printf("nexus relayer address: %s\n", apex.NexusInfo.RelayerAddress)
+	fmt.Printf("nexus rpc address: %s\n", apex.NexusInfo.JSONRPCAddr)
+	fmt.Printf("nexus admin key: %s\n", hex.EncodeToString(nexusAdminPrivateKey))
 
 	user := apex.Users[0]
 	userPrimeSK, err := user.GetPrivateKey(cardanofw.ChainIDPrime)
@@ -764,7 +777,6 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	//nolint:dupl
 	t.Run("5.Submitted invalid metadata - currency under min - token on source", func(t *testing.T) {
 		sendAmount := uint64(1_000_000)
 

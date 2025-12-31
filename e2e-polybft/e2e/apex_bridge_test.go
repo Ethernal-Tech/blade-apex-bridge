@@ -377,7 +377,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 		GetPolicyScriptEnterpriseAddress(primeConfig.NetworkMagic, policyScript)
 	require.NoError(t, err)
 
-	//fund multsig addr
+	// fund multsig addr
 	txHashFund, err := apex.SubmitTx(ctx, srcChain, apex.Users[0], multisigAddr, big.NewInt(10_000_000), nil, nil, nil)
 	require.NoError(t, err)
 

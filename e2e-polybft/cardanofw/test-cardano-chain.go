@@ -289,6 +289,10 @@ func (ec *TestCardanoChain) GetTxProvider() (infrawallet.ITxProvider, error) {
 	return nil, errors.New("neither a blockfrost nor a ogmios is specified")
 }
 
+func (ec *TestCardanoChain) GetTreasuryAddress() string {
+	return ec.config.TreasuryAddress
+}
+
 var _ ITestApexChain = (*TestCardanoChain)(nil)
 
 func NewTestCardanoChain(config *TestCardanoChainConfig) ITestApexChain {
@@ -1047,13 +1051,12 @@ func (ec *TestCardanoChain) getChainInfo(t *testing.T) CardanoChainInfo {
 	require.NoError(t, err)
 
 	return CardanoChainInfo{
-		NetworkAddress:  ec.cluster.Servers[0].NetworkAddress(),
-		OgmiosURL:       ec.ogmiosURL,
-		MultisigAddr:    ec.multisigAddr,
-		FeeAddr:         ec.multisigFeeAddr,
-		SocketPath:      ec.cluster.OgmiosServer.SocketPath(),
-		GenesisWallet:   genesisWallet,
-		TreasuryAddress: ec.config.TreasuryAddress,
+		NetworkAddress: ec.cluster.Servers[0].NetworkAddress(),
+		OgmiosURL:      ec.ogmiosURL,
+		MultisigAddr:   ec.multisigAddr,
+		FeeAddr:        ec.multisigFeeAddr,
+		SocketPath:     ec.cluster.OgmiosServer.SocketPath(),
+		GenesisWallet:  genesisWallet,
 	}
 }
 

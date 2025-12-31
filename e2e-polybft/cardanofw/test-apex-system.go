@@ -23,7 +23,6 @@ import (
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	wallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,7 +39,6 @@ type CardanoChainInfo struct {
 	BlockfrostAPIKey string
 	MultisigAddr     []string
 	FeeAddr          string
-	TreasuryAddress  string
 	SocketPath       string
 
 	// Bridging directions
@@ -1356,45 +1354,47 @@ func (a *ApexSystem) GetBalance(
 	return balance, err
 }
 
-func (a *ApexSystem) GetTreasuryAddress(chainID ChainID) string {
-	if chainID == ChainIDNexus {
-		return "" //a.GetEvmInfo(chainID).TreasuryAddress
-	}
-
-	return a.GetCardanoInfo(chainID).TreasuryAddress
-}
-
 func (a *ApexSystem) GetTreasuryAddressBalance(ctx context.Context, t *testing.T, chainID ChainID) (*big.Int, error) {
+	t.Helper()
+
+	var (
+		balance map[string]*big.Int
+		err     error
+	)
+
 	if !a.IsSkyline {
 		return nil, nil
 	}
 
-	if chainID == ChainIDNexus {
-		//treasuryAddress := a.GetEvmInfo(chainID).TreasuryAddress
-		return nil, nil
-	} else {
-		treasuryAddress := a.GetCardanoInfo(chainID).TreasuryAddress
-		chain := a.GetChainMust(t, chainID).(*TestCardanoChain)
-		balance, err := chain.GetAddressBalance(ctx, treasuryAddress)
-		if err != nil {
-			return nil, err
-		}
+	chain := a.GetChainMust(t, chainID)
 
-		if balance[wallet.AdaTokenName] == nil {
-			return big.NewInt(0), nil
-		}
+	treasuryAddress := chain.GetTreasuryAddress()
 
-		return balance[wallet.AdaTokenName], nil
+	balance, err = chain.GetAddressBalance(ctx, treasuryAddress)
+	if err != nil {
+		return nil, err
 	}
+
+	if balance[cardanowallet.AdaTokenName] == nil {
+		return big.NewInt(0), nil
+	}
+
+	return balance[cardanowallet.AdaTokenName], nil
 }
 
-func (a *ApexSystem) ValidateTreasuryAddressBalance(ctx context.Context, t *testing.T, chainID ChainID, previousBalance *big.Int, numberOfBridgingRequests uint64) error {
+func (a *ApexSystem) ValidateTreasuryAddressBalance(
+	ctx context.Context, t *testing.T, chainID ChainID, previousBalance *big.Int, numberOfBridgingRequests uint64,
+) error {
+	t.Helper()
+
 	treasuryBalance, err := a.GetTreasuryAddressBalance(ctx, t, chainID)
 	if err != nil {
 		return err
 	}
 
-	expectedBalance := previousBalance.Add(previousBalance, new(big.Int).Mul(new(big.Int).SetUint64(numberOfBridgingRequests), new(big.Int).SetUint64(a.GetMinOperationFee(chainID))))
+	expectedBalance := previousBalance.Add(previousBalance,
+		new(big.Int).Mul(new(big.Int).SetUint64(numberOfBridgingRequests),
+			new(big.Int).SetUint64(a.GetMinOperationFee(chainID))))
 
 	if treasuryBalance.Cmp(expectedBalance) != 0 {
 		return fmt.Errorf("treasury address balance mismatch: expected %s, but received %s", expectedBalance, treasuryBalance)
@@ -1748,13 +1748,6 @@ func (a *ApexSystem) SubmitTx(
 			Amount:       DfmToChainNativeTokenAmount(sourceChain, lovelaceDfmAmount),
 			NativeTokens: nativeTokens,
 		},
-	}
-
-	if opFee != nil {
-		receivers = append(receivers, GenericTxReceiver{
-			Addr:   a.GetTreasuryAddress(sourceChain),
-			Amount: opFee,
-		})
 	}
 
 	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {

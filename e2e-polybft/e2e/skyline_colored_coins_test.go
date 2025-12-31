@@ -59,6 +59,9 @@ func Test_CardanoToNexus(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Printf("Receiver USDT token balance before: %+v\n", usdtTokenBalance)
 
+		initialNexusTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDNexus)
+		require.NoError(t, err)
+
 		_, err = apex.SubmitTx(
 			ctx, cardanofw.ChainIDNexus, user,
 			receiver.GetAddress(cardanofw.ChainIDNexus), big.NewInt(1_000_000),
@@ -75,6 +78,11 @@ func Test_CardanoToNexus(t *testing.T) {
 		usdtTokenBalance, err = apex.GetBalanceWithTokenName(ctx, receiver, cardanofw.ChainIDNexus, apex.NexusInfo.Tokens[cardanofw.USDTTokenID].ChainSpecific)
 		require.NoError(t, err)
 		fmt.Printf("Receiver USDT token balance after: %+v\n", usdtTokenBalance)
+
+		newNexusTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDNexus)
+		require.NoError(t, err)
+
+		require.Equal(t, nexusConfig.MinOperationFee.Uint64(), new(big.Int).Sub(newNexusTreasuryBalance, initialNexusTreasuryBalance).Uint64())
 	})
 
 	t.Run("Cardano -> Nexus - ADA -> xADA", func(t *testing.T) {
@@ -309,7 +317,6 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 		executeInvalidTokenDirection(t, ctx, apex, vectorNexusXADATestConfig, cardanofw.AP3XTokenID, user, maxWaitTimeSec, retryDelaySec, false, 0)
 	})
 
-	//nolint:dupl
 	t.Run("4.Submitted invalid metadata - currency under min - token on source", func(t *testing.T) {
 		sendAmount := uint64(1_000_000)
 
@@ -548,7 +555,6 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 
 	opFee := apex.Config.NexusConfig.MinOperationFee
 
-	//nolint:dupl
 	t.Run("1. Invalid destination in bridging request", func(t *testing.T) {
 		t.Run("1.1. Destination is Nexus", func(t *testing.T) {
 			err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{

@@ -285,7 +285,8 @@ func executeInvalidMismatchSendAmountMultipleInstances(
 
 		txHash, err := apex.SubmitTx(
 			ctx, config.srcChainID, apex.Users[i],
-			apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex], lovelaceAmount, sentTokenAmount, metadata, new(big.Int).SetUint64(operationFee))
+			apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
+			lovelaceAmount, sentTokenAmount, metadata, new(big.Int).SetUint64(operationFee))
 		require.NoError(t, err)
 
 		WaitForInvalidTestResult(t, ctx, apex, config, apex.Users[i], txHash, beforeSendingAmountDfm, waitForAmount,
@@ -327,7 +328,8 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 
 			txHashe, err := apex.SubmitTx(
 				ctx, config.srcChainID, apex.Users[idx],
-				apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex], lovelaceAmount, sentTokenAmount, metadata, new(big.Int).SetUint64(operationFee))
+				apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
+				lovelaceAmount, sentTokenAmount, metadata, new(big.Int).SetUint64(operationFee))
 			require.NoError(t, err)
 
 			WaitForInvalidTestResult(t, ctx, apex, config, apex.Users[idx], txHashe, beforeSendingAmountDfm, waitForAmount,

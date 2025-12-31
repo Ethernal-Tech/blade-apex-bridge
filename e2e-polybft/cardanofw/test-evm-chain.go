@@ -38,6 +38,8 @@ const (
 	defaultPremineEthTokenAmount     = uint64(1_000_000_000_000)
 	defaultFundRelayerEthTokenAmount = uint64(5)
 
+	defaultNexusTreasuryAddress = "0xcCB2dDA531690E0eacf03338116Ea214c6379cD4"
+
 	initContractsTryCount      = 3
 	initContractsRetryWaitTime = time.Second * 5
 )
@@ -67,6 +69,8 @@ type TestEVMChainConfig struct {
 	MinTokenBridgingAmount *big.Int
 	MinOperationFee        *big.Int
 	CurrencyID             uint16
+
+	TreasuryAddress string
 
 	// Tokens that should be locked/unlocked on this chain
 	LockUnlockTokens []EVMTokenInfo
@@ -98,6 +102,8 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 		MinTokenBridgingAmount: DfmToWei(new(big.Int).SetUint64(1)),
 		MinOperationFee:        big.NewInt(0),
 		CurrencyID:             AP3XTokenID,
+
+		TreasuryAddress: defaultNexusTreasuryAddress,
 
 		LockUnlockTokens: []EVMTokenInfo{
 			{
@@ -244,6 +250,10 @@ func (ec *TestEVMChain) GetExistingStakePools(t *testing.T, ctx context.Context)
 	t.Helper()
 
 	panic("unimplemented") //nolint:gocritic
+}
+
+func (ec *TestEVMChain) GetTreasuryAddress() string {
+	return ec.config.TreasuryAddress
 }
 
 var _ ITestApexChain = (*TestEVMChain)(nil)
@@ -679,6 +689,7 @@ func (ec *TestEVMChain) InitContracts(
 		"--min-token-bridging-amount", ec.config.MinTokenBridgingAmount.String(),
 		"--min-operation-fee", ec.config.MinOperationFee.String(),
 		"--currency-token-id", fmt.Sprint(ec.config.CurrencyID),
+		"--treasury-addr", ec.config.TreasuryAddress,
 		"--clone",
 	}
 
@@ -1137,6 +1148,8 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 	receiverAddr := types.StringToAddress(receiver)
 	recipient := receiverAddr
 
+	treasuryAddress := types.StringToAddress(ec.config.TreasuryAddress)
+
 	for _, nativeToken := range nativeTokens {
 		// We interpret the Cardano token PolicyID as the ERC20 contract address on the EVM chain.
 		tokenAddr := types.StringToAddress(nativeToken.Token.PolicyID)
@@ -1182,6 +1195,20 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 		return nil, err
 	} else if receipt.Status != uint64(types.ReceiptSuccess) {
 		return nil, fmt.Errorf("currency transfer for chain %s failed: %d", ec.config.ChainID, receipt.Status)
+	}
+
+	if ec.config.MinOperationFee.Cmp(big.NewInt(0)) == 1 {
+		_, err = txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
+			types.WithFrom(key.Address()),
+			types.WithValue(ec.config.MinOperationFee),
+			types.WithInput(data),
+			types.WithTo(&treasuryAddress),
+		)), key)
+		if err != nil {
+			return nil, err
+		} else if receipt.Status != uint64(types.ReceiptSuccess) {
+			return nil, fmt.Errorf("operation fee transfer for chain %s failed: %d", ec.config.ChainID, receipt.Status)
+		}
 	}
 
 	return receipt, nil

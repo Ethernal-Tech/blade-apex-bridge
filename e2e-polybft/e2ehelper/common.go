@@ -58,7 +58,10 @@ type IApexSystem interface {
 	GetBridgeNode(t *testing.T, idx int) *framework.TestServer
 	GetChainMust(t *testing.T, chainID cardanofw.ChainID) cardanofw.ITestApexChain
 	GetTreasuryAddressBalance(ctx context.Context, t *testing.T, chainID cardanofw.ChainID) (*big.Int, error)
-	ValidateTreasuryAddressBalance(ctx context.Context, t *testing.T, chainID cardanofw.ChainID, previousBalance *big.Int, numberOfBridgingRequests uint64) error
+	ValidateTreasuryAddressBalance(
+		ctx context.Context, t *testing.T, chainID cardanofw.ChainID,
+		previousBalance *big.Int, numberOfBridgingRequests uint64,
+	) error
 }
 
 type SrcDstChainPair struct {

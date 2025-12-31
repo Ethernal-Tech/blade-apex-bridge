@@ -137,7 +137,8 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 
 	_, err = apex.SubmitTx(
 		ctx, config.srcChainID, user,
-		multisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata, new(big.Int).SetUint64(operationFee))
+		multisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+operationFee),
+		nil, metadata, new(big.Int).SetUint64(operationFee))
 	require.Error(t, err)
 }
 
@@ -225,7 +226,8 @@ func executeInvalidSendNativeToken(
 
 	txHash, err := apex.SubmitTx(ctx, config.srcChainID, user,
 		apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		new(big.Int).SetUint64(lovelaceAmount), []wallet.TokenAmount{nativeTokenAmount}, metadata, new(big.Int).SetUint64(operationFee))
+		new(big.Int).SetUint64(lovelaceAmount), []wallet.TokenAmount{nativeTokenAmount},
+		metadata, new(big.Int).SetUint64(operationFee))
 	require.NoError(t, err)
 
 	fmt.Printf("txHash: %s\n", txHash)
@@ -369,7 +371,8 @@ func executeInvalidNexusBridgingRequest(
 	return err
 }
 
-func validateTreasuryAddressAmount(t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, chainID cardanofw.ChainID,
+func validateTreasuryAddressAmount(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, chainID cardanofw.ChainID,
 	chainConfigs map[string]*cardanofw.TestCardanoChainConfig, treasuryBalancesBefore map[string]uint64,
 	txCountPerSender, senderUsersCount uint64,
 ) {
