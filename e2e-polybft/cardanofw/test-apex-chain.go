@@ -158,7 +158,9 @@ func (td *TestApexChainDummy) GenerateChainConfigs(
 	return nil
 }
 
-func (td *TestApexChainDummy) InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL, chainIDsConfig string) error {
+func (td *TestApexChainDummy) InitContracts(
+	ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL, chainIDsConfig string,
+) error {
 	return nil
 }
 
