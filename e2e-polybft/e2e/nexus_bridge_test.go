@@ -287,6 +287,7 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				apex.NexusInfo.JSONRPCAddr,
 				userPk, dstChain,
 				user.GetAddress(dstChain),
+				apex.GetChainIDsConfig(),
 				sendAmountWei, fee,
 			)
 			require.ErrorContains(t, err, "failed to execute command")
@@ -304,6 +305,7 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				"localhost:1234",
 				userPk, dstChain,
 				user.GetAddress(dstChain),
+				apex.GetChainIDsConfig(),
 				sendAmountWei, fee,
 			)
 			require.ErrorContains(t, err, "Error: invalid --nexus-url flag")
@@ -332,6 +334,7 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				apex.NexusInfo.JSONRPCAddr,
 				unfundedUserPk, dstChain,
 				unfundedUser.GetAddress(dstChain),
+				apex.GetChainIDsConfig(),
 				sendAmountWei, fee,
 			)
 			require.ErrorContains(t, err, "insufficient funds for execution")
@@ -1445,6 +1448,7 @@ func SrcNexusSubmitterNotEnoughFunds(
 		apex.NexusInfo.JSONRPCAddr,
 		unfundedUserPk, dstChain,
 		unfundedUser.GetAddress(dstChain),
+		apex.GetChainIDsConfig(),
 		sendAmountWei, fee,
 	)
 	require.ErrorContains(t, err, "insufficient funds for execution")
@@ -1751,10 +1755,11 @@ func DstNexusInvalidMetadataInvalidTransactions(
 	require.NoError(t, err)
 }
 
-func sendTxParamsNPInvalidScenarios(txType, gatewayAddr, nexusURL, privateKey, chainDst, receiver string, amount, fee *big.Int) error {
+func sendTxParamsNPInvalidScenarios(txType, gatewayAddr, nexusURL, privateKey, chainDst, receiver, chainIDsConfig string, amount, fee *big.Int) error {
 	return cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
 		"sendtx",
 		"--tx-type", txType,
+		"--chain-ids-config", chainIDsConfig,
 		"--gateway-addr", gatewayAddr,
 		"--nexus-url", nexusURL,
 		"--key", privateKey,

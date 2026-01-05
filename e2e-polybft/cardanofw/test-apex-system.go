@@ -70,6 +70,16 @@ type DirectionConfigFile struct {
 	EcosystemTokens []EcosystemToken           `json:"ecosystemTokens"`
 }
 
+type ChainIDsConfigFile struct {
+	ChainIDConfig []ChainIDConfig `json:"chainIDs"`
+}
+
+type ChainIDConfig struct {
+	ChainID    string `json:"chainID"`
+	ChainIDNum uint8  `json:"chainIDNum"`
+	ChainType  string `json:"chainType,omitempty"`
+}
+
 func (ci *CardanoChainInfo) GetTxProvider() (cardanowallet.ITxProvider, error) {
 	if ci.OgmiosURL != "" {
 		return cardanowallet.NewTxProviderOgmios(ci.OgmiosURL), nil
@@ -380,7 +390,7 @@ func (a *ApexSystem) CreateWallets() (err error) {
 func (a *ApexSystem) CreateAddresses() error {
 	// must not be parallelized because each request use same admin wallet
 	for _, chain := range a.chains {
-		if err := chain.CreateAddresses(a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr()); err != nil {
+		if err := chain.CreateAddresses(a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr(), a.GetChainIDsConfig()); err != nil {
 			return err
 		}
 	}
@@ -391,7 +401,7 @@ func (a *ApexSystem) CreateAddresses() error {
 func (a *ApexSystem) InitContracts(ctx context.Context) error {
 	// must not be parallelized because each request use same admin wallet
 	for _, chain := range a.chains {
-		if err := chain.InitContracts(ctx, a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr()); err != nil {
+		if err := chain.InitContracts(ctx, a.bladeAdmin, a.GetBridgeDefaultJSONRPCAddr(), a.GetChainIDsConfig()); err != nil {
 			return err
 		}
 	}
@@ -907,7 +917,7 @@ func (a *ApexSystem) RegisterChains() error {
 func (a *ApexSystem) DeployMintingContracts(ctx context.Context) error {
 	if a.IsSkyline {
 		err := a.execForEachChain(func(chain ITestApexChain) error {
-			err := chain.DeployMintingContract(ctx)
+			err := chain.DeployMintingContract(ctx, a.GetChainIDsConfig())
 			if err != nil {
 				return err
 			}
@@ -956,6 +966,62 @@ func (a *ApexSystem) GenerateConfigs() error {
 		return a.generateSkylineConfigs()
 	} else {
 		return a.generateReactorConfigs()
+	}
+}
+
+func (a *ApexSystem) GenerateChainIDsConfig() error {
+	chainIDsConfigFile := a.generateChainIDsConfigFile()
+
+	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
+		return validator.GenerateChainIDsConfig(chainIDsConfigFile)
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *ApexSystem) generateChainIDsConfigFile() *ChainIDsConfigFile {
+	chainIDConfig := []ChainIDConfig{
+		{
+			ChainID:    ChainIDPrime,
+			ChainIDNum: ChainIDToInt(ChainIDPrime),
+			ChainType:  ChainTypeCardanoStr,
+		},
+		{
+			ChainID:    ChainIDVector,
+			ChainIDNum: ChainIDToInt(ChainIDVector),
+			ChainType:  ChainTypeCardanoStr,
+		},
+	}
+
+	if a.Config.CardanoConfig != nil && a.Config.CardanoConfig.IsEnabled {
+		chainIDConfig = append(chainIDConfig, ChainIDConfig{
+			ChainID:    ChainIDCardano,
+			ChainIDNum: ChainIDToInt(ChainIDCardano),
+			ChainType:  ChainTypeCardanoStr,
+		})
+	}
+
+	if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
+		chainIDConfig = append(chainIDConfig, ChainIDConfig{
+			ChainID:    ChainIDNexus,
+			ChainIDNum: ChainIDToInt(ChainIDNexus),
+			ChainType:  ChainTypeEVMStr,
+		})
+	}
+
+	if a.Config.PolygonConfig != nil && a.Config.PolygonConfig.IsEnabled {
+		chainIDConfig = append(chainIDConfig, ChainIDConfig{
+			ChainID:    ChainIDPolygon,
+			ChainIDNum: ChainIDToInt(ChainIDPolygon),
+			ChainType:  ChainTypeEVMStr,
+		})
+	}
+
+	return &ChainIDsConfigFile{
+		ChainIDConfig: chainIDConfig,
 	}
 }
 
@@ -1366,6 +1432,7 @@ func (a *ApexSystem) UpdateChainTokenQuantity(
 
 	args := []string{
 		"bridge-admin", "update-chain-token-quantity",
+		"--chain-ids-config", a.GetChainIDsConfig(),
 		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
 		"--chain", chain,
 		"--amount", amount.String(),
@@ -1391,6 +1458,7 @@ func (a *ApexSystem) DefundHotWallet(
 
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"bridge-admin", "defund",
+		"--chain-ids-config", a.GetChainIDsConfig(),
 		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
 		"--chain", chain,
 		"--amount", defundDfm.String(),
@@ -1413,6 +1481,7 @@ func (a *ApexSystem) UpdateBridgingAddressCount(
 
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"bridge-admin", "update-bridging-addrs-count",
+		"--chain-ids-config", a.GetChainIDsConfig(),
 		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
 		"--chain", sourceChain,
 		"--key", pk,
@@ -1476,6 +1545,7 @@ func (a *ApexSystem) DelegateStakeAddress(
 
 	cmnd := []string{
 		"bridge-admin", "delegate-address-to-stake-pool",
+		"--chain-ids-config", a.GetChainIDsConfig(),
 		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
 		"--chain", chain.ChainID(),
 		"--key", pk,
@@ -1508,6 +1578,7 @@ func (a *ApexSystem) DeregisterStakeAddress(
 
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"bridge-admin", "deregister-stake-address",
+		"--chain-ids-config", a.GetChainIDsConfig(),
 		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
 		"--chain", chain.ChainID(),
 		"--key", pk,
@@ -1532,6 +1603,7 @@ func (a *ApexSystem) RedistributeTokens(
 
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"bridge-admin", "redistribute-bridging-addresses-tokens",
+		"--chain-ids-config", a.GetChainIDsConfig(),
 		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
 		"--chain", chain.ChainID(),
 		"--key", pk,
@@ -1761,9 +1833,17 @@ func (a *ApexSystem) SubmitBridgingRequest(
 			a.GetMinBridgingFee(data.SourceChain, !isCurrencySrc)))
 
 	txHash, err := infracommon.ExecuteWithRetry(data.Context, func(ctx context.Context) (string, error) {
-		txHash, err := srcChain.BridgingRequest(
-			ctx, data.DestinationChain, privateKey, receiversMap, feeAmount, operationFee,
-			isCurrencySrc, destCurrencyID == data.TokensInfo.DstTokenID)
+		txHash, err := srcChain.BridgingRequest(BridgingRequestParams{
+			Ctx:            ctx,
+			DestChainID:    data.DestinationChain,
+			PrivateKey:     privateKey,
+			ChainIDsConfig: a.GetChainIDsConfig(),
+			Receivers:      receiversMap,
+			FeeAmount:      feeAmount,
+			OperationFee:   operationFee,
+			IsCurrencySrc:  isCurrencySrc,
+			IsCurrencyDest: destCurrencyID == data.TokensInfo.DstTokenID,
+		})
 		if err != nil {
 			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
 				return "", infracommon.ErrRetryTryAgain
@@ -2043,6 +2123,7 @@ func (a *ApexSystem) UpgradeSmartContract(upgradeParams *UpgradeSCParams) error 
 
 	cmnd := []string{
 		"deploy-evm", "upgrade",
+		"--chain-ids-config", a.GetChainIDsConfig(),
 		"--dir", upgradeParams.contractsDir,
 		"--key", hex.EncodeToString(pkBytes),
 		"--url", a.GetBridgeDefaultJSONRPCAddr(),
@@ -2131,4 +2212,8 @@ func (a *ApexSystem) getCardanoConfig(chainID ChainID) *TestCardanoChainConfig {
 	default:
 		return &TestCardanoChainConfig{}
 	}
+}
+
+func (a *ApexSystem) GetChainIDsConfig() string {
+	return a.validators[0].GetChainIDsConfig()
 }
