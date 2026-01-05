@@ -203,7 +203,7 @@ jobs:
       inputs.e2e_apex_test || 
       github.event_name == 'pull_request'
     with:
-      apex_bridge_ref: feat/AD-971-evm-to-evm-bridging
+      apex_bridge_ref: feat/AD-971-evm-to-evm-new
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       e2e_apex_big_test: ${{ inputs.e2e_apex_big_test || 'false' }}
       e2e_apex_skip_redundant_tests: false
@@ -217,7 +217,7 @@ jobs:
       inputs.e2e_apex_test || 
       github.event_name == 'pull_request'
     with:
-      apex_bridge_ref: feat/AD-971-evm-to-evm-bridging
+      apex_bridge_ref: feat/AD-971-evm-to-evm-new
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       e2e_apex_big_test: ${{ inputs.e2e_apex_big_test || 'false' }}
       e2e_apex_skip_redundant_tests: false
@@ -279,7 +279,7 @@ jobs:
       inputs.e2e_skyline_test ||
       (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline')
     with:
-      apex_bridge_ref: feat/AD-971-evm-to-evm-bridging
+      apex_bridge_ref: feat/AD-971-evm-to-evm-new
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       e2e_apex_skip_redundant_tests: false
     secrets:
@@ -303,7 +303,7 @@ jobs:
       inputs.e2e_skyline_mba_test ||
       (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline')
     with:
-      apex_bridge_ref: feat/AD-971-evm-to-evm-bridging
+      apex_bridge_ref: feat/AD-971-evm-to-evm-new
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       e2e_apex_skip_redundant_tests: false
     secrets:
@@ -327,7 +327,7 @@ jobs:
       inputs.e2e_skyline_cc_test ||
       (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline')
     with:
-      apex_bridge_ref: feat/AD-971-evm-to-evm-bridging
+      apex_bridge_ref: feat/AD-971-evm-to-evm-new
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       e2e_apex_skip_redundant_tests: false
     secrets:
@@ -351,7 +351,7 @@ jobs:
       inputs.e2e_refund_test ||
       (github.event_name == 'pull_request' && (github.base_ref == 'develop' || github.base_ref == 'feat/skyline'))
     with:
-      apex_bridge_ref: feat/AD-971-evm-to-evm-bridging
+      apex_bridge_ref: feat/AD-971-evm-to-evm-new
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       e2e_apex_skip_redundant_tests: false
     secrets:
@@ -386,7 +386,7 @@ jobs:
       inputs.e2e_refund_skyline_bridge_test ||
       (github.event_name == 'pull_request' && github.base_ref == 'feat/skyline')
     with:
-      apex_bridge_ref: feat/AD-971-evm-to-evm-bridging
+      apex_bridge_ref: feat/AD-971-evm-to-evm-new
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       e2e_apex_skip_redundant_tests: false
     secrets:
