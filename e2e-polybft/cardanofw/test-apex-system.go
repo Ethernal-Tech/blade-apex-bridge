@@ -1742,7 +1742,13 @@ func (a *ApexSystem) SubmitTx(
 		return "", err
 	}
 
-	operationFee := a.GetMinOperationFee(sourceChain)
+	var operationFee uint64
+
+	if opFee == nil {
+		operationFee = 0
+	} else {
+		operationFee = opFee.Uint64()
+	}
 
 	receivers := []GenericTxReceiver{
 		{

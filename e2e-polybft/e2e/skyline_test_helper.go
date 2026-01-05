@@ -273,8 +273,7 @@ func executeInvalidMetadataWrongLabel(
 func executeBridgingRequestOperationFee(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
 	user *cardanofw.TestApexUser, config *testConfig, addrIndex uint8,
-	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, opFee *big.Int,
-	wrongOpFeeInMetadata bool,
+	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, wrongOpFeeInMetadata bool,
 ) {
 	t.Helper()
 
@@ -314,7 +313,7 @@ func executeBridgingRequestOperationFee(
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user,
-		multisigAddr, new(big.Int).SetUint64(lovelaceAmount), nil, metadata, opFee)
+		multisigAddr, new(big.Int).SetUint64(lovelaceAmount), nil, metadata, nil)
 	require.NoError(t, err)
 
 	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, lovelaceAmount,
