@@ -646,8 +646,8 @@ func (ec *TestCardanoChain) InitContracts(_ context.Context, _ *crypto.ECDSAKey,
 }
 
 func (ec *TestCardanoChain) RegisterChain(validator *TestApexValidator) error {
-	return validator.RegisterChain(ec.ChainID(), ec.ChainIDNum(), ec.config.InitialHotWalletAmount, ec.config.InitialHotWalletTokenAmount,
-		ChainTypeCardano)
+	return validator.RegisterChain(ec.ChainID(), ec.ChainIDNum(), ec.config.InitialHotWalletAmount,
+		ec.config.InitialHotWalletTokenAmount, ChainTypeCardano)
 }
 
 func (ec *TestCardanoChain) GenerateChainConfigs(
