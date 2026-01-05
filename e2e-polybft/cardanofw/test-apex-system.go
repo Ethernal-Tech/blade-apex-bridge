@@ -973,7 +973,24 @@ func (a *ApexSystem) GenerateChainIDsConfig() error {
 	chainIDsConfigFile := a.generateChainIDsConfigFile()
 
 	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
-		return validator.GenerateChainIDsConfig(chainIDsConfigFile)
+		getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
+			return func(data map[string]any) {
+				callback(a, data)
+			}
+		}
+
+		if err := validator.GenerateChainIDsConfig(chainIDsConfigFile); err != nil {
+			return fmt.Errorf("chain ID config generation failed for validator = %d: %w", i, err)
+		}
+
+		if handler := a.Config.CustomChainIDsConfigHandler; handler != nil {
+			fileName := validator.GetChainIDsConfig()
+			if err := UpdateJSONFile(fileName, fileName, getHandler(handler), false); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 	if err != nil {
 		return err
@@ -1202,6 +1219,7 @@ func (a *ApexSystem) StartRelayer(ctx context.Context) (err error) {
 		a.relayerNode, err = framework.NewNodeWithContext(ctx, ResolveApexBridgeBinary(), []string{
 			"run-relayer",
 			"--config", validator.GetRelayerConfig(),
+			"--chain-ids-config", validator.GetChainIDsConfig(),
 		}, os.Stdout)
 		if err != nil {
 			return err
@@ -2117,7 +2135,6 @@ func (a *ApexSystem) UpgradeSmartContract(upgradeParams *UpgradeSCParams) error 
 
 	cmnd := []string{
 		"deploy-evm", "upgrade",
-		"--chain-ids-config", a.GetChainIDsConfig(),
 		"--dir", upgradeParams.contractsDir,
 		"--key", hex.EncodeToString(pkBytes),
 		"--url", a.GetBridgeDefaultJSONRPCAddr(),

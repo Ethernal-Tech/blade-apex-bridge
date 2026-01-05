@@ -207,7 +207,6 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 	// first upgrade just to clone repository
 	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
 		"deploy-evm", "upgrade",
-		"--chain-ids-config", apex.GetChainIDsConfig(),
 		"--url", apex.GetBridgeDefaultJSONRPCAddr(),
 		"--key", hex.EncodeToString(privateKeyRaw),
 		"--dir", tmpPath,
@@ -239,7 +238,6 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 	// second upgrade upgrades changed contract
 	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
 		"deploy-evm", "upgrade",
-		"--chain-ids-config", apex.GetChainIDsConfig(),
 		"--url", apex.GetBridgeDefaultJSONRPCAddr(),
 		"--key", hex.EncodeToString(privateKeyRaw),
 		"--dir", tmpPath,
@@ -509,7 +507,7 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["maxAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
-		}, nil, nil),
+		}, nil, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -792,7 +790,7 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			mp["refundEnabled"] = false
-		}, nil, nil),
+		}, nil, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -897,7 +895,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			mp["refundEnabled"] = false
-		}, nil, nil),
+		}, nil, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -2016,7 +2014,7 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 			vcCfg["initialUtxos"] = initialUtxos
 			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
 			vcCfg["maxUtxoCount"] = maxUtxoCount
-		}, nil, nil),
+		}, nil, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -2134,7 +2132,7 @@ func TestE2E_ApexBridge_UTxOConsolidationWithBothDirections(t *testing.T) {
 			vcCfg["initialUtxos"] = initialUtxosPrime
 			vcCfg["maxFeeUtxoCount"] = maxFeeUtxoCount
 			vcCfg["maxUtxoCount"] = maxUtxoCount
-		}, nil, nil),
+		}, nil, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())

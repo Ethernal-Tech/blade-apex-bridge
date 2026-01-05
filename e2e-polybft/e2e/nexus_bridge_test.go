@@ -733,7 +733,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
 				block["gasFeeCap"] = uint64(10)
 				block["gasTipCap"] = uint64(11)
-			}, nil),
+			}, nil, nil),
 		)
 
 		user := apex.Users[userCnt-1]
@@ -807,7 +807,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
 				block["gasPrice"] = uint64(10)
 				block["dynamicTx"] = bool(false)
-			}, nil),
+			}, nil, nil),
 		)
 
 		user := apex.Users[userCnt-1]
@@ -874,7 +874,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(10)
-			}, nil),
+			}, nil, nil),
 		)
 
 		user := apex.Users[userCnt-1]
@@ -944,7 +944,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(1)
-			}, nil, nil),
+			}, nil, nil, nil),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1011,7 +1011,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(2)
-			}, nil, nil),
+			}, nil, nil, nil),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1076,7 +1076,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(3)
-			}, nil, nil),
+			}, nil, nil, nil),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1142,7 +1142,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(4)
-			}, nil, nil),
+			}, nil, nil, nil),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())

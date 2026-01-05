@@ -660,7 +660,6 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 	args := []string{
 		"generate-configs", "cardano-chain",
 		"--chain-id", ec.ChainID(),
-		"--chain-id-num", fmt.Sprint(ec.ChainIDNum()),
 		"--network-address", server.NetworkAddress(),
 		"--network-magic", fmt.Sprint(ec.config.NetworkMagic),
 		"--network-id", fmt.Sprint(ec.config.NetworkType),

@@ -191,7 +191,13 @@ func (cv *TestApexValidator) GenerateConfigs(
 }
 
 func (cv *TestApexValidator) GenerateChainIDsConfig(chainIDsConfigFile *ChainIDsConfigFile) error {
-	fileName := path.Join(cv.GetBridgingConfigsDir(), ChainIDsConfigFileName)
+	bridgingConfigsDir := cv.GetBridgingConfigsDir()
+
+	if err := common.CreateDirSafe(bridgingConfigsDir, 0770); err != nil {
+		return err
+	}
+
+	fileName := path.Join(bridgingConfigsDir, ChainIDsConfigFileName)
 
 	json, err := json.Marshal(*chainIDsConfigFile)
 	if err != nil {
@@ -262,6 +268,7 @@ func (cv *TestApexValidator) Start(ctx context.Context, runAPI bool) (err error)
 		"run-validator-components",
 		"--config", cv.GetValidatorComponentsConfig(),
 		"--direction-config", cv.GetDirectionsConfig(),
+		"--chain-ids-config", cv.GetChainIDsConfig(),
 	}
 
 	if runAPI {
