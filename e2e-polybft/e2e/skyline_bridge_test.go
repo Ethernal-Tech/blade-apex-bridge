@@ -989,8 +989,10 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, true)
 
-		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 1)
+		newTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
+
+		require.Equal(t, initialTreasuryBalance, newTreasuryBalance)
 	})
 }
 

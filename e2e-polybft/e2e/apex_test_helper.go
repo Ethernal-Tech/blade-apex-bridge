@@ -207,7 +207,7 @@ func executeInvalidMismatchSendLovelaceAmount(
 		user, receivers, config.isCurrency)
 
 	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
-		t, config, feeAmount, operationFee)
+		t, config, feeAmount)
 
 	waitOption := WaitRefundDisabled
 	if refundEnabled {
@@ -281,7 +281,7 @@ func executeInvalidMismatchSendAmountMultipleInstances(
 		require.NoError(t, err)
 
 		lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
-			t, config, feeAmount, operationFee)
+			t, config, feeAmount)
 
 		txHash, err := apex.SubmitTx(
 			ctx, config.srcChainID, apex.Users[i],
@@ -324,7 +324,7 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 			require.NoError(t, err)
 
 			lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
-				t, config, feeAmount, operationFee)
+				t, config, feeAmount)
 
 			txHashe, err := apex.SubmitTx(
 				ctx, config.srcChainID, apex.Users[idx],
@@ -359,7 +359,7 @@ func executeInvalidMetadataType(
 	require.NoError(t, err)
 
 	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
-		t, config, feeAmount, operationFee)
+		t, config, feeAmount)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
@@ -384,7 +384,7 @@ func executeObsoleteMetadata(
 
 	receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount, config.tokenID)
 
-	operationFee := apex.GetMinOperationFee(config.srcChainID)
+	operationFee := apex.GetMinOperationFee(config.srcChainID) + 500_000
 
 	metadata, feeAmount := createObsoleteMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
 		apex.GetMinBridgingFee(config.srcChainID, !config.isCurrency),
@@ -396,7 +396,7 @@ func executeObsoleteMetadata(
 	require.NoError(t, err)
 
 	lovelaceAmount, sentTokenAmount, _ := getDefaultSendAmounts(
-		t, config, feeAmount, operationFee)
+		t, config, feeAmount)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
@@ -460,7 +460,7 @@ func executeInvalidDestination(
 	require.NoError(t, err)
 
 	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
-		t, config, feeAmount, operationFee)
+		t, config, feeAmount)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
@@ -498,7 +498,7 @@ func executeInvalidMetadataInvalidSender(
 	// remove this after we make correct validation on oracle!
 	metadata = bytes.Replace(metadata, []byte("[\"dummy\"]"), []byte("\"\""), 1)
 
-	lovelaceAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, operationFee)
+	lovelaceAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
@@ -542,7 +542,7 @@ func executeInvalidEmptyReceivers(
 	require.NoError(t, err)
 
 	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
-		t, config, feeAmount, operationFee)
+		t, config, feeAmount)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
@@ -572,7 +572,7 @@ func executeInvalidTokenDirection(
 	require.NoError(t, err)
 
 	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
-		t, config, feeAmount, operationFee)
+		t, config, feeAmount)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
@@ -585,18 +585,18 @@ func executeInvalidTokenDirection(
 
 func getDefaultSendAmounts(
 	t *testing.T, config *testConfig,
-	feeAmount uint64, operationFee uint64,
+	feeAmount uint64,
 ) (*big.Int, []wallet.TokenAmount, uint64) {
 	t.Helper()
 
-	lovelaceAmount := defaultSendAmount + feeAmount + operationFee
+	lovelaceAmount := defaultSendAmount + feeAmount
 	waitForAmount := lovelaceAmount
 
 	tokens := []wallet.TokenAmount(nil)
 
 	if !config.isCurrency {
 		waitForAmount = defaultSendAmount
-		lovelaceAmount = feeAmount + operationFee
+		lovelaceAmount = feeAmount
 
 		token, err := wallet.NewTokenWithFullName(config.tokensInfo.SrcTokenName, true)
 		require.NoError(t, err)

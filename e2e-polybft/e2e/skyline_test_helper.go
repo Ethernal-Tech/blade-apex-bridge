@@ -38,7 +38,7 @@ func executeInvalidBridgingFee(
 	require.NoError(t, err)
 
 	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
-		t, config, feeAmount, operationFee)
+		t, config, feeAmount)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
@@ -73,7 +73,7 @@ func executeInvalidFeeReceiverAddr(
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
 		minBridgingFee, operationFee, user, receivers, config.isCurrency)
 
-	sentAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, operationFee)
+	sentAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount)
 
 	initialBalances, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
