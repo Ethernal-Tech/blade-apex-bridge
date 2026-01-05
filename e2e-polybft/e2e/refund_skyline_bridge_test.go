@@ -44,7 +44,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 			tryCountLimitsSettings := cardanofw.GetMapFromInterfaceKey(mp, "tryCountLimits")
 			tryCountLimitsSettings["maxBatchTryCount"] = 1
 			tryCountLimitsSettings["maxSubmitTryCount"] = 2
-		}, nil, nil),
+		}, nil, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
@@ -328,7 +328,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["minColCoinsAllowedToBridge"] = minColCoinsAllowedToBridge
-		}, nil, nil),
+		}, nil, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
@@ -505,7 +505,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 			tryCountLimitsSettings := cardanofw.GetMapFromInterfaceKey(mp, "tryCountLimits")
 			tryCountLimitsSettings["maxBatchTryCount"] = 1
 			tryCountLimitsSettings["maxSubmitTryCount"] = 2
-		}, nil, nil),
+		}, nil, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDCardano, bridgeAddrCnt),
 	)
@@ -694,7 +694,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["maxAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
-		}, nil, nil),
+		}, nil, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
@@ -793,7 +793,7 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["maxTokenAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
-		}, nil, nil),
+		}, nil, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
@@ -918,7 +918,7 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 			vectorCfg := cardanofw.GetMapFromInterfaceKey(mp, "directions", "vector")
 			// remove cardano from map
 			delete(vectorCfg["destChain"].(map[string]interface{}), "cardano")
-		}),
+		}, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
