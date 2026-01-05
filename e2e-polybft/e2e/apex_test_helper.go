@@ -177,7 +177,7 @@ func submitColCoinsMismatchAndWait(
 	}
 
 	waitForAmount := amount
-	lovelaceAmount := new(big.Int).SetUint64(feeAmount + operationFee)
+	lovelaceAmount := new(big.Int).SetUint64(feeAmount)
 
 	token, err := wallet.NewTokenWithFullName(config.tokensInfo.SrcTokenName, true)
 	require.NoError(t, err)

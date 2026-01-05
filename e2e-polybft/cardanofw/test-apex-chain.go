@@ -59,7 +59,7 @@ type ITestApexChain interface {
 	GetAddressBalanceWithTokenName(ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error)
 	BridgingRequest(params BridgingRequestParams) (string, error)
 	SendTx(
-		ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
+		ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver, operationFee uint64,
 	) (string, error)
 	GetHotWalletAddresses() []string
 	GetAdminPrivateKey() (string, error)
@@ -185,7 +185,7 @@ func (*TestApexChainDummy) RunChain(t *testing.T) error {
 }
 
 func (td *TestApexChainDummy) SendTx(
-	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
+	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver, operationFee uint64,
 ) (string, error) {
 	return "", nil
 }

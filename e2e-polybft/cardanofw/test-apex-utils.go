@@ -779,7 +779,7 @@ func FundAddressesWithToken(
 		}
 	}
 
-	txHash, err := chain.SendTx(ctx, privateKey, nil, receivers)
+	txHash, err := chain.SendTx(ctx, privateKey, nil, receivers, 0)
 	if err != nil {
 		return nil, err
 	}

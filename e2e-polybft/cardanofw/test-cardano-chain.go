@@ -636,7 +636,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	}
 
 	txHash, err := ec.SendTx(
-		ctx, ToCardanoPrivateKeyString(minterWallet.SigningKey, minterWallet.StakeSigningKey), nil, receivers)
+		ctx, ToCardanoPrivateKeyString(minterWallet.SigningKey, minterWallet.StakeSigningKey), nil, receivers, 0)
 	if err != nil {
 		return err
 	}
@@ -943,7 +943,7 @@ func (ec *TestCardanoChain) GetAddressToBridgeTo(
 }
 
 func (ec *TestCardanoChain) SendTx(
-	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
+	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver, operationFee uint64,
 ) (string, error) {
 	if len(receivers) == 0 {
 		return "", fmt.Errorf("cardano SendTx supports one or multiple receivers but got zero")
@@ -972,6 +972,7 @@ func (ec *TestCardanoChain) SendTx(
 			SenderAddrPolicyScript: policyScript,
 			Metadata:               metadata,
 			Receivers:              receiversDto,
+			OperationFee:           operationFee,
 		},
 	)
 	if err != nil {

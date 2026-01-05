@@ -58,12 +58,14 @@ func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 		fmt.Printf("bridging %v apex to vector\n", apexAmountToBridge)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm, cardanofw.AP3XTokenID, bridgingOpts...)
+			t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
+			sendAmountDfm, cardanofw.AP3XTokenID, true, bridgingOpts...)
 	}
 
 	fmt.Printf("bridging %v apex to nexus\n", apexAmountToBridge)
 	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmountDfm, cardanofw.AP3XTokenID, bridgingOpts...)
+		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
+		sendAmountDfm, cardanofw.AP3XTokenID, true, bridgingOpts...)
 
 	balances = getUserLovelaceBalances(ctx, apex, nil)
 	printUserBalances(apex, nil, balances)
@@ -269,7 +271,7 @@ func Test_E2E_SanityCheck(t *testing.T) {
 		fmt.Printf("bridging from %s to %s\n", dir.src, dir.dest)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, cardanofw.AP3XTokenID, bridgingOpts...)
+			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, cardanofw.AP3XTokenID, true, bridgingOpts...)
 	}
 }
 

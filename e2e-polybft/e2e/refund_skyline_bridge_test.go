@@ -387,7 +387,10 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 	t.Run("4. Vector -> Nexus - Mismatch submitted and receiver amounts - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
+
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector)
+		require.NoError(t, err)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
@@ -396,6 +399,9 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 				waitOption: WaitRefundEnabled,
 			},
 		)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("5. Vector -> Nexus - Mismatch submitted and multiple receiver amounts - USDT on source", func(t *testing.T) {
@@ -404,16 +410,25 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 		for i := range instances {
 			e2ehelper.ExecuteSingleBridging(
 				t, ctx, apex, user, apex.Users[i], cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-				cardanofw.USDTTokenID)
+				cardanofw.USDTTokenID, true)
 		}
 
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector)
+		require.NoError(t, err)
+
 		executeInvalidMismatchSendColCoinsMultipleInstancesParalel(t, ctx, apex, vectorNexusUSDTTestConfig, minColCoinsAllowedToBridge, instances, maxWaitTimeSec, retryDelaySec, true, 0)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, uint64(instances))
+		require.NoError(t, err)
 	})
 
 	t.Run("6. Vector -> Nexus - Invalid destination - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
+
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector)
+		require.NoError(t, err)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
@@ -425,12 +440,18 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 				},
 			},
 		)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("7. Vector -> Nexus - Invalid metadata type - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
+
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector)
+		require.NoError(t, err)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
@@ -442,12 +463,18 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 				},
 			},
 		)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("8. Vector -> Nexus - Invalid receiver amount - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
+
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector)
+		require.NoError(t, err)
 
 		invalidAmount := minColCoinsAllowedToBridge - 1
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
@@ -457,12 +484,18 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 				waitOption: WaitRefundEnabled,
 			},
 		)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("9. Vector -> Nexus - Invalid receiver address - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
+
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector)
+		require.NoError(t, err)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
@@ -477,6 +510,9 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 				waitOption: WaitRefundEnabled,
 			},
 		)
+
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	})
 }
 

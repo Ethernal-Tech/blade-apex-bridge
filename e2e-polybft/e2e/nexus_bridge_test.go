@@ -51,7 +51,7 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 		for _, dstChain := range directions[srcChain] {
 			fmt.Printf("Testing bridging from %s to %s\n", srcChain, dstChain)
 			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.AP3XTokenID)
+				t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.AP3XTokenID, true)
 		}
 	})
 
@@ -65,7 +65,7 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.AP3XTokenID)
+			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.AP3XTokenID, true)
 
 		relayerBalanceAfter, err := dstTestChain.GetAddressBalance(
 			ctx, apex.NexusInfo.RelayerAddress.String())
@@ -84,7 +84,7 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.AP3XTokenID)
+			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.AP3XTokenID, true)
 
 		relayerBalanceAfter, err := dstTestChain.GetAddressBalance(
 			ctx, apex.NexusInfo.RelayerAddress.String())
@@ -105,7 +105,7 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.AP3XTokenID)
+			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmountDfm, cardanofw.AP3XTokenID, true)
 
 		relayerBalanceAfter, err := dstTestChain.GetAddressBalance(
 			ctx, apex.NexusInfo.RelayerAddress.String())

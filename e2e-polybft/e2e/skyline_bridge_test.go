@@ -208,7 +208,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
-			cardanofw.AP3XTokenID)
+			cardanofw.AP3XTokenID, true)
 	})
 
 	t.Run("2. vector -> cardano - native token on src", func(t *testing.T) {
@@ -234,7 +234,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, sendAmountDfm,
-			cardanofw.XADATokenID)
+			cardanofw.XADATokenID, true)
 	})
 
 	t.Run("3. cardano -> vector - currency on src", func(t *testing.T) {
@@ -250,7 +250,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmountDfm,
-			cardanofw.ADATokenID)
+			cardanofw.ADATokenID, true)
 	})
 
 	t.Run("4. cardano -> prime - native token on src", func(t *testing.T) {
@@ -276,7 +276,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
-			cardanofw.CAP3XTokenID)
+			cardanofw.CAP3XTokenID, true)
 	})
 
 	t.Run("5. Submitter has tokens", func(t *testing.T) {
@@ -314,7 +314,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 			e2ehelper.ExecuteSingleBridging(
 				t, ctx, apex, brSubmitterUser, br.sender, br.src, br.dest, sendAmountDfm,
-				br.srcTokenID)
+				br.srcTokenID, true)
 		}
 	})
 

@@ -1060,14 +1060,16 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 }
 
 func (ec *TestEVMChain) SendTx(
-	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
+	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver, operationFee uint64,
 ) (string, error) {
 	if ln := len(receivers); ln != 1 {
 		return "", fmt.Errorf("evm SendTx currently supports only one receiver but got %d", ln)
 	}
 
+	opFee := new(big.Int).SetUint64(operationFee)
+
 	rec, err := ec.sendTxWithNativeTokens(privateKey, receivers[0].Addr, receivers[0].Amount,
-		metadata, receivers[0].NativeTokens)
+		metadata, receivers[0].NativeTokens, opFee)
 	if err != nil {
 		return "", err
 	}
@@ -1128,7 +1130,8 @@ func (ec *TestEVMChain) sendTx(
 }
 
 func (ec *TestEVMChain) sendTxWithNativeTokens(
-	privateKey string, receiver string, amount *big.Int, data []byte, nativeTokens []infrawallet.TokenAmount,
+	privateKey string, receiver string, amount *big.Int, data []byte,
+	nativeTokens []infrawallet.TokenAmount, operationFee *big.Int,
 ) (*ethgo.Receipt, error) {
 	privateKeyECDSA, err := crypto.HexToECDSA(privateKey)
 	if err != nil {
@@ -1197,10 +1200,10 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 		return nil, fmt.Errorf("currency transfer for chain %s failed: %d", ec.config.ChainID, receipt.Status)
 	}
 
-	if ec.config.MinOperationFee.Cmp(big.NewInt(0)) == 1 {
+	if operationFee.Cmp(big.NewInt(0)) == 1 {
 		_, err = txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
 			types.WithFrom(key.Address()),
-			types.WithValue(ec.config.MinOperationFee),
+			types.WithValue(operationFee),
 			types.WithInput(data),
 			types.WithTo(&treasuryAddress),
 		)), key)

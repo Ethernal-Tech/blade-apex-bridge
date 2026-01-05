@@ -88,7 +88,7 @@ func Test_CardanoToNexus(t *testing.T) {
 	t.Run("Cardano -> Nexus - ADA -> xADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, big.NewInt(100_000_000),
-			cardanofw.ADATokenID)
+			cardanofw.ADATokenID, true)
 	})
 }
 
@@ -134,63 +134,63 @@ func Test_SkylineBridgeCC_General(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(1),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
 	})
 
 	t.Run("Cardano -> Nexus - ADA -> xADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, big.NewInt(100_000_000),
-			cardanofw.ADATokenID)
+			cardanofw.ADATokenID, true)
 	})
 
 	t.Run("Nexus -> Cardano - xADA -> ADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
-			cardanofw.XADATokenID)
+			cardanofw.XADATokenID, true)
 	})
 
 	t.Run("Cardano -> Vector - ADA -> xADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, big.NewInt(20_000_000),
-			cardanofw.ADATokenID)
+			cardanofw.ADATokenID, true)
 	})
 
 	t.Run("Vector -> Cardano - xADA -> ADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
-			cardanofw.XADATokenID)
+			cardanofw.XADATokenID, true)
 	})
 
 	t.Run("Vector -> Nexus xADA -> xADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(1),
-			cardanofw.XADATokenID)
+			cardanofw.XADATokenID, true)
 	})
 
 	t.Run("Nexus -> Vector xADA -> xADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
-			cardanofw.XADATokenID)
+			cardanofw.XADATokenID, true)
 	})
 
 	t.Run("Prime -> Cardano - AP3X -> CAP3X", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
-			cardanofw.AP3XTokenID)
+			cardanofw.AP3XTokenID, true)
 	})
 
 	t.Run("Cardano -> Prime - CAP3X -> AP3X", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(10_000_000),
-			cardanofw.CAP3XTokenID)
+			cardanofw.CAP3XTokenID, true)
 	})
 
 	t.Run("Nexus <-> Polygon USDT <-> wUSDT", func(t *testing.T) {
@@ -415,7 +415,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 	t.Run("12. Vector -> Nexus - Mismatch submitted and receiver amounts - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
@@ -432,7 +432,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 		for i := range instances {
 			e2ehelper.ExecuteSingleBridging(
 				t, ctx, apex, user, apex.Users[i], cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-				cardanofw.USDTTokenID)
+				cardanofw.USDTTokenID, true)
 		}
 
 		executeInvalidMismatchSendColCoinsMultipleInstancesParalel(t, ctx, apex, vectorNexusUSDTTestConfig, minColCoinsAllowedToBridge, instances, maxWaitTimeSec, retryDelaySec, false, 0)
@@ -441,7 +441,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 	t.Run("14. Vector -> Nexus - Invalid destination - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
@@ -458,7 +458,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 	t.Run("15. Vector -> Nexus - Invalid metadata type - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, 60, retryDelaySec, 0,
 			colCoinInvalidOpts{
@@ -475,7 +475,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 	t.Run("16. Vector -> Nexus - Invalid receiver amount - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
 
 		invalidAmount := minColCoinsAllowedToBridge - 1
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
@@ -490,7 +490,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 	t.Run("17. Vector -> Nexus - Invalid receiver address - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
@@ -799,11 +799,11 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(500000000001),
-			cardanofw.XADATokenID)
+			cardanofw.XADATokenID, true)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(500000000000),
-			cardanofw.XADATokenID)
+			cardanofw.XADATokenID, true)
 
 		t.Run("2. Nexus -> Vector xada", func(t *testing.T) {
 			tokenInfo, err = apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.XADATokenID)
@@ -997,15 +997,15 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 	t.Run("1. Cardano -> Vector -> Nexus -> Cardano - ADA/xADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmount,
-			cardanofw.ADATokenID)
+			cardanofw.ADATokenID, true)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, sendAmount,
-			cardanofw.XADATokenID)
+			cardanofw.XADATokenID, true)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDCardano, sendAmount,
-			cardanofw.XADATokenID)
+			cardanofw.XADATokenID, true)
 	})
 
 	t.Run("2. Cardano -> Nexus -> Vector -> Cardano - ADA/xADA", func(t *testing.T) {
@@ -1015,15 +1015,15 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, sendAmount,
-			cardanofw.ADATokenID)
+			cardanofw.ADATokenID, true)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, sendAmount,
-			cardanofw.XADATokenID)
+			cardanofw.XADATokenID, true)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, sendAmount,
-			cardanofw.XADATokenID)
+			cardanofw.XADATokenID, true)
 	})
 
 	t.Run("3. Cardano -> Nexus; Cardano -> Vector -> Nexus; Nexus -> Vector - ADA/xADA", func(t *testing.T) {
@@ -1033,19 +1033,19 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, sendAmount,
-			cardanofw.ADATokenID)
+			cardanofw.ADATokenID, true)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmount,
-			cardanofw.ADATokenID)
+			cardanofw.ADATokenID, true)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, sendAmount,
-			cardanofw.XADATokenID)
+			cardanofw.XADATokenID, true)
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, new(big.Int).Mul(sendAmount, big.NewInt(2)),
-			cardanofw.XADATokenID)
+			cardanofw.XADATokenID, true)
 	})
 
 	type bridgingRequest struct {
@@ -1115,7 +1115,7 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 
 				e2ehelper.ExecuteSingleBridging(
 					t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(100_000_000),
-					cardanofw.USDTTokenID)
+					cardanofw.USDTTokenID, false)
 			}()
 
 			go func() {
@@ -1123,7 +1123,7 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 
 				e2ehelper.ExecuteSingleBridging(
 					t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(200_000_000),
-					cardanofw.XADATokenID)
+					cardanofw.XADATokenID, false)
 			}()
 		}
 
@@ -1330,7 +1330,7 @@ func Test_SkylineBridgeCC_WithRefund(t *testing.T) {
 		// mint some xADA on Nexus for user
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, big.NewInt(100_000_000),
-			cardanofw.ADATokenID)
+			cardanofw.ADATokenID, true)
 
 		e2ehelper.ExecuteBridgingWithRefund(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
@@ -1341,7 +1341,7 @@ func Test_SkylineBridgeCC_WithRefund(t *testing.T) {
 		// mint some USDT on Nexus for user
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(10*colCoinsAmount)),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
 
 		e2ehelper.ExecuteBridgingWithRefund(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(colCoinsAmount)),

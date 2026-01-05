@@ -16,8 +16,9 @@ import (
 )
 
 func ExecuteSingleBridging(
-	t *testing.T, ctx context.Context, apex IApexSystem, senderUser, receiverUser *cardanofw.TestApexUser,
-	srcChain, dstChain string, sendAmount *big.Int, srcTokenID uint16, options ...ExecuteBridgingOption,
+	t *testing.T, ctx context.Context, apex IApexSystem, senderUser,
+	receiverUser *cardanofw.TestApexUser, srcChain, dstChain string, sendAmount *big.Int,
+	srcTokenID uint16, validateTreasury bool, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -41,7 +42,7 @@ func ExecuteSingleBridging(
 	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, srcChain)
 	require.NoError(t, err)
 
-	shouldCheckTreasuryBalance := initialTreasuryBalance != nil
+	shouldCheckTreasuryBalance := initialTreasuryBalance != nil && validateTreasury
 
 	txHash, err := apex.SubmitBridgingRequest(
 		cardanofw.SubmitBridgingRequestData{
