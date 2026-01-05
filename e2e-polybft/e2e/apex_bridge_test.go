@@ -207,6 +207,7 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 	// first upgrade just to clone repository
 	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
 		"deploy-evm", "upgrade",
+		"--chain-ids-config", apex.GetChainIDsConfig(),
 		"--url", apex.GetBridgeDefaultJSONRPCAddr(),
 		"--key", hex.EncodeToString(privateKeyRaw),
 		"--dir", tmpPath,
@@ -238,6 +239,7 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 	// second upgrade upgrades changed contract
 	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
 		"deploy-evm", "upgrade",
+		"--chain-ids-config", apex.GetChainIDsConfig(),
 		"--url", apex.GetBridgeDefaultJSONRPCAddr(),
 		"--key", hex.EncodeToString(privateKeyRaw),
 		"--dir", tmpPath,
@@ -412,8 +414,19 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	}
 
 	txHash, err := apex.GetChainMust(t, srcChain).BridgingRequest(
-		ctx, dstChain, senderUserBuilder.String(), receiversMap,
-		new(big.Int).SetUint64(apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)), 0, true)
+		cardanofw.BridgingRequestParams{
+			Ctx:            ctx,
+			DestChainID:    dstChain,
+			PrivateKey:     senderUserBuilder.String(),
+			ChainIDsConfig: apex.GetChainIDsConfig(),
+			Receivers:      receiversMap,
+			FeeAmount: new(big.Int).SetUint64(
+				apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false),
+			),
+			OperationFee: 0,
+			IsCurrency:   true,
+		},
+	)
 	require.NoError(t, err)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)

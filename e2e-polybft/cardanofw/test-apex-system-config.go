@@ -19,6 +19,9 @@ const (
 
 	ChainIDCardano ChainID = "cardano"
 
+	ChainTypeCardanoStr = "cardano"
+	ChainTypeEVMStr     = "evm"
+
 	RunRelayerOnValidatorID = 1
 
 	NoTelemetry TelemetryConfig = iota

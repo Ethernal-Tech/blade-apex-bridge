@@ -34,6 +34,7 @@ const (
 	ValidatorComponentsConfigFileName = "vc_config.json"
 	RelayerConfigFileName             = "relayer_config.json"
 	DirectionsConfigFileName          = "directions_config.json"
+	ChainIDsConfigFileName            = "chain_ids_config.json"
 )
 
 type CardanoWallet struct {
@@ -75,6 +76,10 @@ func (cv *TestApexValidator) GetRelayerConfig() string {
 
 func (cv *TestApexValidator) GetDirectionsConfig() string {
 	return filepath.Join(cv.GetBridgingConfigsDir(), DirectionsConfigFileName)
+}
+
+func (cv *TestApexValidator) GetChainIDsConfig() string {
+	return filepath.Join(cv.GetBridgingConfigsDir(), ChainIDsConfigFileName)
 }
 
 func (cv *TestApexValidator) GetRelayerDataDir() string {
@@ -132,6 +137,7 @@ func (cv *TestApexValidator) RelayerCardanoWalletCreate(chain ChainID) (string, 
 
 func (cv *TestApexValidator) RegisterChain(
 	chain ChainID,
+	chainIDNum uint8,
 	tokenSupply *big.Int,
 	nativeTokenSupply *big.Int,
 	chainType uint8,
@@ -139,6 +145,7 @@ func (cv *TestApexValidator) RegisterChain(
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"register-chain",
 		"--chain", chain,
+		"--chain-num", fmt.Sprint(chainIDNum),
 		"--type", fmt.Sprint(chainType),
 		"--validator-data-dir", cv.server.DataDir(),
 		"--token-supply", fmt.Sprint(tokenSupply),
@@ -181,6 +188,22 @@ func (cv *TestApexValidator) GenerateConfigs(
 	}
 
 	return common.CreateDirSafe(dbsPath, 0770)
+}
+
+func (cv *TestApexValidator) GenerateChainIDsConfig(chainIDsConfigFile *ChainIDsConfigFile) error {
+	fileName := path.Join(cv.GetBridgingConfigsDir(), ChainIDsConfigFileName)
+
+	json, err := json.Marshal(*chainIDsConfigFile)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(fileName, json, 0600)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (cv *TestApexValidator) GenerateDirectionsConfig(directionConfigFile *DirectionConfigFile) error {

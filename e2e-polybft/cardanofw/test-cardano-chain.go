@@ -48,6 +48,7 @@ type TestCardanoChainConfig struct {
 	InitialHotWalletAmount      *big.Int
 	InitialHotWalletTokenAmount *big.Int
 	ChainType                   ChainID
+	ChainIDNum                  uint8
 	FundAmount                  uint64
 	FundFeeAmount               uint64
 	FundTokenAmount             uint64
@@ -86,6 +87,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		NetworkType:                 infrawallet.TestNetNetwork,
 		NetworkMagic:                infrawallet.PrimeTestNetProtocolMagic,
 		ChainType:                   ChainIDPrime,
+		ChainIDNum:                  ChainIDToInt(ChainIDPrime),
 		NodesCount:                  4,
 		InitialHotWalletAmount:      big.NewInt(0),
 		InitialHotWalletTokenAmount: big.NewInt(0),
@@ -110,6 +112,7 @@ func NewVectorChainConfig(mintableTokens ...map[uint16]string) *TestCardanoChain
 		NetworkType:                 infrawallet.TestNetNetwork,
 		NetworkMagic:                infrawallet.VectorTestNetProtocolMagic,
 		ChainType:                   ChainIDVector,
+		ChainIDNum:                  ChainIDToInt(ChainIDVector),
 		NodesCount:                  4,
 		InitialHotWalletAmount:      big.NewInt(0),
 		InitialHotWalletTokenAmount: big.NewInt(0),
@@ -142,6 +145,7 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		NetworkType:                 infrawallet.TestNetNetwork,
 		NetworkMagic:                infrawallet.TestNetProtocolMagic,
 		ChainType:                   ChainIDCardano,
+		ChainIDNum:                  ChainIDToInt(ChainIDCardano),
 		NodesCount:                  4,
 		InitialHotWalletAmount:      big.NewInt(0),
 		InitialHotWalletTokenAmount: big.NewInt(0),
@@ -166,6 +170,7 @@ func NewRemotePrimeChainConfig(
 		NetworkType:             infrawallet.TestNetNetwork,
 		NetworkMagic:            infrawallet.PrimeTestNetProtocolMagic,
 		ChainType:               ChainIDPrime,
+		ChainIDNum:              ChainIDToInt(ChainIDPrime),
 		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
 		MinOperationFee:         minOperationFee,
@@ -181,6 +186,7 @@ func NewRemoteVectorChainConfig(
 		NetworkType:             infrawallet.MainNetNetwork,
 		NetworkMagic:            infrawallet.MainNetProtocolMagic,
 		ChainType:               ChainIDVector,
+		ChainIDNum:              ChainIDToInt(ChainIDVector),
 		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
 		MinOperationFee:         minOperationFee,
@@ -196,6 +202,7 @@ func NewRemoteCardanoChainConfig(
 		NetworkType:             infrawallet.TestNetNetwork,
 		NetworkMagic:            infrawallet.TestNetProtocolMagic,
 		ChainType:               ChainIDCardano,
+		ChainIDNum:              ChainIDToInt(ChainIDCardano),
 		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
 		MinOperationFee:         minOperationFee,
@@ -385,7 +392,7 @@ func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) error {
 	return validator.CardanoWalletCreate(ec.ChainID(), walletType)
 }
 
-func (ec *TestCardanoChain) DeployMintingContract(_ context.Context) error {
+func (ec *TestCardanoChain) DeployMintingContract(_ context.Context, _ string) error {
 	custodialNFT := ec.config.CustodialNFT
 	if custodialNFT == nil {
 		return nil
@@ -461,7 +468,7 @@ func (ec *TestCardanoChain) DeployMintingContract(_ context.Context) error {
 }
 
 func (ec *TestCardanoChain) CreateAddresses(
-	bladeAdmin *crypto.ECDSAKey, bridgeURL string,
+	bladeAdmin *crypto.ECDSAKey, bridgeURL, chainIDsConfig string,
 ) error {
 	custodialAddressGeneration := ec.config.CustodialAddressGeneration
 
@@ -472,6 +479,7 @@ func (ec *TestCardanoChain) CreateAddresses(
 
 	args := []string{
 		"create-addresses",
+		"--chain-ids-config", chainIDsConfig,
 		"--network-id", fmt.Sprint(ec.config.NetworkType),
 		"--testnet-magic", fmt.Sprint(ec.config.NetworkMagic),
 		"--bridge-url", bridgeURL,
@@ -633,12 +641,12 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	return nil
 }
 
-func (ec *TestCardanoChain) InitContracts(_ context.Context, _ *crypto.ECDSAKey, _ string) error {
+func (ec *TestCardanoChain) InitContracts(_ context.Context, _ *crypto.ECDSAKey, _, _ string) error {
 	return nil
 }
 
 func (ec *TestCardanoChain) RegisterChain(validator *TestApexValidator) error {
-	return validator.RegisterChain(ec.ChainID(), ec.config.InitialHotWalletAmount, ec.config.InitialHotWalletTokenAmount,
+	return validator.RegisterChain(ec.ChainID(), ec.ChainIDNum(), ec.config.InitialHotWalletAmount, ec.config.InitialHotWalletTokenAmount,
 		ChainTypeCardano)
 }
 
@@ -652,6 +660,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 	args := []string{
 		"generate-configs", "cardano-chain",
 		"--chain-id", ec.ChainID(),
+		"--chain-id-num", fmt.Sprint(ec.ChainIDNum()),
 		"--network-address", server.NetworkAddress(),
 		"--network-magic", fmt.Sprint(ec.config.NetworkMagic),
 		"--network-id", fmt.Sprint(ec.config.NetworkType),
@@ -729,6 +738,10 @@ func (ec *TestCardanoChain) UpdateTxSendChainConfiguration(configs map[string]se
 
 func (ec *TestCardanoChain) ChainID() string {
 	return ec.config.ChainType
+}
+
+func (ec *TestCardanoChain) ChainIDNum() uint8 {
+	return ec.config.ChainIDNum
 }
 
 func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error) {
@@ -830,24 +843,16 @@ func (ec *TestCardanoChain) CreateMetadata(
 	return metadata.Marshal()
 }
 
-func (ec *TestCardanoChain) BridgingRequest(
-	ctx context.Context,
-	dstChainID ChainID,
-	privateKey string,
-	receiversMap map[string]ReceiverAmount,
-	feeAmount *big.Int,
-	operationFee uint64,
-	isCurrency bool,
-) (string, error) {
+func (ec *TestCardanoChain) BridgingRequest(params BridgingRequestParams) (string, error) {
 	wallets, policyScript, senderAddr, err := FromCardanoPrivateKeyString(
-		privateKey, ec.config.NetworkType, ec.config.NetworkMagic)
+		params.PrivateKey, ec.config.NetworkType, ec.config.NetworkMagic)
 	if err != nil {
 		return "", err
 	}
 
-	receivers := make([]sendtx.BridgingTxReceiver, 0, len(receiversMap))
+	receivers := make([]sendtx.BridgingTxReceiver, 0, len(params.Receivers))
 
-	for receiverAddress, receiverAmount := range receiversMap {
+	for receiverAddress, receiverAmount := range params.Receivers {
 		receivers = append(receivers, sendtx.BridgingTxReceiver{
 			Addr:    receiverAddress,
 			Amount:  DfmToChainNativeTokenAmount(ec.ChainID(), receiverAmount.Amount).Uint64(),
@@ -855,22 +860,22 @@ func (ec *TestCardanoChain) BridgingRequest(
 		})
 	}
 
-	multisigAddr, err := ec.GetAddressToBridgeTo(ctx, !isCurrency)
+	multisigAddr, err := ec.GetAddressToBridgeTo(params.Ctx, !params.IsCurrency)
 	if err != nil {
 		return "", err
 	}
 
 	txInfo, _, err := ec.txSender.CreateBridgingTx(
-		ctx,
+		params.Ctx,
 		sendtx.BridgingTxDto{
 			SrcChainID:             ec.ChainID(),
-			DstChainID:             dstChainID,
+			DstChainID:             params.DestChainID,
 			SenderAddr:             senderAddr,
 			SenderAddrPolicyScript: policyScript,
 			Receivers:              receivers,
 			BridgingAddress:        multisigAddr,
-			BridgingFee:            feeAmount.Uint64(),
-			OperationFee:           operationFee,
+			BridgingFee:            params.FeeAmount.Uint64(),
+			OperationFee:           params.OperationFee,
 		})
 	if err != nil {
 		return "", err
@@ -880,7 +885,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		ec.indexer.Add(txInfo.TxHash)
 	}
 
-	return ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, multisigAddr, wallets)
+	return ec.submitTx(params.Ctx, txInfo.TxRaw, txInfo.TxHash, multisigAddr, wallets)
 }
 
 func (ec *TestCardanoChain) GetAddressToBridgeTo(

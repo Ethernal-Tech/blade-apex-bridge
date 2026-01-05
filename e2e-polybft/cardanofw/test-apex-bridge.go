@@ -82,6 +82,10 @@ func SetupAndRunApexBridge(
 
 	fmt.Printf("Bridge chain has been started. Validators are ready\n")
 
+	require.NoError(t, apexSystem.GenerateChainIDsConfig())
+
+	fmt.Printf("Chain IDs config file has been generated\n")
+
 	require.NoError(t, apexSystem.CreateWallets())
 
 	fmt.Printf("Wallets have been created.\n")
