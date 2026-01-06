@@ -848,12 +848,24 @@ func (ec *TestEVMChain) BridgingRequest(
 	receivers map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
-	isCurrency bool,
+	isCurrencySrc, isCurrencyDest bool,
 ) (string, error) {
 	//nolint:prealloc
 	var params []string
 
-	if !isCurrency {
+	if isCurrencySrc && isCurrencyDest {
+		params = []string{
+			"sendtx",
+			"--tx-type", "evm",
+			"--gateway-addr", ec.gatewayAddr.String(),
+			"--nexus-url", ec.jsonRPCAddr,
+			"--key", privateKey,
+			"--chain-src", ec.config.ChainID,
+			"--chain-dst", destChainID,
+			"--currency-token-id", fmt.Sprint(ec.config.CurrencyID),
+			"--fee", feeAmount.String(),
+		}
+	} else {
 		receiverTokenID := uint16(0)
 		for _, receiver := range receivers {
 			receiverTokenID = receiver.TokenID
@@ -885,22 +897,12 @@ func (ec *TestEVMChain) BridgingRequest(
 			"--src-token-id", fmt.Sprint(receiverTokenID),
 		}
 
-		if isTokenLockUnlock {
+		if isCurrencySrc {
+			params = append(params, "--src-token-name", infrawallet.AdaTokenName)
+		} else if isTokenLockUnlock {
 			params = append(params,
 				"--native-token-wallet-contract-addr", ec.nativeTokenWalletAddr.String(),
 				"--src-token-contract-addr", ec.config.ConfigurableTokens[receiverTokenID])
-		}
-	} else {
-		params = []string{
-			"sendtx",
-			"--tx-type", "evm",
-			"--gateway-addr", ec.gatewayAddr.String(),
-			"--nexus-url", ec.jsonRPCAddr,
-			"--key", privateKey,
-			"--chain-src", ec.config.ChainID,
-			"--chain-dst", destChainID,
-			"--currency-token-id", fmt.Sprint(ec.config.CurrencyID),
-			"--fee", feeAmount.String(),
 		}
 	}
 

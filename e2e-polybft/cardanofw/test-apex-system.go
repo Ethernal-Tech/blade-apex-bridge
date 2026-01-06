@@ -1744,20 +1744,26 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		return "", err
 	}
 
-	currencyID, err := a.GetChainCurrencyID(data.SourceChain)
+	srcCurrencyID, err := a.GetChainCurrencyID(data.SourceChain)
 	if err != nil {
 		return "", err
 	}
 
-	isCurrency := currencyID == data.SrcTokenID
+	destCurrencyID, err := a.GetChainCurrencyID(data.DestinationChain)
+	if err != nil {
+		return "", err
+	}
+
+	isCurrencySrc := srcCurrencyID == data.SrcTokenID
 
 	feeAmount := DfmToChainNativeTokenAmount(
 		data.SourceChain, new(big.Int).SetUint64(
-			a.GetMinBridgingFee(data.SourceChain, !isCurrency)))
+			a.GetMinBridgingFee(data.SourceChain, !isCurrencySrc)))
 
 	txHash, err := infracommon.ExecuteWithRetry(data.Context, func(ctx context.Context) (string, error) {
 		txHash, err := srcChain.BridgingRequest(
-			ctx, data.DestinationChain, privateKey, receiversMap, feeAmount, operationFee, isCurrency)
+			ctx, data.DestinationChain, privateKey, receiversMap, feeAmount, operationFee,
+			isCurrencySrc, destCurrencyID == data.TokensInfo.DstTokenID)
 		if err != nil {
 			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
 				return "", infracommon.ErrRetryTryAgain
