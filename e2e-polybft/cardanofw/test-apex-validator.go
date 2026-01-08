@@ -137,7 +137,6 @@ func (cv *TestApexValidator) RelayerCardanoWalletCreate(chain ChainID) (string, 
 
 func (cv *TestApexValidator) RegisterChain(
 	chain ChainID,
-	chainIDNum uint8,
 	tokenSupply *big.Int,
 	nativeTokenSupply *big.Int,
 	chainType uint8,
@@ -145,7 +144,7 @@ func (cv *TestApexValidator) RegisterChain(
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"register-chain",
 		"--chain", chain,
-		"--chain-num", fmt.Sprint(chainIDNum),
+		"--chain-ids-config", cv.GetChainIDsConfig(),
 		"--type", fmt.Sprint(chainType),
 		"--validator-data-dir", cv.server.DataDir(),
 		"--token-supply", fmt.Sprint(tokenSupply),

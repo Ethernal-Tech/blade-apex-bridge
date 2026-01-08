@@ -49,9 +49,8 @@ type EVMTokenInfo struct {
 }
 
 type TestEVMChainConfig struct {
-	ChainID    string
-	ChainIDNum uint8
-	IsEnabled  bool
+	ChainID   string
+	IsEnabled bool
 
 	ValidatorCount         int
 	InitialHotWalletAmount *big.Int // in wei
@@ -82,7 +81,6 @@ type TestEVMChainConfig struct {
 func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 	return &TestEVMChainConfig{
 		ChainID:        ChainIDNexus,
-		ChainIDNum:     ChainIDToInt(ChainIDNexus),
 		IsEnabled:      isEnabled,
 		ValidatorCount: 4,
 		StartingPort:   int64(30400),
@@ -133,7 +131,6 @@ func NewRemoteNexusChainConfig(
 	return &TestEVMChainConfig{
 		IsEnabled:       isEnabled,
 		ChainID:         ChainIDNexus,
-		ChainIDNum:      ChainIDToInt(ChainIDNexus),
 		MinBridgingFee:  DfmToWei(new(big.Int).SetUint64(minBridgingFeeAmount)),
 		MinOperationFee: DfmToWei(new(big.Int).SetUint64(minOperationFee)),
 		CurrencyID:      AP3XTokenID,
@@ -161,7 +158,6 @@ func NewRemoteNexusChainConfig(
 func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 	return &TestEVMChainConfig{
 		ChainID:        ChainIDPolygon,
-		ChainIDNum:     ChainIDToInt(ChainIDPolygon),
 		IsEnabled:      isEnabled,
 		ValidatorCount: 4,
 		StartingPort:   int64(30500),
@@ -726,7 +722,7 @@ func retry(ctx context.Context, workingDirectory string, action func() error) er
 
 func (ec *TestEVMChain) RegisterChain(validator *TestApexValidator) error {
 	return validator.RegisterChain(
-		ec.ChainID(), ec.ChainIDNum(), WeiToDfm(ec.config.InitialHotWalletAmount), big.NewInt(0), ChainTypeEVM)
+		ec.ChainID(), WeiToDfm(ec.config.InitialHotWalletAmount), big.NewInt(0), ChainTypeEVM)
 }
 
 func (ec *TestEVMChain) GenerateChainConfigs(
@@ -770,10 +766,6 @@ func (ec *TestEVMChain) UpdateTxSendChainConfiguration(_ map[string]sendtx.Chain
 
 func (ec *TestEVMChain) ChainID() string {
 	return ec.config.ChainID
-}
-
-func (ec *TestEVMChain) ChainIDNum() uint8 {
-	return ec.config.ChainIDNum
 }
 
 func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error) {

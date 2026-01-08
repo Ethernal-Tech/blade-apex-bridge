@@ -48,7 +48,6 @@ type TestCardanoChainConfig struct {
 	InitialHotWalletAmount      *big.Int
 	InitialHotWalletTokenAmount *big.Int
 	ChainType                   ChainID
-	ChainIDNum                  uint8
 	FundAmount                  uint64
 	FundFeeAmount               uint64
 	FundTokenAmount             uint64
@@ -87,7 +86,6 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		NetworkType:                 infrawallet.TestNetNetwork,
 		NetworkMagic:                infrawallet.PrimeTestNetProtocolMagic,
 		ChainType:                   ChainIDPrime,
-		ChainIDNum:                  ChainIDToInt(ChainIDPrime),
 		NodesCount:                  4,
 		InitialHotWalletAmount:      big.NewInt(0),
 		InitialHotWalletTokenAmount: big.NewInt(0),
@@ -112,7 +110,6 @@ func NewVectorChainConfig(mintableTokens ...map[uint16]string) *TestCardanoChain
 		NetworkType:                 infrawallet.TestNetNetwork,
 		NetworkMagic:                infrawallet.VectorTestNetProtocolMagic,
 		ChainType:                   ChainIDVector,
-		ChainIDNum:                  ChainIDToInt(ChainIDVector),
 		NodesCount:                  4,
 		InitialHotWalletAmount:      big.NewInt(0),
 		InitialHotWalletTokenAmount: big.NewInt(0),
@@ -145,7 +142,6 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		NetworkType:                 infrawallet.TestNetNetwork,
 		NetworkMagic:                infrawallet.TestNetProtocolMagic,
 		ChainType:                   ChainIDCardano,
-		ChainIDNum:                  ChainIDToInt(ChainIDCardano),
 		NodesCount:                  4,
 		InitialHotWalletAmount:      big.NewInt(0),
 		InitialHotWalletTokenAmount: big.NewInt(0),
@@ -170,7 +166,6 @@ func NewRemotePrimeChainConfig(
 		NetworkType:             infrawallet.TestNetNetwork,
 		NetworkMagic:            infrawallet.PrimeTestNetProtocolMagic,
 		ChainType:               ChainIDPrime,
-		ChainIDNum:              ChainIDToInt(ChainIDPrime),
 		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
 		MinOperationFee:         minOperationFee,
@@ -186,7 +181,6 @@ func NewRemoteVectorChainConfig(
 		NetworkType:             infrawallet.MainNetNetwork,
 		NetworkMagic:            infrawallet.MainNetProtocolMagic,
 		ChainType:               ChainIDVector,
-		ChainIDNum:              ChainIDToInt(ChainIDVector),
 		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
 		MinOperationFee:         minOperationFee,
@@ -202,7 +196,6 @@ func NewRemoteCardanoChainConfig(
 		NetworkType:             infrawallet.TestNetNetwork,
 		NetworkMagic:            infrawallet.TestNetProtocolMagic,
 		ChainType:               ChainIDCardano,
-		ChainIDNum:              ChainIDToInt(ChainIDCardano),
 		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
 		MinOperationFee:         minOperationFee,
@@ -646,7 +639,7 @@ func (ec *TestCardanoChain) InitContracts(_ context.Context, _ *crypto.ECDSAKey,
 }
 
 func (ec *TestCardanoChain) RegisterChain(validator *TestApexValidator) error {
-	return validator.RegisterChain(ec.ChainID(), ec.ChainIDNum(), ec.config.InitialHotWalletAmount,
+	return validator.RegisterChain(ec.ChainID(), ec.config.InitialHotWalletAmount,
 		ec.config.InitialHotWalletTokenAmount, ChainTypeCardano)
 }
 
@@ -737,10 +730,6 @@ func (ec *TestCardanoChain) UpdateTxSendChainConfiguration(configs map[string]se
 
 func (ec *TestCardanoChain) ChainID() string {
 	return ec.config.ChainType
-}
-
-func (ec *TestCardanoChain) ChainIDNum() uint8 {
-	return ec.config.ChainIDNum
 }
 
 func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error) {
