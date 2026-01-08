@@ -413,7 +413,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 
 	txHash, err := apex.GetChainMust(t, srcChain).BridgingRequest(
 		ctx, dstChain, senderUserBuilder.String(), receiversMap,
-		new(big.Int).SetUint64(apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)), 0, true)
+		new(big.Int).SetUint64(apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)), 0, true, true)
 	require.NoError(t, err)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)

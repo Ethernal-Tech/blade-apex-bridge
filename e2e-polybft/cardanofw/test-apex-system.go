@@ -111,6 +111,7 @@ type ApexSystem struct {
 	VectorInfo  CardanoChainInfo
 	CardanoInfo CardanoChainInfo
 	NexusInfo   EVMChainInfo
+	PolygonInfo EVMChainInfo
 
 	EcosystemTokens map[uint16]string
 
@@ -161,7 +162,11 @@ func NewApexSystem(
 	users := make([]*TestApexUser, config.UserCnt)
 	for i := range users {
 		users[i], err = NewTestApexUser(
-			NewApexNetworkTypes(config.PrimeConfig, config.VectorConfig, config.CardanoConfig, config.NexusConfig))
+			NewApexNetworkTypes(ApexNetworkTypesParams{
+				PrimeConfig: config.PrimeConfig, VectorConfig: config.VectorConfig, CardanoConfig: config.CardanoConfig,
+				NexusConfig: config.NexusConfig, PolygonConfig: config.PolygonConfig,
+			}),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a new apex user: %w", err)
 		}
@@ -195,6 +200,7 @@ func NewSkylineSystem(
 	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee
 	config.VectorConfig.MinOperationFee = DefaultMinOperationFee
 	config.NexusConfig.MinOperationFee = DfmToWei(new(big.Int).SetUint64(DefaultMinOperationFee))
+	config.PolygonConfig.MinOperationFee = DfmToWei(new(big.Int).SetUint64(DefaultMinOperationFee))
 
 	users := make([]*TestApexUser, config.UserCnt)
 
@@ -202,7 +208,11 @@ func NewSkylineSystem(
 
 	for i := range users {
 		users[i], err = NewTestApexUser(
-			NewApexNetworkTypes(config.PrimeConfig, config.VectorConfig, config.CardanoConfig, config.NexusConfig))
+			NewApexNetworkTypes(ApexNetworkTypesParams{
+				PrimeConfig: config.PrimeConfig, VectorConfig: config.VectorConfig, CardanoConfig: config.CardanoConfig,
+				NexusConfig: config.NexusConfig, PolygonConfig: config.PolygonConfig,
+			}),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a new skyline user: %w", err)
 		}
@@ -210,7 +220,12 @@ func NewSkylineSystem(
 
 	nexus, err := NewTestEVMChain(config.NexusConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create nexus chain: %w", err)
+	}
+
+	polygon, err := NewTestEVMChain(config.PolygonConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create polygon chain: %w", err)
 	}
 
 	apex := &ApexSystem{
@@ -221,7 +236,7 @@ func NewSkylineSystem(
 			NewTestCardanoChain(config.PrimeConfig),
 			NewTestCardanoChain(config.VectorConfig),
 			NewTestCardanoChain(config.CardanoConfig),
-			nexus,
+			nexus, polygon,
 		},
 		IsSkyline: true,
 	}
@@ -410,7 +425,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 		require.NoError(t, err)
 
 		for _, chain := range a.chains {
-			if chain.ChainID() == ChainIDNexus {
+			if chain.ChainID() == ChainIDNexus || chain.ChainID() == ChainIDPolygon {
 				continue
 			}
 
@@ -583,6 +598,76 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 			}
 
 			a.EcosystemTokens[USDTTokenID] = USDTTokenName
+
+			if a.Config.PolygonConfig != nil && a.Config.PolygonConfig.IsEnabled {
+				// In case Polygon is enabled, we need to add:
+				// - Polygon <-> Nexus = wUSDT/USDC/MATIC <-> USDT/wUSDC/xMATIC
+				a.NexusInfo.DestChain[ChainIDPolygon] = []Direction{
+					{
+						SourceTokenID:      USDTTokenID,
+						DestinationTokenID: USDTTokenID,
+					},
+					{
+						SourceTokenID:      USDCTokenID,
+						DestinationTokenID: USDCTokenID,
+					},
+					{
+						SourceTokenID:      XMATICTokenID,
+						DestinationTokenID: MATICTokenID,
+					},
+				}
+
+				a.NexusInfo.Tokens[USDCTokenID] = Token{
+					ChainSpecific:     "",
+					LockUnlock:        false,
+					IsWrappedCurrency: false,
+				}
+
+				a.NexusInfo.Tokens[XMATICTokenID] = Token{
+					ChainSpecific:     "",
+					LockUnlock:        false,
+					IsWrappedCurrency: true,
+				}
+
+				a.PolygonInfo.DestChain = map[ChainID][]Direction{
+					ChainIDNexus: {
+						{
+							SourceTokenID:      USDTTokenID,
+							DestinationTokenID: USDTTokenID,
+						},
+						{
+							SourceTokenID:      USDCTokenID,
+							DestinationTokenID: USDCTokenID,
+						},
+						{
+							SourceTokenID:      MATICTokenID,
+							DestinationTokenID: XMATICTokenID,
+						},
+					},
+				}
+
+				a.PolygonInfo.Tokens = map[uint16]Token{
+					USDTTokenID: {
+						ChainSpecific:     "",
+						LockUnlock:        false,
+						IsWrappedCurrency: false,
+					},
+					USDCTokenID: {
+						ChainSpecific:     "",
+						LockUnlock:        true,
+						IsWrappedCurrency: false,
+					},
+					MATICTokenID: { // currency token on Polygon - required by validatorcomponents
+						ChainSpecific:     cardanowallet.AdaTokenName,
+						LockUnlock:        true,
+						IsWrappedCurrency: false,
+					},
+				}
+
+				a.EcosystemTokens[USDCTokenID] = USDCTokenName
+				a.EcosystemTokens[MATICTokenID] = MATICTokenName
+				a.EcosystemTokens[XMATICTokenID] = XMATICTokenName
+			}
 		}
 	} else {
 		require.NotNil(t, a.PrimeInfo.GenesisWallet)
@@ -765,6 +850,12 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 		}
 	}
 
+	if a.Config.PolygonConfig != nil && a.Config.PolygonConfig.IsEnabled {
+		txSenderChainConfigs[ChainIDPolygon] = sendtx.ChainConfig{
+			DefaultMinFeeForBridging: WeiToDfm(a.Config.PolygonConfig.MinBridgingFee).Uint64(),
+		}
+	}
+
 	// set txSenderChainConfigs configuration for each chain
 	for _, chain := range a.chains {
 		chain.UpdateTxSendChainConfiguration(txSenderChainConfigs)
@@ -828,15 +919,18 @@ func (a *ApexSystem) DeployMintingContracts(ctx context.Context) error {
 				case ChainIDCardano, ChainIDPrime, ChainIDVector:
 					chainInfo := a.GetCardanoInfo(chain.ChainID())
 					for tokenID, tokenName := range mintableTokens {
-						token := chainInfo.Tokens[tokenID]
-						token.ChainSpecific = tokenName
-						chainInfo.Tokens[tokenID] = token
+						if token, ok := chainInfo.Tokens[tokenID]; ok {
+							token.ChainSpecific = tokenName
+							chainInfo.Tokens[tokenID] = token
+						}
 					}
-				case ChainIDNexus:
+				case ChainIDNexus, ChainIDPolygon:
+					chainInfo := a.GetEvmInfo(chain.ChainID())
 					for tokenID, tokenName := range mintableTokens {
-						token := a.NexusInfo.Tokens[tokenID]
-						token.ChainSpecific = tokenName
-						a.NexusInfo.Tokens[tokenID] = token
+						if token, ok := chainInfo.Tokens[tokenID]; ok {
+							token.ChainSpecific = tokenName
+							chainInfo.Tokens[tokenID] = token
+						}
 					}
 				default:
 					return fmt.Errorf("unimplemented cardano contract setup for chain %s", chain.ChainID())
@@ -890,6 +984,13 @@ func (a *ApexSystem) generateDirectionsConfigFile() *DirectionConfigFile {
 		directionConfigFile.Directions[ChainIDNexus] = DirectionConfig{
 			DestinationChain: a.NexusInfo.DestChain,
 			Tokens:           a.NexusInfo.Tokens,
+		}
+	}
+
+	if a.Config.PolygonConfig != nil && a.Config.PolygonConfig.IsEnabled {
+		directionConfigFile.Directions[ChainIDPolygon] = DirectionConfig{
+			DestinationChain: a.PolygonInfo.DestChain,
+			Tokens:           a.PolygonInfo.Tokens,
 		}
 	}
 
@@ -1518,6 +1619,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	isSourceChainSupported := data.SourceChain == ChainIDPrime ||
 		data.SourceChain == ChainIDVector ||
 		data.SourceChain == ChainIDNexus ||
+		data.SourceChain == ChainIDPolygon ||
 		data.SourceChain == ChainIDCardano
 
 	if !isSourceChainSupported {
@@ -1527,6 +1629,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	isDestinationChainSupported := data.DestinationChain == ChainIDPrime ||
 		data.DestinationChain == ChainIDVector ||
 		data.DestinationChain == ChainIDNexus ||
+		data.DestinationChain == ChainIDPolygon ||
 		data.DestinationChain == ChainIDCardano
 
 	if !isDestinationChainSupported {
@@ -1549,9 +1652,16 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		return "", fmt.Errorf("nexus is not configured or enabled, but it is specified as source or destination")
 	}
 
+	if (a.Config.PolygonConfig == nil || !a.Config.PolygonConfig.IsEnabled) &&
+		(data.SourceChain == ChainIDPolygon || data.DestinationChain == ChainIDPolygon) {
+		return "", fmt.Errorf("polygon is not configured or enabled, but it is specified as source or destination")
+	}
+
 	// check if bridging direction is supported
 	isSourceChainCardanoType := data.SourceChain == ChainIDCardano ||
 		data.SourceChain == ChainIDPrime || data.SourceChain == ChainIDVector
+	isSourceChainEvmType := data.SourceChain == ChainIDNexus || data.SourceChain == ChainIDPolygon
+
 	//nolint:gocritic
 	if isSourceChainCardanoType {
 		srcChainInfo := a.GetCardanoInfo(data.SourceChain)
@@ -1560,7 +1670,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		if !ok {
 			return "", fmt.Errorf("invalid bridging direction")
 		}
-	} else if data.SourceChain == ChainIDNexus {
+	} else if isSourceChainEvmType {
 		srcChainInfo := a.GetEvmInfo(data.SourceChain)
 
 		_, ok := srcChainInfo.DestChain[data.DestinationChain]
@@ -1588,6 +1698,10 @@ func (a *ApexSystem) SubmitBridgingRequest(
 			return "", fmt.Errorf("receiver %d does not have a nexus wallet for nexus chain transfer", i)
 		}
 
+		if data.DestinationChain == ChainIDPolygon && !receiver.HasPolygonWallet {
+			return "", fmt.Errorf("receiver %d does not have a polygon wallet for polygon chain transfer", i)
+		}
+
 		if data.DestinationChain == ChainIDCardano && !receiver.HasCardanoWallet {
 			return "", fmt.Errorf("receiver %d does not have a cardano wallet for cardano chain transfer", i)
 		}
@@ -1605,6 +1719,10 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 	if data.SourceChain == ChainIDNexus && !data.Sender.HasNexusWallet {
 		return "", fmt.Errorf("sender does not have a nexus wallet for nexus chain transfer")
+	}
+
+	if data.SourceChain == ChainIDPolygon && !data.Sender.HasPolygonWallet {
+		return "", fmt.Errorf("sender does not have a polygon wallet for polygon chain transfer")
 	}
 
 	if data.SourceChain == ChainIDCardano && !data.Sender.HasCardanoWallet {
@@ -1626,20 +1744,26 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		return "", err
 	}
 
-	currencyID, err := a.GetChainCurrencyID(data.SourceChain)
+	srcCurrencyID, err := a.GetChainCurrencyID(data.SourceChain)
 	if err != nil {
 		return "", err
 	}
 
-	isCurrency := currencyID == data.SrcTokenID
+	destCurrencyID, err := a.GetChainCurrencyID(data.DestinationChain)
+	if err != nil {
+		return "", err
+	}
+
+	isCurrencySrc := srcCurrencyID == data.SrcTokenID
 
 	feeAmount := DfmToChainNativeTokenAmount(
 		data.SourceChain, new(big.Int).SetUint64(
-			a.GetMinBridgingFee(data.SourceChain, !isCurrency)))
+			a.GetMinBridgingFee(data.SourceChain, !isCurrencySrc)))
 
 	txHash, err := infracommon.ExecuteWithRetry(data.Context, func(ctx context.Context) (string, error) {
 		txHash, err := srcChain.BridgingRequest(
-			ctx, data.DestinationChain, privateKey, receiversMap, feeAmount, operationFee, isCurrency)
+			ctx, data.DestinationChain, privateKey, receiversMap, feeAmount, operationFee,
+			isCurrencySrc, destCurrencyID == data.TokensInfo.DstTokenID)
 		if err != nil {
 			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
 				return "", infracommon.ErrRetryTryAgain
@@ -1666,7 +1790,7 @@ type BridgingTokensInfo struct {
 
 func (a *ApexSystem) GetChainDirectionsAndTokens(chain ChainID) (map[ChainID][]Direction, map[uint16]Token) {
 	switch chain {
-	case ChainIDNexus:
+	case ChainIDNexus, ChainIDPolygon:
 		info := a.GetEvmInfo(chain)
 
 		return info.DestChain, info.Tokens
@@ -1867,6 +1991,8 @@ func (a *ApexSystem) GetEvmInfo(chainID string) EVMChainInfo {
 	switch chainID {
 	case ChainIDNexus:
 		return a.NexusInfo
+	case ChainIDPolygon:
+		return a.PolygonInfo
 	default:
 		return EVMChainInfo{}
 	}
@@ -1970,6 +2096,8 @@ func (a *ApexSystem) GetMinBridgingFee(chainID ChainID, isNativeTokenBridging bo
 	switch chainID {
 	case ChainIDNexus:
 		return WeiToDfm(a.Config.NexusConfig.MinBridgingFee).Uint64()
+	case ChainIDPolygon:
+		return WeiToDfm(a.Config.PolygonConfig.MinBridgingFee).Uint64()
 	default:
 		config := a.getCardanoConfig(chainID)
 
@@ -1985,6 +2113,8 @@ func (a *ApexSystem) GetMinOperationFee(chainID ChainID) uint64 {
 	switch chainID {
 	case ChainIDNexus:
 		return WeiToDfm(a.Config.NexusConfig.MinOperationFee).Uint64()
+	case ChainIDPolygon:
+		return WeiToDfm(a.Config.PolygonConfig.MinOperationFee).Uint64()
 	default:
 		return a.getCardanoConfig(chainID).MinOperationFee
 	}

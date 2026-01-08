@@ -12,9 +12,10 @@ type TelemetryConfig = int
 type CustomConfigHandler = func(apex *ApexSystem, mp map[string]interface{})
 
 const (
-	ChainIDPrime  ChainID = "prime"
-	ChainIDVector ChainID = "vector"
-	ChainIDNexus  ChainID = "nexus"
+	ChainIDPrime   ChainID = "prime"
+	ChainIDVector  ChainID = "vector"
+	ChainIDNexus   ChainID = "nexus"
+	ChainIDPolygon ChainID = "polygon"
 
 	ChainIDCardano ChainID = "cardano"
 
@@ -26,21 +27,28 @@ const (
 )
 
 // Token IDs
+// 6-13 token IDs are registered tokens used only on web
 const (
-	AP3XTokenID  uint16 = 1
-	ADATokenID   uint16 = 2
-	CAP3XTokenID uint16 = 3
-	XADATokenID  uint16 = 4
-	USDTTokenID  uint16 = 5
+	AP3XTokenID   uint16 = 1
+	ADATokenID    uint16 = 2
+	CAP3XTokenID  uint16 = 3
+	XADATokenID   uint16 = 4
+	USDTTokenID   uint16 = 5
+	MATICTokenID  uint16 = 14
+	USDCTokenID   uint16 = 15
+	XMATICTokenID uint16 = 16
 )
 
 // Human readable token names
 const (
-	AP3XTokenName  = "AP3X"
-	ADATokenName   = "ADA"
-	CAP3XTokenName = "cAP3X"
-	XADATokenName  = "xADA"
-	USDTTokenName  = "USDT"
+	AP3XTokenName   = "AP3X"
+	ADATokenName    = "ADA"
+	CAP3XTokenName  = "cAP3X"
+	XADATokenName   = "xADA"
+	USDTTokenName   = "USDT"
+	MATICTokenName  = "MATIC"
+	USDCTokenName   = "USDC"
+	XMATICTokenName = "xMATIC"
 )
 
 type ApexSystemConfig struct {
@@ -56,7 +64,9 @@ type ApexSystemConfig struct {
 	PrimeConfig   *TestCardanoChainConfig
 	VectorConfig  *TestCardanoChainConfig
 	CardanoConfig *TestCardanoChainConfig
+
 	NexusConfig   *TestEVMChainConfig
+	PolygonConfig *TestEVMChainConfig
 
 	CustomOracleConfigHandler     CustomConfigHandler
 	CustomRelayerConfigHandler    CustomConfigHandler
@@ -98,6 +108,12 @@ func WithNexusEnabled(enabled bool) ApexSystemOptions {
 	}
 }
 
+func WithPolygonEnabled(enabled bool) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.PolygonConfig.IsEnabled = enabled
+	}
+}
+
 func WithTelemetryConfig(tc TelemetryConfig) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.TelemetryConfig = tc
@@ -131,6 +147,12 @@ func WithCardanoConfig(config *TestCardanoChainConfig) ApexSystemOptions {
 func WithNexusConfig(config *TestEVMChainConfig) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.NexusConfig = config
+	}
+}
+
+func WithPolygonConfig(config *TestEVMChainConfig) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.PolygonConfig = config
 	}
 }
 
@@ -176,6 +198,7 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 		VectorConfig:  NewVectorChainConfig(),
 		CardanoConfig: NewCardanoChainConfig(false),
 		NexusConfig:   NewNexusChainConfig(false),
+		PolygonConfig: NewPolygonChainConfig(false),
 
 		UserCnt: 10,
 	}
@@ -193,6 +216,7 @@ func getDefaultSkylineSystemConfig() *ApexSystemConfig {
 		VectorConfig:  NewVectorChainConfig(),
 		CardanoConfig: NewCardanoChainConfig(true),
 		NexusConfig:   NewNexusChainConfig(false),
+		PolygonConfig: NewPolygonChainConfig(false),
 
 		UserCnt: 10,
 	}
@@ -211,6 +235,10 @@ func (asc *ApexSystemConfig) ServiceCount() int {
 	}
 
 	if asc.NexusConfig.IsEnabled {
+		count++
+	}
+
+	if asc.PolygonConfig.IsEnabled {
 		count++
 	}
 
@@ -234,6 +262,10 @@ func (asc *ApexSystemConfig) applyPremineFundingOptions(users []*TestApexUser) {
 		asc.NexusConfig.PreminesAddresses = make([]types.Address, 0, len(users))
 	}
 
+	if len(asc.PolygonConfig.PreminesAddresses) == 0 {
+		asc.PolygonConfig.PreminesAddresses = make([]types.Address, 0, len(users))
+	}
+
 	for _, user := range users {
 		asc.PrimeConfig.PreminesAddresses = append(asc.PrimeConfig.PreminesAddresses,
 			hex.EncodeToString(user.PrimeAddress.GetBytes()))
@@ -250,6 +282,10 @@ func (asc *ApexSystemConfig) applyPremineFundingOptions(users []*TestApexUser) {
 
 		if user.HasNexusWallet {
 			asc.NexusConfig.PreminesAddresses = append(asc.NexusConfig.PreminesAddresses, user.NexusAddress)
+		}
+
+		if user.HasPolygonWallet {
+			asc.PolygonConfig.PreminesAddresses = append(asc.PolygonConfig.PreminesAddresses, user.PolygonAddress)
 		}
 	}
 }

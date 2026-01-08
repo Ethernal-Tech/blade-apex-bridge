@@ -306,7 +306,7 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				user.GetAddress(dstChain),
 				sendAmountWei, fee,
 			)
-			require.ErrorContains(t, err, "Error: invalid --nexus-url flag")
+			require.ErrorContains(t, err, "Error: invalid --rpc-url flag")
 		})
 
 		t.Run("Submitter not enough funds", func(t *testing.T) {
@@ -1756,7 +1756,7 @@ func sendTxParamsNPInvalidScenarios(txType, gatewayAddr, nexusURL, privateKey, c
 		"sendtx",
 		"--tx-type", txType,
 		"--gateway-addr", gatewayAddr,
-		"--nexus-url", nexusURL,
+		"--rpc-url", nexusURL,
 		"--key", privateKey,
 		"--chain-src", cardanofw.ChainIDNexus,
 		"--chain-dst", chainDst,

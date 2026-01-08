@@ -837,7 +837,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 	receiversMap map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
-	isCurrency bool,
+	isCurrencySrc, isCurrencyDest bool,
 ) (string, error) {
 	wallets, policyScript, senderAddr, err := FromCardanoPrivateKeyString(
 		privateKey, ec.config.NetworkType, ec.config.NetworkMagic)
@@ -855,7 +855,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		})
 	}
 
-	multisigAddr, err := ec.GetAddressToBridgeTo(ctx, !isCurrency)
+	multisigAddr, err := ec.GetAddressToBridgeTo(ctx, !isCurrencySrc)
 	if err != nil {
 		return "", err
 	}

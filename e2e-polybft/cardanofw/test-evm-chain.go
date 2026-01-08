@@ -88,7 +88,7 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 			BlockNumber: 0,
 			Address:     types.ZeroAddress,
 		},
-		ApexConfig:             genesis.ApexConfigNexus,
+		ApexConfig:             genesis.ApexConfigEthChain,
 		InitialHotWalletAmount: big.NewInt(0),
 		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
 		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
@@ -111,6 +111,16 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 				ID:     XADATokenID,
 				Name:   XADATokenName,
 				Symbol: XADATokenName,
+			},
+			{
+				ID:     USDCTokenID,
+				Name:   USDCTokenName,
+				Symbol: USDCTokenName,
+			},
+			{
+				ID:     XMATICTokenID,
+				Name:   XMATICTokenName,
+				Symbol: XMATICTokenName,
 			},
 		},
 	}
@@ -141,6 +151,44 @@ func NewRemoteNexusChainConfig(
 		ConfigurableTokens: map[uint16]string{
 			USDTTokenID: "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0",
 			XADATokenID: "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f",
+		},
+	}
+}
+
+func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
+	return &TestEVMChainConfig{
+		ChainID:        ChainIDPolygon,
+		IsEnabled:      isEnabled,
+		ValidatorCount: 4,
+		StartingPort:   int64(30500),
+		BurnContractInfo: &polybft.BurnContractInfo{
+			BlockNumber: 0,
+			Address:     types.ZeroAddress,
+		},
+		ApexConfig:             genesis.ApexConfigEthChain,
+		InitialHotWalletAmount: big.NewInt(0),
+		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
+		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
+		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
+		MinBridgingFee:         DfmToWei(new(big.Int).SetUint64(defaultMinBridgingFeeAmount)),
+		MinBridgingAmount:      DfmToWei(new(big.Int).SetUint64(MinUTxODefaultValue)),
+		MinTokenBridgingAmount: DfmToWei(new(big.Int).SetUint64(1)),
+		MinOperationFee:        big.NewInt(0),
+		CurrencyID:             MATICTokenID,
+
+		LockUnlockTokens: []EVMTokenInfo{
+			{
+				ID:     USDCTokenID,
+				Name:   USDCTokenName,
+				Symbol: USDCTokenName,
+			},
+		},
+		MintTokens: []EVMTokenInfo{
+			{
+				ID:     USDTTokenID,
+				Name:   USDTTokenName,
+				Symbol: USDTTokenName,
+			},
 		},
 	}
 }
@@ -275,11 +323,11 @@ func (ec *TestEVMChain) CreateWallets(validator *TestApexValidator) error {
 	}
 
 	if validator.ID == RunRelayerOnValidatorID {
-		if err = validator.createEvmSpecificWallet("relayer-evm"); err != nil {
+		if err = validator.createEvmSpecificWallet(ec.ChainID(), "relayer-evm"); err != nil {
 			return err
 		}
 
-		ec.relayerWallet, err = validator.getEvmRelayerWallet()
+		ec.relayerWallet, err = validator.getEvmRelayerWallet(ec.ChainID())
 		if err != nil {
 			return err
 		}
@@ -326,15 +374,16 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context) error {
 	// 1. deploy ERC20 contract for the token
 	// 2. register the token on gateway
 	for _, token := range ec.config.LockUnlockTokens {
-		fmt.Printf("Deploying ERC20 token for token = %+v\n", token)
+		fmt.Printf("Deploying ERC20 token for token = %+v and chain id = %s\n", token, ec.ChainID())
 
 		if tokenAddr, execErr = ec.deployERC20Token(token); execErr != nil {
-			fmt.Printf("Failed to deploy ERC20 token for token = %+v: %+v\n", token, execErr)
+			fmt.Printf("Failed to deploy ERC20 token for token = %+v and chain id = %s: %+v\n", token, ec.ChainID(), execErr)
 
 			return err
 		}
 
-		fmt.Printf("Deployed ERC20 token for token = %+v and token addr = %+v\n", token, tokenAddr)
+		fmt.Printf("Deployed ERC20 token for token = %+v, token addr = %+v and chain id = %s\n",
+			token, tokenAddr, ec.ChainID())
 
 		params := []string{
 			"bridge-admin",
@@ -617,6 +666,7 @@ func (ec *TestEVMChain) InitContracts(
 		"deploy-evm",
 		"--url", ec.jsonRPCAddr,
 		"--key", hex.EncodeToString(pk),
+		"--chain", ec.ChainID(),
 		"--bridge-url", bridgeURL,
 		"--bridge-addr", contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
@@ -698,14 +748,11 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 func (ec *TestEVMChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error {
 	t.Helper()
 
-	if ec.config.ChainID == ChainIDNexus {
-		apexSystem.NexusInfo = EVMChainInfo{
-			GatewayAddress: ec.gatewayAddr,
-			JSONRPCAddr:    ec.jsonRPCAddr,
-			RelayerAddress: ec.relayerWallet.Address(),
-			AdminKey:       ec.admin,
-			FundBlockNum:   ec.fundBlockNum,
-		}
+	switch ec.ChainID() {
+	case ChainIDNexus:
+		apexSystem.NexusInfo = ec.getChainInfo(t)
+	case ChainIDPolygon:
+		apexSystem.PolygonInfo = ec.getChainInfo(t)
 	}
 
 	return nil
@@ -801,12 +848,23 @@ func (ec *TestEVMChain) BridgingRequest(
 	receivers map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
-	isCurrency bool,
+	isCurrencySrc, isCurrencyDest bool,
 ) (string, error) {
 	//nolint:prealloc
 	var params []string
 
-	if !isCurrency {
+	if isCurrencySrc && isCurrencyDest {
+		params = []string{
+			"sendtx",
+			"--tx-type", "evm",
+			"--gateway-addr", ec.gatewayAddr.String(),
+			"--rpc-url", ec.jsonRPCAddr,
+			"--key", privateKey,
+			"--chain-src", ec.config.ChainID,
+			"--chain-dst", destChainID,
+			"--fee", feeAmount.String(),
+		}
+	} else {
 		receiverTokenID := uint16(0)
 		for _, receiver := range receivers {
 			receiverTokenID = receiver.TokenID
@@ -829,7 +887,7 @@ func (ec *TestEVMChain) BridgingRequest(
 			"skyline",
 			"--tx-type", "evm",
 			"--gateway-addr", ec.gatewayAddr.String(),
-			fmt.Sprintf("--%s-url", ec.config.ChainID), ec.jsonRPCAddr,
+			"--rpc-url", ec.jsonRPCAddr,
 			"--key", privateKey,
 			"--chain-src", ec.config.ChainID,
 			"--chain-dst", destChainID,
@@ -838,21 +896,12 @@ func (ec *TestEVMChain) BridgingRequest(
 			"--src-token-id", fmt.Sprint(receiverTokenID),
 		}
 
-		if isTokenLockUnlock {
+		if isCurrencySrc {
+			params = append(params, "--src-token-name", infrawallet.AdaTokenName)
+		} else if isTokenLockUnlock {
 			params = append(params,
 				"--native-token-wallet-contract-addr", ec.nativeTokenWalletAddr.String(),
 				"--src-token-contract-addr", ec.config.ConfigurableTokens[receiverTokenID])
-		}
-	} else {
-		params = []string{
-			"sendtx",
-			"--tx-type", "evm",
-			"--gateway-addr", ec.gatewayAddr.String(),
-			fmt.Sprintf("--%s-url", ec.config.ChainID), ec.jsonRPCAddr,
-			"--key", privateKey,
-			"--chain-src", ec.config.ChainID,
-			"--chain-dst", destChainID,
-			"--fee", feeAmount.String(),
 		}
 	}
 
@@ -1139,6 +1188,18 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 	}
 
 	return receipt, nil
+}
+
+func (ec *TestEVMChain) getChainInfo(t *testing.T) EVMChainInfo {
+	t.Helper()
+
+	return EVMChainInfo{
+		GatewayAddress: ec.gatewayAddr,
+		JSONRPCAddr:    ec.jsonRPCAddr,
+		RelayerAddress: ec.relayerWallet.Address(),
+		AdminKey:       ec.admin,
+		FundBlockNum:   ec.fundBlockNum,
+	}
 }
 
 func (ec *TestEVMChain) GetAddressToBridgeTo(ctx context.Context, hasTokens bool) (string, error) {

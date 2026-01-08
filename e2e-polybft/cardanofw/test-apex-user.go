@@ -16,44 +16,61 @@ type ApexNetworkTypes struct {
 	Cardano          cardanowallet.CardanoNetworkType
 	IsCardanoEnabled bool
 	IsNexusEnabled   bool
+	IsPolygonEnabled bool
 }
 
-func NewApexNetworkTypes(
-	primeConfig, vectorConfig, cardanoConfig *TestCardanoChainConfig,
-	nexusConfig *TestEVMChainConfig,
-) *ApexNetworkTypes {
+type ApexNetworkTypesParams struct {
+	PrimeConfig   *TestCardanoChainConfig
+	VectorConfig  *TestCardanoChainConfig
+	CardanoConfig *TestCardanoChainConfig
+
+	NexusConfig   *TestEVMChainConfig
+	PolygonConfig *TestEVMChainConfig
+}
+
+func NewApexNetworkTypes(p ApexNetworkTypesParams) *ApexNetworkTypes {
 	var (
-		vectorNetworkType, cardanoNetworkType             cardanowallet.CardanoNetworkType
-		vectorIsEnabled, cardanoIsEnabled, nexusIsEnabled bool
+		vectorNetworkType, cardanoNetworkType                               cardanowallet.CardanoNetworkType
+		vectorIsEnabled, cardanoIsEnabled, nexusIsEnabled, polygonIsEnabled bool
 	)
 
-	if vectorConfig != nil {
-		vectorNetworkType = vectorConfig.NetworkType
-		vectorIsEnabled = vectorConfig.IsEnabled
+	if p.VectorConfig != nil {
+		vectorNetworkType = p.VectorConfig.NetworkType
+		vectorIsEnabled = p.VectorConfig.IsEnabled
 	}
 
-	if cardanoConfig != nil {
-		cardanoNetworkType = cardanoConfig.NetworkType
-		cardanoIsEnabled = cardanoConfig.IsEnabled
+	if p.CardanoConfig != nil {
+		cardanoNetworkType = p.CardanoConfig.NetworkType
+		cardanoIsEnabled = p.CardanoConfig.IsEnabled
 	}
 
-	if nexusConfig != nil {
-		nexusIsEnabled = nexusConfig.IsEnabled
+	if p.NexusConfig != nil {
+		nexusIsEnabled = p.NexusConfig.IsEnabled
+	}
+
+	if p.PolygonConfig != nil {
+		polygonIsEnabled = p.PolygonConfig.IsEnabled
 	}
 
 	return &ApexNetworkTypes{
-		Prime:            primeConfig.NetworkType,
+		Prime:            p.PrimeConfig.NetworkType,
 		Vector:           vectorNetworkType,
 		IsVectorEnabled:  vectorIsEnabled,
 		Cardano:          cardanoNetworkType,
 		IsCardanoEnabled: cardanoIsEnabled,
 		IsNexusEnabled:   nexusIsEnabled,
+		IsPolygonEnabled: polygonIsEnabled,
 	}
 }
 
 func NewApexNetworkTypesFromSystem(apex *ApexSystem) *ApexNetworkTypes {
-	return NewApexNetworkTypes(
-		apex.Config.PrimeConfig, apex.Config.VectorConfig, apex.Config.CardanoConfig, apex.Config.NexusConfig)
+	return NewApexNetworkTypes(ApexNetworkTypesParams{
+		PrimeConfig:   apex.Config.PrimeConfig,
+		VectorConfig:  apex.Config.VectorConfig,
+		CardanoConfig: apex.Config.CardanoConfig,
+		NexusConfig:   apex.Config.NexusConfig,
+		PolygonConfig: apex.Config.PolygonConfig,
+	})
 }
 
 type apexUserWallets struct {
@@ -78,6 +95,10 @@ type TestApexUser struct {
 	HasNexusWallet bool
 	NexusWallet    *crypto.ECDSAKey
 	NexusAddress   types.Address
+
+	HasPolygonWallet bool
+	PolygonWallet    *crypto.ECDSAKey
+	PolygonAddress   types.Address
 }
 
 func NewTestApexUser(
@@ -90,6 +111,8 @@ func NewTestApexUser(
 		cardanoUserAddress *cardanowallet.CardanoAddress = nil
 		nexusWallet        *crypto.ECDSAKey              = nil
 		nexusUserAddress                                 = types.Address{}
+		polygonWallet      *crypto.ECDSAKey              = nil
+		polygonUserAddress                               = types.Address{}
 	)
 
 	primeWallet, err := cardanowallet.GenerateWallet(false)
@@ -135,6 +158,15 @@ func NewTestApexUser(
 		nexusUserAddress = nexusWallet.Address()
 	}
 
+	if networks.IsPolygonEnabled {
+		polygonWallet, err = crypto.GenerateECDSAKey()
+		if err != nil {
+			return nil, err
+		}
+
+		polygonUserAddress = polygonWallet.Address()
+	}
+
 	return &TestApexUser{
 		PrimeWallet:      primeWallet,
 		PrimeAddress:     primeUserAddress,
@@ -147,6 +179,9 @@ func NewTestApexUser(
 		NexusWallet:      nexusWallet,
 		NexusAddress:     nexusUserAddress,
 		HasNexusWallet:   networks.IsNexusEnabled,
+		PolygonWallet:    polygonWallet,
+		PolygonAddress:   polygonUserAddress,
+		HasPolygonWallet: networks.IsPolygonEnabled,
 	}, nil
 }
 
@@ -215,8 +250,11 @@ func (u *TestApexUser) GetCardanoWallet(chain ChainID) (
 func (u *TestApexUser) GetEvmWallet(chain ChainID) (
 	*crypto.ECDSAKey, types.Address,
 ) {
-	if chain == ChainIDNexus {
+	switch chain {
+	case ChainIDNexus:
 		return u.NexusWallet, u.NexusAddress
+	case ChainIDPolygon:
+		return u.PolygonWallet, u.PolygonAddress
 	}
 
 	return nil, types.Address{}
@@ -241,6 +279,12 @@ func (u *TestApexUser) GetAddress(chain ChainID) string {
 	case ChainIDNexus:
 		if u.HasNexusWallet {
 			return u.NexusAddress.String()
+		}
+
+		return ""
+	case ChainIDPolygon:
+		if u.HasPolygonWallet {
+			return u.PolygonAddress.String()
 		}
 
 		return ""
@@ -276,6 +320,17 @@ func (u *TestApexUser) GetPrivateKey(chain ChainID) (string, error) {
 		}
 
 		return "", fmt.Errorf("user doesn't have a nexus wallet")
+	case ChainIDPolygon:
+		if u.HasPolygonWallet {
+			pkBytes, err := u.PolygonWallet.MarshallPrivateKey()
+			if err != nil {
+				return "", err
+			}
+
+			return hex.EncodeToString(pkBytes), nil
+		}
+
+		return "", fmt.Errorf("user doesn't have a polygon wallet")
 	}
 
 	return "", nil

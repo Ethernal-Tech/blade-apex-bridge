@@ -13,7 +13,7 @@ const (
 
 	ApexConfigDefault     = 0
 	ApexConfigNormalBlade = 1
-	ApexConfigNexus       = 2
+	ApexConfigEthChain    = 2
 )
 
 func getApexContracts() []*contractInfo {
@@ -64,7 +64,7 @@ func (p *genesisParams) processConfigApex(chainConfig *chain.Chain) {
 	case ApexConfigDefault:
 		chainConfig.Params.Forks.RemoveFork(chain.London)
 		chainConfig.Params.BurnContract = nil
-	case ApexConfigNexus:
+	case ApexConfigEthChain:
 		chainConfig.Genesis.GasLimit = 0x500000
 		chainConfig.Params.BurnContract = map[uint64]types.Address{
 			0: types.ZeroAddress,

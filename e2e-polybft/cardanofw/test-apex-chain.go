@@ -52,7 +52,7 @@ type ITestApexChain interface {
 		receivers map[string]ReceiverAmount,
 		feeAmount *big.Int,
 		operationFee uint64,
-		isCurrency bool,
+		isCurrencySrc, isCurrencyDest bool,
 	) (string, error)
 	SendTx(
 		ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
@@ -127,7 +127,7 @@ func (td *TestApexChainDummy) BridgingRequest(
 	receivers map[string]ReceiverAmount,
 	feeAmount *big.Int,
 	operationFee uint64,
-	isCurrency bool,
+	isCurrencySrc, isCurrencyDest bool,
 ) (string, error) {
 	return "", nil
 }

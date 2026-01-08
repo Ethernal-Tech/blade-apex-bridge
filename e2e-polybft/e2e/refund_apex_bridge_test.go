@@ -135,7 +135,11 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 		feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, true)
 		minterUser := apex.Users[userCnt-1]
 
-		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypes(apex.Config.PrimeConfig, apex.Config.VectorConfig, nil, nil))
+		brSubmitterUser, err := cardanofw.NewTestApexUser(
+			cardanofw.NewApexNetworkTypes(cardanofw.ApexNetworkTypesParams{
+				PrimeConfig: apex.Config.PrimeConfig, VectorConfig: apex.Config.VectorConfig,
+			}),
+		)
 		require.NoError(t, err)
 
 		minterWallet, _ := minterUser.GetCardanoWallet(cardanofw.ChainIDPrime)
