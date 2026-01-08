@@ -250,8 +250,11 @@ func (u *TestApexUser) GetCardanoWallet(chain ChainID) (
 func (u *TestApexUser) GetEvmWallet(chain ChainID) (
 	*crypto.ECDSAKey, types.Address,
 ) {
-	if chain == ChainIDNexus {
+	switch chain {
+	case ChainIDNexus:
 		return u.NexusWallet, u.NexusAddress
+	case ChainIDPolygon:
+		return u.PolygonWallet, u.PolygonAddress
 	}
 
 	return nil, types.Address{}
