@@ -27,15 +27,16 @@ const (
 )
 
 // Token IDs
+// 6-13 token IDs are registered tokens used only on web
 const (
 	AP3XTokenID   uint16 = 1
 	ADATokenID    uint16 = 2
 	CAP3XTokenID  uint16 = 3
 	XADATokenID   uint16 = 4
 	USDTTokenID   uint16 = 5
-	MATICTokenID  uint16 = 6
-	USDCTokenID   uint16 = 7
-	XMATICTokenID uint16 = 8
+	MATICTokenID  uint16 = 14
+	USDCTokenID   uint16 = 15
+	XMATICTokenID uint16 = 16
 )
 
 // Human readable token names
