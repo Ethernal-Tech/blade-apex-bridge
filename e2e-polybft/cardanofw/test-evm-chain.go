@@ -858,11 +858,10 @@ func (ec *TestEVMChain) BridgingRequest(
 			"sendtx",
 			"--tx-type", "evm",
 			"--gateway-addr", ec.gatewayAddr.String(),
-			"--nexus-url", ec.jsonRPCAddr,
+			"--rpc-url", ec.jsonRPCAddr,
 			"--key", privateKey,
 			"--chain-src", ec.config.ChainID,
 			"--chain-dst", destChainID,
-			"--currency-token-id", fmt.Sprint(ec.config.CurrencyID),
 			"--fee", feeAmount.String(),
 		}
 	} else {
@@ -888,7 +887,7 @@ func (ec *TestEVMChain) BridgingRequest(
 			"skyline",
 			"--tx-type", "evm",
 			"--gateway-addr", ec.gatewayAddr.String(),
-			"--nexus-url", ec.jsonRPCAddr,
+			"--rpc-url", ec.jsonRPCAddr,
 			"--key", privateKey,
 			"--chain-src", ec.config.ChainID,
 			"--chain-dst", destChainID,
