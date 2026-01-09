@@ -315,6 +315,7 @@ func executeBridgingRequestOperationFee(
 		if customOperationFee > 0 {
 			return new(big.Int).SetUint64(customOperationFee)
 		}
+
 		return nil
 	}
 
