@@ -977,7 +977,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false)
+		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false, 0)
 
 		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 0)
 		require.NoError(t, err)
@@ -987,12 +987,24 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, true)
+		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, true, cardanofw.DefaultMinOperationFee)
 
 		newTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
 		require.Equal(t, initialTreasuryBalance, newTreasuryBalance)
+	})
+
+	t.Run("18. Bridging request with less than min operation fee", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
+		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false, 1_000_000)
+
+		newTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
+		require.Equal(t, initialTreasuryBalance.Add(initialTreasuryBalance, new(big.Int).SetUint64(1_000_000)).Uint64(), newTreasuryBalance.Uint64())
 	})
 }
 
