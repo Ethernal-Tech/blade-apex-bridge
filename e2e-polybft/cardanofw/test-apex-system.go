@@ -1379,7 +1379,7 @@ func (a *ApexSystem) GetTreasuryAddressBalance(ctx context.Context, t *testing.T
 		return big.NewInt(0), nil
 	}
 
-	return balance[cardanowallet.AdaTokenName], nil
+	return ChainNativeTokenAmountToDfm(chainID, balance[cardanowallet.AdaTokenName]), nil
 }
 
 func (a *ApexSystem) ValidateTreasuryAddressBalance(

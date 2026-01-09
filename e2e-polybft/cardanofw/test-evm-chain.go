@@ -38,7 +38,8 @@ const (
 	defaultPremineEthTokenAmount     = uint64(1_000_000_000_000)
 	defaultFundRelayerEthTokenAmount = uint64(5)
 
-	defaultNexusTreasuryAddress = "0xcCB2dDA531690E0eacf03338116Ea214c6379cD4"
+	defaultNexusTreasuryAddress   = "0xcCB2dDA531690E0eacf03338116Ea214c6379cD4"
+	defaultPolygonTreasuryAddress = "0x721a6a568e78588e8226e8AeEeBa77f8ce7Db62e"
 
 	initContractsTryCount      = 3
 	initContractsRetryWaitTime = time.Second * 5
@@ -181,6 +182,8 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 		MinTokenBridgingAmount: DfmToWei(new(big.Int).SetUint64(1)),
 		MinOperationFee:        big.NewInt(0),
 		CurrencyID:             MATICTokenID,
+
+		TreasuryAddress: defaultPolygonTreasuryAddress,
 
 		LockUnlockTokens: []EVMTokenInfo{
 			{
