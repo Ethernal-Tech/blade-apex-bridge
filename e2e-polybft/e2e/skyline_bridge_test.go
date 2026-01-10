@@ -992,7 +992,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		newTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		require.Equal(t, initialTreasuryBalance, newTreasuryBalance)
+		require.Equal(t, initialTreasuryBalance.Add(initialTreasuryBalance, new(big.Int).SetUint64(cardanofw.DefaultMinOperationFee)).Uint64(), newTreasuryBalance.Uint64())
 	})
 
 	t.Run("18. Bridging request with less than min operation fee", func(t *testing.T) {

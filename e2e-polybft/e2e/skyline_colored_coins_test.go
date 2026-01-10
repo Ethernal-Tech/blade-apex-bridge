@@ -749,7 +749,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 					Amount:  cardanofw.DfmToWei(big.NewInt(int64(minColCoinsAllowedToBridge - 1))),
 				},
 			},
-			operationFee: big.NewInt(0),
+			operationFee: opFee,
 			tokenInfo:    tokenInfo,
 		})
 		require.NoError(t, err)
@@ -765,7 +765,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 					Amount:  cardanofw.DfmToWei(big.NewInt(int64(minColCoinsAllowedToBridge - 1))),
 				},
 			},
-			operationFee: big.NewInt(0),
+			operationFee: opFee,
 			tokenInfo:    tokenInfo,
 		})
 		require.NoError(t, err)
