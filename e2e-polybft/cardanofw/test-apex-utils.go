@@ -22,6 +22,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,20 +36,24 @@ const (
 	BatchStateExecuted                  = "ExecutedOnDestination"
 	BridgingRequestStatusInvalidRequest = "InvalidRequest"
 
-	MinUTxODefaultValue                  = uint64(1_000_000)
-	ttlSlotNumberInc                     = 500
-	PotentialFee                         = 500_000
-	maxInputs                            = 40
-	defaultMinBridgingFeeAmount          = uint64(4_000_000)
-	defaultMinBridgingFeeAmountForTokens = uint64(2_860_000)
-	DefaultMinOperationFee               = uint64(0)
-	DefaultRequestStateTimeoutSec        = 300
+	ttlSlotNumberInc = 500
+	maxInputs        = 40
 
-	DefaultTokenName       = "test1"
-	DefaultTokenMintAmount = uint64(1_000_000_000)
+	DefaultMinOperationFee        = uint64(0)
+	DefaultRequestStateTimeoutSec = 300
+
+	DefaultTokenName = "test1"
 
 	MintNFTTokenName = "custodial_nft_token"
 	MintNFTAmount    = uint64(1)
+)
+
+var (
+	defaultMinBridgingFeeAmount          = ethgo.Ether(4)          // 4 ethers (4*10^18)
+	MinUTxODefaultValue                  = ethgo.Ether(1)          // 1 ether  (1*10^18)
+	PotentialFee                         = ethgo.Gwei(500_000_000) // 0.5 ether
+	defaultMinBridgingFeeAmountForTokens = ethgo.Gwei(2_860_000_000)
+	DefaultTokenMintAmount               = ethgo.Ether(1_000)
 )
 
 type BatchTypes uint8
@@ -664,8 +669,8 @@ func GetTokenAndPolicyForVerificationKey(
 func FundUserWithToken(
 	ctx context.Context, apex *ApexSystem, chainID ChainID,
 	minterWallet *wallet.Wallet, userToFund *TestApexUser,
-	tokenName string, mintAmount uint64,
-	lovelaceFundAmount uint64, tokenFundAmount uint64,
+	tokenName string, mintAmount *big.Int,
+	lovelaceFundAmount *big.Int, tokenFundAmount *big.Int,
 ) (*wallet.TokenAmount, error) {
 	chain, err := apex.getChain(chainID)
 	if err != nil {
@@ -685,14 +690,14 @@ func FundUserWithToken(
 func FundAddressWithToken(
 	ctx context.Context, chain *TestCardanoChain,
 	minterWallet *wallet.Wallet, addrToFund string,
-	tokenName string, mintAmount uint64,
-	lovelaceFundAmount uint64, tokenFundAmount uint64,
+	tokenName string, mintAmount *big.Int,
+	weiFundAmount *big.Int, tokenFundAmount *big.Int,
 ) (*wallet.TokenAmount, error) {
-	if lovelaceFundAmount == 0 {
-		return nil, fmt.Errorf("lovelace amount must be greater than zero")
+	if weiFundAmount == nil || weiFundAmount.Sign() <= 0 {
+		return nil, fmt.Errorf("lovelace amount must be greater than zero") // TODO: i am not sure what to put here
 	}
 
-	if mintAmount > 0 {
+	if mintAmount != nil && mintAmount.Sign() > 0 {
 		if err := MintToken(chain, minterWallet, tokenName, mintAmount); err != nil {
 			return nil, err
 		}
@@ -704,7 +709,7 @@ func FundAddressWithToken(
 		return nil, err
 	}
 
-	tokenAmount := wallet.NewTokenAmount(token, tokenFundAmount)
+	tokenAmount := wallet.NewTokenAmount(token, WeiToDfm(tokenFundAmount).Uint64()) // TODO:
 
 	minterAddr, err := GetAddress(chain.config.NetworkType, minterWallet)
 	if err != nil {
@@ -716,11 +721,11 @@ func FundAddressWithToken(
 	}
 
 	return FundAddressesWithToken(
-		ctx, chain, minterWallet, []string{addrToFund}, tokenName, lovelaceFundAmount, tokenFundAmount)
+		ctx, chain, minterWallet, []string{addrToFund}, tokenName, weiFundAmount, tokenFundAmount)
 }
 
 func MintToken(
-	chain *TestCardanoChain, minterWallet *wallet.Wallet, tokenName string, mintAmount uint64,
+	chain *TestCardanoChain, minterWallet *wallet.Wallet, tokenName string, mintAmount *big.Int,
 ) error {
 	args := []string{
 		"bridge-admin", "mint-native-token",
@@ -729,7 +734,7 @@ func MintToken(
 		"--network-id", fmt.Sprintf("%v", chain.config.NetworkType),
 		"--testnet-magic", fmt.Sprintf("%v", chain.config.NetworkMagic),
 		"--token-name", tokenName,
-		"--amount", fmt.Sprintf("%v", mintAmount),
+		"--amount", WeiToDfm(mintAmount).String(), // TODO: check for this
 	}
 
 	if len(minterWallet.StakeSigningKey) > 0 {
@@ -742,7 +747,7 @@ func MintToken(
 func FundUsersWithToken(
 	ctx context.Context, chain *TestCardanoChain,
 	sender *wallet.Wallet, users []*TestApexUser,
-	tokenName string, lovelaceFundAmount uint64, tokenFundAmount uint64,
+	tokenName string, lovelaceFundAmount *big.Int, tokenFundAmount *big.Int,
 ) (*wallet.TokenAmount, error) {
 	addrs := make([]string, len(users))
 
@@ -757,7 +762,7 @@ func FundUsersWithToken(
 func FundAddressesWithToken(
 	ctx context.Context, chain *TestCardanoChain,
 	sender *wallet.Wallet, addrs []string,
-	tokenName string, lovelaceFundAmount uint64, tokenFundAmount uint64,
+	tokenName string, lovelaceFundAmount *big.Int, tokenFundAmount *big.Int,
 ) (*wallet.TokenAmount, error) {
 	token, _, err := GetTokenAndPolicyForVerificationKey(
 		chain.ChainID(), chain.config.NetworkType, sender.VerificationKey, tokenName)
@@ -765,14 +770,14 @@ func FundAddressesWithToken(
 		return nil, err
 	}
 
-	tokenAmount := wallet.NewTokenAmount(token, tokenFundAmount)
+	tokenAmount := wallet.NewTokenAmount(token, WeiToDfm(tokenFundAmount).Uint64()) // TODO: this is maybe wrong
 	privateKey := ToCardanoPrivateKeyString(sender.SigningKey, sender.StakeSigningKey)
 	receivers := make([]GenericTxReceiver, len(addrs))
 
 	for i, addr := range addrs {
 		receivers[i] = GenericTxReceiver{
 			Addr:   addr,
-			Amount: new(big.Int).SetUint64(lovelaceFundAmount),
+			Amount: WeiToDfm(lovelaceFundAmount), // TODO: for now this, in future probably without WeiToDfm
 			NativeTokens: []wallet.TokenAmount{
 				tokenAmount,
 			},

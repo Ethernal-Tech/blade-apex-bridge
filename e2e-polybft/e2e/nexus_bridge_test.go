@@ -265,8 +265,8 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 	dstChains := []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector}
 
 	user := apex.Users[userCnt-1]
-	fee := cardanofw.DfmToChainNativeTokenAmount(
-		srcChain, new(big.Int).SetUint64(apex.GetMinBridgingFee(srcChain, false)))
+	fee := cardanofw.WeiToChainNativeTokenAmount(
+		srcChain, apex.GetMinBridgingFee(srcChain, false))
 
 	nexusAdminUser := &cardanofw.TestApexUser{
 		NexusWallet:    apex.NexusInfo.AdminKey,
@@ -1432,8 +1432,8 @@ func SrcNexusSubmitterNotEnoughFunds(
 ) {
 	t.Helper()
 
-	fee := cardanofw.DfmToChainNativeTokenAmount(
-		cardanofw.ChainIDNexus, new(big.Int).SetUint64(apex.GetMinBridgingFee(cardanofw.ChainIDNexus, false)))
+	fee := cardanofw.WeiToChainNativeTokenAmount(
+		cardanofw.ChainIDNexus, apex.GetMinBridgingFee(cardanofw.ChainIDNexus, false))
 	sendAmountWei := ethgo.Ether(uint64(2))
 
 	unfundedUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
@@ -1609,10 +1609,10 @@ func DstNexusInvalidMetadataWrongType(
 
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
-		new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(minBridgingFee)), nil, bridgingRequestMetadata)
+		new(big.Int).Add(sendAmountDfm, minBridgingFee), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[cardanowallet.AdaTokenName], new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(minBridgingFee)))
+	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[cardanowallet.AdaTokenName], new(big.Int).Add(sendAmountDfm, minBridgingFee))
 
 	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 
@@ -1659,10 +1659,10 @@ func DstNexusInvalidMetadataInvalidDestination(
 
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
-		new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(minBridgingFee)), nil, bridgingRequestMetadata)
+		new(big.Int).Add(sendAmountDfm, minBridgingFee), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
-	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[cardanowallet.AdaTokenName], new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(minBridgingFee)))
+	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[cardanowallet.AdaTokenName], new(big.Int).Add(sendAmountDfm, minBridgingFee))
 
 	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 
@@ -1707,7 +1707,7 @@ func DstNexusInvalidMetadataInvalidSender(
 
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
-		new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(minBridgingFee)), nil, bridgingRequestMetadata)
+		new(big.Int).Add(sendAmountDfm, minBridgingFee), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
@@ -1740,10 +1740,10 @@ func DstNexusInvalidMetadataInvalidTransactions(
 
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
-		new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(minBridgingFee)), nil, metadata)
+		new(big.Int).Add(sendAmountDfm, minBridgingFee), nil, metadata)
 	require.NoError(t, err)
 
-	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[cardanowallet.AdaTokenName], new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(minBridgingFee)))
+	lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm[cardanowallet.AdaTokenName], new(big.Int).Add(sendAmountDfm, minBridgingFee))
 
 	fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 

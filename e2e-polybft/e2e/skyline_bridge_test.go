@@ -19,6 +19,7 @@ import (
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -216,7 +217,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			minterWalletVector, brSubmitterUser,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(1_100_000_000), uint64(2_500_000))
+			ethgo.Ether(1_100), ethgo.Gwei(2_500_000_000))
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
@@ -249,7 +250,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			apex.ResetIndexers()
 		})
 
-		sendAmountDfm := big.NewInt(1_500_000)
+		sendAmountWei := ethgo.Gwei(1_500_000_000)
 
 		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
@@ -258,11 +259,11 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDCardano,
 			minterWalletCardano, brSubmitterUser,
 			cardanofw.CAP3XTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(1_100_000_000), uint64(2_500_000))
+			ethgo.Ether(1_100), ethgo.Gwei(2_500_000_000))
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountDfm,
+			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountWei,
 			cardanofw.CAP3XTokenID)
 	})
 
@@ -278,7 +279,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				apex.ResetIndexers()
 			})
 
-			sendAmountDfm := big.NewInt(1_000_000)
+			sendAmountWei := ethgo.Ether(1)
 			minterUser := apex.Users[userCnt-2]
 
 			brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
@@ -297,10 +298,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 						srcMinterWallet: br.srcMinterWallet,
 					},
 				}, []*cardanofw.TestApexUser{brSubmitterUser},
-				uint64(50_000_000), uint64(10_000_000))
+				ethgo.Ether(50), ethgo.Ether(10))
 
 			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, brSubmitterUser, br.sender, br.src, br.dest, sendAmountDfm,
+				t, ctx, apex, brSubmitterUser, br.sender, br.src, br.dest, sendAmountWei,
 				br.srcTokenID)
 		}
 	})
@@ -319,8 +320,11 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			})
 
 			const (
-				sendAmount = uint64(1_000_000)
-				instances  = 5
+				instances = 5
+			)
+
+			var (
+				sendAmount = ethgo.Ether(1)
 			)
 
 			brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
@@ -335,11 +339,11 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				ctx, apex, br.src,
 				br.srcMinterWallet, brSubmitterUser,
 				tokenName, cardanofw.DefaultTokenMintAmount,
-				uint64(10_100_000_000), uint64(10_000_000))
+				ethgo.Ether(10_100), ethgo.Ether(10))
 			require.NoError(t, err)
 
 			e2ehelper.ExecuteBridgingOneByOneWaitOnOtherSide(
-				t, ctx, apex, instances, brSubmitterUser, br.src, br.dest, new(big.Int).SetUint64(sendAmount),
+				t, ctx, apex, instances, brSubmitterUser, br.src, br.dest, sendAmount,
 				br.srcTokenID)
 		}
 	})
@@ -358,8 +362,11 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			})
 
 			const (
-				sendAmount = uint64(1_000_000)
-				instances  = 5
+				instances = 5
+			)
+
+			var (
+				sendAmount = ethgo.Ether(1)
 			)
 
 			brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
@@ -374,11 +381,11 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				ctx, apex, br.src,
 				br.srcMinterWallet, brSubmitterUser,
 				tokenName, cardanofw.DefaultTokenMintAmount,
-				uint64(1_100_000_000), uint64(10_000_000))
+				ethgo.Ether(1_100), ethgo.Ether(10))
 			require.NoError(t, err)
 
 			e2ehelper.ExecuteBridgingWaitAfterSubmits(
-				t, ctx, apex, instances, brSubmitterUser, br.src, br.dest, new(big.Int).SetUint64(sendAmount),
+				t, ctx, apex, instances, brSubmitterUser, br.src, br.dest, sendAmount,
 				br.srcTokenID)
 		}
 	})
@@ -395,8 +402,11 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			})
 
 			const (
-				sendAmount = uint64(1_000_000)
-				instances  = 5
+				instances = 5
+			)
+
+			var (
+				sendAmount = ethgo.Ether(1)
 			)
 
 			if br.srcTokenID != cardanofw.AP3XTokenID && br.srcTokenID != cardanofw.ADATokenID {
@@ -406,7 +416,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 							srcChainID:      br.src,
 							srcMinterWallet: br.srcMinterWallet,
 						},
-					}, apex.Users[:instances], uint64(1_100_000_000), uint64(210_000_000))
+					}, apex.Users[:instances], ethgo.Ether(1_100), ethgo.Ether(210))
 			}
 
 			e2ehelper.ExecuteBridging(
@@ -418,7 +428,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				map[e2ehelper.SrcDstChainPair]uint16{
 					e2ehelper.NewChainPair(br.src, br.dest): br.srcTokenID,
 				},
-				new(big.Int).SetUint64(sendAmount))
+				sendAmount)
 		}
 	})
 
@@ -435,10 +445,13 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			})
 
 			const (
-				sendAmount          = uint64(1_000_000)
 				sequentialInstances = 5
 				parallelInstances   = 10
 				receivers           = 1
+			)
+
+			var (
+				sendAmount = ethgo.Ether(1)
 			)
 
 			if br.srcTokenID != cardanofw.AP3XTokenID && br.srcTokenID != cardanofw.ADATokenID {
@@ -448,7 +461,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 							srcChainID:      br.src,
 							srcMinterWallet: br.srcMinterWallet,
 						},
-					}, apex.Users[:parallelInstances], uint64(1_100_000_000), uint64(210_000_000))
+					}, apex.Users[:parallelInstances], ethgo.Ether(1_100), ethgo.Ether(210))
 			}
 
 			e2ehelper.ExecuteBridging(
@@ -462,7 +475,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				map[e2ehelper.SrcDstChainPair]uint16{
 					e2ehelper.NewChainPair(br.src, br.dest): br.srcTokenID,
 				},
-				new(big.Int).SetUint64(sendAmount),
+				sendAmount,
 			)
 		}
 	})
@@ -476,13 +489,16 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 		})
 
 		const (
-			sendAmount = uint64(1_000_000)
-			instances  = 5
+			instances = 5
+		)
+
+		var (
+			sendAmount = ethgo.Ether(1)
 		)
 
 		fundTestUsersWithToken(
 			t, ctx, apex, testConfigs, []*cardanofw.TestApexUser{apex.Users[0]},
-			uint64(1_100_000_000), uint64(10_000_000))
+			ethgo.Ether(1_100), ethgo.Ether(10))
 
 		e2ehelper.ExecuteBridging(
 			t, ctx, apex, instances,
@@ -497,7 +513,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano): cardanofw.AP3XTokenID,
 				e2ehelper.NewChainPair(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime): cardanofw.CAP3XTokenID,
 			},
-			new(big.Int).SetUint64(sendAmount),
+			sendAmount,
 		)
 	})
 
@@ -507,14 +523,17 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 		})
 
 		const (
-			sendAmount          = uint64(1_000_000)
 			sequentialInstances = 5
 			parallelInstances   = 6
 		)
 
+		var (
+			sendAmount = ethgo.Ether(1)
+		)
+
 		fundTestUsersWithToken(
 			t, ctx, apex, testConfigs, apex.Users[:parallelInstances],
-			uint64(1_100_000_000), uint64(10_000_000))
+			ethgo.Ether(1_100), ethgo.Ether(10))
 
 		e2ehelper.ExecuteBridging(
 			t, ctx, apex, sequentialInstances,
@@ -529,17 +548,20 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano): cardanofw.AP3XTokenID,
 				e2ehelper.NewChainPair(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime): cardanofw.CAP3XTokenID,
 			},
-			new(big.Int).SetUint64(sendAmount),
+			sendAmount,
 			e2ehelper.WithWaitForUnexpectedBridges(true))
 	})
 
 	t.Run("12. Both directions sequential and parallel - one node goes offline midway", func(t *testing.T) {
 		const (
-			sendAmount           = uint64(1_000_000)
 			sequentialInstances  = 5
 			parallelInstances    = 6
 			stopAfter            = time.Second * 60
 			validatorStoppingIdx = 1
+		)
+
+		var (
+			sendAmount = ethgo.Ether(1)
 		)
 
 		t.Cleanup(func() {
@@ -551,7 +573,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		fundTestUsersWithToken(
 			t, ctx, apex, testConfigs, apex.Users[:parallelInstances],
-			uint64(1_100_000_000), uint64(10_000_000))
+			ethgo.Ether(1_100), ethgo.Ether(10))
 
 		e2ehelper.ExecuteBridging(
 			t, ctx, apex, sequentialInstances,
@@ -566,7 +588,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano): cardanofw.AP3XTokenID,
 				e2ehelper.NewChainPair(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime): cardanofw.CAP3XTokenID,
 			},
-			new(big.Int).SetUint64(sendAmount),
+			sendAmount,
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
@@ -581,7 +603,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			startAgainAfter       = time.Second * 120
 			validatorStoppingIdx1 = 1
 			validatorStoppingIdx2 = 2
-			sendAmount            = uint64(1_000_000)
+		)
+
+		var (
+			sendAmount = ethgo.Ether(1)
 		)
 
 		t.Cleanup(func() {
@@ -593,7 +618,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 
 		fundTestUsersWithToken(
 			t, ctx, apex, testConfigs, apex.Users[:parallelInstances],
-			uint64(1_100_000_000), uint64(10_000_000))
+			ethgo.Ether(1_100), ethgo.Ether(10))
 
 		e2ehelper.ExecuteBridging(
 			t, ctx, apex, sequentialInstances,
@@ -608,7 +633,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano): cardanofw.AP3XTokenID,
 				e2ehelper.NewChainPair(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime): cardanofw.CAP3XTokenID,
 			},
-			new(big.Int).SetUint64(sendAmount),
+			sendAmount,
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx1, validatorStoppingIdx2}},
@@ -644,7 +669,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			minterWalletVector, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(1_100_000_000), uint64(2_500_000))
+			ethgo.Ether(1_100), ethgo.Gwei(2_500_000_000))
 		require.NoError(t, err)
 
 		vectorTestConfig := newTestConfig(
@@ -661,18 +686,20 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		maxWaitTimeSec = 600
 		retryDelaySec  = 5
+	)
 
-		sendAmount = uint64(1_000_000)
+	var (
+		sendAmount = ethgo.Ether(1)
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-	cardanoConfig.FundTokenAmount = 1_000_000_000
+	cardanoConfig.FundTokenAmount = cardanofw.WeiToDfm(ethgo.Ether(1_000)).Uint64() // TODO:
 
 	vectorConfig := cardanofw.NewVectorChainConfig()
-	vectorConfig.FundTokenAmount = 1_000_000_000
+	vectorConfig.FundTokenAmount = cardanofw.WeiToDfm(ethgo.Ether(1_000)).Uint64() // TODO:
 
 	apex := cardanofw.SetupAndRunSkylineBridge(
 		t, ctx,
@@ -703,14 +730,14 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		ctx, apex, cardanofw.ChainIDCardano,
 		apex.CardanoInfo.GenesisWallet, user,
 		cardanofw.CAP3XTokenName, cardanofw.DefaultTokenMintAmount,
-		sendAmount*100, cardanofw.DefaultTokenMintAmount)
+		new(big.Int).Mul(sendAmount, big.NewInt(100)), cardanofw.DefaultTokenMintAmount)
 	require.NoError(t, err)
 
 	_, err = cardanofw.FundUserWithToken(
 		ctx, apex, cardanofw.ChainIDVector,
 		apex.VectorInfo.GenesisWallet, user,
 		cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-		uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
+		ethgo.Ether(10), cardanofw.DefaultTokenMintAmount)
 	require.NoError(t, err)
 
 	primeTestConfig := newTestConfig(
@@ -742,7 +769,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 	//nolint:dupl
 	t.Run("5.Submitted invalid metadata - currency under min - token on source", func(t *testing.T) {
-		sendAmount := uint64(1_000_000)
+		sendAmount := ethgo.Ether(1)
 
 		user, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
@@ -751,13 +778,13 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			apex.VectorInfo.GenesisWallet, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), uint64(10_000_000))
+			ethgo.Ether(10), ethgo.Ether(10)) // TODO: keep dfm or change to wei
 		require.NoError(t, err)
 
 		receivers := []sendtx.BridgingTxReceiver{
 			{
 				Addr:    user.GetAddress(cardanofw.ChainIDCardano),
-				Amount:  sendAmount,
+				Amount:  sendAmount.Uint64(),
 				TokenID: cardanofw.XADATokenID,
 			},
 		}
@@ -769,18 +796,21 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			operationFee, apex.VectorInfo.MultisigAddr[0])
 		require.NoError(t, err)
 
-		feeAmount -= 1_000_000
+		feeAmount.Sub(feeAmount, ethgo.Ether(1))
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDVector).CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDVector), cardanofw.ChainIDCardano,
 			receivers, feeAmount, operationFee)
 		require.NoError(t, err)
 
+		totalValue := new(big.Int).Add(sendAmount, feeAmount)
+		totalValue.Add(totalValue, operationFee)
+
 		txHash, err := apex.SubmitTx(
 			ctx, cardanofw.ChainIDVector, user,
-			apex.VectorInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount+operationFee),
+			apex.VectorInfo.MultisigAddr[0], totalValue,
 			[]wallet.TokenAmount{
-				{Token: tokensFunded.Token, Amount: sendAmount},
+				{Token: tokensFunded.Token, Amount: sendAmount.Uint64()}, // TODO:
 			},
 			metadata)
 		require.NoError(t, err)
@@ -820,7 +850,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			minterWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(1_500_000), uint64(1_000_000))
+			ethgo.Gwei(1_500_000_000), ethgo.Ether(1))
 		require.NoError(t, err)
 
 		executeInvalidSendNativeToken(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0)
@@ -834,7 +864,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			apex.VectorInfo.GenesisWallet, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), uint64(1_123_000))
+			ethgo.Ether(10), ethgo.Gwei(1_123_000_000))
 		require.NoError(t, err)
 
 		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0)
@@ -1011,7 +1041,7 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 			srcChainID:      cardanofw.ChainIDCardano,
 			srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 		},
-	}, apex.Users[:1], uint64(5_000_000), uint64(1_000_000_000))
+	}, apex.Users[:1], ethgo.Ether(5), ethgo.Ether(1_000))
 
 	var (
 		wg  sync.WaitGroup
@@ -1158,7 +1188,7 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 			srcChainID:      cardanofw.ChainIDCardano,
 			srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 		},
-	}, apex.Users[:parallelInstances], uint64(2_000_000_000), uint64(2_000_000_000))
+	}, apex.Users[:parallelInstances], ethgo.Ether(2_000), ethgo.Ether(2_000))
 
 	utxos, err := infracommon.ExecuteWithRetry(
 		ctx, func(ctx context.Context) ([]wallet.Utxo, error) {
@@ -1516,13 +1546,13 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
 
 		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-		primeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		cardanoConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
-		cardanoConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		primeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
+		cardanoConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		cardanoConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
 
 		vectorConfig := cardanofw.NewVectorChainConfig()
-		vectorConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		vectorConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
+		vectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
+		vectorConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
 
 		apex := cardanofw.SetupAndRunSkylineBridge(
 			t, ctx,
@@ -1567,7 +1597,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 				srcChainID:      cardanofw.ChainIDCardano,
 				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 			},
-		}, apex.Users[:1], uint64(2_000_000), uint64(50_000_000))
+		}, apex.Users[:1], ethgo.Ether(2), ethgo.Ether(50))
 
 		chainPrevAmounts, chainExpectedAmounts, chainReceivers,
 			defundReceiversPrevAmount, defundReceiversExpectedAmount, defundReceivers :=
@@ -1602,13 +1632,13 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
 
 		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-		primeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		cardanoConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
-		cardanoConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		primeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
+		cardanoConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		cardanoConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
 
 		vectorConfig := cardanofw.NewVectorChainConfig()
-		vectorConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		vectorConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
+		vectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
+		vectorConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
 
 		apex := cardanofw.SetupAndRunSkylineBridge(
 			t, ctx,
@@ -1651,14 +1681,14 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			minterWalletVector, apex.Users[0],
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(2_000_000), uint64(250_000_000))
+			ethgo.Ether(2), ethgo.Ether(250))
 		require.NoError(t, err)
 
 		_, err = cardanofw.FundUserWithToken(
 			ctx, apex, cardanofw.ChainIDCardano,
 			minterWalletCardano, apex.Users[1],
 			cardanofw.CAP3XTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(2_000_000), uint64(250_000_000))
+			ethgo.Ether(2), ethgo.Ether(250))
 		require.NoError(t, err)
 
 		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ :=
@@ -1734,7 +1764,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 				srcChainID:      cardanofw.ChainIDCardano,
 				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 			},
-		}, apex.Users[:1], uint64(2_000_000), uint64(50_000_000))
+		}, apex.Users[:1], ethgo.Ether(2), ethgo.Ether(50))
 
 		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ := createBridgingData(ctx, apex, bridgingRequests, receivers, nil, nil)
 
@@ -1807,7 +1837,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 				srcChainID:      cardanofw.ChainIDCardano,
 				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 			},
-		}, apex.Users[:2], uint64(2_000_000), uint64(250_000_000))
+		}, apex.Users[:2], ethgo.Ether(2), ethgo.Ether(250))
 
 		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ := createBridgingData(ctx, apex, bridgingRequests, receivers, nil, nil)
 
@@ -1850,13 +1880,13 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
 
 		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-		primeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		cardanoConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
-		cardanoConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		primeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
+		cardanoConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		cardanoConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
 
 		vectorConfig := cardanofw.NewVectorChainConfig()
-		vectorConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		vectorConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
+		vectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
+		vectorConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
 
 		apex := cardanofw.SetupAndRunSkylineBridge(
 			t, ctx,
@@ -1925,13 +1955,13 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
 
 		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-		primeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		cardanoConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
-		cardanoConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		primeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
+		cardanoConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		cardanoConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
 
 		vectorConfig := cardanofw.NewVectorChainConfig()
-		vectorConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		vectorConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
+		vectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
+		vectorConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
 
 		apex := cardanofw.SetupAndRunSkylineBridge(
 			t, ctx,
@@ -2105,11 +2135,11 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
 		}
 
-		apex.Config.PrimeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
-		apex.Config.CardanoConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
-		apex.Config.CardanoConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
-		apex.Config.VectorConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
-		apex.Config.VectorConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
+		apex.Config.PrimeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
+		apex.Config.CardanoConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
+		apex.Config.CardanoConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
+		apex.Config.VectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
+		apex.Config.VectorConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
 
 		require.NoError(t, apex.FundWallets(ctx))
 
@@ -2124,11 +2154,11 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			}
 		}
 
-		apex.Config.PrimeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
-		apex.Config.CardanoConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
-		apex.Config.CardanoConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
-		apex.Config.VectorConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
-		apex.Config.VectorConfig.FundTokenAmount = cardanofw.DfmToChainNativeTokenAmount(cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
+		apex.Config.PrimeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
+		apex.Config.CardanoConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
+		apex.Config.CardanoConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
+		apex.Config.VectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
+		apex.Config.VectorConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
 
 		require.NoError(t, apex.FundWallets(ctx))
 
@@ -2234,7 +2264,7 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 				srcChainID:      cardanofw.ChainIDCardano,
 				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 			},
-		}, apex.Users[:instances], uint64(1_100_000_000), uint64(2_500_000))
+		}, apex.Users[:instances], ethgo.Ether(1_100), ethgo.Gwei(2_500_000_000))
 
 		fmt.Printf("Sending %v transactions in %v seconds\n", instances*len(bridgingRequests), maxWaitTime)
 
@@ -2369,7 +2399,7 @@ func sendInvalidSendAmountTransaction(
 
 	_, err = apex.SubmitTx(
 		ctx, src, senderUser, srcTestChain.GetHotWalletAddresses()[0],
-		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount+operationFee)), nil, metadata)
+		new(big.Int).Add(sendAmount, new(big.Int).Add(feeAmount, operationFee)), nil, metadata)
 	require.NoError(t, err)
 }
 
@@ -2450,7 +2480,7 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 					ctx, apex, br.src,
 					apex.GetCardanoInfo(br.src).GenesisWallet, br.sender,
 					tokenName, cardanofw.DefaultTokenMintAmount,
-					uint64(10_000_000), uint64(100_000_000))
+					ethgo.Ether(10), ethgo.Ether(100))
 				require.NoError(t, err)
 			}
 
@@ -2494,7 +2524,7 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 
 func fundTestUsersWithToken(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, testConfigs []*testConfig,
-	users []*cardanofw.TestApexUser, amount, tokenAmount uint64,
+	users []*cardanofw.TestApexUser, amount, tokenAmount *big.Int,
 ) []*wallet.TokenAmount {
 	t.Helper()
 
@@ -2516,7 +2546,7 @@ func fundTestUsersWithToken(
 			}
 
 			errs[indx] = cardanofw.MintToken(
-				chain, cfg.srcMinterWallet, tokenName, tokenAmount*uint64(len(users)))
+				chain, cfg.srcMinterWallet, tokenName, new(big.Int).Mul(tokenAmount, big.NewInt(int64(len(users)))))
 			if errs[indx] != nil {
 				return
 			}

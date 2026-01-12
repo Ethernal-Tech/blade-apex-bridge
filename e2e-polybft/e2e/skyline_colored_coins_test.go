@@ -303,7 +303,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			apex.VectorInfo.GenesisWallet, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), uint64(1_123_000))
+			ethgo.Ether(10), ethgo.Gwei(1_123_000_000))
 		require.NoError(t, err)
 
 		executeInvalidTokenDirection(t, ctx, apex, vectorNexusXADATestConfig, cardanofw.AP3XTokenID, user, maxWaitTimeSec, retryDelaySec, false, 0)
@@ -311,22 +311,22 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 	//nolint:dupl
 	t.Run("4.Submitted invalid metadata - currency under min - token on source", func(t *testing.T) {
-		sendAmount := uint64(1_000_000)
+		sendAmount := ethgo.Ether(1)
 
 		user, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
-		tokensFunded, err := cardanofw.FundUserWithToken(
+		tokensFunded, err := cardanofw.FundUserWithToken( // this is necessary to fix
 			ctx, apex, cardanofw.ChainIDVector,
 			apex.VectorInfo.GenesisWallet, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), uint64(10_000_000))
+			ethgo.Ether(10), ethgo.Ether(10))
 		require.NoError(t, err)
 
 		receivers := []sendtx.BridgingTxReceiver{
 			{
 				Addr:    user.GetAddress(cardanofw.ChainIDNexus),
-				Amount:  sendAmount,
+				Amount:  sendAmount.Uint64(), // TODO: check for this
 				TokenID: cardanofw.XADATokenID,
 			},
 		}
@@ -338,18 +338,21 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			operationFee, apex.VectorInfo.MultisigAddr[0])
 		require.NoError(t, err)
 
-		feeAmount -= 1_000_000
+		feeAmount.Sub(feeAmount, ethgo.Ether(1))
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDVector).CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDVector), cardanofw.ChainIDNexus,
 			receivers, feeAmount, operationFee)
 		require.NoError(t, err)
 
+		totalValue := new(big.Int).Add(sendAmount, feeAmount)
+		totalValue.Add(totalValue, operationFee)
+
 		txHash, err := apex.SubmitTx(
 			ctx, cardanofw.ChainIDVector, user,
-			apex.VectorInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount+operationFee),
+			apex.VectorInfo.MultisigAddr[0], totalValue,
 			[]wallet.TokenAmount{
-				{Token: tokensFunded.Token, Amount: sendAmount},
+				{Token: tokensFunded.Token, Amount: sendAmount.Uint64()}, // TODO: uint64 to big.int
 			},
 			metadata)
 		require.NoError(t, err)
@@ -385,7 +388,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			minterWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(1_500_000), uint64(1_000_000))
+			ethgo.Gwei(1_500_000_000), ethgo.Ether(1))
 		require.NoError(t, err)
 
 		executeInvalidSendNativeToken(t, ctx, apex, user, vectorNexusXADATestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0)
@@ -399,7 +402,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			apex.VectorInfo.GenesisWallet, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), uint64(1_123_000))
+			ethgo.Ether(10), ethgo.Gwei(1_123_000_000))
 		require.NoError(t, err)
 
 		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorNexusXADATestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0)
@@ -412,7 +415,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, minColCoinsAllowedToBridge*10, cardanofw.USDTTokenID),
+				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, new(big.Int).SetUint64(minColCoinsAllowedToBridge*10), cardanofw.USDTTokenID),
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitRefundDisabled,
 			},
@@ -428,7 +431,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 				cardanofw.USDTTokenID)
 		}
 
-		executeInvalidMismatchSendColCoinsMultipleInstancesParalel(t, ctx, apex, vectorNexusUSDTTestConfig, minColCoinsAllowedToBridge, instances, maxWaitTimeSec, retryDelaySec, false, 0)
+		executeInvalidMismatchSendColCoinsMultipleInstancesParalel(t, ctx, apex, vectorNexusUSDTTestConfig, big.NewInt(int64(minColCoinsAllowedToBridge)), instances, maxWaitTimeSec, retryDelaySec, false, 0)
 	})
 
 	t.Run("14. Vector -> Nexus - Invalid destination - USDT on source", func(t *testing.T) {
@@ -438,7 +441,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
+				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, big.NewInt(int64(minColCoinsAllowedToBridge)), cardanofw.USDTTokenID),
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitRefundDisabled,
 				metadataModifier: func(metadata []byte) []byte {
@@ -455,7 +458,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, 60, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
+				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, big.NewInt(int64(minColCoinsAllowedToBridge)), cardanofw.USDTTokenID),
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitTimeoutRefundDisabled,
 				metadataModifier: func(metadata []byte) []byte {
@@ -473,7 +476,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 		invalidAmount := minColCoinsAllowedToBridge - 1
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, invalidAmount, cardanofw.USDTTokenID),
+				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, big.NewInt(int64(invalidAmount)), cardanofw.USDTTokenID),
 				amount:     invalidAmount,
 				waitOption: WaitRefundDisabled,
 			},
@@ -771,7 +774,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 				receivers: map[string]cardanofw.ReceiverAmount{
 					user.GetAddress(cardanofw.ChainIDVector): {
 						TokenID: cardanofw.USDTTokenID,
-						Amount:  cardanofw.DfmToWei(big.NewInt(1000000000001)),
+						Amount:  ethgo.Gwei(1_000_000_000_001_000),
 					},
 				},
 				operationFee: big.NewInt(0),
@@ -781,12 +784,12 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 		})
 
 		vectorChain := apex.GetChainMust(t, cardanofw.ChainIDVector).(*cardanofw.TestCardanoChain)
-		err = cardanofw.MintToken(vectorChain, apex.VectorInfo.GenesisWallet, cardanofw.XADATokenName, 10000000000010)
+		err = cardanofw.MintToken(vectorChain, apex.VectorInfo.GenesisWallet, cardanofw.XADATokenName, ethgo.Gwei(10_000_000_000_010_000))
 		require.NoError(t, err)
 
 		_, err = cardanofw.FundUsersWithToken(
 			ctx, vectorChain, apex.VectorInfo.GenesisWallet,
-			apex.Users, cardanofw.XADATokenName, 2_000_000, 1000000000001)
+			apex.Users, cardanofw.XADATokenName, ethgo.Ether(2), ethgo.Gwei(1_000_000_000_001_000))
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
@@ -938,18 +941,18 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 			vectorChain.GetCardanoScriptInfo().PlutusAddress,
 		}
 
-		err := cardanofw.MintToken(vectorChain.(*cardanofw.TestCardanoChain), apex.VectorInfo.GenesisWallet, "ranodom-token", 3*1000000000000)
+		err := cardanofw.MintToken(vectorChain.(*cardanofw.TestCardanoChain), apex.VectorInfo.GenesisWallet, "ranodom-token", new(big.Int).Mul(big.NewInt(3), ethgo.Ether(1_000_000)))
 		require.NoError(t, err)
 
 		_, err = cardanofw.FundAddressesWithToken(
 			ctx, vectorChain.(*cardanofw.TestCardanoChain), apex.VectorInfo.GenesisWallet,
-			addresses, "ranodom-token", 40000000000, 1000000000000)
+			addresses, "ranodom-token", ethgo.Ether(40_000), ethgo.Ether(1_000_000))
 		require.NoError(t, err)
 	})
 
 	t.Run("Bridge to relayer, custodial and plutus addresses", func(t *testing.T) {
 		vectorChain := apex.GetChainMust(t, cardanofw.ChainIDVector)
-		sendAmountDfm := big.NewInt(5_000_000)
+		sendAmountWei := ethgo.Ether(5)
 
 		addresses := []string{
 			vectorChain.GetCustodialAddress(),
@@ -985,7 +988,7 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 				{SrcChain: cardanofw.ChainIDCardano, DstChain: cardanofw.ChainIDVector, SrcTokenID: cardanofw.ADATokenID},
 				{SrcChain: cardanofw.ChainIDNexus, DstChain: cardanofw.ChainIDVector, SrcTokenID: cardanofw.USDTTokenID},
 			},
-			sendAmountDfm,
+			sendAmountWei,
 		)
 	})
 
@@ -1087,12 +1090,13 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 
 		var wg sync.WaitGroup
 
-		err := cardanofw.MintToken(vectorChain, apex.VectorInfo.GenesisWallet, cardanofw.XADATokenName, uint64(len(apex.Users)*400_000_000))
+		err := cardanofw.MintToken(vectorChain, apex.VectorInfo.GenesisWallet, cardanofw.XADATokenName,
+			new(big.Int).Mul(big.NewInt(int64(len(apex.Users))), ethgo.Ether(400)))
 		require.NoError(t, err)
 
 		_, err = cardanofw.FundUsersWithToken(
 			ctx, vectorChain, apex.VectorInfo.GenesisWallet,
-			apex.Users, cardanofw.XADATokenName, 400_000_000, 400_000_000)
+			apex.Users, cardanofw.XADATokenName, ethgo.Ether(400), ethgo.Ether(400))
 		require.NoError(t, err)
 
 		for _, user := range apex.Users {
@@ -1265,7 +1269,7 @@ func Test_SkylineBridgeCC_WithRefund(t *testing.T) {
 				srcChainID:      cardanofw.ChainIDCardano,
 				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 			},
-		}, apex.Users[:userCnt], uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
+		}, apex.Users[:userCnt], ethgo.Ether(10), cardanofw.DefaultTokenMintAmount)
 
 	cardanoNexusTestConfig := newTestConfig(
 		t, apex, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDNexus, cardanofw.ADATokenID)
@@ -1313,7 +1317,7 @@ func Test_SkylineBridgeCC_WithRefund(t *testing.T) {
 		default:
 			executeInvalidColCoin(t, ctx, apex, testConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 				colCoinInvalidOpts{
-					receivers:  createReceivers(apex, 1, testConfig.dstChainID, colCoinsAmount*10, tokenID),
+					receivers:  createReceivers(apex, 1, testConfig.dstChainID, new(big.Int).SetUint64(colCoinsAmount*10), tokenID),
 					amount:     colCoinsAmount,
 					waitOption: NoWait,
 				},
