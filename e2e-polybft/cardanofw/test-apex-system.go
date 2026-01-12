@@ -1848,7 +1848,7 @@ func (a *ApexSystem) SubmitBridgingRequest( // TODO: THIS need to accept WEI
 	isCurrencySrc := srcCurrencyID == data.SrcTokenID
 
 	feeAmount := WeiToChainNativeTokenAmount(
-		data.SourceChain, a.GetMinBridgingFee(data.SourceChain, !isCurrency))
+		data.SourceChain, a.GetMinBridgingFee(data.SourceChain, !isCurrencySrc))
 
 	txHash, err := infracommon.ExecuteWithRetry(data.Context, func(ctx context.Context) (string, error) {
 		txHash, err := srcChain.BridgingRequest(BridgingRequestParams{

@@ -170,9 +170,9 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
 		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
 		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
-		MinBridgingFee:         DfmToWei(new(big.Int).SetUint64(defaultMinBridgingFeeAmount)),
-		MinBridgingAmount:      DfmToWei(new(big.Int).SetUint64(MinUTxODefaultValue)),
-		MinTokenBridgingAmount: DfmToWei(new(big.Int).SetUint64(1)),
+		MinBridgingFee:         defaultMinBridgingFeeAmount,
+		MinBridgingAmount:      MinUTxODefaultValue,
+		MinTokenBridgingAmount: ethgo.Gwei(1000),
 		MinOperationFee:        big.NewInt(0),
 		CurrencyID:             MATICTokenID,
 
