@@ -195,6 +195,7 @@ func TestE2E_SkylineBridge_OperationFeeNotSet(t *testing.T) {
 			maxWaitTimeSec = 600
 			retryDelaySec  = 5
 		)
+
 		cardanoTestConfig := newTestConfig(t, apex, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDVector, cardanofw.ADATokenID)
 		executeBridgingRequestOperationFee(t, ctx, apex, user, cardanoTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false, cardanofw.DefaultMinOperationFee)
 	})
