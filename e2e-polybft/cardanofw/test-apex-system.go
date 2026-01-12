@@ -214,7 +214,6 @@ func NewSkylineSystem(
 	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee
 	config.VectorConfig.MinOperationFee = DefaultMinOperationFee
 	config.NexusConfig.MinOperationFee = DfmToWei(new(big.Int).SetUint64(DefaultMinOperationFee))
-	config.PolygonConfig.MinOperationFee = DfmToWei(new(big.Int).SetUint64(DefaultMinOperationFee))
 
 	users := make([]*TestApexUser, config.UserCnt)
 
@@ -1927,14 +1926,14 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		return "", fmt.Errorf("error while retrieving the private key: %w", err)
 	}
 
-	operationFee := uint64(0)
-	if a.IsSkyline {
-		operationFee = DefaultMinOperationFee
-	}
-
 	srcChain, err := a.getChain(data.SourceChain)
 	if err != nil {
 		return "", err
+	}
+
+	operationFee := uint64(0)
+	if a.IsSkyline {
+		operationFee = a.GetMinOperationFee(data.SourceChain)
 	}
 
 	srcCurrencyID, err := a.GetChainCurrencyID(data.SourceChain)

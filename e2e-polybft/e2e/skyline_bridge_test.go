@@ -19,6 +19,7 @@ import (
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -122,6 +123,97 @@ func Test_OnlyRunSkylineBridge(t *testing.T) {
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 
 	<-signalChannel
+}
+
+func TestE2E_SkylineBridge_OperationFeeNotSet(t *testing.T) {
+	type bridgingRequest struct {
+		src             string
+		dest            string
+		sender          *cardanofw.TestApexUser
+		srcTokenID      uint16
+		isValid         bool
+		srcMinterWallet *wallet.Wallet
+	}
+
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 15
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+	primeConfig.UseIndexer = true
+	cardanoConfig.UseIndexer = true
+	cardanoConfig.MinOperationFee = 0
+
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{cardanofw.USDTTokenID: cardanofw.USDTTokenName})
+	vectorConfig.FundTokenAmount = 1_000_000_000
+	vectorConfig.UseIndexer = true
+
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
+	polygonConfig := cardanofw.NewPolygonChainConfig(true)
+	polygonConfig.MinOperationFee = big.NewInt(0)
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithPolygonConfig(polygonConfig),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
+		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+			mp["refundEnabled"] = false
+		}, nil, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+
+	t.Run("cardano source", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
+		sendAmountDfm := big.NewInt(1_500_000)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmountDfm,
+			cardanofw.ADATokenID, false)
+
+		const (
+			maxWaitTimeSec = 600
+			retryDelaySec  = 5
+		)
+		cardanoTestConfig := newTestConfig(t, apex, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDVector, cardanofw.ADATokenID)
+		executeBridgingRequestOperationFee(t, ctx, apex, user, cardanoTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false, cardanofw.DefaultMinOperationFee)
+	})
+
+	t.Run("polygon source", func(t *testing.T) {
+		if cardanofw.ShouldSkipE2RRedundantTests() {
+			t.Skip()
+		}
+
+		t.Cleanup(func() {
+			apex.ResetIndexers()
+		})
+
+		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmountDfm,
+			cardanofw.MATICTokenID, false)
+	})
 }
 
 func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {

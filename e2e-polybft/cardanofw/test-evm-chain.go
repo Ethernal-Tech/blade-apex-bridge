@@ -180,7 +180,7 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 		MinBridgingFee:         DfmToWei(new(big.Int).SetUint64(defaultMinBridgingFeeAmount)),
 		MinBridgingAmount:      DfmToWei(new(big.Int).SetUint64(MinUTxODefaultValue)),
 		MinTokenBridgingAmount: DfmToWei(new(big.Int).SetUint64(1)),
-		MinOperationFee:        big.NewInt(0),
+		MinOperationFee:        DfmToWei(new(big.Int).SetUint64(DefaultMinOperationFee)),
 		CurrencyID:             MATICTokenID,
 
 		TreasuryAddress: defaultPolygonTreasuryAddress,
