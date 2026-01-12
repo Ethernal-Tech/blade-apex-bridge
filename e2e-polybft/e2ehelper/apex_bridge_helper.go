@@ -44,7 +44,7 @@ func ExecuteSingleBridging(
 			SourceChain:      srcChain,
 			DestinationChain: dstChain,
 			Sender:           senderUser,
-			DFMAmount:        sendAmount,
+			DFMAmount:        cardanofw.WeiToDfm(sendAmount), // TODO:
 			SrcTokenID:       srcTokenID,
 			Receivers:        []*cardanofw.TestApexUser{receiverUser},
 			TokensInfo:       tokensInfo,
@@ -54,7 +54,7 @@ func ExecuteSingleBridging(
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
-	expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
+	expectedAmount := new(big.Int).Add(prevAmount, cardanofw.WeiToDfm(sendAmount))
 
 	fmt.Printf("Expected amount: %+v\n", expectedAmount)
 
@@ -110,7 +110,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 				SourceChain:      srcChain,
 				DestinationChain: dstChain,
 				Sender:           receiverUser,
-				DFMAmount:        sendAmount,
+				DFMAmount:        cardanofw.WeiToDfm(sendAmount), // TODO:
 				SrcTokenID:       srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{receiverUser},
 				TokensInfo:       tokensInfo,
@@ -119,7 +119,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
 
-		expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
+		expectedAmount := new(big.Int).Add(prevAmount, cardanofw.WeiToDfm(sendAmount))
 
 		err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmount,
 			config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, tokensInfo.DstTokenName)
@@ -154,7 +154,7 @@ func ExecuteBridgingWaitAfterSubmits(
 				SourceChain:      srcChain,
 				DestinationChain: dstChain,
 				Sender:           receiverUser,
-				DFMAmount:        sendAmount,
+				DFMAmount:        cardanofw.WeiToDfm(sendAmount), // TODO:
 				SrcTokenID:       srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{receiverUser},
 				TokensInfo:       tokensInfo,
@@ -163,7 +163,7 @@ func ExecuteBridgingWaitAfterSubmits(
 
 		fmt.Printf("Tx[%d] sent. hash: %s\n", i, txHash)
 
-		expectedAmount = expectedAmount.Add(expectedAmount, sendAmount)
+		expectedAmount = expectedAmount.Add(expectedAmount, cardanofw.WeiToDfm(sendAmount))
 	}
 
 	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmount,
@@ -206,7 +206,7 @@ func ExecuteBridgingWithRefund(
 			SourceChain:      srcChain,
 			DestinationChain: dstChain,
 			Sender:           senderUser,
-			DFMAmount:        sendAmount,
+			DFMAmount:        cardanofw.WeiToDfm(sendAmount), // TODO:
 			SrcTokenID:       srcTokenID,
 			Receivers:        []*cardanofw.TestApexUser{receiverUser},
 			TokensInfo:       tokensInfo,
@@ -221,7 +221,7 @@ func ExecuteBridgingWithRefund(
 	if tokensInfo.DstTokenName == cardanowallet.AdaTokenName {
 		// decrease upper boundary by 1 to ensure refund has happened, not only bridging
 		upperBoundaryDfm := new(big.Int).Sub(
-			new(big.Int).Add(prevAmount, sendAmount),
+			new(big.Int).Add(prevAmount, cardanofw.WeiToDfm(sendAmount)), // TODO:
 			big.NewInt(1),
 		)
 
@@ -236,7 +236,7 @@ func ExecuteBridgingWithRefund(
 		return
 	}
 
-	expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
+	expectedAmount := new(big.Int).Add(prevAmount, cardanofw.WeiToDfm(sendAmount)) // TODO:
 
 	fmt.Printf("Expected amount: %+v\n", expectedAmount)
 
@@ -377,11 +377,11 @@ func ExecuteBridgingWaitAfterSubmitsExtended(
 	wgWait.Wait()
 }
 
-func ExecuteBridging(
+func ExecuteBridging( // TO ACCEPT WEI
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	senderUsers []*cardanofw.TestApexUser, receiverUsers []*cardanofw.TestApexUser,
 	chains []string, chainsDst map[string][]string, srcTokenIDs map[SrcDstChainPair]uint16,
-	sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
+	sendAmountWei *big.Int, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -417,7 +417,7 @@ func ExecuteBridging(
 	// send transactions
 	sendTxDatas := config.sendTxStrategy(
 		ctx, apex, chainsDst, senderUsers, receiverUsers,
-		sendAmountDfm, txCountPerSender, srcTokenIDs)
+		cardanofw.WeiToDfm(sendAmountWei), txCountPerSender, srcTokenIDs) // TODO: temp solution
 
 	for _, d := range sendTxDatas {
 		require.NoError(t, d.err)
@@ -592,7 +592,7 @@ func ExecuteBridging(
 func ExecuteBridgingExtended(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	senderUsers []*cardanofw.TestApexUser, receiverUsers []*cardanofw.TestApexUser,
-	directions []BridgingDirectionConfig, sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
+	directions []BridgingDirectionConfig, sendAmountWei *big.Int, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -698,7 +698,7 @@ func ExecuteBridgingExtended(
 							SourceChain:      dr.SrcChain,
 							DestinationChain: dr.DstChain,
 							Sender:           senderUser,
-							DFMAmount:        sendAmountDfm,
+							DFMAmount:        cardanofw.WeiToDfm(sendAmountWei),
 							SrcTokenID:       dr.SrcTokenID,
 							Receivers:        receiverUsers,
 							TokensInfo:       dr.TokensInfo,
@@ -725,7 +725,7 @@ func ExecuteBridgingExtended(
 						SrcChainID:    dr.SrcChain,
 						DstChainID:    dr.DstChain,
 						TxHash:        txHash,
-						SendAmountDfm: sendAmountDfm,
+						SendAmountDfm: cardanofw.WeiToDfm(sendAmountWei), // TODO temp solution
 						DstTokenName:  dr.TokensInfo.DstTokenName,
 					})
 					muSend.Unlock()

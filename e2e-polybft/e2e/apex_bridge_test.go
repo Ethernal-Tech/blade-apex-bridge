@@ -378,7 +378,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	require.NoError(t, err)
 
 	// fund multsig addr
-	txHashFund, err := apex.SubmitTx(ctx, srcChain, apex.Users[0], multisigAddr, big.NewInt(10_000_000), nil, nil)
+	txHashFund, err := apex.SubmitTx(ctx, srcChain, apex.Users[0], multisigAddr, ethgo.Ether(10), nil, nil)
 	require.NoError(t, err)
 
 	fmt.Printf("multsig addr %s funded: %s\n", multisigAddr, txHashFund)
@@ -418,9 +418,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 			PrivateKey:     senderUserBuilder.String(),
 			ChainIDsConfig: apex.GetChainIDsConfig(),
 			Receivers:      receiversMap,
-			FeeAmount: new(big.Int).SetUint64(
-				apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false),
-			),
+			FeeAmount:      apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false),
 			OperationFee:   0,
 			IsCurrencySrc:  true,
 			IsCurrencyDest: true,
@@ -571,7 +569,7 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 
 			lowerBoundaryDfm := new(big.Int).Sub(
 				beforeSendingAmountDfm[idx][infrawallet.AdaTokenName],
-				new(big.Int).Add(apexSendAmount, new(big.Int).SetUint64(apex.GetMinBridgingFee(br.src, false))))
+				new(big.Int).Add(apexSendAmount, apex.GetMinBridgingFee(br.src, false)))
 
 			fmt.Printf("Tx hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm[idx])
 
@@ -592,8 +590,8 @@ func TestE2E_FundAmount(t *testing.T) {
 	const (
 		apiKey           = "test_api_key"
 		userCnt          = 10
-		fundAmountPrime  = 100_000_000
-		fundAmountVector = 100_000_000
+		fundAmountPrime  = 100_000_000 // TODO: Change to WEI, now is DFM
+		fundAmountVector = 100_000_000 // TODO: Change to WEI, now is DFM
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -730,7 +728,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Submitted not enough funds - invalid send amount", func(t *testing.T) {
-		sendAmount := uint64(800_000)
+		sendAmount := ethgo.Gwei(800_000_000) // 800_000 DFM to Gwei
 
 		operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
 		feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
@@ -748,15 +746,16 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
-					Addr:    user.GetAddress(cardanofw.ChainIDVector),
-					Amount:  sendAmount - feeAmount,
+					Addr: user.GetAddress(cardanofw.ChainIDVector),
+					// TO DO: this if for now, i hope that amount will be in big.Int
+					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, feeAmount)).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},
 			}, feeAmount, operationFee)
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr[0],
-			new(big.Int).SetUint64(sendAmount), nil, metadata)
+			sendAmount, nil, metadata)
 		require.NoError(t, err)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -833,7 +832,7 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	})
 
 	t.Run("8. Submitted with tokens to bridging addr", func(t *testing.T) {
-		sendAmount := uint64(5_000_000)
+		sendAmount := ethgo.Ether(5)
 
 		operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
 		feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, true)
@@ -849,7 +848,7 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDPrime,
 			minterWallet, brSubmitterUser,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), uint64(1_000_000))
+			ethgo.Ether(10), ethgo.Ether(1))
 		require.NoError(t, err)
 
 		tokensInfo, err := apex.GetBridgingTokensInfo(
@@ -860,15 +859,16 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
-					Addr:    user.GetAddress(cardanofw.ChainIDVector),
-					Amount:  sendAmount - feeAmount,
+					Addr: user.GetAddress(cardanofw.ChainIDVector),
+					// TO DO: this if for now, i that amount will be in big.Int
+					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, feeAmount)).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},
 			}, feeAmount, operationFee)
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
-			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata)
+			sendAmount, []infrawallet.TokenAmount{*tokensFunded}, metadata)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
@@ -934,7 +934,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDPrime,
 			minterWallet, brSubmitterUser,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(20_000_000), uint64(1_000_000))
+			ethgo.Ether(20), ethgo.Ether(1))
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
@@ -951,7 +951,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			apex.ResetIndexers()
 		})
 
-		sendAmount := uint64(5_000_000)
+		sendAmount := ethgo.Ether(5)
 
 		operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
 		feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, true)
@@ -967,7 +967,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDPrime,
 			minterWallet, brSubmitterUser,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), uint64(1_000_000))
+			ethgo.Ether(10), ethgo.Ether(1))
 		require.NoError(t, err)
 
 		tokensInfo, err := apex.GetBridgingTokensInfo(
@@ -978,15 +978,16 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
-					Addr:    user.GetAddress(cardanofw.ChainIDVector),
-					Amount:  sendAmount - feeAmount,
+					Addr: user.GetAddress(cardanofw.ChainIDVector),
+					// TO DO: this if for now, i that amount will be in big.Int
+					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, feeAmount)).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},
 			}, feeAmount, operationFee)
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
-			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata)
+			sendAmount, []infrawallet.TokenAmount{*tokensFunded}, metadata)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
@@ -1552,11 +1553,11 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 
 		primeConfig, vectorConfig, nexusConfig := cardanofw.NewPrimeChainConfig(),
 			cardanofw.NewVectorChainConfig(), cardanofw.NewNexusChainConfig(true)
-		primeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
+		primeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(
 			cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		vectorConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
+		vectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(
 			cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		nexusConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
+		nexusConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(
 			cardanofw.ChainIDNexus, initialFundInDfm)
 
 		apex := cardanofw.SetupAndRunReactorBridge(
@@ -1627,11 +1628,11 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 
 		primeConfig, vectorConfig, nexusConfig := cardanofw.NewPrimeChainConfig(),
 			cardanofw.NewVectorChainConfig(), cardanofw.NewNexusChainConfig(true)
-		primeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
+		primeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(
 			cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		vectorConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
+		vectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(
 			cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		nexusConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
+		nexusConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(
 			cardanofw.ChainIDNexus, initialFundInDfm)
 
 		apex := cardanofw.SetupAndRunReactorBridge(
@@ -1929,7 +1930,7 @@ func defundWallets(
 
 func sendWithoutWaitInvalidMetadataWrongType(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, sender, receiver *cardanofw.TestApexUser,
-	originChainID, destinationChainID string, sendAmount uint64,
+	originChainID, destinationChainID string, sendAmount *big.Int,
 ) error {
 	t.Helper()
 
@@ -1939,14 +1940,14 @@ func sendWithoutWaitInvalidMetadataWrongType(
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    receiver.GetAddress(destinationChainID),
-			Amount:  sendAmount,
+			Amount:  sendAmount.Uint64(), // TODO: this probably will be big.Int
 			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, originChainID, destinationChainID,
 		apex.GetMinBridgingFee(originChainID, false),
-		0, sender, receivers, false)
+		big.NewInt(0), sender, receivers, false)
 	metadata = bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
 
 	multisigAddress, err := apex.GetChainMust(t, originChainID).GetAddressToBridgeTo(ctx, false)
@@ -1954,7 +1955,7 @@ func sendWithoutWaitInvalidMetadataWrongType(
 		return err
 	}
 
-	_, err = apex.SubmitTx(ctx, originChainID, sender, multisigAddress, new(big.Int).SetUint64(sendAmount+feeAmount), nil,
+	_, err = apex.SubmitTx(ctx, originChainID, sender, multisigAddress, new(big.Int).Add(sendAmount, feeAmount), nil,
 		metadata)
 	if err != nil {
 		return err
@@ -1979,9 +1980,9 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 
 	vectorConfig := cardanofw.NewVectorChainConfig()
 	vectorConfig.FundUTxOCount = fundUtxoCount
-	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * fundUtxoCount
+	vectorConfig.FundAmount = cardanofw.WeiToDfm(cardanofw.MinUTxODefaultValue).Uint64() * fundUtxoCount // TODO: check for this
 	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
-	sendAmount := vectorConfig.FundAmount - cardanofw.MinUTxODefaultValue*3
+	sendAmount := vectorConfig.FundAmount - cardanofw.WeiToDfm(cardanofw.MinUTxODefaultValue).Uint64()*3
 
 	// adding indexer because there are many funding transactions
 	vectorConfig.UseIndexer = true
@@ -2086,11 +2087,11 @@ func TestE2E_ApexBridge_UTxOConsolidationWithBothDirections(t *testing.T) {
 
 	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig()
 	vectorConfig.FundUTxOCount = fundUtxoCount
-	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * parallelInstances * sequentialInstances
+	vectorConfig.FundAmount = cardanofw.WeiToDfm(cardanofw.MinUTxODefaultValue).Uint64() * parallelInstances * sequentialInstances // TODO: for now this is works
 	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
 	vectorConfig.UseIndexer = true
 	primeConfig.FundUTxOCount = fundUtxoCount
-	primeConfig.FundAmount = cardanofw.MinUTxODefaultValue * parallelInstances * sequentialInstances
+	primeConfig.FundAmount = cardanofw.WeiToDfm(cardanofw.MinUTxODefaultValue).Uint64() * parallelInstances * sequentialInstances // TODO: same as few lines before
 	primeConfig.InitialHotWalletAmount = new(big.Int).SetUint64(primeConfig.FundAmount)
 	primeConfig.UseIndexer = true
 	sendAmount := cardanofw.MinUTxODefaultValue
@@ -2158,7 +2159,7 @@ func TestE2E_ApexBridge_UTxOConsolidationWithBothDirections(t *testing.T) {
 			e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): cardanofw.AP3XTokenID,
 			e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDPrime): cardanofw.AP3XTokenID,
 		},
-		new(big.Int).SetUint64(sendAmount),
+		sendAmount, // TODO: this is now in wei
 		e2ehelper.WithWaitForUnexpectedBridges(true),
 		e2ehelper.WithTimeoutConfig(e2ehelper.NewTimeoutConfig(
 			e2ehelper.WithBridgingNumRetries(200),
@@ -2195,7 +2196,7 @@ func submitInvalidSendAmountTransaction(
 	require.NoError(t, err)
 
 	_, err = apex.SubmitTx(ctx, src, senderUser, srcTestChain.GetHotWalletAddresses()[0],
-		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount)), nil, bridgingRequestMetadata)
+		new(big.Int).Add(sendAmount, feeAmount), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
 }
 
@@ -2204,7 +2205,7 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 ) {
 	t.Helper()
 
-	sendAmount := uint64(1_000_000)
+	sendAmount := ethgo.Ether(1)
 
 	operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
 	feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
@@ -2215,7 +2216,7 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    user.GetAddress(cardanofw.ChainIDVector),
-			Amount:  sendAmount,
+			Amount:  sendAmount.Uint64(), // TODO: maybe wrong idk
 			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
@@ -2230,7 +2231,7 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 
 	_, err = apex.SubmitTx(
 		ctx, cardanofw.ChainIDPrime, user,
-		apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
+		apex.PrimeInfo.MultisigAddr[0], new(big.Int).Add(sendAmount, feeAmount), nil, metadata)
 	require.Error(t, err)
 }
 

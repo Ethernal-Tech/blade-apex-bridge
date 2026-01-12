@@ -68,16 +68,16 @@ type ITestApexChain interface {
 		ctx context.Context,
 		dstChainID string,
 		receivers []sendtx.BridgingTxReceiver,
-		bridgingFee uint64,
-		operationFee uint64,
+		bridgingFee *big.Int,
+		operationFee *big.Int,
 		multiSigAddr string,
-	) (uint64, error)
+	) (*big.Int, error)
 	CreateMetadata(
 		senderAddr string,
 		dstChainID string,
 		receivers []sendtx.BridgingTxReceiver,
-		bridgingFee uint64,
-		operationFee uint64,
+		bridgingFee *big.Int,
+		operationFee *big.Int,
 	) ([]byte, error)
 	GetServerMust(t *testing.T, indx int) ITestApexChainServer
 	GetIndexer() e2eindexer.TxsExecutedComponent
@@ -205,19 +205,19 @@ func (td *TestApexChainDummy) GetBridgingFee(
 	ctx context.Context,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
-	bridgingFee uint64,
-	operationFee uint64,
+	bridgingFee *big.Int,
+	operationFee *big.Int,
 	multiSigAddr string,
-) (uint64, error) {
-	return 0, nil
+) (*big.Int, error) {
+	return big.NewInt(0), nil
 }
 
 func (td *TestApexChainDummy) CreateMetadata(
 	senderAddr string,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
-	bridgingFee uint64,
-	operationFee uint64,
+	bridgingFee *big.Int,
+	operationFee *big.Int,
 ) ([]byte, error) {
 	return nil, nil
 }

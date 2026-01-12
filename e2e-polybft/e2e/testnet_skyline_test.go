@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/common"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -158,7 +159,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 
 				// 1. Compute change in DFM (PotentialFee is already in DFM units)
 				changeDfm := new(big.Int).Mul(
-					new(big.Int).SetUint64(cardanofw.PotentialFee),
+					cardanofw.WeiToDfm(cardanofw.PotentialFee), // TODO: temp solution
 					new(big.Int).SetUint64(uint64(len(balance))),
 				)
 
@@ -234,7 +235,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 				continue
 			}
 
-			balance := make(map[string]uint64, len(balanceBigInt))
+			balance := make(map[string]uint64, len(balanceBigInt)) // TODO: maybe this is wrong
 			for tokenName, amount := range balanceBigInt {
 				balance[tokenName] = amount.Uint64()
 			}
@@ -243,7 +244,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 			tokens, err := cardanowallet.GetTokensFromSumMap(balance)
 			require.NoError(t, err)
 
-			receiverMinUtxo, err := txBuilder.SetProtocolParameters(protParams).CalculateMinUtxo(cardanowallet.TxOutputWithRefScript{
+			receiverMinUtxo, err := txBuilder.SetProtocolParameters(protParams).CalculateMinUtxo(cardanowallet.TxOutputWithRefScript{ // TO DO: this should be in big.int
 				TxOutput: cardanowallet.TxOutput{
 					Addr:   senderAddr.String(),
 					Tokens: tokens,
@@ -251,15 +252,15 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			changePlusPotentialFee := cardanofw.MinUTxODefaultValue + cardanofw.PotentialFee
-			balanceAtLeast := receiverMinUtxo + changePlusPotentialFee
+			changePlusPotentialFee := new(big.Int).Add(cardanofw.MinUTxODefaultValue, cardanofw.PotentialFee)
+			balanceAtLeast := new(big.Int).Add(new(big.Int).SetUint64(receiverMinUtxo), cardanofw.DfmToWei(changePlusPotentialFee)) // TODO: temp
 
 			lovelaceBalance := balance[cardanowallet.AdaTokenName]
-			if lovelaceBalance < balanceAtLeast {
+			if lovelaceBalance < balanceAtLeast.Uint64() {
 				continue
 			}
 
-			refundAmountLovelace := lovelaceBalance - changePlusPotentialFee
+			refundAmountLovelace := cardanofw.DfmToWei(new(big.Int).SetUint64(lovelaceBalance - cardanofw.WeiToDfm(changePlusPotentialFee).Uint64())) // TODO: temp solution
 
 			wg.Add(1)
 
@@ -269,7 +270,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 				fmt.Printf("Defunding %s address: %s\n", chain, senderAddr)
 
 				_, err := apex.SubmitTx(ctx, chain, user, funderReceiverAddr,
-					new(big.Int).SetUint64(refundAmountLovelace), tokens, nil)
+					refundAmountLovelace, tokens, nil)
 
 				if err != nil {
 					mu.Lock()
@@ -672,7 +673,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			minterWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(1_500_000), uint64(1_000_000))
+			ethgo.Gwei(1_500_000_000), ethgo.Ether(1)) // TODO: maybe gwei is not good enough
 		require.NoError(t, err)
 
 		executeInvalidSendNativeToken(t, ctx, apex, user, vectorCardanoTestConfig, *tokensFunded, requestStateTimeoutSec, retryIntervalSec, true, 0)
@@ -706,7 +707,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios_NexusSrc(t *testing.T) {
 	tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.USDTTokenID)
 	require.NoError(t, err)
 
-	sendAmount := cardanofw.DfmToWei(big.NewInt(1_000_000))
+	sendAmount := ethgo.Ether(1) // 1*10^18
 
 	//nolint:dupl
 	t.Run("1. Invalid destination in bridging request", func(t *testing.T) {

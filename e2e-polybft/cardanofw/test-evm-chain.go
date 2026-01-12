@@ -93,9 +93,9 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
 		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
 		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
-		MinBridgingFee:         DfmToWei(new(big.Int).SetUint64(defaultMinBridgingFeeAmount)),
-		MinBridgingAmount:      DfmToWei(new(big.Int).SetUint64(MinUTxODefaultValue)),
-		MinTokenBridgingAmount: DfmToWei(new(big.Int).SetUint64(1)),
+		MinBridgingFee:         defaultMinBridgingFeeAmount,
+		MinBridgingAmount:      MinUTxODefaultValue,
+		MinTokenBridgingAmount: ethgo.Gwei(1000), // TODO: CHECK FOR THIS, MAYBE EXIST BETTER OPTION
 		MinOperationFee:        big.NewInt(0),
 		CurrencyID:             AP3XTokenID,
 
@@ -127,12 +127,12 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 }
 
 func NewRemoteNexusChainConfig(
-	isEnabled bool, minBridgingFeeAmount uint64, minOperationFee uint64) *TestEVMChainConfig {
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int) *TestEVMChainConfig {
 	return &TestEVMChainConfig{
 		IsEnabled:       isEnabled,
 		ChainID:         ChainIDNexus,
-		MinBridgingFee:  DfmToWei(new(big.Int).SetUint64(minBridgingFeeAmount)),
-		MinOperationFee: DfmToWei(new(big.Int).SetUint64(minOperationFee)),
+		MinBridgingFee:  minBridgingFeeAmount,
+		MinOperationFee: minOperationFee,
 		CurrencyID:      AP3XTokenID,
 		LockUnlockTokens: []EVMTokenInfo{
 			{
@@ -827,10 +827,10 @@ func (ec *TestEVMChain) GetBridgingFee(
 	_ context.Context,
 	_ string,
 	_ []sendtx.BridgingTxReceiver,
-	bridgingFee uint64,
-	_ uint64,
+	bridgingFee *big.Int,
+	_ *big.Int,
 	_ string,
-) (uint64, error) {
+) (*big.Int, error) { // TODO: this will be different
 	return bridgingFee, nil
 }
 
@@ -838,8 +838,8 @@ func (ec *TestEVMChain) CreateMetadata(
 	senderAddr string,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
-	bridgingFee uint64,
-	operationFee uint64,
+	bridgingFee *big.Int,
+	operationFee *big.Int,
 ) ([]byte, error) {
 	return nil, nil
 }
