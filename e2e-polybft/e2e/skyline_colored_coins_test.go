@@ -268,7 +268,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			mp["refundEnabled"] = false
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["minColCoinsAllowedToBridge"] = minColCoinsAllowedToBridge
-		}, nil, nil),
+		}, nil, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
 
@@ -529,7 +529,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
 			setting["minColCoinsAllowedToBridge"] = minColCoinsAllowedToBridge
-		}, nil, nil),
+		}, nil, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())

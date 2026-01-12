@@ -27,33 +27,37 @@ type ReceiverAmount struct {
 	Amount  *big.Int
 }
 
+type BridgingRequestParams struct {
+	Ctx            context.Context
+	DestChainID    ChainID
+	PrivateKey     string
+	ChainIDsConfig string
+	Receivers      map[string]ReceiverAmount
+	FeeAmount      *big.Int
+	OperationFee   uint64
+	IsCurrencySrc  bool
+	IsCurrencyDest bool
+}
+
 type ITestApexChain interface {
 	RunChain(t *testing.T) error
 	Stop() error
 	CreateWallets(validator *TestApexValidator) error
-	CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridgeURL string) error
+	CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridgeURL, chainIDsConfig string) error
 	FundWallets(ctx context.Context) error
 	RegisterChain(validator *TestApexValidator) error
-	InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error
+	InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL, chainIDsConfig string) error
 	GenerateChainConfigs(
 		indx int,
 		validator *TestApexValidator,
 	) error
 	PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error
 	UpdateTxSendChainConfiguration(configs map[string]sendtx.ChainConfig)
-	DeployMintingContract(ctx context.Context) error
+	DeployMintingContract(ctx context.Context, chainIDsConfig string) error
 	ChainID() string
 	GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error)
 	GetAddressBalanceWithTokenName(ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error)
-	BridgingRequest(
-		ctx context.Context,
-		destChainID ChainID,
-		privateKey string,
-		receivers map[string]ReceiverAmount,
-		feeAmount *big.Int,
-		operationFee uint64,
-		isCurrencySrc, isCurrencyDest bool,
-	) (string, error)
+	BridgingRequest(params BridgingRequestParams) (string, error)
 	SendTx(
 		ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
 	) (string, error)
@@ -120,15 +124,7 @@ func NewTestApexChainDummy(configParams []string) *TestApexChainDummy {
 	}
 }
 
-func (td *TestApexChainDummy) BridgingRequest(
-	ctx context.Context,
-	destChainID string,
-	privateKey string,
-	receivers map[string]ReceiverAmount,
-	feeAmount *big.Int,
-	operationFee uint64,
-	isCurrencySrc, isCurrencyDest bool,
-) (string, error) {
+func (td *TestApexChainDummy) BridgingRequest(params BridgingRequestParams) (string, error) {
 	return "", nil
 }
 
@@ -136,7 +132,7 @@ func (td *TestApexChainDummy) ChainID() string {
 	return ""
 }
 
-func (td *TestApexChainDummy) CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridgeURL string) error {
+func (td *TestApexChainDummy) CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridgeURL, chainIDsConfig string) error {
 	return nil
 }
 
@@ -144,7 +140,7 @@ func (td *TestApexChainDummy) CreateWallets(validator *TestApexValidator) error 
 	return nil
 }
 
-func (td *TestApexChainDummy) DeployMintingContract(ctx context.Context) error {
+func (td *TestApexChainDummy) DeployMintingContract(ctx context.Context, chainIDsConfig string) error {
 	return nil
 }
 
@@ -162,7 +158,9 @@ func (td *TestApexChainDummy) GenerateChainConfigs(
 	return nil
 }
 
-func (td *TestApexChainDummy) InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string) error {
+func (td *TestApexChainDummy) InitContracts(
+	ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL, chainIDsConfig string,
+) error {
 	return nil
 }
 

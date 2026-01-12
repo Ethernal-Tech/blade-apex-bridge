@@ -34,6 +34,7 @@ const (
 	ValidatorComponentsConfigFileName = "vc_config.json"
 	RelayerConfigFileName             = "relayer_config.json"
 	DirectionsConfigFileName          = "directions_config.json"
+	ChainIDsConfigFileName            = "chain_ids_config.json"
 )
 
 type CardanoWallet struct {
@@ -75,6 +76,10 @@ func (cv *TestApexValidator) GetRelayerConfig() string {
 
 func (cv *TestApexValidator) GetDirectionsConfig() string {
 	return filepath.Join(cv.GetBridgingConfigsDir(), DirectionsConfigFileName)
+}
+
+func (cv *TestApexValidator) GetChainIDsConfig() string {
+	return filepath.Join(cv.GetBridgingConfigsDir(), ChainIDsConfigFileName)
 }
 
 func (cv *TestApexValidator) GetRelayerDataDir() string {
@@ -139,6 +144,7 @@ func (cv *TestApexValidator) RegisterChain(
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"register-chain",
 		"--chain", chain,
+		"--chain-ids-config", cv.GetChainIDsConfig(),
 		"--type", fmt.Sprint(chainType),
 		"--validator-data-dir", cv.server.DataDir(),
 		"--token-supply", fmt.Sprint(tokenSupply),
@@ -181,6 +187,28 @@ func (cv *TestApexValidator) GenerateConfigs(
 	}
 
 	return common.CreateDirSafe(dbsPath, 0770)
+}
+
+func (cv *TestApexValidator) GenerateChainIDsConfig(chainIDsConfigFile *ChainIDsConfigFile) error {
+	bridgingConfigsDir := cv.GetBridgingConfigsDir()
+
+	if err := common.CreateDirSafe(bridgingConfigsDir, 0770); err != nil {
+		return err
+	}
+
+	fileName := path.Join(bridgingConfigsDir, ChainIDsConfigFileName)
+
+	json, err := json.Marshal(*chainIDsConfigFile)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(fileName, json, 0600)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (cv *TestApexValidator) GenerateDirectionsConfig(directionConfigFile *DirectionConfigFile) error {
@@ -239,6 +267,7 @@ func (cv *TestApexValidator) Start(ctx context.Context, runAPI bool) (err error)
 		"run-validator-components",
 		"--config", cv.GetValidatorComponentsConfig(),
 		"--direction-config", cv.GetDirectionsConfig(),
+		"--chain-ids-config", cv.GetChainIDsConfig(),
 	}
 
 	if runAPI {

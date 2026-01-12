@@ -336,7 +336,7 @@ func (ec *TestEVMChain) CreateWallets(validator *TestApexValidator) error {
 	return nil
 }
 
-func (ec *TestEVMChain) DeployMintingContract(ctx context.Context) error {
+func (ec *TestEVMChain) DeployMintingContract(ctx context.Context, chainIDsConfig string) error {
 	fmt.Println("Deploying minting contract for chain =", ec.ChainID())
 
 	pk, err := ec.admin.MarshallPrivateKey()
@@ -388,6 +388,7 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context) error {
 		params := []string{
 			"bridge-admin",
 			"register-gateway-token",
+			"--chain-ids-config", chainIDsConfig,
 			"--node-url", ec.jsonRPCAddr,
 			"--key", hex.EncodeToString(pk),
 			"--gateway-addr", ec.gatewayAddr.String(),
@@ -412,6 +413,7 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context) error {
 		params := []string{
 			"bridge-admin",
 			"register-gateway-token",
+			"--chain-ids-config", chainIDsConfig,
 			"--node-url", ec.jsonRPCAddr,
 			"--key", hex.EncodeToString(pk),
 			"--gateway-addr", ec.gatewayAddr.String(),
@@ -587,7 +589,7 @@ func (ec *TestEVMChain) FundUsersWithToken(address string, amount *big.Int, toke
 }
 
 func (ec *TestEVMChain) CreateAddresses(
-	bladeAdmin *crypto.ECDSAKey, bridgeURL string,
+	bladeAdmin *crypto.ECDSAKey, bridgeURL, chainIDsConfig string,
 ) error {
 	return nil
 }
@@ -618,7 +620,7 @@ func (ec *TestEVMChain) FundWallets(ctx context.Context) error {
 }
 
 func (ec *TestEVMChain) InitContracts(
-	ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string,
+	ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL, chainIDsConfig string,
 ) error {
 	pk, err := ec.admin.MarshallPrivateKey()
 	if err != nil {
@@ -667,6 +669,7 @@ func (ec *TestEVMChain) InitContracts(
 		"--url", ec.jsonRPCAddr,
 		"--key", hex.EncodeToString(pk),
 		"--chain", ec.ChainID(),
+		"--chain-ids-config", chainIDsConfig,
 		"--bridge-url", bridgeURL,
 		"--bridge-addr", contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
@@ -719,7 +722,7 @@ func retry(ctx context.Context, workingDirectory string, action func() error) er
 
 func (ec *TestEVMChain) RegisterChain(validator *TestApexValidator) error {
 	return validator.RegisterChain(
-		ec.config.ChainID, WeiToDfm(ec.config.InitialHotWalletAmount), big.NewInt(0), ChainTypeEVM)
+		ec.ChainID(), WeiToDfm(ec.config.InitialHotWalletAmount), big.NewInt(0), ChainTypeEVM)
 }
 
 func (ec *TestEVMChain) GenerateChainConfigs(
@@ -841,32 +844,25 @@ func (ec *TestEVMChain) CreateMetadata(
 	return nil, nil
 }
 
-func (ec *TestEVMChain) BridgingRequest(
-	ctx context.Context,
-	destChainID ChainID,
-	privateKey string,
-	receivers map[string]ReceiverAmount,
-	feeAmount *big.Int,
-	operationFee uint64,
-	isCurrencySrc, isCurrencyDest bool,
-) (string, error) {
+func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string, error) {
 	//nolint:prealloc
 	var params []string
 
-	if isCurrencySrc && isCurrencyDest {
+	if brParams.IsCurrencySrc && brParams.IsCurrencyDest {
 		params = []string{
 			"sendtx",
 			"--tx-type", "evm",
+			"--chain-ids-config", brParams.ChainIDsConfig,
 			"--gateway-addr", ec.gatewayAddr.String(),
 			"--rpc-url", ec.jsonRPCAddr,
-			"--key", privateKey,
+			"--key", brParams.PrivateKey,
 			"--chain-src", ec.config.ChainID,
-			"--chain-dst", destChainID,
-			"--fee", feeAmount.String(),
+			"--chain-dst", brParams.DestChainID,
+			"--fee", brParams.FeeAmount.String(),
 		}
 	} else {
 		receiverTokenID := uint16(0)
-		for _, receiver := range receivers {
+		for _, receiver := range brParams.Receivers {
 			receiverTokenID = receiver.TokenID
 
 			break
@@ -886,17 +882,18 @@ func (ec *TestEVMChain) BridgingRequest(
 			"sendtx",
 			"skyline",
 			"--tx-type", "evm",
+			"--chain-ids-config", brParams.ChainIDsConfig,
 			"--gateway-addr", ec.gatewayAddr.String(),
 			"--rpc-url", ec.jsonRPCAddr,
-			"--key", privateKey,
+			"--key", brParams.PrivateKey,
 			"--chain-src", ec.config.ChainID,
-			"--chain-dst", destChainID,
-			"--fee", feeAmount.String(),
+			"--chain-dst", brParams.DestChainID,
+			"--fee", brParams.FeeAmount.String(),
 			"--operation-fee", ec.config.MinOperationFee.String(),
 			"--src-token-id", fmt.Sprint(receiverTokenID),
 		}
 
-		if isCurrencySrc {
+		if brParams.IsCurrencySrc {
 			params = append(params, "--src-token-name", infrawallet.AdaTokenName)
 		} else if isTokenLockUnlock {
 			params = append(params,
@@ -905,7 +902,7 @@ func (ec *TestEVMChain) BridgingRequest(
 		}
 	}
 
-	for addr, amount := range receivers {
+	for addr, amount := range brParams.Receivers {
 		params = append(params,
 			"--receiver", fmt.Sprintf("%s:%s", addr, amount.Amount.String()),
 		)

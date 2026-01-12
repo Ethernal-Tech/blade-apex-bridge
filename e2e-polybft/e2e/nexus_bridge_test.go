@@ -287,6 +287,7 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				apex.NexusInfo.JSONRPCAddr,
 				userPk, dstChain,
 				user.GetAddress(dstChain),
+				apex.GetChainIDsConfig(),
 				sendAmountWei, fee,
 			)
 			require.ErrorContains(t, err, "failed to execute command")
@@ -304,6 +305,7 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				"localhost:1234",
 				userPk, dstChain,
 				user.GetAddress(dstChain),
+				apex.GetChainIDsConfig(),
 				sendAmountWei, fee,
 			)
 			require.ErrorContains(t, err, "Error: invalid --rpc-url flag")
@@ -332,6 +334,7 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				apex.NexusInfo.JSONRPCAddr,
 				unfundedUserPk, dstChain,
 				unfundedUser.GetAddress(dstChain),
+				apex.GetChainIDsConfig(),
 				sendAmountWei, fee,
 			)
 			require.ErrorContains(t, err, "insufficient funds for execution")
@@ -730,7 +733,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
 				block["gasFeeCap"] = uint64(10)
 				block["gasTipCap"] = uint64(11)
-			}, nil),
+			}, nil, nil),
 		)
 
 		user := apex.Users[userCnt-1]
@@ -804,7 +807,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 				block := cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")
 				block["gasPrice"] = uint64(10)
 				block["dynamicTx"] = bool(false)
-			}, nil),
+			}, nil, nil),
 		)
 
 		user := apex.Users[userCnt-1]
@@ -871,7 +874,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(nil, func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "chains", cardanofw.ChainIDNexus, "config")["depositGasLimit"] = uint64(10)
-			}, nil),
+			}, nil, nil),
 		)
 
 		user := apex.Users[userCnt-1]
@@ -941,7 +944,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(1)
-			}, nil, nil),
+			}, nil, nil, nil),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1008,7 +1011,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(2)
-			}, nil, nil),
+			}, nil, nil, nil),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1073,7 +1076,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(3)
-			}, nil, nil),
+			}, nil, nil, nil),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1139,7 +1142,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			cardanofw.WithUserCnt(userCnt),
 			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)["testMode"] = uint8(4)
-			}, nil, nil),
+			}, nil, nil, nil),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1445,6 +1448,7 @@ func SrcNexusSubmitterNotEnoughFunds(
 		apex.NexusInfo.JSONRPCAddr,
 		unfundedUserPk, dstChain,
 		unfundedUser.GetAddress(dstChain),
+		apex.GetChainIDsConfig(),
 		sendAmountWei, fee,
 	)
 	require.ErrorContains(t, err, "insufficient funds for execution")
@@ -1751,10 +1755,11 @@ func DstNexusInvalidMetadataInvalidTransactions(
 	require.NoError(t, err)
 }
 
-func sendTxParamsNPInvalidScenarios(txType, gatewayAddr, nexusURL, privateKey, chainDst, receiver string, amount, fee *big.Int) error {
+func sendTxParamsNPInvalidScenarios(txType, gatewayAddr, nexusURL, privateKey, chainDst, receiver, chainIDsConfig string, amount, fee *big.Int) error {
 	return cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
 		"sendtx",
 		"--tx-type", txType,
+		"--chain-ids-config", chainIDsConfig,
 		"--gateway-addr", gatewayAddr,
 		"--rpc-url", nexusURL,
 		"--key", privateKey,

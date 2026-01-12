@@ -19,6 +19,9 @@ const (
 
 	ChainIDCardano ChainID = "cardano"
 
+	ChainTypeCardanoStr = "cardano"
+	ChainTypeEVMStr     = "evm"
+
 	RunRelayerOnValidatorID = 1
 
 	NoTelemetry TelemetryConfig = iota
@@ -71,6 +74,7 @@ type ApexSystemConfig struct {
 	CustomOracleConfigHandler     CustomConfigHandler
 	CustomRelayerConfigHandler    CustomConfigHandler
 	CustomDirectionsConfigHandler CustomConfigHandler
+	CustomChainIDsConfigHandler   CustomConfigHandler
 
 	UserCnt                  uint
 	UpdateAddressCountChains []ChainID
@@ -157,11 +161,12 @@ func WithPolygonConfig(config *TestEVMChainConfig) ApexSystemOptions {
 }
 
 func WithCustomConfigHandlers(
-	callbackOracle, callbackRelayer, callbackDirections CustomConfigHandler) ApexSystemOptions {
+	callbackOracle, callbackRelayer, callbackDirections, callbackChainIDs CustomConfigHandler) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.CustomOracleConfigHandler = callbackOracle
 		h.CustomRelayerConfigHandler = callbackRelayer
 		h.CustomDirectionsConfigHandler = callbackDirections
+		h.CustomChainIDsConfigHandler = callbackChainIDs
 	}
 }
 
