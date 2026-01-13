@@ -39,7 +39,6 @@ const (
 	ttlSlotNumberInc = 500
 	maxInputs        = 40
 
-	DefaultMinOperationFee        = uint64(0)
 	DefaultRequestStateTimeoutSec = 300
 
 	DefaultTokenName = "test1"
@@ -54,6 +53,7 @@ var (
 	PotentialFee                         = ethgo.Gwei(500_000_000) // 0.5 ether
 	defaultMinBridgingFeeAmountForTokens = ethgo.Gwei(2_860_000_000)
 	DefaultTokenMintAmount               = ethgo.Ether(1_000)
+	DefaultMinOperationFee               = big.NewInt(0)
 )
 
 type BatchTypes uint8

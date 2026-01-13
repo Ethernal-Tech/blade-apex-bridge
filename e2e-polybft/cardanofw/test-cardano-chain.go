@@ -155,7 +155,7 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		FundTokenName:               CAP3XTokenName,
 		DefaultMinBridgingFee:       WeiToDfm(defaultMinBridgingFeeAmount).Uint64(),
 		MinBridgingFeeForTokens:     WeiToDfm(defaultMinBridgingFeeAmountForTokens).Uint64(),
-		MinOperationFee:             DefaultMinOperationFee,
+		MinOperationFee:             DefaultMinOperationFee.Uint64(),
 		BridgingAddressCnt:          1,
 	}
 }
@@ -866,6 +866,8 @@ func (ec *TestCardanoChain) BridgingRequest(params BridgingRequestParams) (strin
 	if err != nil {
 		return "", err
 	}
+
+	fmt.Println("RECEIVERS IN BRIDGING REQUEST", receivers)
 
 	txInfo, _, err := ec.txSender.CreateBridgingTx(
 		params.Ctx,

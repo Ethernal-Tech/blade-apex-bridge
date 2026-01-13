@@ -736,7 +736,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 				SourceChain:      src,
 				DestinationChain: dest,
 				Sender:           sender,
-				DFMAmount:        apexSendAmount,
+				WeiAmount:        apexSendAmount,
 				SrcTokenID:       srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})
@@ -850,7 +850,7 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 					SourceChain:      src,
 					DestinationChain: dest,
 					Sender:           sender,
-					DFMAmount:        apexSendAmount,
+					WeiAmount:        apexSendAmount,
 					SrcTokenID:       srcTokenID,
 					Receivers:        []*cardanofw.TestApexUser{user},
 				})
@@ -976,7 +976,7 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 				SourceChain:      br.src,
 				DestinationChain: br.dest,
 				Sender:           br.sender,
-				DFMAmount:        sendAmount,
+				WeiAmount:        sendAmount,
 				SrcTokenID:       br.srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})
