@@ -169,7 +169,7 @@ func TestE2E_SkylineBridge_OperationFeeNotSet(t *testing.T) {
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			mp["refundEnabled"] = false
-		}, nil, nil),
+		}, nil, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
