@@ -210,10 +210,10 @@ func NewSkylineSystem(
 		opt(config)
 	}
 
-	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee
-	config.VectorConfig.MinOperationFee = DefaultMinOperationFee
-	config.NexusConfig.MinOperationFee = DfmToWei(new(big.Int).SetUint64(DefaultMinOperationFee))
-	config.PolygonConfig.MinOperationFee = DfmToWei(new(big.Int).SetUint64(DefaultMinOperationFee))
+	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee.Uint64()  // TODO:
+	config.VectorConfig.MinOperationFee = DefaultMinOperationFee.Uint64() // TODO:
+	config.NexusConfig.MinOperationFee = DefaultMinOperationFee
+	config.PolygonConfig.MinOperationFee = DefaultMinOperationFee
 
 	users := make([]*TestApexUser, config.UserCnt)
 
@@ -1681,8 +1681,8 @@ func (a *ApexSystem) SubmitTx(
 	receivers := []GenericTxReceiver{
 		{
 			Addr: receiverAddr,
-			// TODO: maybe this is not necessary, but we will see
-			Amount:       WeiToChainNativeTokenAmount(sourceChain, weiAmount),
+			// TODO: maybe this is not necessary, but we will see // i delete so we will see
+			Amount:       weiAmount,
 			NativeTokens: nativeTokens,
 		},
 	}
@@ -1708,13 +1708,13 @@ type SubmitBridgingRequestData struct {
 	SourceChain      ChainID
 	DestinationChain ChainID
 	Sender           *TestApexUser
-	DFMAmount        *big.Int
+	WeiAmount        *big.Int
 	SrcTokenID       uint16
 	Receivers        []*TestApexUser
 	TokensInfo       *BridgingTokensInfo
 }
 
-func (a *ApexSystem) SubmitBridgingRequest( // TODO: THIS need to accept WEI
+func (a *ApexSystem) SubmitBridgingRequest(
 	data SubmitBridgingRequestData,
 ) (string, error) {
 	if data.TokensInfo == nil {
@@ -1830,7 +1830,7 @@ func (a *ApexSystem) SubmitBridgingRequest( // TODO: THIS need to accept WEI
 
 		receiversMap[receiver.GetAddress(data.DestinationChain)] = ReceiverAmount{
 			TokenID: data.TokensInfo.SrcTokenID,
-			Amount:  WeiToChainNativeTokenAmount(data.SourceChain, data.DFMAmount),
+			Amount:  data.WeiAmount,
 		}
 	}
 
@@ -1858,7 +1858,7 @@ func (a *ApexSystem) SubmitBridgingRequest( // TODO: THIS need to accept WEI
 
 	operationFee := uint64(0)
 	if a.IsSkyline {
-		operationFee = DefaultMinOperationFee
+		operationFee = DefaultMinOperationFee.Uint64() // TODO:
 	}
 
 	srcChain, err := a.getChain(data.SourceChain)

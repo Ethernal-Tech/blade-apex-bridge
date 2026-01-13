@@ -191,7 +191,7 @@ var (
 									SourceChain:      srcChain,
 									DestinationChain: dstChain,
 									Sender:           senderUser,
-									DFMAmount:        sendAmountDfm,
+									WeiAmount:        sendAmountDfm,
 									SrcTokenID:       srcTokenIDs[NewChainPair(srcChain, dstChain)],
 									Receivers:        receivers,
 									TokensInfo:       tokensInfo,

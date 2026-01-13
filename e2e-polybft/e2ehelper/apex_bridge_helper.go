@@ -44,7 +44,7 @@ func ExecuteSingleBridging(
 			SourceChain:      srcChain,
 			DestinationChain: dstChain,
 			Sender:           senderUser,
-			DFMAmount:        cardanofw.WeiToDfm(sendAmount), // TODO:
+			WeiAmount:        sendAmount,
 			SrcTokenID:       srcTokenID,
 			Receivers:        []*cardanofw.TestApexUser{receiverUser},
 			TokensInfo:       tokensInfo,
@@ -54,7 +54,7 @@ func ExecuteSingleBridging(
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
-	expectedAmount := new(big.Int).Add(prevAmount, cardanofw.WeiToDfm(sendAmount))
+	expectedAmount := new(big.Int).Add(prevAmount, new(big.Int).Set(sendAmount))
 
 	fmt.Printf("Expected amount: %+v\n", expectedAmount)
 
@@ -110,7 +110,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 				SourceChain:      srcChain,
 				DestinationChain: dstChain,
 				Sender:           receiverUser,
-				DFMAmount:        cardanofw.WeiToDfm(sendAmount), // TODO:
+				WeiAmount:        sendAmount, // TODO:
 				SrcTokenID:       srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{receiverUser},
 				TokensInfo:       tokensInfo,
@@ -119,7 +119,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
 
-		expectedAmount := new(big.Int).Add(prevAmount, cardanofw.WeiToDfm(sendAmount))
+		expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
 
 		err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmount,
 			config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, tokensInfo.DstTokenName)
@@ -154,7 +154,7 @@ func ExecuteBridgingWaitAfterSubmits(
 				SourceChain:      srcChain,
 				DestinationChain: dstChain,
 				Sender:           receiverUser,
-				DFMAmount:        cardanofw.WeiToDfm(sendAmount), // TODO:
+				WeiAmount:        sendAmount, // TODO:
 				SrcTokenID:       srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{receiverUser},
 				TokensInfo:       tokensInfo,
@@ -163,7 +163,7 @@ func ExecuteBridgingWaitAfterSubmits(
 
 		fmt.Printf("Tx[%d] sent. hash: %s\n", i, txHash)
 
-		expectedAmount = expectedAmount.Add(expectedAmount, cardanofw.WeiToDfm(sendAmount))
+		expectedAmount = expectedAmount.Add(expectedAmount, sendAmount)
 	}
 
 	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmount,
@@ -206,7 +206,7 @@ func ExecuteBridgingWithRefund(
 			SourceChain:      srcChain,
 			DestinationChain: dstChain,
 			Sender:           senderUser,
-			DFMAmount:        cardanofw.WeiToDfm(sendAmount), // TODO:
+			WeiAmount:        cardanofw.WeiToDfm(sendAmount), // TODO:
 			SrcTokenID:       srcTokenID,
 			Receivers:        []*cardanofw.TestApexUser{receiverUser},
 			TokensInfo:       tokensInfo,
@@ -250,7 +250,7 @@ type ExecuteBridgingConfig struct {
 	SrcChain      string
 	DstChain      string
 	SrcTokenID    uint16
-	SendAmountDfm *big.Int
+	SendAmountWei *big.Int
 }
 
 func ExecuteBridgingWaitAfterSubmitsExtended(
@@ -312,7 +312,7 @@ func ExecuteBridgingWaitAfterSubmitsExtended(
 						SourceChain:      dir.SrcChain,
 						DestinationChain: dir.DstChain,
 						Sender:           receiverUser,
-						DFMAmount:        dir.SendAmountDfm,
+						WeiAmount:        dir.SendAmountWei,
 						SrcTokenID:       dir.SrcTokenID,
 						Receivers:        []*cardanofw.TestApexUser{receiverUser},
 						TokensInfo:       tokensInfo,
@@ -321,7 +321,7 @@ func ExecuteBridgingWaitAfterSubmitsExtended(
 
 				fmt.Printf("Direction %d Tx[%d] sent. hash: %s\n", idx, j, txHash)
 
-				expectedAmount.Add(expectedAmount, dir.SendAmountDfm)
+				expectedAmount.Add(expectedAmount, dir.SendAmountWei)
 			}
 
 			expectedAmounts[idx] = expectedAmountInfo{
@@ -417,7 +417,7 @@ func ExecuteBridging( // TO ACCEPT WEI
 	// send transactions
 	sendTxDatas := config.sendTxStrategy(
 		ctx, apex, chainsDst, senderUsers, receiverUsers,
-		cardanofw.WeiToDfm(sendAmountWei), txCountPerSender, srcTokenIDs) // TODO: temp solution
+		sendAmountWei, txCountPerSender, srcTokenIDs)
 
 	for _, d := range sendTxDatas {
 		require.NoError(t, d.err)
@@ -698,7 +698,7 @@ func ExecuteBridgingExtended(
 							SourceChain:      dr.SrcChain,
 							DestinationChain: dr.DstChain,
 							Sender:           senderUser,
-							DFMAmount:        cardanofw.WeiToDfm(sendAmountWei),
+							WeiAmount:        cardanofw.WeiToDfm(sendAmountWei),
 							SrcTokenID:       dr.SrcTokenID,
 							Receivers:        receiverUsers,
 							TokensInfo:       dr.TokensInfo,

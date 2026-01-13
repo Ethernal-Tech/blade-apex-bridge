@@ -956,7 +956,7 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 				SourceChain:      src,
 				DestinationChain: dest,
 				Sender:           sender,
-				DFMAmount:        apexSendAmount,
+				WeiAmount:        apexSendAmount,
 				SrcTokenID:       srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})
@@ -1059,7 +1059,7 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 				SourceChain:      src,
 				DestinationChain: dest,
 				Sender:           sender,
-				DFMAmount:        apexSendAmount,
+				WeiAmount:        apexSendAmount,
 				SrcTokenID:       srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})
@@ -1426,7 +1426,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 					SourceChain:      src,
 					DestinationChain: dest,
 					Sender:           sender,
-					DFMAmount:        amount,
+					WeiAmount:        amount,
 					SrcTokenID:       br.srcTokenID,
 					Receivers:        []*cardanofw.TestApexUser{receiver},
 				})
@@ -2311,7 +2311,7 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 							SourceChain:      br.src,
 							DestinationChain: br.dest,
 							Sender:           apex.Users[idx],
-							DFMAmount:        sendAmount,
+							WeiAmount:        sendAmount,
 							SrcTokenID:       br.srcTokenID,
 							Receivers:        []*cardanofw.TestApexUser{br.receiver},
 						})
@@ -2489,7 +2489,7 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 				SourceChain:      br.src,
 				DestinationChain: br.dest,
 				Sender:           br.sender,
-				DFMAmount:        apexSendAmount,
+				WeiAmount:        apexSendAmount,
 				SrcTokenID:       br.srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})
