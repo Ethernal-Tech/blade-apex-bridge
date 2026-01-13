@@ -575,7 +575,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		addr := ec.multisigAddr[0]
 		twoMinUtxo := new(big.Int).Mul(MinUTxODefaultValue, big.NewInt(2))
 
-		amount := new(big.Int).Set(DfmToWei(new(big.Int).SetUint64(ec.config.FundAmount)))
+		amount := new(big.Int).SetUint64(ec.config.FundAmount)
 
 		if twoMinUtxo.Cmp(amount) > 0 {
 			amount.Set(twoMinUtxo)
@@ -589,7 +589,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		}
 
 		if ta := ec.config.FundTokenAmount; ta != 0 {
-			if err := MintToken(ec, minterWallet, ec.config.FundTokenName, DfmToWei(big.NewInt(0).SetUint64(ta))); err != nil {
+			if err := MintToken(ec, minterWallet, ec.config.FundTokenName, DfmToWei(big.NewInt(0).SetUint64(ta))); err != nil { // TODO: check for this
 				return err
 			}
 		}
@@ -618,7 +618,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	if ec.config.CustodialAddress != "" && ec.config.CustodialNFT != nil {
 		weiFundAmount := new(big.Int).Mul(big.NewInt(2), MinUTxODefaultValue)
 
-		if err := MintToken(ec, minterWallet, MintNFTTokenName, big.NewInt(1)); err != nil {
+		if err := MintToken(ec, minterWallet, MintNFTTokenName, DfmToWei(big.NewInt(1))); err != nil { // TODO: check for this
 			return err
 		}
 
