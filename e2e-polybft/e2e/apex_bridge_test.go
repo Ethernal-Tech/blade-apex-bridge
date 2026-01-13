@@ -343,7 +343,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	defer cncl()
 
 	srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDVector
-	sendAmountDfm := cardanofw.ApexToDfm(big.NewInt(1))
+	sendAmountWei := cardanofw.ApexToWei(big.NewInt(1))
 	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig()
 	primeConfig.PremineAmount = 500_000_000
 	vectorConfig.PremineAmount = 500_000_000
@@ -400,7 +400,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	require.NoError(t, err)
 
 	prevAmount := cardanofw.SetOrDefault(balance[infrawallet.AdaTokenName], big.NewInt(0))
-	expectedAmount := new(big.Int).Add(prevAmount, sendAmountDfm)
+	expectedAmount := new(big.Int).Add(prevAmount, sendAmountWei)
 
 	tokensInfo, err := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.AP3XTokenID)
 	require.NoError(t, err)
@@ -408,7 +408,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	receiversMap := make(map[string]cardanofw.ReceiverAmount, 1)
 	receiversMap[apex.Users[0].VectorAddress.String()] = cardanofw.ReceiverAmount{
 		TokenID: tokensInfo.SrcTokenID,
-		Amount:  sendAmountDfm,
+		Amount:  sendAmountWei,
 	}
 
 	txHash, err := apex.GetChainMust(t, srcChain).BridgingRequest(
@@ -463,7 +463,7 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 
 	user := apex.Users[0]
 
-	sendAmount := uint64(1_000_000)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	// Initiate bridging PRIME -> VECTOR
 	txHash, err := apex.SubmitBridgingRequest(
@@ -472,7 +472,7 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 			SourceChain:      cardanofw.ChainIDPrime,
 			DestinationChain: cardanofw.ChainIDVector,
 			Sender:           user,
-			WeiAmount:        new(big.Int).SetUint64(sendAmount),
+			WeiAmount:        sendAmount,
 			SrcTokenID:       cardanofw.AP3XTokenID,
 			Receivers:        []*cardanofw.TestApexUser{user},
 		},
