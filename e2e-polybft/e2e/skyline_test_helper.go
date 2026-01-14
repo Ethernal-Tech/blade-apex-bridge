@@ -66,13 +66,14 @@ func executeInvalidFeeReceiverAddr(
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    apex.GetCardanoInfo(config.dstChainID).FeeAddr,
-			Amount:  minBridgingFee.Uint64(), // TODO: this should become a big.Int
+			Amount:  minBridgingFee.Uint64(),
 			TokenID: invalidSrcTokenID,
 		},
 	}
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-		minBridgingFee, operationFee, user, receivers, config.isCurrency)
+		cardanofw.WeiToChainNativeTokenAmount(config.srcChainID, minBridgingFee),
+		cardanofw.WeiToChainNativeTokenAmount(config.srcChainID, operationFee), user, receivers, config.isCurrency)
 
 	sentAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, operationFee)
 
@@ -165,7 +166,8 @@ func executeInvalidMismatchSendNativeTokenAmount(
 
 	metadata, feeAmount := createMetadata(
 		t, ctx, apex, config.srcChainID, config.dstChainID,
-		minBridgingFee, operationFee, user, receivers, config.isCurrency)
+		cardanofw.WeiToChainNativeTokenAmount(config.srcChainID, minBridgingFee),
+		cardanofw.WeiToChainNativeTokenAmount(config.srcChainID, operationFee), user, receivers, config.isCurrency)
 
 	bridgingRequestMetadata := bytes.Replace(metadata,
 		[]byte(fmt.Sprintf("%d", nativeTokenAmount.Amount)), []byte(fmt.Sprintf("%d", nativeTokenAmount.Amount+1)), 1)

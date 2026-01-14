@@ -69,7 +69,7 @@ type testConfig struct {
 }
 
 var (
-	defaultSendAmount = cardanofw.ApexToWei(big.NewInt(1))
+	defaultSendAmount = cardanofw.ApexToDfm(big.NewInt(1))
 )
 
 func newTestConfig(
@@ -196,7 +196,7 @@ func executeInvalidMismatchSendLovelaceAmount(
 ) {
 	t.Helper()
 
-	receivers := createReceivers(apex, 1, config.dstChainID, new(big.Int).Mul(defaultSendAmount, big.NewInt(10)), config.tokenID)
+	receivers := createReceivers(apex, 1, config.dstChainID, new(big.Int).Mul(cardanofw.WeiToChainNativeTokenAmount(config.srcChainID, defaultSendAmount), big.NewInt(10)), config.tokenID)
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 
@@ -443,13 +443,13 @@ func executeInvalidDestination(
 
 	feeAmount, err := srcTestChain.GetBridgingFee(
 		ctx, config.dstChainID, receiversForFeeCalculation,
-		apex.GetMinBridgingFee(config.srcChainID, !config.isCurrency),
-		operationFee, config.srcMultiSigAddr)
+		cardanofw.WeiToChainNativeTokenAmount(config.srcChainID, apex.GetMinBridgingFee(config.srcChainID, !config.isCurrency)),
+		cardanofw.WeiToChainNativeTokenAmount(config.srcChainID, operationFee), config.srcMultiSigAddr)
 	require.NoError(t, err)
 
 	metadata, err := srcTestChain.CreateMetadata(
 		user.GetAddress(config.srcChainID), config.dstChainID, receivers, feeAmount,
-		operationFee,
+		cardanofw.ChainNativeTokenAmountToWei(config.srcChainID, operationFee),
 	)
 	require.NoError(t, err)
 
@@ -565,8 +565,8 @@ func executeInvalidTokenDirection(
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-		apex.GetMinBridgingFee(config.srcChainID, false),
-		operationFee, user, receivers, config.isCurrency)
+		cardanofw.ChainNativeTokenAmountToWei(config.srcChainID, apex.GetMinBridgingFee(config.srcChainID, false)),
+		cardanofw.ChainNativeTokenAmountToWei(config.srcChainID, operationFee), user, receivers, config.isCurrency)
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
@@ -589,15 +589,15 @@ func getDefaultSendAmounts(
 ) (*big.Int, []wallet.TokenAmount, *big.Int) { // TODO: check this function once again
 	t.Helper()
 
-	weiAmount := new(big.Int).Add(feeAmount, operationFee)
+	amount := new(big.Int).Add(feeAmount, operationFee)
 
 	waitForAmount := new(big.Int)
 	var tokens []wallet.TokenAmount
 
 	if config.isCurrency {
-		weiAmount.Add(weiAmount, defaultSendAmount)
+		amount.Add(amount, defaultSendAmount)
 
-		waitForAmount.Set(weiAmount)
+		waitForAmount.Set(amount)
 
 	} else {
 		waitForAmount.Set(defaultSendAmount)
@@ -611,7 +611,7 @@ func getDefaultSendAmounts(
 		}}
 	}
 
-	return weiAmount, tokens, waitForAmount
+	return amount, tokens, waitForAmount
 }
 
 func createMetadata(
@@ -688,7 +688,7 @@ func createReceivers(
 	for i := range receivers {
 		receivers[i] = sendtx.BridgingTxReceiver{
 			Addr:    apex.Users[len(apex.Users)-1-i].GetAddress(dstChain),
-			Amount:  sendAmount.Uint64(), // TODO: temp solution
+			Amount:  sendAmount.Uint64(),
 			TokenID: tokenID,
 		}
 	}
