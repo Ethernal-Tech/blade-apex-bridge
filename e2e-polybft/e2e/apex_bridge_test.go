@@ -418,7 +418,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 			PrivateKey:     senderUserBuilder.String(),
 			ChainIDsConfig: apex.GetChainIDsConfig(),
 			Receivers:      receiversMap,
-			FeeAmount:      apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false),
+			FeeAmount:      cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)),
 			OperationFee:   0,
 			IsCurrencySrc:  true,
 			IsCurrencyDest: true,
@@ -751,7 +751,8 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, feeAmount)).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},
-			}, feeAmount, operationFee)
+			}, cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, feeAmount),
+			cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, operationFee))
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr[0],
@@ -832,7 +833,7 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	})
 
 	t.Run("8. Submitted with tokens to bridging addr", func(t *testing.T) {
-		sendAmount := ethgo.Ether(5)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(5))
 
 		operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
 		feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, true)
@@ -864,7 +865,7 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, feeAmount)).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},
-			}, feeAmount, operationFee)
+			}, cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, feeAmount), cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, operationFee))
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
@@ -983,7 +984,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, feeAmount)).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},
-			}, feeAmount, operationFee)
+			}, cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, feeAmount), cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, operationFee))
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
@@ -2281,7 +2282,7 @@ func PrimeVectorBothDirectionsSequentialAndParallel(
 ) {
 	t.Helper()
 
-	sendAmount := ethgo.Ether(1)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	options = append(
 		options,
