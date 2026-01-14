@@ -876,8 +876,8 @@ func (ec *TestCardanoChain) BridgingRequest(params BridgingRequestParams) (strin
 			SenderAddrPolicyScript: policyScript,
 			Receivers:              receivers,
 			BridgingAddress:        multisigAddr,
-			BridgingFee:            WeiToDfm(params.FeeAmount).Uint64(),
-			OperationFee:           WeiToDfm(params.OperationFee).Uint64(),
+			BridgingFee:            params.FeeAmount.Uint64(),
+			OperationFee:           params.OperationFee.Uint64(),
 		})
 	if err != nil {
 		return "", err
