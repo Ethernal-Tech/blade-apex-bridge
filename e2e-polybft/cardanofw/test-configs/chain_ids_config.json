@@ -1,0 +1,29 @@
+{
+    "chainIDs": [
+        {
+            "chainID": "prime",
+            "chainIDNum": 1,
+            "chainType": "cardano"
+        },
+        {
+            "chainID": "vector",
+            "chainIDNum": 2,
+            "chainType": "cardano"
+        },
+        {
+            "chainID": "nexus",
+            "chainIDNum": 3,
+            "chainType": "evm"
+        },
+        {
+            "chainID": "cardano",
+            "chainIDNum": 4,
+            "chainType": "cardano"
+        },
+        {
+            "chainID": "polygon",
+            "chainIDNum": 5,
+            "chainType": "evm"
+        }
+    ]
+}

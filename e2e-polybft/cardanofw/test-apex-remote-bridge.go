@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
@@ -387,6 +388,8 @@ func SetupRemoteApexBridge(
 ) (*ApexSystem, error) {
 	t.Helper()
 
+	chainIDConfigDir := filepath.Join("..", "/cardanofw/test-configs")
+
 	vectorEnabled := len(remoteConfig.CardanoChains[ChainIDVector].Info.MultisigAddr) > 0
 
 	primeRemoteConfig := remoteConfig.CardanoChains[ChainIDPrime]
@@ -459,14 +462,15 @@ func SetupRemoteApexBridge(
 	enabledChains = append(enabledChains, nexusChain)
 
 	apexSystem := &ApexSystem{
-		Config:       apexConfig,
-		FunderUser:   usersData.Funder,
-		Users:        usersData.Users,
-		chains:       enabledChains,
-		bridgingAPIs: remoteConfig.BridgingAPIs,
-		PrimeInfo:    primeRemoteConfig.Info,
-		VectorInfo:   vectorRemoteConfig.Info,
-		NexusInfo:    nexusRemoteConfig.Info,
+		Config:            apexConfig,
+		FunderUser:        usersData.Funder,
+		Users:             usersData.Users,
+		chains:            enabledChains,
+		bridgingAPIs:      remoteConfig.BridgingAPIs,
+		PrimeInfo:         primeRemoteConfig.Info,
+		VectorInfo:        vectorRemoteConfig.Info,
+		NexusInfo:         nexusRemoteConfig.Info,
+		chainIDConfigPath: chainIDConfigDir,
 	}
 
 	return apexSystem, nil
@@ -478,6 +482,8 @@ func SetupSkylineRemoteBridge(
 	apexOpts ...ApexSystemOptions,
 ) (*ApexSystem, error) {
 	t.Helper()
+
+	chainIDConfigDir := filepath.Join("..", "/cardanofw/test-configs")
 
 	primeRemoteConfig := remoteConfig.CardanoChains[ChainIDPrime]
 	vectorRemoteConfig := remoteConfig.CardanoChains[ChainIDVector]
@@ -571,6 +577,7 @@ func SetupSkylineRemoteBridge(
 			ADATokenID:   cardanowallet.AdaTokenName,
 			CAP3XTokenID: CAP3XTokenName,
 		},
+		chainIDConfigPath: chainIDConfigDir,
 	}
 
 	apexSystem.InitTxSendChainConfiguration()

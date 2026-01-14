@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -125,7 +126,8 @@ type ApexSystem struct {
 
 	EcosystemTokens map[uint16]string
 
-	dataDirPath string
+	dataDirPath       string
+	chainIDConfigPath string
 
 	bridgingAPIs []string
 
@@ -157,7 +159,7 @@ type SetDependenciesSCParams struct {
 }
 
 func NewApexSystem(
-	dataDirPath string, opts ...ApexSystemOptions,
+	dataDirPath, chainIDsConfigPath string, opts ...ApexSystemOptions,
 ) (*ApexSystem, error) {
 	config := getDefaultApexSystemConfig()
 	for _, opt := range opts {
@@ -183,9 +185,10 @@ func NewApexSystem(
 	}
 
 	apex := &ApexSystem{
-		Config:      config,
-		Users:       users,
-		dataDirPath: dataDirPath,
+		Config:            config,
+		Users:             users,
+		dataDirPath:       dataDirPath,
+		chainIDConfigPath: chainIDsConfigPath,
 		chains: []ITestApexChain{
 			NewTestCardanoChain(config.PrimeConfig),
 			NewTestCardanoChain(config.VectorConfig),
@@ -200,7 +203,7 @@ func NewApexSystem(
 }
 
 func NewSkylineSystem(
-	dataDirPath string, opts ...ApexSystemOptions,
+	dataDirPath, chainIDsConfigPath string, opts ...ApexSystemOptions,
 ) (*ApexSystem, error) {
 	config := getDefaultSkylineSystemConfig()
 	for _, opt := range opts {
@@ -239,9 +242,10 @@ func NewSkylineSystem(
 	}
 
 	apex := &ApexSystem{
-		Config:      config,
-		Users:       users,
-		dataDirPath: dataDirPath,
+		Config:            config,
+		Users:             users,
+		dataDirPath:       dataDirPath,
+		chainIDConfigPath: chainIDsConfigPath,
 		chains: []ITestApexChain{
 			NewTestCardanoChain(config.PrimeConfig),
 			NewTestCardanoChain(config.VectorConfig),
@@ -970,9 +974,12 @@ func (a *ApexSystem) GenerateConfigs() error {
 }
 
 func (a *ApexSystem) GenerateChainIDsConfig() error {
-	chainIDsConfigFile := a.generateChainIDsConfigFile()
+	chainIDsConfigFile, err := a.loadChainIDsConfigFile()
+	if err != nil {
+		return err
+	}
 
-	err := a.execForEachValidator(func(i int, validator *TestApexValidator) error {
+	err = a.execForEachValidator(func(i int, validator *TestApexValidator) error {
 		getHandler := func(callback CustomConfigHandler) func(data map[string]any) {
 			return func(data map[string]any) {
 				callback(a, data)
@@ -1040,6 +1047,30 @@ func (a *ApexSystem) generateChainIDsConfigFile() *ChainIDsConfigFile {
 	return &ChainIDsConfigFile{
 		ChainIDConfig: chainIDConfig,
 	}
+}
+
+func (a *ApexSystem) loadChainIDsConfigFile() (*ChainIDsConfigFile, error) {
+	chainIDsConfigFilePath := a.GetChainIDsDefaultConfigPath()
+
+	chainIDsConfigFile, err := LoadJSON[ChainIDsConfigFile](chainIDsConfigFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("error while reading ChainIDConfig JSON: %w", err)
+	}
+
+	var chainConfigs = make([]ChainIDConfig, len(chainIDsConfigFile.ChainIDConfig))
+
+	for _, chainIDConfig := range chainIDsConfigFile.ChainIDConfig {
+		if ((a.Config.CardanoConfig != nil && a.Config.CardanoConfig.IsEnabled) && chainIDConfig.ChainID == ChainIDCardano) ||
+			((a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled) && chainIDConfig.ChainID == ChainIDNexus) ||
+			((a.Config.PolygonConfig != nil && a.Config.PolygonConfig.IsEnabled) && chainIDConfig.ChainID == ChainIDPolygon) ||
+			(chainIDConfig.ChainID == ChainIDPrime) || (chainIDConfig.ChainID == ChainIDVector) {
+			chainConfigs = append(chainConfigs, chainIDConfig)
+		}
+	}
+
+	return &ChainIDsConfigFile{
+		ChainIDConfig: chainConfigs,
+	}, nil
 }
 
 func (a *ApexSystem) generateDirectionsConfigFile() *DirectionConfigFile {
@@ -2232,5 +2263,13 @@ func (a *ApexSystem) getCardanoConfig(chainID ChainID) *TestCardanoChainConfig {
 }
 
 func (a *ApexSystem) GetChainIDsConfig() string {
-	return a.validators[0].GetChainIDsConfig()
+	if len(a.validators) > 0 {
+		return a.validators[0].GetChainIDsConfig()
+	}
+
+	return a.GetChainIDsDefaultConfigPath()
+}
+
+func (a *ApexSystem) GetChainIDsDefaultConfigPath() string {
+	return filepath.Join(a.chainIDConfigPath, ChainIDsConfigFileName)
 }

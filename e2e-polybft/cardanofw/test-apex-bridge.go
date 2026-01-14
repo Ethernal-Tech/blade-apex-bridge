@@ -47,6 +47,7 @@ func SetupAndRunApexBridge(
 	t.Helper()
 
 	bridgeDataDir := filepath.Join("..", "..", "e2e-bridge-data-tmp-"+t.Name())
+	chainIDConfigPath := filepath.Join("..", "/cardanofw/test-configs")
 
 	os.RemoveAll(bridgeDataDir)
 
@@ -57,10 +58,10 @@ func SetupAndRunApexBridge(
 
 	switch system {
 	case SystemIDReactor:
-		apexSystem, err = NewApexSystem(bridgeDataDir, opts...)
+		apexSystem, err = NewApexSystem(bridgeDataDir, chainIDConfigPath, opts...)
 		require.NoError(t, err)
 	case SystemIDSkyline:
-		apexSystem, err = NewSkylineSystem(bridgeDataDir, opts...)
+		apexSystem, err = NewSkylineSystem(bridgeDataDir, chainIDConfigPath, opts...)
 		require.NoError(t, err)
 	default:
 		t.Fatalf("unknown system ID: %s", system)
