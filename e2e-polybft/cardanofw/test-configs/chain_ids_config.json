@@ -11,13 +11,18 @@
             "chainType": "cardano"
         },
         {
+            "chainID": "nexus",
+            "chainIDNum": 3,
+            "chainType": "evm"
+        },
+        {
             "chainID": "cardano",
             "chainIDNum": 4,
             "chainType": "cardano"
         },
         {
-            "chainID": "nexus",
-            "chainIDNum": 3,
+            "chainID": "polygon",
+            "chainIDNum": 5,
             "chainType": "evm"
         }
     ]
