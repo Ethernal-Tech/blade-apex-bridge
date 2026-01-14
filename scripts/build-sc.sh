@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BRANCH=feat/skyline
+BRANCH=feat/AD_960_Support_for_uint256_amounts
 CARDANO_SC_BRANCH=main
 
 # build Apex-bridge smartcontracts
