@@ -1855,9 +1855,9 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		return "", fmt.Errorf("error while retrieving the private key: %w", err)
 	}
 
-	operationFee := uint64(0)
+	operationFee := big.NewInt(0)
 	if a.IsSkyline {
-		operationFee = DefaultMinOperationFee.Uint64() // TODO:
+		operationFee = DefaultMinOperationFee
 	}
 
 	srcChain, err := a.getChain(data.SourceChain)
@@ -1886,8 +1886,8 @@ func (a *ApexSystem) SubmitBridgingRequest(
 			PrivateKey:     privateKey,
 			ChainIDsConfig: a.GetChainIDsConfig(),
 			Receivers:      receiversMap,
-			FeeAmount:      feeAmount,
-			OperationFee:   operationFee,
+			FeeAmount:      WeiToChainNativeTokenAmount(data.SourceChain, feeAmount),
+			OperationFee:   WeiToChainNativeTokenAmount(data.SourceChain, operationFee),
 			IsCurrencySrc:  isCurrencySrc,
 			IsCurrencyDest: destCurrencyID == data.TokensInfo.DstTokenID,
 		})

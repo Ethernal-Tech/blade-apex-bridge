@@ -34,7 +34,7 @@ type BridgingRequestParams struct {
 	ChainIDsConfig string
 	Receivers      map[string]ReceiverAmount
 	FeeAmount      *big.Int
-	OperationFee   uint64
+	OperationFee   *big.Int
 	IsCurrencySrc  bool
 	IsCurrencyDest bool
 }
