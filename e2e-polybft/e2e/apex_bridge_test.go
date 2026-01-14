@@ -419,7 +419,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 			ChainIDsConfig: apex.GetChainIDsConfig(),
 			Receivers:      receiversMap,
 			FeeAmount:      cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)),
-			OperationFee:   0,
+			OperationFee:   big.NewInt(0),
 			IsCurrencySrc:  true,
 			IsCurrencyDest: true,
 		},
