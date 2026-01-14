@@ -61,9 +61,9 @@ type TestCardanoChainConfig struct {
 	PremineAmount               uint64
 	SlotRoundingThreshold       uint64
 	TTLInc                      uint64
-	DefaultMinBridgingFee       uint64 // TODO: maybe to big.Int
-	MinBridgingFeeForTokens     uint64 // TODO: maybe to big.Int -> IDK
-	MinOperationFee             uint64 // TODO: maybe to big.Int
+	DefaultMinBridgingFee       uint64
+	MinBridgingFeeForTokens     uint64
+	MinOperationFee             uint64
 	BridgeAddrHasStake          bool
 	BridgingAddressCnt          int
 	UseIndexer                  bool
@@ -957,7 +957,7 @@ func (ec *TestCardanoChain) SendTx(
 	for i, r := range receivers {
 		receiversDto[i] = sendtx.TxReceiversDto{
 			Addr:         r.Addr,
-			Amount:       WeiToDfm(r.Amount).Uint64(), // TODO: probably to delete this
+			Amount:       WeiToDfm(r.Amount).Uint64(),
 			NativeTokens: r.NativeTokens,
 		}
 	}

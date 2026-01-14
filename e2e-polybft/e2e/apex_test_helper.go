@@ -13,7 +13,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -70,7 +69,7 @@ type testConfig struct {
 }
 
 var (
-	defaultSendAmount = ethgo.Ether(1)
+	defaultSendAmount = cardanofw.ApexToWei(big.NewInt(1))
 )
 
 func newTestConfig(

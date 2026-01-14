@@ -30,10 +30,10 @@ func executeInvalidBridgingFee(
 	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, !config.isCurrency)
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-		minBridgingFee, operationFee, user, receivers, config.isCurrency)
+		cardanofw.WeiToChainNativeTokenAmount(config.srcChainID, minBridgingFee), cardanofw.WeiToChainNativeTokenAmount(config.srcChainID, operationFee), user, receivers, config.isCurrency)
 	bytesToReplace := []byte(feeAmount.String())
 	metadata = bytes.ReplaceAll(metadata, bytesToReplace,
-		[]byte(new(big.Int).Sub(minBridgingFee, big.NewInt(1)).String()))
+		[]byte(new(big.Int).Sub(minBridgingFee, cardanofw.DfmToWei(big.NewInt(1))).String()))
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)

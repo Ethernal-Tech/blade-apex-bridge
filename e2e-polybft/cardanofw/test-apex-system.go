@@ -1680,8 +1680,7 @@ func (a *ApexSystem) SubmitTx(
 
 	receivers := []GenericTxReceiver{
 		{
-			Addr: receiverAddr,
-			// TODO: maybe this is not necessary, but we will see // i delete so we will see
+			Addr:         receiverAddr,
 			Amount:       weiAmount,
 			NativeTokens: nativeTokens,
 		},
@@ -1878,8 +1877,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 	isCurrencySrc := srcCurrencyID == data.SrcTokenID
 
-	feeAmount := WeiToChainNativeTokenAmount(
-		data.SourceChain, a.GetMinBridgingFee(data.SourceChain, !isCurrencySrc))
+	feeAmount := a.GetMinBridgingFee(data.SourceChain, !isCurrencySrc)
 
 	txHash, err := infracommon.ExecuteWithRetry(data.Context, func(ctx context.Context) (string, error) {
 		txHash, err := srcChain.BridgingRequest(BridgingRequestParams{

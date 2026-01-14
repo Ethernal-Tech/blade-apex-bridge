@@ -342,7 +342,8 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDVector).CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDVector), cardanofw.ChainIDNexus,
-			receivers, feeAmount, operationFee)
+			receivers, cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, feeAmount),
+			cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, operationFee))
 		require.NoError(t, err)
 
 		totalValue := new(big.Int).Add(sendAmount, feeAmount)
