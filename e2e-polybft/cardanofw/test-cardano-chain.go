@@ -867,8 +867,6 @@ func (ec *TestCardanoChain) BridgingRequest(params BridgingRequestParams) (strin
 		return "", err
 	}
 
-	fmt.Println("RECEIVERS IN BRIDGING REQUEST", receivers)
-
 	txInfo, _, err := ec.txSender.CreateBridgingTx(
 		params.Ctx,
 		sendtx.BridgingTxDto{
@@ -878,7 +876,7 @@ func (ec *TestCardanoChain) BridgingRequest(params BridgingRequestParams) (strin
 			SenderAddrPolicyScript: policyScript,
 			Receivers:              receivers,
 			BridgingAddress:        multisigAddr,
-			BridgingFee:            params.FeeAmount.Uint64(),
+			BridgingFee:            WeiToDfm(params.FeeAmount).Uint64(),
 			OperationFee:           params.OperationFee,
 		})
 	if err != nil {
