@@ -62,8 +62,9 @@ type EcosystemToken struct {
 }
 
 type DirectionConfig struct {
-	DestinationChain map[ChainID][]Direction `json:"destChain"`
-	Tokens           map[uint16]Token        `json:"tokens"`
+	AlwaysTrackCurrencyAndWrappedCurrency bool                    `json:"alwaysTrackCurrencyAndWrappedCurrency"`
+	DestinationChain                      map[ChainID][]Direction `json:"destChain"`
+	Tokens                                map[uint16]Token        `json:"tokens"`
 }
 
 type DirectionConfigFile struct {
@@ -1081,30 +1082,33 @@ func (a *ApexSystem) generateDirectionsConfigFile() *DirectionConfigFile {
 
 	directionConfigFile := DirectionConfigFile{
 		Directions: map[string]DirectionConfig{
-			ChainIDPrime:  {DestinationChain: a.PrimeInfo.DestChain, Tokens: a.PrimeInfo.Tokens},
-			ChainIDVector: {DestinationChain: a.VectorInfo.DestChain, Tokens: a.VectorInfo.Tokens},
+			ChainIDPrime:  {DestinationChain: a.PrimeInfo.DestChain, Tokens: a.PrimeInfo.Tokens, AlwaysTrackCurrencyAndWrappedCurrency: true},
+			ChainIDVector: {DestinationChain: a.VectorInfo.DestChain, Tokens: a.VectorInfo.Tokens, AlwaysTrackCurrencyAndWrappedCurrency: true},
 		},
 		EcosystemTokens: ecosystemTokens,
 	}
 
 	if a.Config.CardanoConfig != nil && a.Config.CardanoConfig.IsEnabled {
 		directionConfigFile.Directions[ChainIDCardano] = DirectionConfig{
-			DestinationChain: a.CardanoInfo.DestChain,
-			Tokens:           a.CardanoInfo.Tokens,
+			DestinationChain:                      a.CardanoInfo.DestChain,
+			Tokens:                                a.CardanoInfo.Tokens,
+			AlwaysTrackCurrencyAndWrappedCurrency: true,
 		}
 	}
 
 	if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
 		directionConfigFile.Directions[ChainIDNexus] = DirectionConfig{
-			DestinationChain: a.NexusInfo.DestChain,
-			Tokens:           a.NexusInfo.Tokens,
+			DestinationChain:                      a.NexusInfo.DestChain,
+			Tokens:                                a.NexusInfo.Tokens,
+			AlwaysTrackCurrencyAndWrappedCurrency: false,
 		}
 	}
 
 	if a.Config.PolygonConfig != nil && a.Config.PolygonConfig.IsEnabled {
 		directionConfigFile.Directions[ChainIDPolygon] = DirectionConfig{
-			DestinationChain: a.PolygonInfo.DestChain,
-			Tokens:           a.PolygonInfo.Tokens,
+			DestinationChain:                      a.PolygonInfo.DestChain,
+			Tokens:                                a.PolygonInfo.Tokens,
+			AlwaysTrackCurrencyAndWrappedCurrency: false,
 		}
 	}
 
