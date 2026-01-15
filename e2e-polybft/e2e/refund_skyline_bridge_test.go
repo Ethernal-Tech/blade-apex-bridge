@@ -306,8 +306,10 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 
 		maxWaitTimeSec = 600
 		retryDelaySec  = 5
+	)
 
-		minColCoinsAllowedToBridge = uint64(2)
+	var (
+		minColCoinsAllowedToBridge = cardanofw.DfmToWei(big.NewInt(2))
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -351,7 +353,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 
 	// Fund user on Nexus with USDT token
 	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-	err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(100), cardanofw.USDTTokenID)
+	err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(100)), cardanofw.USDTTokenID)
 	require.NoError(t, err)
 
 	cardanoNexusTestConfig := newTestConfig(
@@ -387,12 +389,12 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 
 	t.Run("4. Vector -> Nexus - Mismatch submitted and receiver amounts - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, minColCoinsAllowedToBridge,
 			cardanofw.USDTTokenID)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, big.NewInt(int64(minColCoinsAllowedToBridge)*10), cardanofw.USDTTokenID),
+				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, new(big.Int).Mul(minColCoinsAllowedToBridge, big.NewInt(10)), cardanofw.USDTTokenID),
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitRefundEnabled,
 			},
@@ -404,21 +406,21 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 
 		for i := range instances {
 			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, user, apex.Users[i], cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+				t, ctx, apex, user, apex.Users[i], cardanofw.ChainIDNexus, cardanofw.ChainIDVector, minColCoinsAllowedToBridge,
 				cardanofw.USDTTokenID)
 		}
 
-		executeInvalidMismatchSendColCoinsMultipleInstancesParalel(t, ctx, apex, vectorNexusUSDTTestConfig, big.NewInt(int64(minColCoinsAllowedToBridge)), instances, maxWaitTimeSec, retryDelaySec, true, 0)
+		executeInvalidMismatchSendColCoinsMultipleInstancesParalel(t, ctx, apex, vectorNexusUSDTTestConfig, minColCoinsAllowedToBridge, instances, maxWaitTimeSec, retryDelaySec, true, 0)
 	})
 
 	t.Run("6. Vector -> Nexus - Invalid destination - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, minColCoinsAllowedToBridge,
 			cardanofw.USDTTokenID)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:  createReceivers(apex, 1, vectorNexusXADATestConfig.dstChainID, big.NewInt(int64(minColCoinsAllowedToBridge)), cardanofw.USDTTokenID),
+				receivers:  createReceivers(apex, 1, vectorNexusXADATestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitRefundEnabled,
 				metadataModifier: func(metadata []byte) []byte {
@@ -430,12 +432,12 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 
 	t.Run("7. Vector -> Nexus - Invalid metadata type - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, minColCoinsAllowedToBridge,
 			cardanofw.USDTTokenID)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, big.NewInt(int64(minColCoinsAllowedToBridge)), cardanofw.USDTTokenID),
+				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, minColCoinsAllowedToBridge, cardanofw.USDTTokenID),
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitRefundEnabled,
 				metadataModifier: func(metadata []byte) []byte {
@@ -447,13 +449,13 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 
 	t.Run("8. Vector -> Nexus - Invalid receiver amount - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, minColCoinsAllowedToBridge,
 			cardanofw.USDTTokenID)
 
-		invalidAmount := minColCoinsAllowedToBridge - 1
+		invalidAmount := new(big.Int).Sub(minColCoinsAllowedToBridge, big.NewInt(1))
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, big.NewInt(int64(invalidAmount)), cardanofw.USDTTokenID),
+				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, invalidAmount, cardanofw.USDTTokenID),
 				amount:     invalidAmount,
 				waitOption: WaitRefundEnabled,
 			},
@@ -462,7 +464,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 
 	t.Run("9. Vector -> Nexus - Invalid receiver address - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, minColCoinsAllowedToBridge,
 			cardanofw.USDTTokenID)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
@@ -470,7 +472,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 				receivers: []sendtx.BridgingTxReceiver{
 					{
 						Addr:    "addr1qxyz...invalidaddress",
-						Amount:  minColCoinsAllowedToBridge,
+						Amount:  cardanofw.WeiToDfm(minColCoinsAllowedToBridge).Uint64(),
 						TokenID: cardanofw.USDTTokenID,
 					},
 				},
@@ -703,7 +705,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 
 	var (
 		user             = apex.Users[0]
-		apexSendAmount   = cardanofw.ApexToDfm(big.NewInt(10))
+		sendAmount       = cardanofw.ApexToWei(big.NewInt(10))
 		bridgingRequests = []struct {
 			src        string
 			dest       string
@@ -718,7 +720,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	beforeSendingAmountDfm := make([]map[string]*big.Int, len(bridgingRequests))
+	beforeSendingAmount := make([]map[string]*big.Int, len(bridgingRequests))
 
 	for idx, br := range bridgingRequests {
 		wg.Add(1)
@@ -728,7 +730,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 
 			var err error
 
-			beforeSendingAmountDfm[idx], err = apex.GetBalance(ctx, user, src)
+			beforeSendingAmount[idx], err = apex.GetBalance(ctx, user, src)
 			require.NoError(t, err)
 
 			txHashes[i], err = apex.SubmitBridgingRequest(cardanofw.SubmitBridgingRequestData{
@@ -736,7 +738,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 				SourceChain:      src,
 				DestinationChain: dest,
 				Sender:           sender,
-				WeiAmount:        apexSendAmount,
+				WeiAmount:        sendAmount,
 				SrcTokenID:       srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})
@@ -754,13 +756,13 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			lowerBoundaryDfm := new(big.Int).Sub(
-				beforeSendingAmountDfm[idx][infrawallet.AdaTokenName],
-				new(big.Int).Add(apexSendAmount, apex.GetMinBridgingFee(br.src, false)))
+			lowerBoundary := new(big.Int).Sub(
+				beforeSendingAmount[idx][infrawallet.AdaTokenName],
+				new(big.Int).Add(sendAmount, apex.GetMinBridgingFee(br.src, false)))
 
-			fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm[idx][infrawallet.AdaTokenName])
+			fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundary, beforeSendingAmount[idx][infrawallet.AdaTokenName])
 
-			err := apex.WaitForAmountInRange(ctx, user, br.src, lowerBoundaryDfm, beforeSendingAmountDfm[idx][infrawallet.AdaTokenName], 20, time.Second*30, infrawallet.AdaTokenName)
+			err := apex.WaitForAmountInRange(ctx, user, br.src, lowerBoundary, beforeSendingAmount[idx][infrawallet.AdaTokenName], 20, time.Second*30, infrawallet.AdaTokenName)
 			require.NoError(t, err)
 		}()
 	}
@@ -802,7 +804,7 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 
 	var (
 		user             = apex.Users[0]
-		apexSendAmount   = cardanofw.ApexToDfm(big.NewInt(10))
+		sendAmount       = cardanofw.ApexToWei(big.NewInt(10))
 		bridgingRequests = []struct {
 			src        string
 			dest       string
@@ -850,7 +852,7 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 					SourceChain:      src,
 					DestinationChain: dest,
 					Sender:           sender,
-					WeiAmount:        apexSendAmount,
+					WeiAmount:        sendAmount,
 					SrcTokenID:       srcTokenID,
 					Receivers:        []*cardanofw.TestApexUser{user},
 				})
@@ -927,7 +929,7 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 
 	var (
 		user             = apex.Users[0]
-		sendAmount       = cardanofw.ApexToDfm(big.NewInt(2))
+		sendAmount       = cardanofw.ApexToWei(big.NewInt(2))
 		bridgingRequests = []bridgingRequest{
 			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[1], srcTokenID: cardanofw.AP3XTokenID, isValid: true},
 			{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDCardano, sender: apex.Users[2], srcTokenID: cardanofw.XADATokenID, isValid: false},

@@ -672,6 +672,10 @@ func FundUserWithToken(
 	tokenName string, mintAmount *big.Int,
 	lovelaceFundAmount *big.Int, tokenFundAmount *big.Int,
 ) (*wallet.TokenAmount, error) {
+	mintAmount = WeiToDfm(mintAmount)                 // TODO: delete this
+	lovelaceFundAmount = WeiToDfm(lovelaceFundAmount) // TODO: delete this
+	tokenFundAmount = WeiToDfm(tokenFundAmount)       // TODO: delete this
+
 	chain, err := apex.getChain(chainID)
 	if err != nil {
 		return nil, err
@@ -725,7 +729,7 @@ func FundAddressWithToken(
 }
 
 func MintToken(
-	chain *TestCardanoChain, minterWallet *wallet.Wallet, tokenName string, mintAmount *big.Int,
+	chain *TestCardanoChain, minterWallet *wallet.Wallet, tokenName string, mintDfmAmount *big.Int,
 ) error {
 	args := []string{
 		"bridge-admin", "mint-native-token",
@@ -734,7 +738,7 @@ func MintToken(
 		"--network-id", fmt.Sprintf("%v", chain.config.NetworkType),
 		"--testnet-magic", fmt.Sprintf("%v", chain.config.NetworkMagic),
 		"--token-name", tokenName,
-		"--amount", WeiToDfm(mintAmount).String(), // TODO: check for this
+		"--amount", mintDfmAmount.String(),
 	}
 
 	if len(minterWallet.StakeSigningKey) > 0 {
@@ -747,7 +751,7 @@ func MintToken(
 func FundUsersWithToken(
 	ctx context.Context, chain *TestCardanoChain,
 	sender *wallet.Wallet, users []*TestApexUser,
-	tokenName string, lovelaceFundAmount *big.Int, tokenFundAmount *big.Int,
+	tokenName string, fundAmount *big.Int, tokenFundAmount *big.Int,
 ) (*wallet.TokenAmount, error) {
 	addrs := make([]string, len(users))
 
@@ -756,13 +760,13 @@ func FundUsersWithToken(
 	}
 
 	return FundAddressesWithToken(
-		ctx, chain, sender, addrs, tokenName, lovelaceFundAmount, tokenFundAmount)
+		ctx, chain, sender, addrs, tokenName, fundAmount, tokenFundAmount)
 }
 
 func FundAddressesWithToken(
 	ctx context.Context, chain *TestCardanoChain,
 	sender *wallet.Wallet, addrs []string,
-	tokenName string, lovelaceFundAmount *big.Int, tokenFundAmount *big.Int,
+	tokenName string, fundAmount *big.Int, tokenFundAmount *big.Int,
 ) (*wallet.TokenAmount, error) {
 	token, _, err := GetTokenAndPolicyForVerificationKey(
 		chain.ChainID(), chain.config.NetworkType, sender.VerificationKey, tokenName)
@@ -777,7 +781,7 @@ func FundAddressesWithToken(
 	for i, addr := range addrs {
 		receivers[i] = GenericTxReceiver{
 			Addr:   addr,
-			Amount: WeiToDfm(lovelaceFundAmount), // TODO: for now this, in future probably without WeiToDfm
+			Amount: fundAmount,
 			NativeTokens: []wallet.TokenAmount{
 				tokenAmount,
 			},
@@ -790,7 +794,7 @@ func FundAddressesWithToken(
 	}
 
 	fmt.Printf("Funded %s with lovelace: %d, native tokens: %s. txHash: %s\n",
-		addrs, lovelaceFundAmount, tokenAmount, txHash)
+		addrs, fundAmount, tokenAmount, txHash)
 
 	return &tokenAmount, nil
 }

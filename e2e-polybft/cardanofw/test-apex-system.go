@@ -896,7 +896,7 @@ func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, wei
 	receivers := []GenericTxReceiver{
 		{
 			Addr:   chain.GetHotWalletAddresses()[0],
-			Amount: WeiToChainNativeTokenAmount(chainID, weiAmount),
+			Amount: weiAmount,
 		},
 	}
 
@@ -1433,7 +1433,7 @@ func (a *ApexSystem) WaitForAmount(
 			return nil, err
 		}
 
-		// fmt.Printf("Amounts: %+v, tokenName: %+v\n", amounts, tokenName)
+		fmt.Printf("Amounts: %+v, tokenName: %+v\n", amounts, tokenName)
 		newBalance := amounts[tokenName]
 		if newBalance == nil {
 			newBalance = big.NewInt(0)
@@ -1661,7 +1661,7 @@ func (a *ApexSystem) RedistributeTokens(
 
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
-	receiverAddr string, weiAmount *big.Int, nativeTokens []cardanowallet.TokenAmount, data []byte,
+	receiverAddr string, amount *big.Int, nativeTokens []cardanowallet.TokenAmount, data []byte, // TODO: nativeTokens in DFM
 ) (string, error) {
 	const (
 		numRetries = 5
@@ -1681,7 +1681,7 @@ func (a *ApexSystem) SubmitTx(
 	receivers := []GenericTxReceiver{
 		{
 			Addr:         receiverAddr,
-			Amount:       weiAmount,
+			Amount:       amount,
 			NativeTokens: nativeTokens,
 		},
 	}
@@ -1886,8 +1886,8 @@ func (a *ApexSystem) SubmitBridgingRequest(
 			PrivateKey:     privateKey,
 			ChainIDsConfig: a.GetChainIDsConfig(),
 			Receivers:      receiversMap,
-			FeeAmount:      WeiToChainNativeTokenAmount(data.SourceChain, feeAmount),
-			OperationFee:   WeiToChainNativeTokenAmount(data.SourceChain, operationFee),
+			FeeAmount:      feeAmount,
+			OperationFee:   operationFee,
 			IsCurrencySrc:  isCurrencySrc,
 			IsCurrencyDest: destCurrencyID == data.TokensInfo.DstTokenID,
 		})

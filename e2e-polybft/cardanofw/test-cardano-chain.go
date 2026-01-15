@@ -64,6 +64,7 @@ type TestCardanoChainConfig struct {
 	DefaultMinBridgingFee       uint64
 	MinBridgingFeeForTokens     uint64
 	MinOperationFee             uint64
+	MinColCoinsAllowedToBridge  uint64
 	BridgeAddrHasStake          bool
 	BridgingAddressCnt          int
 	UseIndexer                  bool
@@ -573,7 +574,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 	if ec.config.FundTokenAmount != 0 || ec.config.FundAmount != 0 {
 		addr := ec.multisigAddr[0]
-		twoMinUtxo := new(big.Int).Mul(MinUTxODefaultValue, big.NewInt(2))
+		twoMinUtxo := WeiToDfm(new(big.Int).Mul(MinUTxODefaultValue, big.NewInt(2)))
 
 		amount := new(big.Int).SetUint64(ec.config.FundAmount)
 
@@ -589,7 +590,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		}
 
 		if ta := ec.config.FundTokenAmount; ta != 0 {
-			if err := MintToken(ec, minterWallet, ec.config.FundTokenName, DfmToWei(big.NewInt(0).SetUint64(ta))); err != nil { // TODO: check for this
+			if err := MintToken(ec, minterWallet, ec.config.FundTokenName, big.NewInt(0).SetUint64(ta)); err != nil { // TODO: check for this
 				return err
 			}
 		}
@@ -599,7 +600,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 			firstTokenAmount, lastTokenAmount := SplitAmountNTimes(tokenAmount, utxoCount)
 
 			for range utxoCount - 1 {
-				receivers = append(receivers, createTxReceiver(addr, firstAmount, &token, firstTokenAmount))
+				receivers = append(receivers, createTxReceiver(addr, firstAmount, &token, firstTokenAmount)) //
 			}
 
 			receivers = append(receivers, createTxReceiver(addr, lastAmount, &token, lastTokenAmount))
@@ -616,20 +617,20 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	}
 
 	if ec.config.CustodialAddress != "" && ec.config.CustodialNFT != nil {
-		weiFundAmount := new(big.Int).Mul(big.NewInt(2), MinUTxODefaultValue)
+		dfmFundAmount := new(big.Int).Mul(big.NewInt(2), WeiToDfm(MinUTxODefaultValue))
 
-		if err := MintToken(ec, minterWallet, MintNFTTokenName, DfmToWei(big.NewInt(1))); err != nil { // TODO: check for this
+		if err := MintToken(ec, minterWallet, MintNFTTokenName, big.NewInt(1)); err != nil {
 			return err
 		}
 
 		receivers = append(receivers,
 			createTxReceiver(ec.config.CustodialAddress,
-				weiFundAmount,
+				dfmFundAmount,
 				ec.config.CustodialNFT, big.NewInt(1)))
 
 		outputInfo = append(outputInfo,
 			fmt.Sprintf("%s custodial addr funded with NFT `%s` amount: %d, %d\n",
-				ec.ChainID(), ec.GetCustodialNFT().String(), weiFundAmount, MintNFTAmount))
+				ec.ChainID(), ec.GetCustodialNFT().String(), dfmFundAmount, MintNFTAmount))
 	}
 
 	txHash, err := ec.SendTx(
@@ -819,14 +820,14 @@ func (ec *TestCardanoChain) GetBridgingFee(
 			DstChainID:      dstChainID,
 			Receivers:       receivers,
 			BridgingAddress: multiSigAddr,
-			BridgingFee:     bridgingFee.Uint64(),
-			OperationFee:    operationFee.Uint64(),
+			BridgingFee:     WeiToDfm(bridgingFee).Uint64(),
+			OperationFee:    WeiToDfm(operationFee).Uint64(),
 		})
 	if err != nil {
 		return nil, err
 	}
 
-	return new(big.Int).SetUint64(fee), nil
+	return DfmToWei(new(big.Int).SetUint64(fee)), nil
 }
 
 func (ec *TestCardanoChain) CreateMetadata(
@@ -836,8 +837,9 @@ func (ec *TestCardanoChain) CreateMetadata(
 	bridgingFee *big.Int,
 	operationFee *big.Int,
 ) ([]byte, error) {
+	// TODO: receivers can be WEI maybe
 	metadata, err := ec.txSender.CreateMetadata(
-		senderAddr, ec.ChainID(), dstChainID, receivers, bridgingFee.Uint64(), operationFee.Uint64()) // TODO: this should probably be a big.Int, since the default value is in wei, temp solution
+		senderAddr, ec.ChainID(), dstChainID, receivers, WeiToDfm(bridgingFee).Uint64(), WeiToDfm(operationFee).Uint64())
 	if err != nil {
 		return nil, err
 	}
@@ -857,7 +859,7 @@ func (ec *TestCardanoChain) BridgingRequest(params BridgingRequestParams) (strin
 	for receiverAddress, receiverAmount := range params.Receivers {
 		receivers = append(receivers, sendtx.BridgingTxReceiver{
 			Addr:    receiverAddress,
-			Amount:  WeiToChainNativeTokenAmount(ec.ChainID(), receiverAmount.Amount).Uint64(),
+			Amount:  WeiToDfm(receiverAmount.Amount).Uint64(),
 			TokenID: receiverAmount.TokenID,
 		})
 	}
@@ -876,8 +878,8 @@ func (ec *TestCardanoChain) BridgingRequest(params BridgingRequestParams) (strin
 			SenderAddrPolicyScript: policyScript,
 			Receivers:              receivers,
 			BridgingAddress:        multisigAddr,
-			BridgingFee:            params.FeeAmount.Uint64(),
-			OperationFee:           params.OperationFee.Uint64(),
+			BridgingFee:            WeiToDfm(params.FeeAmount).Uint64(),
+			OperationFee:           WeiToDfm(params.OperationFee).Uint64(),
 		})
 	if err != nil {
 		return "", err

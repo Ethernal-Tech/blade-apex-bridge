@@ -17,7 +17,7 @@ type IApexSystem interface {
 	) (string, error)
 	WaitForGreaterAmount(
 		ctx context.Context, user *cardanofw.TestApexUser, chain cardanofw.ChainID,
-		expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration, tokenName string,
+		expectedAmount *big.Int, numRetries int, waitTime time.Duration, tokenName string,
 	) error
 	WaitForExactAmount(
 		ctx context.Context, user *cardanofw.TestApexUser, chain cardanofw.ChainID,

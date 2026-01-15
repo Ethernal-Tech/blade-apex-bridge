@@ -192,10 +192,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			apex.ResetIndexers()
 		})
 
-		sendAmountDfm := big.NewInt(1_500_000)
+		sendAmount := cardanofw.DfmToWei(big.NewInt(1_500_000))
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmountDfm,
+			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmount,
 			cardanofw.AP3XTokenID)
 	})
 
@@ -208,7 +208,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			apex.ResetIndexers()
 		})
 
-		sendAmountDfm := big.NewInt(1_500_000)
+		sendAmount := cardanofw.DfmToWei(big.NewInt(1_500_000))
 
 		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
@@ -221,7 +221,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, sendAmountDfm,
+			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, sendAmount,
 			cardanofw.XADATokenID)
 	})
 
@@ -234,10 +234,10 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			apex.ResetIndexers()
 		})
 
-		sendAmountDfm := big.NewInt(1_500_000)
+		sendAmount := cardanofw.DfmToWei(big.NewInt(1_500_000))
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmountDfm,
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmount,
 			cardanofw.ADATokenID)
 	})
 
@@ -250,7 +250,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 			apex.ResetIndexers()
 		})
 
-		sendAmountWei := ethgo.Gwei(1_500_000_000)
+		sendAmount := ethgo.Gwei(1_500_000_000)
 
 		brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
@@ -263,7 +263,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmountWei,
+			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmount,
 			cardanofw.CAP3XTokenID)
 	})
 
@@ -279,7 +279,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				apex.ResetIndexers()
 			})
 
-			sendAmountWei := ethgo.Ether(1)
+			sendAmount := ethgo.Ether(1)
 			minterUser := apex.Users[userCnt-2]
 
 			brSubmitterUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
@@ -301,7 +301,7 @@ func TestE2E_SkylineBridge_ValidScenarios(t *testing.T) {
 				ethgo.Ether(50), ethgo.Ether(10))
 
 			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, brSubmitterUser, br.sender, br.src, br.dest, sendAmountWei,
+				t, ctx, apex, brSubmitterUser, br.sender, br.src, br.dest, sendAmount,
 				br.srcTokenID)
 		}
 	})
@@ -784,7 +784,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		receivers := []sendtx.BridgingTxReceiver{
 			{
 				Addr:    user.GetAddress(cardanofw.ChainIDCardano),
-				Amount:  sendAmount.Uint64(),
+				Amount:  cardanofw.WeiToDfm(sendAmount).Uint64(),
 				TokenID: cardanofw.XADATokenID,
 			},
 		}
@@ -810,7 +810,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, cardanofw.ChainIDVector, user,
 			apex.VectorInfo.MultisigAddr[0], totalValue,
 			[]wallet.TokenAmount{
-				{Token: tokensFunded.Token, Amount: sendAmount.Uint64()}, // TODO:
+				{Token: tokensFunded.Token, Amount: cardanofw.WeiToDfm(sendAmount).Uint64()},
 			},
 			metadata)
 		require.NoError(t, err)
@@ -928,7 +928,7 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 
 	var (
 		user             = apex.Users[0]
-		apexSendAmount   = cardanofw.ApexToDfm(big.NewInt(10))
+		sendAmount       = cardanofw.ApexToWei(big.NewInt(10))
 		bridgingRequests = []struct {
 			src        string
 			dest       string
@@ -956,7 +956,7 @@ func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 				SourceChain:      src,
 				DestinationChain: dest,
 				Sender:           sender,
-				WeiAmount:        apexSendAmount,
+				WeiAmount:        sendAmount,
 				SrcTokenID:       srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})
@@ -1019,7 +1019,7 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 
 	var (
 		user             = apex.Users[0]
-		apexSendAmount   = cardanofw.ApexToDfm(big.NewInt(10))
+		sendAmount       = cardanofw.ApexToWei(big.NewInt(10))
 		bridgingRequests = []struct {
 			src        string
 			dest       string
@@ -1059,7 +1059,7 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 				SourceChain:      src,
 				DestinationChain: dest,
 				Sender:           sender,
-				WeiAmount:        apexSendAmount,
+				WeiAmount:        sendAmount,
 				SrcTokenID:       srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})
@@ -1126,8 +1126,8 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 	primeConfig.InitialHotWalletTokenAmount = new(big.Int).SetUint64(0)
 	primeConfig.UseIndexer = true
 
-	sendAmountTokens := minValue*sendMinValueFactor + sendMinValueIncrement   // when we send tokens, this amount of currency will be released from multisig address
-	sendAmountCurrency := minValue*sendMinValueFactor + sendMinValueIncrement // when we send currency, this amount of native tokens will be released from multisig address
+	sendAmountTokens := cardanofw.DfmToWei(new(big.Int).SetUint64(minValue*sendMinValueFactor + sendMinValueIncrement))   // when we send tokens, this amount of currency will be released from multisig address
+	sendAmountCurrency := cardanofw.DfmToWei(new(big.Int).SetUint64(minValue*sendMinValueFactor + sendMinValueIncrement)) // when we send currency, this amount of native tokens will be released from multisig address
 
 	var (
 		initialUtxosCardano, initialUtxosPrime []map[string]any
@@ -1252,7 +1252,7 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 			map[e2ehelper.SrcDstChainPair]uint16{
 				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano): cardanofw.AP3XTokenID,
 			},
-			new(big.Int).SetUint64(sendAmountCurrency),
+			sendAmountCurrency,
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 		)
 
@@ -1291,7 +1291,7 @@ func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(
 			map[e2ehelper.SrcDstChainPair]uint16{
 				e2ehelper.NewChainPair(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime): cardanofw.CAP3XTokenID,
 			},
-			new(big.Int).SetUint64(sendAmountTokens),
+			sendAmountTokens,
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 		)
 
@@ -1380,7 +1380,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 				chainExpectedAmounts[key] = big.NewInt(0)
 			}
 
-			chainExpectedAmounts[key].Add(chainExpectedAmounts[key], cardanofw.ApexToDfm(br.amount))
+			chainExpectedAmounts[key].Add(chainExpectedAmounts[key], cardanofw.ApexToWei(br.amount))
 
 			if _, exists := chainReceivers[key]; !exists {
 				chainReceivers[key] = receivers[br.receiverIdx]
@@ -1398,7 +1398,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 					defundReceiversExpectedAmount[key] = big.NewInt(0)
 				}
 
-				defundReceiversExpectedAmount[key].Add(defundReceiversExpectedAmount[key], cardanofw.ApexToDfm(defundAmount))
+				defundReceiversExpectedAmount[key].Add(defundReceiversExpectedAmount[key], cardanofw.ApexToWei(defundAmount))
 
 				if _, exists := defundReceivers[key]; !exists {
 					defundReceivers[key] = defundReceiver
@@ -1433,7 +1433,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 				require.NoError(t, err)
 
 				fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHash)
-			}(br.src, br.dest, br.sender, receivers[br.receiverIdx], cardanofw.ApexToDfm(br.amount))
+			}(br.src, br.dest, br.sender, receivers[br.receiverIdx], cardanofw.ApexToWei(br.amount))
 		}
 
 		wg.Wait()
@@ -1519,7 +1519,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 	) {
 		fmt.Printf("Defunding hot wallets\n")
 
-		defundAmount := cardanofw.ApexToDfm(defundAmountApex)
+		defundAmount := cardanofw.ApexToWei(defundAmountApex)
 
 		require.NoError(t, apex.DefundHotWallet(
 			cardanofw.ChainIDPrime, defundReceiver.GetAddress(cardanofw.ChainIDPrime), defundAmount, big.NewInt(0)))
@@ -1698,7 +1698,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			bridgeTransactions(ctx, apex, []*bridingRequest{request}, receivers)
 
 			require.NoError(t, apex.DefundHotWallet(
-				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToDfm(apexDefundAndFundAmount), big.NewInt(0)))
+				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToWei(apexDefundAndFundAmount), big.NewInt(0)))
 		}
 
 		fmt.Printf("Confirming that bridging requests will not be processed\n")
@@ -2004,7 +2004,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			bridgeTransactions(ctx, apex, []*bridingRequest{request}, receivers)
 
 			require.NoError(t, apex.DefundHotWallet(
-				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToDfm(apexDefundAndFundAmount), cardanofw.ApexToDfm(apexDefundAndFundAmount)))
+				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToWei(apexDefundAndFundAmount), cardanofw.ApexToDfm(apexDefundAndFundAmount)))
 		}
 
 		fmt.Printf("Confirming that bridging requests will not be processed\n")
@@ -2230,7 +2230,7 @@ func TestE2E_SkylineBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 			waitTime   = time.Second * 10
 		)
 
-		sendAmount := new(big.Int).SetInt64(1_000_000)
+		sendAmount := cardanofw.ApexToWei(new(big.Int).SetInt64(1))
 
 		type bridgingRequest struct {
 			src            cardanofw.ChainID
@@ -2379,7 +2379,7 @@ func sendInvalidSendAmountTransaction(
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    receiverUserAddr,
-			Amount:  sendAmount.Uint64() * 10,
+			Amount:  cardanofw.WeiToDfm(sendAmount).Uint64() * 10,
 			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
@@ -2389,7 +2389,8 @@ func sendInvalidSendAmountTransaction(
 	operationFee := apex.GetMinOperationFee(src)
 
 	feeAmount, err := srcTestChain.GetBridgingFee(
-		ctx, dest, receivers, apex.GetMinBridgingFee(src, currencyID != srcTokenID), operationFee, multiSigAddr)
+		ctx, dest, receivers, apex.GetMinBridgingFee(src, currencyID != srcTokenID),
+		operationFee, multiSigAddr)
 	require.NoError(t, err)
 
 	metadata, err := srcTestChain.CreateMetadata(
@@ -2450,7 +2451,7 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 
 	var (
 		user             = apex.Users[0]
-		apexSendAmount   = cardanofw.ApexToDfm(big.NewInt(2))
+		sendAmount       = cardanofw.ApexToWei(big.NewInt(2))
 		bridgingRequests = []bridgingRequest{
 			{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDCardano, sender: apex.Users[1], srcTokenID: cardanofw.AP3XTokenID, isValid: true},
 			{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDCardano, sender: apex.Users[2], srcTokenID: cardanofw.XADATokenID, isValid: false},
@@ -2489,7 +2490,7 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 				SourceChain:      br.src,
 				DestinationChain: br.dest,
 				Sender:           br.sender,
-				WeiAmount:        apexSendAmount,
+				WeiAmount:        sendAmount,
 				SrcTokenID:       br.srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{user},
 			})

@@ -68,8 +68,8 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 	primeConfig.MinBridgingFeeForTokens = oldMinBridgingFee
 	primeConfig.UseIndexer = true
 
-	sendAmountTokens := minValue*sendMinValueFactor*fundFactor + sendMinValueIncrement   // when we send tokens, this amount of currency will be released from multisig address
-	sendAmountCurrency := minValue*sendMinValueFactor*fundFactor + sendMinValueIncrement // when we send currency, this amount of native tokens will be released from multisig address
+	sendAmountTokens := cardanofw.DfmToWei(new(big.Int).SetUint64(minValue*sendMinValueFactor*fundFactor + sendMinValueIncrement))   // when we send tokens, this amount of currency will be released from multisig address
+	sendAmountCurrency := cardanofw.DfmToWei(new(big.Int).SetUint64(minValue*sendMinValueFactor*fundFactor + sendMinValueIncrement)) // when we send currency, this amount of native tokens will be released from multisig address
 
 	var (
 		initialUtxosCardano, initialUtxosPrime []map[string]any
@@ -172,7 +172,7 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctxChild, apex, apex.Users[0], apex.Users[0],
 			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			new(big.Int).SetUint64(sendAmountTokens),
+			sendAmountTokens,
 			cardanofw.CAP3XTokenID)
 
 		for _, cnt := range getCntConsolidationMap() {
@@ -204,7 +204,7 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctxChild, apex, apex.Users[0], apex.Users[0],
 			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
-			new(big.Int).SetUint64(sendAmountCurrency),
+			sendAmountCurrency,
 			cardanofw.AP3XTokenID)
 
 		for _, cnt := range getCntConsolidationMap() {
@@ -230,7 +230,7 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 		require.NoError(t, err)
 
 		// when we send currency, this amount of native tokens will be released from multisig address
-		sendAmountCurrency := minValue*sendMinValueFactor + sendMinValueIncrement
+		sendAmountCurrency := cardanofw.DfmToWei(new(big.Int).SetUint64(minValue*sendMinValueFactor + sendMinValueIncrement))
 
 		getCntConsolidationMap, lastBatchIDs = checkConsolidationBatchCounts(
 			t, ctxChild,
@@ -280,7 +280,7 @@ func TestE2E_SkylineBridgeMBA_UTxOConsolidation(t *testing.T) {
 				e2ehelper.NewChainPair(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime): cardanofw.CAP3XTokenID,
 				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano): cardanofw.AP3XTokenID,
 			},
-			new(big.Int).SetUint64(sendAmountCurrency),
+			sendAmountCurrency,
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 		)
 
@@ -361,7 +361,7 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 	sendAmountWei := ethgo.Gwei(1_500_000_000)
 
 	executeBridging := func(
-		srcChainID, dstChainID cardanofw.ChainID, sendAmountDfm *big.Int,
+		srcChainID, dstChainID cardanofw.ChainID, sendAmount *big.Int,
 		senders, receivers []*cardanofw.TestApexUser,
 	) {
 		wg := sync.WaitGroup{}
@@ -376,7 +376,7 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 			go func(idx int) {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
-					t, ctx, apex, senders[idx], receivers[idx], srcChainID, dstChainID, sendAmountDfm, bridgingTypes[e2ehelper.NewChainPair(srcChainID, dstChainID)])
+					t, ctx, apex, senders[idx], receivers[idx], srcChainID, dstChainID, sendAmount, bridgingTypes[e2ehelper.NewChainPair(srcChainID, dstChainID)])
 			}(i)
 		}
 
@@ -470,7 +470,7 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 
 	t.Run("simultaneous test", func(t *testing.T) {
 		executeBridging := func(
-			srcChainID, dstChainID cardanofw.ChainID, sendAmountDfm *big.Int,
+			srcChainID, dstChainID cardanofw.ChainID, sendAmount *big.Int,
 			senders, receivers []*cardanofw.TestApexUser, doRegDeleg bool,
 		) {
 			bridgingTypes := map[e2ehelper.SrcDstChainPair]uint16{
@@ -485,7 +485,7 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 				go func(idx int) {
 					defer wg.Done()
 					e2ehelper.ExecuteSingleBridging(
-						t, ctx, apex, senders[idx], receivers[idx], srcChainID, dstChainID, sendAmountDfm, bridgingTypes[e2ehelper.NewChainPair(srcChainID, dstChainID)])
+						t, ctx, apex, senders[idx], receivers[idx], srcChainID, dstChainID, sendAmount, bridgingTypes[e2ehelper.NewChainPair(srcChainID, dstChainID)])
 				}(i)
 			}
 
@@ -604,7 +604,7 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, apex.Users[1], apex.Users[0],
 			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			big.NewInt(5_000_010), cardanofw.CAP3XTokenID)
+			cardanofw.DfmToWei(big.NewInt(5_000_010)), cardanofw.CAP3XTokenID)
 
 		addrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
