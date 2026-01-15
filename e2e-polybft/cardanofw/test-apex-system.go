@@ -1082,8 +1082,16 @@ func (a *ApexSystem) generateDirectionsConfigFile() *DirectionConfigFile {
 
 	directionConfigFile := DirectionConfigFile{
 		Directions: map[string]DirectionConfig{
-			ChainIDPrime:  {DestinationChain: a.PrimeInfo.DestChain, Tokens: a.PrimeInfo.Tokens, AlwaysTrackCurrencyAndWrappedCurrency: true},
-			ChainIDVector: {DestinationChain: a.VectorInfo.DestChain, Tokens: a.VectorInfo.Tokens, AlwaysTrackCurrencyAndWrappedCurrency: true},
+			ChainIDPrime: {
+				DestinationChain:                      a.PrimeInfo.DestChain,
+				Tokens:                                a.PrimeInfo.Tokens,
+				AlwaysTrackCurrencyAndWrappedCurrency: true,
+			},
+			ChainIDVector: {
+				DestinationChain:                      a.VectorInfo.DestChain,
+				Tokens:                                a.VectorInfo.Tokens,
+				AlwaysTrackCurrencyAndWrappedCurrency: true,
+			},
 		},
 		EcosystemTokens: ecosystemTokens,
 	}
