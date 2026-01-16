@@ -279,14 +279,14 @@ func createTxReceiver(
 		nativeTokens = []infrawallet.TokenAmount{
 			{
 				Token:  *token,
-				Amount: tokenAmount.Uint64(),
+				Amount: tokenAmount.Uint64(), // TODO
 			},
 		}
 	}
 
 	return GenericTxReceiver{
 		Addr:         addr,
-		Amount:       amount,
+		Amount:       DfmToWei(amount),
 		NativeTokens: nativeTokens,
 	}
 }

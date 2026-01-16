@@ -722,7 +722,7 @@ func retry(ctx context.Context, workingDirectory string, action func() error) er
 
 func (ec *TestEVMChain) RegisterChain(validator *TestApexValidator) error {
 	return validator.RegisterChain(
-		ec.ChainID(), WeiToDfm(ec.config.InitialHotWalletAmount), big.NewInt(0), ChainTypeEVM)
+		ec.ChainID(), ec.config.InitialHotWalletAmount, big.NewInt(0), ChainTypeEVM)
 }
 
 func (ec *TestEVMChain) GenerateChainConfigs(
