@@ -1351,10 +1351,6 @@ func (a *ApexSystem) GetBalanceWithTokenName(
 		return nil, err
 	}
 
-	for key, value := range balance {
-		balance[key] = ChainNativeTokenAmountToWei(chainID, value)
-	}
-
 	return balance, err
 }
 
@@ -2223,6 +2219,8 @@ func (a *ApexSystem) GetMinBridgingFee(chainID ChainID, isNativeTokenBridging bo
 	switch chainID {
 	case ChainIDNexus:
 		return a.Config.NexusConfig.MinBridgingFee
+	case ChainIDPolygon:
+		return a.Config.PolygonConfig.MinBridgingFee
 	default:
 		config := a.getCardanoConfig(chainID)
 
@@ -2238,6 +2236,8 @@ func (a *ApexSystem) GetMinOperationFee(chainID ChainID) *big.Int {
 	switch chainID {
 	case ChainIDNexus:
 		return a.Config.NexusConfig.MinOperationFee
+	case ChainIDPolygon:
+		return a.Config.PolygonConfig.MinOperationFee
 	default:
 		return DfmToWei(new(big.Int).SetUint64(a.getCardanoConfig(chainID).MinOperationFee)) // TODO: maybe to change cardano config, idk
 	}

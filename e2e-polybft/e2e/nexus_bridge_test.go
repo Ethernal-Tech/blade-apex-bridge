@@ -896,7 +896,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 		failedToExecute, timeout = cardanofw.WaitForBatchState(ctx,
 			apex, srcChain, txHash, apiKey, true, false, cardanofw.BatchStateExecuted)
 
-		require.Equal(t, failedToExecute, 1)
+		require.Equal(t, 1, failedToExecute)
 		require.False(t, timeout)
 
 		// Restart relayer after config fix

@@ -597,7 +597,7 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(4_000_010), addrAmounts[0][wallet.AdaTokenName].Uint64())
+		require.Equal(t, cardanofw.DfmToWei(big.NewInt(4_000_010)), addrAmounts[0][wallet.AdaTokenName])
 	})
 
 	t.Run("Currency Bridging - Bridge full amount from single address", func(t *testing.T) {
@@ -610,7 +610,7 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
+		require.Equal(t, big.NewInt(0), addrAmounts[1][wallet.AdaTokenName])
 	})
 
 	var (
@@ -630,8 +630,8 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(1_000_000), addrAmounts[2][wallet.AdaTokenName].Uint64()) // TODO, check for this
-		require.Equal(t, uint64(5_000_020), addrAmounts[3][wallet.AdaTokenName].Uint64())
+		require.Equal(t, cardanofw.ApexToWei(big.NewInt(1)), addrAmounts[2][wallet.AdaTokenName])
+		require.Equal(t, cardanofw.DfmToWei(big.NewInt(5_000_020)), addrAmounts[3][wallet.AdaTokenName])
 	})
 
 	t.Run("Currency Bridging - Bridge full amount from 2 addresses", func(t *testing.T) {
@@ -644,8 +644,8 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(0), addrAmounts[3][wallet.AdaTokenName].Uint64())
+		require.Equal(t, big.NewInt(0), addrAmounts[0][wallet.AdaTokenName])
+		require.Equal(t, big.NewInt(0), addrAmounts[3][wallet.AdaTokenName])
 	})
 
 	t.Run("Currency Bridging - Replenish for remaining tests", func(t *testing.T) {
@@ -672,9 +672,9 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(1_000_000), addrAmounts[1][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(5_000_030), addrAmounts[2][wallet.AdaTokenName].Uint64())
+		require.Equal(t, big.NewInt(0), addrAmounts[0][wallet.AdaTokenName])
+		require.Equal(t, cardanofw.ApexToWei(big.NewInt(1)), addrAmounts[1][wallet.AdaTokenName])
+		require.Equal(t, cardanofw.DfmToWei(big.NewInt(5_000_030)), addrAmounts[2][wallet.AdaTokenName])
 	})
 
 	t.Run("Currency Bridging - Replenish for final tests", func(t *testing.T) {
@@ -695,9 +695,9 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(1_000_000), addrAmounts[1][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(3_000_000), addrAmounts[2][wallet.AdaTokenName].Uint64())
+		require.Equal(t, big.NewInt(0), addrAmounts[0][wallet.AdaTokenName])
+		require.Equal(t, cardanofw.ApexToWei(big.NewInt(1)), addrAmounts[1][wallet.AdaTokenName])
+		require.Equal(t, cardanofw.ApexToWei(big.NewInt(3)), addrAmounts[2][wallet.AdaTokenName])
 	})
 
 	t.Run("Currency Bridging - Final replenish", func(t *testing.T) {
@@ -723,10 +723,10 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(3000000), addrAmounts[2][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(1000030), addrAmounts[3][wallet.AdaTokenName].Uint64())
+		require.Equal(t, big.NewInt(0), addrAmounts[0][wallet.AdaTokenName])
+		require.Equal(t, big.NewInt(0), addrAmounts[1][wallet.AdaTokenName])
+		require.Equal(t, cardanofw.ApexToWei(big.NewInt(3)), addrAmounts[2][wallet.AdaTokenName])
+		require.Equal(t, cardanofw.DfmToWei(big.NewInt(1000030)), addrAmounts[3][wallet.AdaTokenName])
 	})
 
 	t.Run("Currency Bridging - Test carry over consolidation, 0 on addr 0", func(t *testing.T) {
@@ -736,7 +736,7 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, apex.Users[1], apex.Users[0],
 			cardanofw.ChainIDCardano, cardanofw.ChainIDPrime,
-			ethgo.Ether(1_999_900_000), cardanofw.CAP3XTokenID)
+			ethgo.Gwei(1_999_900_000), cardanofw.CAP3XTokenID)
 
 		getCntConsolidationMap, lastBatchIDs = checkConsolidationBatchCounts(
 			t, ctxChild,
@@ -753,10 +753,10 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Currency tests - Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(1000130), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(0), addrAmounts[2][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(0), addrAmounts[3][wallet.AdaTokenName].Uint64())
+		require.Equal(t, cardanofw.DfmToWei(big.NewInt(1000130)), addrAmounts[0][wallet.AdaTokenName])
+		require.Equal(t, big.NewInt(0), addrAmounts[1][wallet.AdaTokenName])
+		require.Equal(t, big.NewInt(0), addrAmounts[2][wallet.AdaTokenName])
+		require.Equal(t, big.NewInt(0), addrAmounts[3][wallet.AdaTokenName])
 	})
 }
 
@@ -774,11 +774,11 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses_Native(t *testing.T) {
 	cardanoConfig.MinBridgingFeeForTokens = oldMinBridgingFee
 	vectorConfig.DefaultMinBridgingFee = oldMinBridgingFee
 	vectorConfig.MinBridgingFeeForTokens = oldMinBridgingFee
-	primeConfig.FundAmount = cardanofw.DfmToWei(ethgo.Ether(1_000)).Uint64()
-	cardanoConfig.FundTokenAmount = cardanofw.DfmToWei(ethgo.Ether(10_000_000)).Uint64()
-	cardanoConfig.FundAmount = cardanofw.DfmToWei(ethgo.Ether(6)).Uint64()
-	vectorConfig.FundAmount = cardanofw.DfmToWei(ethgo.Ether(1_000)).Uint64()
-	vectorConfig.FundTokenAmount = cardanofw.DfmToWei(ethgo.Ether(1_000)).Uint64()
+	primeConfig.FundAmount = 1_000_000_000
+	cardanoConfig.FundTokenAmount = 10_000_000
+	cardanoConfig.FundAmount = 6_000_000
+	vectorConfig.FundAmount = 1_000_000_000
+	vectorConfig.FundTokenAmount = 1_000_000_000
 	cardanoConfig.BridgingAddressCnt = bridgeAddrCnt
 
 	apex := cardanofw.SetupAndRunSkylineBridge(
@@ -874,9 +874,9 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses_Native(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Native token tests - Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(6000000), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, uint64(9000000), addrAmounts[0][tokenName].Uint64())
-		require.Equal(t, uint64(5961300), addrAmounts[1][wallet.AdaTokenName].Uint64())
+		require.Equal(t, cardanofw.ApexToWei(new(big.Int).SetUint64(6)), addrAmounts[0][wallet.AdaTokenName])
+		require.Equal(t, cardanofw.ApexToWei(new(big.Int).SetUint64(9)), addrAmounts[0][tokenName])
+		require.Equal(t, cardanofw.DfmToWei(new(big.Int).SetUint64(5961300)), addrAmounts[1][wallet.AdaTokenName])
 	})
 
 	t.Run("Native Token Bridging - Bridge partial amount native and currency from 2 addrs", func(t *testing.T) {
@@ -900,14 +900,14 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses_Native(t *testing.T) {
 
 		// This is due the fact that sometimes the tx's are processed in the same batch
 		// and sometimes they are processed in different batches
-		if addrAmounts[0][wallet.AdaTokenName].Uint64() == 3961290 {
-			require.Equal(t, uint64(3961290), addrAmounts[0][wallet.AdaTokenName].Uint64())
-			require.Equal(t, uint64(8000000), addrAmounts[0][tokenName].Uint64())
-			require.Equal(t, uint64(1961300), addrAmounts[1][wallet.AdaTokenName].Uint64())
+		if addrAmounts[0][wallet.AdaTokenName].Cmp(cardanofw.DfmToWei(new(big.Int).SetUint64(3961290))) == 0 {
+			require.Equal(t, cardanofw.DfmToWei(new(big.Int).SetUint64(3961290)), addrAmounts[0][wallet.AdaTokenName])
+			require.Equal(t, cardanofw.ApexToWei(new(big.Int).SetUint64(8)), addrAmounts[0][tokenName])
+			require.Equal(t, cardanofw.DfmToWei(new(big.Int).SetUint64(1961300)), addrAmounts[1][wallet.AdaTokenName])
 		} else {
-			require.Equal(t, uint64(1038710), addrAmounts[0][wallet.AdaTokenName].Uint64())
-			require.Equal(t, uint64(8000000), addrAmounts[0][tokenName].Uint64())
-			require.Equal(t, uint64(4883880), addrAmounts[1][wallet.AdaTokenName].Uint64())
+			require.Equal(t, cardanofw.DfmToWei(new(big.Int).SetUint64(1038710)), addrAmounts[0][wallet.AdaTokenName])
+			require.Equal(t, cardanofw.DfmToWei(new(big.Int).SetUint64(8000000)), addrAmounts[0][tokenName])
+			require.Equal(t, cardanofw.DfmToWei(new(big.Int).SetUint64(4883880)), addrAmounts[1][wallet.AdaTokenName])
 		}
 	})
 
@@ -930,9 +930,9 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses_Native(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Native token tests - Multisig addresses amounts: ", addrAmounts)
 
-		require.Equal(t, uint64(0), addrAmounts[0][wallet.AdaTokenName].Uint64())
-		require.Equal(t, int(1), len(addrAmounts[0]))
-		require.Equal(t, uint64(0), addrAmounts[1][wallet.AdaTokenName].Uint64())
+		require.Equal(t, big.NewInt(0), addrAmounts[0][wallet.AdaTokenName])
+		require.Equal(t, 1, len(addrAmounts[0]))
+		require.Equal(t, big.NewInt(0), addrAmounts[1][wallet.AdaTokenName])
 	})
 }
 
