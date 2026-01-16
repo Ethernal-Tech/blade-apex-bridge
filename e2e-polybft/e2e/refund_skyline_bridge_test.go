@@ -696,7 +696,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			setting["maxAmountAllowedToBridge"] = cardanofw.ApexToWei(big.NewInt(5))
+			setting["maxAmountAllowedToBridge"] = cardanofw.ApexToWei(big.NewInt(5)).String()
 		}, nil, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
@@ -795,7 +795,7 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			setting["maxTokenAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
+			setting["maxTokenAmountAllowedToBridge"] = cardanofw.ApexToWei(big.NewInt(5)).String()
 		}, nil, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)

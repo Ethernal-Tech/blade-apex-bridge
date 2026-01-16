@@ -505,7 +505,7 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			setting["maxAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
+			setting["maxAmountAllowedToBridge"] = cardanofw.ApexToWei(big.NewInt(5)).String()
 		}, nil, nil, nil),
 	)
 
