@@ -917,6 +917,10 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 	cardanoConfig.FundTokenAmount = 1_000_000_000
 	vectorConfig.FundTokenAmount = 1_000_000_000
 
+	cardanoConfig.UseIndexer = true
+	primeConfig.UseIndexer = true
+	vectorConfig.UseIndexer = true
+
 	apex := cardanofw.SetupAndRunSkylineBridge(
 		t, ctx,
 		cardanofw.WithAPIKey(apiKey),
