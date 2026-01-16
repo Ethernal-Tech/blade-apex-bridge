@@ -2547,7 +2547,7 @@ func fundTestUsersWithToken(
 			}
 
 			errs[indx] = cardanofw.MintToken(
-				chain, cfg.srcMinterWallet, tokenName, new(big.Int).Mul(tokenAmount, big.NewInt(int64(len(users)))))
+				chain, cfg.srcMinterWallet, tokenName, new(big.Int).Mul(cardanofw.WeiToDfm(tokenAmount), big.NewInt(int64(len(users)))))
 			if errs[indx] != nil {
 				return
 			}

@@ -696,7 +696,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			setting["maxAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
+			setting["maxAmountAllowedToBridge"] = cardanofw.ApexToWei(big.NewInt(5))
 		}, nil, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
@@ -760,7 +760,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 				beforeSendingAmount[idx][infrawallet.AdaTokenName],
 				new(big.Int).Add(sendAmount, apex.GetMinBridgingFee(br.src, false)))
 
-			fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundary, beforeSendingAmount[idx][infrawallet.AdaTokenName])
+			fmt.Printf("Tx sent. hash: %s, lowerBoundary: %d, higherBoundary: %+v\n", txHashes[idx], lowerBoundary, beforeSendingAmount[idx][infrawallet.AdaTokenName])
 
 			err := apex.WaitForAmountInRange(ctx, user, br.src, lowerBoundary, beforeSendingAmount[idx][infrawallet.AdaTokenName], 20, time.Second*30, infrawallet.AdaTokenName)
 			require.NoError(t, err)
