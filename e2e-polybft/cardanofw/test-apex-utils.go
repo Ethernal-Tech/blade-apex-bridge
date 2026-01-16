@@ -670,11 +670,8 @@ func FundUserWithToken(
 	ctx context.Context, apex *ApexSystem, chainID ChainID,
 	minterWallet *wallet.Wallet, userToFund *TestApexUser,
 	tokenName string, mintAmount *big.Int,
-	lovelaceFundAmount *big.Int, tokenFundAmount *big.Int,
+	fundAmount *big.Int, tokenFundAmount *big.Int,
 ) (*wallet.TokenAmount, error) {
-	mintAmount = WeiToDfm(mintAmount)                 // TODO: delete this
-	lovelaceFundAmount = WeiToDfm(lovelaceFundAmount) // TODO: delete this
-	tokenFundAmount = WeiToDfm(tokenFundAmount)       // TODO: delete this
 
 	chain, err := apex.getChain(chainID)
 	if err != nil {
@@ -688,7 +685,7 @@ func FundUserWithToken(
 
 	return FundAddressWithToken(
 		ctx, cardanoChain, minterWallet, userToFund.GetAddress(chain.ChainID()),
-		tokenName, mintAmount, lovelaceFundAmount, tokenFundAmount)
+		tokenName, mintAmount, fundAmount, tokenFundAmount)
 }
 
 func FundAddressWithToken(
@@ -698,11 +695,11 @@ func FundAddressWithToken(
 	weiFundAmount *big.Int, tokenFundAmount *big.Int,
 ) (*wallet.TokenAmount, error) {
 	if weiFundAmount == nil || weiFundAmount.Sign() <= 0 {
-		return nil, fmt.Errorf("lovelace amount must be greater than zero") // TODO: i am not sure what to put here
+		return nil, fmt.Errorf("wei amount must be greater than zero")
 	}
 
 	if mintAmount != nil && mintAmount.Sign() > 0 {
-		if err := MintToken(chain, minterWallet, tokenName, mintAmount); err != nil {
+		if err := MintToken(chain, minterWallet, tokenName, WeiToDfm(mintAmount)); err != nil {
 			return nil, err
 		}
 	}
