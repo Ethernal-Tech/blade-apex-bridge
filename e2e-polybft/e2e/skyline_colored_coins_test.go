@@ -660,7 +660,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 					Amount:  sendAmount,
 				},
 			},
-			operationFee: big.NewInt(0),
+			operationFee: opFee,
 			tokenInfo:    tokenInfo,
 		})
 		require.NoError(t, err)
