@@ -202,13 +202,13 @@ func Test_SkylineBridgeCC_General(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, big.NewInt(1),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
 
 		fmt.Printf("Starting bridging USDT Polygon -> Nexus\n")
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, big.NewInt(1),
-			cardanofw.USDTTokenID)
+			cardanofw.USDTTokenID, true)
 	})
 
 	t.Run("Polygon <-> Nexus USDC <-> wUSDC", func(t *testing.T) {
@@ -220,12 +220,12 @@ func Test_SkylineBridgeCC_General(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, big.NewInt(1),
-			cardanofw.USDCTokenID)
+			cardanofw.USDCTokenID, true)
 
 		fmt.Printf("Starting bridging USDC Nexus -> Polygon\n")
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, big.NewInt(1),
-			cardanofw.USDCTokenID)
+			cardanofw.USDCTokenID, true)
 	})
 
 	t.Run("Polygon <-> Nexus MATIC <-> xMATIC", func(t *testing.T) {
@@ -235,13 +235,13 @@ func Test_SkylineBridgeCC_General(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmountDfm,
-			cardanofw.MATICTokenID)
+			cardanofw.MATICTokenID, true)
 
 		fmt.Printf("Starting bridging xMATIC Nexus -> Polygon\n")
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, sendAmountDfm,
-			cardanofw.XMATICTokenID)
+			cardanofw.XMATICTokenID, true)
 	})
 }
 
