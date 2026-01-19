@@ -1332,10 +1332,6 @@ func (a *ApexSystem) GetBalance(
 		return nil, err
 	}
 
-	for key, value := range balance {
-		balance[key] = ChainNativeTokenAmountToWei(chainID, value)
-	}
-
 	return balance, err
 }
 
