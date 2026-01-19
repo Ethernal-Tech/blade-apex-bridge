@@ -1993,10 +1993,11 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 	defer cncl()
 
 	vectorConfig := cardanofw.NewVectorChainConfig()
+	minUtxoDfm := cardanofw.WeiToDfm(cardanofw.MinUTxODefaultValue).Uint64()
 	vectorConfig.FundUTxOCount = fundUtxoCount
-	vectorConfig.FundAmount = cardanofw.WeiToDfm(cardanofw.MinUTxODefaultValue).Uint64() * fundUtxoCount // TODO: check for this
+	vectorConfig.FundAmount = minUtxoDfm * fundUtxoCount
 	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
-	sendAmount := cardanofw.DfmToWei(big.NewInt(0).SetUint64(vectorConfig.FundAmount - cardanofw.WeiToDfm(cardanofw.MinUTxODefaultValue).Uint64())) // TODO: temp solution
+	sendAmount := cardanofw.DfmToWei(big.NewInt(0).SetUint64(vectorConfig.FundAmount - minUtxoDfm*3)) // TODO: temp solution
 
 	// adding indexer because there are many funding transactions
 	vectorConfig.UseIndexer = true
