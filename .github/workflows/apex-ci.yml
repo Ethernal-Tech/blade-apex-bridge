@@ -161,7 +161,7 @@ jobs:
               fi
             else
               if [[ "${{ github.ref }}" == "refs/heads/feat/skyline" ]]; then
-                echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
+                echo "apex_bridge_ref=AD-988-add-atc&wc-to-config" >> $GITHUB_OUTPUT
               else
                 echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
               fi
