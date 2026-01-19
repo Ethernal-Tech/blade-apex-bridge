@@ -1202,10 +1202,11 @@ func TestE2E_ApexBridgeWithNexus_NexusFundAmount(t *testing.T) {
 	}
 
 	const (
-		apiKey     = "test_api_key"
-		userCnt    = 10
-		fundAmount = 100_000_000
+		apiKey  = "test_api_key"
+		userCnt = 10
 	)
+
+	fundAmount := cardanofw.ApexToWei(big.NewInt(100))
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
@@ -1243,32 +1244,32 @@ func TestE2E_ApexBridgeWithNexus_NexusFundAmount(t *testing.T) {
 	fmt.Println("vector fee addr: ", apex.VectorInfo.FeeAddr)
 
 	testCases := []struct {
-		name          string
-		sendAmountWei *big.Int
-		fromChain     cardanofw.ChainID
-		toChain       cardanofw.ChainID
-		fundAmountDfm *big.Int
+		name       string
+		sendAmount *big.Int
+		fromChain  cardanofw.ChainID
+		toChain    cardanofw.ChainID
+		fundAmount *big.Int
 	}{
 		{
-			name:          "From nexus to prime - not enough funds",
-			sendAmountWei: ethgo.Ether(5),
-			fromChain:     cardanofw.ChainIDNexus,
-			toChain:       cardanofw.ChainIDPrime,
-			fundAmountDfm: new(big.Int).SetUint64(fundAmount),
+			name:       "From nexus to prime - not enough funds",
+			sendAmount: ethgo.Ether(5),
+			fromChain:  cardanofw.ChainIDNexus,
+			toChain:    cardanofw.ChainIDPrime,
+			fundAmount: fundAmount,
 		},
 		{
-			name:          "From prime to nexus - not enough funds",
-			sendAmountWei: ethgo.Ether(15),
-			fromChain:     cardanofw.ChainIDPrime,
-			toChain:       cardanofw.ChainIDNexus,
-			fundAmountDfm: new(big.Int).SetUint64(fundAmount),
+			name:       "From prime to nexus - not enough funds",
+			sendAmount: ethgo.Ether(15),
+			fromChain:  cardanofw.ChainIDPrime,
+			toChain:    cardanofw.ChainIDNexus,
+			fundAmount: fundAmount,
 		},
 		{
-			name:          "From nexus to vector - not enough funds",
-			sendAmountWei: ethgo.Ether(5),
-			fromChain:     cardanofw.ChainIDNexus,
-			toChain:       cardanofw.ChainIDVector,
-			fundAmountDfm: new(big.Int).SetUint64(fundAmount),
+			name:       "From nexus to vector - not enough funds",
+			sendAmount: ethgo.Ether(5),
+			fromChain:  cardanofw.ChainIDNexus,
+			toChain:    cardanofw.ChainIDVector,
+			fundAmount: fundAmount,
 		},
 	}
 
@@ -1284,7 +1285,7 @@ func TestE2E_ApexBridgeWithNexus_NexusFundAmount(t *testing.T) {
 
 			fmt.Printf("prevAmount %v\n", prevAmount)
 
-			expectedAmount := new(big.Int).Set(tc.sendAmountWei)
+			expectedAmount := new(big.Int).Set(tc.sendAmount)
 			expectedAmount = expectedAmount.Add(expectedAmount, prevAmount)
 
 			txHash, err := apex.SubmitBridgingRequest(cardanofw.SubmitBridgingRequestData{
@@ -1292,7 +1293,7 @@ func TestE2E_ApexBridgeWithNexus_NexusFundAmount(t *testing.T) {
 				SourceChain:      tc.fromChain,
 				DestinationChain: tc.toChain,
 				Sender:           user,
-				WeiAmount:        tc.sendAmountWei,
+				WeiAmount:        tc.sendAmount,
 				SrcTokenID:       cardanofw.AP3XTokenID,
 				TokensInfo:       tokensInfo,
 				Receivers:        []*cardanofw.TestApexUser{user},
@@ -1304,9 +1305,9 @@ func TestE2E_ApexBridgeWithNexus_NexusFundAmount(t *testing.T) {
 			err = apex.WaitForExactAmount(ctx, user, tc.toChain, expectedAmount, 20, time.Second*10, tokensInfo.DstTokenName)
 			require.Error(t, err)
 
-			require.NoError(t, apex.FundChainHotWallet(ctx, tc.toChain, tc.fundAmountDfm))
+			require.NoError(t, apex.FundChainHotWallet(ctx, tc.toChain, tc.fundAmount))
 
-			fmt.Printf("Funded %s with %v\n", tc.toChain, tc.fundAmountDfm)
+			fmt.Printf("Funded %s with %v\n", tc.toChain, tc.fundAmount)
 
 			err = apex.WaitForExactAmount(ctx, user, tc.toChain, expectedAmount, 30, time.Second*20, tokensInfo.DstTokenName)
 			require.NoError(t, err)
