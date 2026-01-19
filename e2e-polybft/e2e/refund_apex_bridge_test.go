@@ -754,7 +754,7 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 		key := chainUserKey{src: chain.src, dst: chain.dst, user: defundUser}
 
 		// expectedAmount = initial + (defundCount * fundDefundAmount * 1_000_000)
-		expectedAmount := new(big.Int).Add(userInitialAmounts[key], new(big.Int).Mul(new(big.Int).SetUint64(defundCount), cardanofw.ApexToDfm(fundDefundAmount)))
+		expectedAmount := new(big.Int).Add(userInitialAmounts[key], new(big.Int).Mul(new(big.Int).SetUint64(defundCount), cardanofw.ApexToWei(fundDefundAmount)))
 
 		tokensInfo, err := apex.GetBridgingTokensInfo(chain.src, chain.dst, cardanofw.AP3XTokenID)
 		require.NoError(t, err)
