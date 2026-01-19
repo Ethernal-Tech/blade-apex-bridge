@@ -1500,7 +1500,7 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 					return err
 				}
 			} else {
-				if err = apex.FundChainHotWallet(ctx, chain, cardanofw.ApexToDfm(fundAmountApex)); err != nil {
+				if err = apex.FundChainHotWallet(ctx, chain, cardanofw.ApexToWei(fundAmountApex)); err != nil {
 					return err
 				}
 			}
@@ -1543,16 +1543,16 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
-		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
+		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100)).Uint64()
 
 		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-		primeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		cardanoConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
-		cardanoConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		primeConfig.FundAmount = initialFundInDfm
+		cardanoConfig.FundAmount = initialFundInDfm
+		cardanoConfig.FundTokenAmount = initialFundInDfm
 
 		vectorConfig := cardanofw.NewVectorChainConfig()
-		vectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		vectorConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
+		vectorConfig.FundAmount = initialFundInDfm
+		vectorConfig.FundTokenAmount = initialFundInDfm
 
 		apex := cardanofw.SetupAndRunSkylineBridge(
 			t, ctx,
@@ -1629,16 +1629,16 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
-		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
+		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100)).Uint64()
 
 		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-		primeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		cardanoConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
-		cardanoConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		primeConfig.FundAmount = initialFundInDfm
+		cardanoConfig.FundAmount = initialFundInDfm
+		cardanoConfig.FundTokenAmount = initialFundInDfm
 
 		vectorConfig := cardanofw.NewVectorChainConfig()
-		vectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		vectorConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
+		vectorConfig.FundAmount = initialFundInDfm
+		vectorConfig.FundTokenAmount = initialFundInDfm
 
 		apex := cardanofw.SetupAndRunSkylineBridge(
 			t, ctx,
@@ -1877,16 +1877,16 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
-		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
+		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100)).Uint64()
 
 		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-		primeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		cardanoConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
-		cardanoConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		primeConfig.FundAmount = initialFundInDfm
+		cardanoConfig.FundAmount = initialFundInDfm
+		cardanoConfig.FundTokenAmount = initialFundInDfm
 
 		vectorConfig := cardanofw.NewVectorChainConfig()
-		vectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		vectorConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
+		vectorConfig.FundAmount = initialFundInDfm
+		vectorConfig.FundTokenAmount = initialFundInDfm
 
 		apex := cardanofw.SetupAndRunSkylineBridge(
 			t, ctx,
@@ -1952,16 +1952,16 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
-		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
+		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100)).Uint64()
 
 		primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-		primeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		cardanoConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
-		cardanoConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDCardano, initialFundInDfm).Uint64()
+		primeConfig.FundAmount = initialFundInDfm
+		cardanoConfig.FundAmount = initialFundInDfm
+		cardanoConfig.FundTokenAmount = initialFundInDfm
 
 		vectorConfig := cardanofw.NewVectorChainConfig()
-		vectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		vectorConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, initialFundInDfm).Uint64()
+		vectorConfig.FundAmount = initialFundInDfm
+		vectorConfig.FundTokenAmount = initialFundInDfm
 
 		apex := cardanofw.SetupAndRunSkylineBridge(
 			t, ctx,
@@ -2135,11 +2135,12 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			fmt.Printf("As intended, %v TXs on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.chain)
 		}
 
-		apex.Config.PrimeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
-		apex.Config.CardanoConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
-		apex.Config.CardanoConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
-		apex.Config.VectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
-		apex.Config.VectorConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(10))).Uint64()
+		fundAmountDfm := cardanofw.ApexToDfm(big.NewInt(10)).Uint64()
+		apex.Config.PrimeConfig.FundAmount = fundAmountDfm
+		apex.Config.CardanoConfig.FundAmount = fundAmountDfm
+		apex.Config.CardanoConfig.FundTokenAmount = fundAmountDfm
+		apex.Config.VectorConfig.FundAmount = fundAmountDfm
+		apex.Config.VectorConfig.FundTokenAmount = fundAmountDfm
 
 		require.NoError(t, apex.FundWallets(ctx))
 
@@ -2154,11 +2155,12 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			}
 		}
 
-		apex.Config.PrimeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
-		apex.Config.CardanoConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
-		apex.Config.CardanoConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDPrime, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
-		apex.Config.VectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
-		apex.Config.VectorConfig.FundTokenAmount = cardanofw.WeiToChainNativeTokenAmount(cardanofw.ChainIDVector, cardanofw.ApexToDfm(big.NewInt(1000))).Uint64()
+		fundAmountDfm = cardanofw.ApexToDfm(big.NewInt(1000)).Uint64()
+		apex.Config.PrimeConfig.FundAmount = fundAmountDfm
+		apex.Config.CardanoConfig.FundAmount = fundAmountDfm
+		apex.Config.CardanoConfig.FundTokenAmount = fundAmountDfm
+		apex.Config.VectorConfig.FundAmount = fundAmountDfm
+		apex.Config.VectorConfig.FundTokenAmount = fundAmountDfm
 
 		require.NoError(t, apex.FundWallets(ctx))
 

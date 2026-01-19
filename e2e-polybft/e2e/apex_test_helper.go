@@ -668,8 +668,8 @@ func createObsoleteMetadata(
 		DestinationChainID: dstChain,
 		SenderAddr:         sendtx.AddrToMetaDataAddr(sender.GetAddress(srcChain)),
 		Transactions:       txs,
-		BridgingFee:        feeAmount,
-		OperationFee:       operationFee,
+		BridgingFee:        cardanofw.WeiToDfm(feeAmount),
+		OperationFee:       cardanofw.WeiToDfm(operationFee),
 	}
 
 	metadataBytes, err := json.Marshal(map[int]BridgingRequestMetadataBC{

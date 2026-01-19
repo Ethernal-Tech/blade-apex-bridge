@@ -670,7 +670,7 @@ func TestE2E_FundAmount(t *testing.T) {
 			err = apex.WaitForExactAmount(ctx, user, tc.toChain, expectedAmount, 20, time.Second*10, tokensInfo.DstTokenName)
 			require.Error(t, err)
 
-			require.NoError(t, apex.FundChainHotWallet(ctx, tc.toChain, cardanofw.WeiToDfm(big.NewInt(tc.fundAmount))))
+			require.NoError(t, apex.FundChainHotWallet(ctx, tc.toChain, cardanofw.DfmToWei(big.NewInt(tc.fundAmount))))
 
 			txHash, err = apex.SubmitBridgingRequest(
 				cardanofw.SubmitBridgingRequestData{
@@ -1390,7 +1390,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 					defundReceiversExpectedAmount[key] = big.NewInt(0)
 				}
 
-				defundReceiversExpectedAmount[key].Add(defundReceiversExpectedAmount[key], cardanofw.ApexToDfm(defundAmount))
+				defundReceiversExpectedAmount[key].Add(defundReceiversExpectedAmount[key], cardanofw.ApexToWei(defundAmount))
 
 				if _, exists := defundReceivers[key]; !exists {
 					defundReceivers[key] = defundReceiver
@@ -1563,16 +1563,13 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
-		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
+		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100)).Uint64()
 
 		primeConfig, vectorConfig, nexusConfig := cardanofw.NewPrimeChainConfig(),
 			cardanofw.NewVectorChainConfig(), cardanofw.NewNexusChainConfig(true)
-		primeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(
-			cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		vectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(
-			cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		nexusConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(
-			cardanofw.ChainIDNexus, initialFundInDfm)
+		primeConfig.FundAmount = initialFundInDfm
+		vectorConfig.FundAmount = initialFundInDfm
+		nexusConfig.FundAmount = cardanofw.ApexToWei(big.NewInt(100))
 
 		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
@@ -1638,16 +1635,13 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
-		initialFundInDfm := cardanofw.ApexToWei(big.NewInt(100))
+		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100)).Uint64()
 
 		primeConfig, vectorConfig, nexusConfig := cardanofw.NewPrimeChainConfig(),
 			cardanofw.NewVectorChainConfig(), cardanofw.NewNexusChainConfig(true)
-		primeConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(
-			cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		vectorConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(
-			cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		nexusConfig.FundAmount = cardanofw.WeiToChainNativeTokenAmount(
-			cardanofw.ChainIDNexus, initialFundInDfm)
+		primeConfig.FundAmount = initialFundInDfm
+		vectorConfig.FundAmount = initialFundInDfm
+		nexusConfig.FundAmount = cardanofw.ApexToWei(big.NewInt(100))
 
 		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
