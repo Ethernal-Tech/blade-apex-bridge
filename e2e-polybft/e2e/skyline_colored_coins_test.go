@@ -964,7 +964,7 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 
 		_, err = cardanofw.FundAddressesWithToken(
 			ctx, vectorChain.(*cardanofw.TestCardanoChain), apex.VectorInfo.GenesisWallet,
-			addresses, "ranodom-token", new(big.Int).SetUint64(40_000_000_000), new(big.Int).SetUint64(1_000_000_000_000)) // TODO: fix this
+			addresses, "ranodom-token", new(big.Int).SetUint64(40_000_000_000), new(big.Int).SetUint64(1_000_000_000_000))
 		require.NoError(t, err)
 	})
 
