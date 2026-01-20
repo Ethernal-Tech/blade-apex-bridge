@@ -135,7 +135,7 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 				require.NoError(t, err)
 				defer txBuilder.Dispose()
 
-				minUtxo, err := txBuilder.SetProtocolParameters(protParamsCached[chain]).CalculateMinUtxo(cardanowallet.TxOutputWithRefScript{
+				minUtxoDfm, err := txBuilder.SetProtocolParameters(protParamsCached[chain]).CalculateMinUtxo(cardanowallet.TxOutputWithRefScript{
 					TxOutput: cardanowallet.TxOutput{
 						Addr:   addr,
 						Tokens: tokens,
@@ -143,7 +143,7 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 				})
 				require.NoError(t, err)
 
-				minUtxoBig := cardanofw.DfmToWei(new(big.Int).SetUint64(minUtxo))
+				minUtxoBig := cardanofw.DfmToWei(new(big.Int).SetUint64(minUtxoDfm))
 
 				change = new(big.Int)
 				if minUtxoBig.Cmp(cardanofw.MinUTxODefaultValue) > 0 {
@@ -228,7 +228,7 @@ func Test_E2E_TestnetFund(t *testing.T) {
 
 				// resubmit the transaction in case of error because of a possible rollback
 				_, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
-					txHash, err := apex.SubmitTx(ctx, chain, apex.FunderUser, addr, cardanofw.ApexToDfm(big.NewInt(apexToFund)), nil, nil)
+					txHash, err := apex.SubmitTx(ctx, chain, apex.FunderUser, addr, cardanofw.ApexToWei(big.NewInt(apexToFund)), nil, nil)
 					if errors.Is(err, infracommon.ErrRetryTimeout) {
 						return "", infracommon.ErrRetryTryAgain
 					}
@@ -318,10 +318,10 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 			)
 
 			receiverUser := apex.Users[parallelInstances]
-			sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+			sendAmount := ethgo.Ether(1)
 
 			DstNexusBothDirectionsSequentialAndParallel(
-				t, ctx, apex, cardanofw.ChainIDVector, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+				t, ctx, apex, cardanofw.ChainIDVector, receiverUser, sequentialInstances, parallelInstances, sendAmount, bridgingOpts...)
 		})
 	}
 
@@ -331,9 +331,9 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 			parallelInstances   = 10
 		)
 
-		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+		sendAmount := ethgo.Ether(1)
 
-		DstNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, cardanofw.ChainIDPrime, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+		DstNexusSequentialAndParallelWithMaxReceivers(t, ctx, apex, cardanofw.ChainIDPrime, sequentialInstances, parallelInstances, sendAmount, bridgingOpts...)
 	})
 
 	t.Run("Prime and Nexus both directions sequential and parallel", func(t *testing.T) {
@@ -343,10 +343,10 @@ func TestE2E_ApexTestnetBridge_ValidScenarios(t *testing.T) {
 		)
 
 		receiverUser := apex.Users[parallelInstances]
-		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+		sendAmount := ethgo.Ether(1)
 
 		DstNexusBothDirectionsSequentialAndParallel(
-			t, ctx, apex, cardanofw.ChainIDPrime, receiverUser, sequentialInstances, parallelInstances, sendAmountDfm, bridgingOpts...)
+			t, ctx, apex, cardanofw.ChainIDPrime, receiverUser, sequentialInstances, parallelInstances, sendAmount, bridgingOpts...)
 	})
 
 	t.Run("From Nexus to Prime sequential and parallel max receivers", func(t *testing.T) {
@@ -440,9 +440,9 @@ func TestE2E_ApexTestnetBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Prime to Nexus submitted invalid metadata - empty tx", func(t *testing.T) {
-		sendAmountDfm := ethgo.Ether(1)
+		sendAmount := ethgo.Ether(1)
 
-		DstNexusInvalidMetadataInvalidTransactions(t, ctx, apex, srcChain, apex.Users[1], requestStateTimeoutSec, sendAmountDfm)
+		DstNexusInvalidMetadataInvalidTransactions(t, ctx, apex, srcChain, apex.Users[1], requestStateTimeoutSec, sendAmount)
 	})
 
 	t.Run("Nexus to Prime submitter not enough funds", func(t *testing.T) {

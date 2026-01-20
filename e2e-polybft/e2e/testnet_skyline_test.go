@@ -29,8 +29,9 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	tokensToFundBigInt := cardanofw.ApexToDfm(big.NewInt(100))
-	tokensToFund := tokensToFundBigInt.Uint64()
+	tokensToFundApex := big.NewInt(100)
+	tokensToFund := cardanofw.ApexToWei(tokensToFundApex)
+	tokensToFundDfm := cardanofw.ApexToDfm(tokensToFundApex).Uint64()
 
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
@@ -62,7 +63,7 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 					for i, tokenID := range fundableTokensPerChain[chain] {
 						tokens[i] = cardanowallet.TokenAmount{
 							Token:  cardanowallet.Token{PolicyID: chainInfo.Tokens[tokenID].ChainSpecific},
-							Amount: tokensToFund,
+							Amount: tokensToFundDfm,
 						}
 					}
 
@@ -78,7 +79,7 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 
 					tokens[i] = cardanowallet.TokenAmount{
 						Token:  token,
-						Amount: tokensToFund,
+						Amount: tokensToFundDfm,
 					}
 				}
 
@@ -93,7 +94,7 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 				// resubmit the transaction in case of error because of a possible rollback
 				_, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
 					txHash, err := apex.SubmitTx(ctx, chain, apex.FunderUser, receiverAddr,
-						tokensToFundBigInt, tokens, nil)
+						tokensToFund, tokens, nil)
 					if errors.Is(err, common.ErrRetryTimeout) {
 						return "", common.ErrRetryTryAgain
 					}
@@ -156,18 +157,16 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 					}
 				}
 
-				// 1. Compute change in DFM (PotentialFee is already in DFM units)
-				changeDfm := new(big.Int).Mul(
-					cardanofw.WeiToDfm(cardanofw.PotentialFee),
-					new(big.Int).SetUint64(uint64(len(balance))),
-				)
+				// 1. Compute change in Wei (PotentialFee is in Wei units)
+				change := new(big.Int).Mul(
+					cardanofw.PotentialFee, new(big.Int).SetUint64(uint64(len(balance))))
 
-				if balance[cardanowallet.AdaTokenName].Cmp(changeDfm) <= 0 {
+				if balance[cardanowallet.AdaTokenName].Cmp(change) <= 0 {
 					continue
 				}
 
-				// 2. Refund amount in DFM
-				refundAmountDfm := new(big.Int).Sub(balance[cardanowallet.AdaTokenName], changeDfm)
+				// 2. Refund amount in Wei
+				refundAmount := new(big.Int).Sub(balance[cardanowallet.AdaTokenName], change)
 
 				tokens := make([]cardanowallet.TokenAmount, 0, len(balance)-1)
 
@@ -179,7 +178,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 
 					tokens = append(tokens, cardanowallet.TokenAmount{
 						Token:  cardanowallet.Token{PolicyID: token},
-						Amount: amount.Uint64(),
+						Amount: cardanofw.WeiToDfm(amount).Uint64(),
 					})
 				}
 
@@ -191,7 +190,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 					fmt.Printf("Defunding %s address: %s\n", chain, user.GetAddress(chain))
 
 					_, err := apex.SubmitTx(ctx, chain, user, apex.FunderUser.GetAddress(chain),
-						refundAmountDfm, tokens, nil)
+						refundAmount, tokens, nil)
 
 					if err != nil {
 						mu.Lock()
@@ -229,21 +228,21 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 		for _, user := range apex.Users {
 			_, senderAddr := user.GetCardanoWallet(chain)
 
-			balanceBigInt, exists := balances[senderAddr.String()]
+			balance, exists := balances[senderAddr.String()]
 			if !exists {
 				continue
 			}
 
-			balance := make(map[string]uint64, len(balanceBigInt))
-			for tokenName, amount := range balanceBigInt {
-				balance[tokenName] = amount.Uint64()
+			balanceDfm := make(map[string]uint64, len(balance))
+			for tokenName, amount := range balance {
+				balanceDfm[tokenName] = cardanofw.WeiToDfm(amount).Uint64()
 			}
 
 			// bring back all tokens from user to funderReceiverAddr
-			tokens, err := cardanowallet.GetTokensFromSumMap(balance)
+			tokens, err := cardanowallet.GetTokensFromSumMap(balanceDfm)
 			require.NoError(t, err)
 
-			receiverMinUtxo, err := txBuilder.SetProtocolParameters(protParams).CalculateMinUtxo(cardanowallet.TxOutputWithRefScript{
+			receiverMinUtxoDfm, err := txBuilder.SetProtocolParameters(protParams).CalculateMinUtxo(cardanowallet.TxOutputWithRefScript{
 				TxOutput: cardanowallet.TxOutput{
 					Addr:   senderAddr.String(),
 					Tokens: tokens,
@@ -252,15 +251,14 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 			require.NoError(t, err)
 
 			changePlusPotentialFee := new(big.Int).Add(cardanofw.MinUTxODefaultValue, cardanofw.PotentialFee)
-			balanceAtLeast := new(big.Int).Add(new(big.Int).SetUint64(receiverMinUtxo), cardanofw.DfmToWei(changePlusPotentialFee))
+			balanceAtLeast := new(big.Int).Add(cardanofw.DfmToWei(new(big.Int).SetUint64(receiverMinUtxoDfm)), changePlusPotentialFee)
 
 			lovelaceBalance := balance[cardanowallet.AdaTokenName]
-			if lovelaceBalance < balanceAtLeast.Uint64() {
+			if lovelaceBalance.Cmp(balanceAtLeast) < 0 {
 				continue
 			}
 
-			refundAmountLovelace := cardanofw.DfmToWei(new(big.Int).SetUint64(
-				lovelaceBalance - cardanofw.WeiToDfm(changePlusPotentialFee).Uint64()))
+			refundAmountLovelace := new(big.Int).Sub(lovelaceBalance, changePlusPotentialFee)
 
 			wg.Add(1)
 
@@ -511,12 +509,12 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 			bridgingDirections,
 			bridgingOpts...)
 
-		returnAmountDfm := new(big.Int).Mul(sendAmount, big.NewInt(int64(numOfInstanceForSequentialTests*len(bridgingDirections))))
+		returnAmount := new(big.Int).Mul(sendAmount, big.NewInt(int64(numOfInstanceForSequentialTests*len(bridgingDirections))))
 
 		// return all the xADA to Cardano
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano,
-			returnAmountDfm, cardanofw.XADATokenID, bridgingOpts...)
+			returnAmount, cardanofw.XADATokenID, bridgingOpts...)
 	})
 
 	t.Run("9. Nexus -> Cardano and Vector -> Cardano in parallel - sequential xADA", func(t *testing.T) {

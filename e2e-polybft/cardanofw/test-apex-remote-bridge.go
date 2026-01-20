@@ -15,9 +15,9 @@ import (
 
 type RemoteCardanoChainConfig struct {
 	Info                    CardanoChainInfo
-	DefaultMinBridgingFee   *big.Int
-	MinBridgingFeeForTokens *big.Int
-	MinOperationFee         *big.Int
+	DefaultMinBridgingFee   uint64
+	MinBridgingFeeForTokens uint64
+	MinOperationFee         uint64
 }
 
 type RemoteEVMChainConfig struct {
@@ -63,8 +63,8 @@ func GetInternalTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 					MultisigAddr:   []string{"addr_test1wrz24vv4tvfqsywkxn36rv5zagys2d7euafcgt50gmpgqpq4ju9uv"},
 					FeeAddr:        "addr_test1wq5dw0g9mpmjy0xd6g58kncapdf6vgcka9el4llhzwy5vhqz80tcq",
 				},
-				DefaultMinBridgingFee:   DfmToWei(big.NewInt(1_000_010)),
-				MinBridgingFeeForTokens: DfmToWei(big.NewInt(1_000_010)),
+				DefaultMinBridgingFee:   1_000_010,
+				MinBridgingFeeForTokens: 1_000_010,
 			},
 		},
 		EVMChains: map[string]RemoteEVMChainConfig{
@@ -93,8 +93,8 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 					MultisigAddr:   []string{"addr_test1wr44r7qudqwrpsgfs3m4t47x7xmw55dk4k96faak0w4aeqqxxwlvt"},
 					FeeAddr:        "addr_test1wzct9v2gj9j9rmwx6atkjhcesglf3zcpz6c4y99u3nvg9ksfjj3zd",
 				},
-				DefaultMinBridgingFee:   DfmToWei(big.NewInt(1_000_010)),
-				MinBridgingFeeForTokens: DfmToWei(big.NewInt(1_000_010)),
+				DefaultMinBridgingFee:   1_000_010,
+				MinBridgingFeeForTokens: 1_000_010,
 			},
 			ChainIDVector: {
 				Info: CardanoChainInfo{
@@ -103,8 +103,8 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 					MultisigAddr:   []string{"addr1w8nv7cp7revdt70yuc96z4ke9pasa70grc5clhyf7q70f4spev3dn"},
 					FeeAddr:        "addr1w8r7nnz8xg2hmudtfgp9u77uwttkuwef6g26dl6zppmwmsqknwcek",
 				},
-				DefaultMinBridgingFee:   DfmToWei(big.NewInt(1_000_010)),
-				MinBridgingFeeForTokens: DfmToWei(big.NewInt(1_000_010)),
+				DefaultMinBridgingFee:   1_000_010,
+				MinBridgingFeeForTokens: 1_000_010,
 			},
 		},
 		EVMChains: map[string]RemoteEVMChainConfig{
@@ -159,9 +159,9 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						},
 					},
 				},
-				DefaultMinBridgingFee:   ApexToWei(big.NewInt(4)),
-				MinBridgingFeeForTokens: DfmToWei(big.NewInt(2_860_000)),
-				MinOperationFee:         big.NewInt(0),
+				DefaultMinBridgingFee:   4_000_000,
+				MinBridgingFeeForTokens: 2_860_000,
+				MinOperationFee:         0,
 			},
 			ChainIDVector: {
 				Info: CardanoChainInfo{
@@ -215,9 +215,9 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						},
 					},
 				},
-				DefaultMinBridgingFee:   ApexToWei(big.NewInt(4)),
-				MinBridgingFeeForTokens: DfmToWei(big.NewInt(2_860_000)),
-				MinOperationFee:         big.NewInt(0),
+				DefaultMinBridgingFee:   4_000_000,
+				MinBridgingFeeForTokens: 2_860_000,
+				MinOperationFee:         0,
 			},
 			ChainIDCardano: {
 				Info: CardanoChainInfo{
@@ -264,9 +264,9 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						},
 					},
 				},
-				DefaultMinBridgingFee:   ApexToWei(big.NewInt(4)),
-				MinBridgingFeeForTokens: DfmToWei(big.NewInt(2_860_000)),
-				MinOperationFee:         big.NewInt(0),
+				DefaultMinBridgingFee:   4_000_000,
+				MinBridgingFeeForTokens: 2_860_000,
+				MinOperationFee:         0,
 			},
 		},
 		EVMChains: map[string]RemoteEVMChainConfig{

@@ -161,7 +161,7 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 }
 
 func NewRemotePrimeChainConfig(
-	defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee *big.Int,
+	defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee uint64,
 ) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:               true,
@@ -169,14 +169,14 @@ func NewRemotePrimeChainConfig(
 		NetworkType:             infrawallet.TestNetNetwork,
 		NetworkMagic:            infrawallet.PrimeTestNetProtocolMagic,
 		ChainType:               ChainIDPrime,
-		DefaultMinBridgingFee:   WeiToDfm(defaultMinBridgingFeeAmount).Uint64(),
-		MinBridgingFeeForTokens: WeiToDfm(minBridgingFeeAmountForTokens).Uint64(),
-		MinOperationFee:         WeiToDfm(minOperationFee).Uint64(),
+		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
+		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
+		MinOperationFee:         minOperationFee,
 	}
 }
 
 func NewRemoteVectorChainConfig(
-	defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee *big.Int,
+	defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee uint64,
 ) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:               true,
@@ -184,14 +184,14 @@ func NewRemoteVectorChainConfig(
 		NetworkType:             infrawallet.MainNetNetwork,
 		NetworkMagic:            infrawallet.MainNetProtocolMagic,
 		ChainType:               ChainIDVector,
-		DefaultMinBridgingFee:   WeiToDfm(defaultMinBridgingFeeAmount).Uint64(),
-		MinBridgingFeeForTokens: WeiToDfm(minBridgingFeeAmountForTokens).Uint64(),
-		MinOperationFee:         WeiToDfm(minOperationFee).Uint64(),
+		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
+		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
+		MinOperationFee:         minOperationFee,
 	}
 }
 
 func NewRemoteCardanoChainConfig(
-	isEnabled bool, defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee *big.Int,
+	isEnabled bool, defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee uint64,
 ) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:               isEnabled,
@@ -199,9 +199,9 @@ func NewRemoteCardanoChainConfig(
 		NetworkType:             infrawallet.TestNetNetwork,
 		NetworkMagic:            infrawallet.TestNetProtocolMagic,
 		ChainType:               ChainIDCardano,
-		DefaultMinBridgingFee:   WeiToDfm(defaultMinBridgingFeeAmount).Uint64(),
-		MinBridgingFeeForTokens: WeiToDfm(minBridgingFeeAmountForTokens).Uint64(),
-		MinOperationFee:         WeiToDfm(minOperationFee).Uint64(),
+		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
+		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
+		MinOperationFee:         minOperationFee,
 	}
 }
 
