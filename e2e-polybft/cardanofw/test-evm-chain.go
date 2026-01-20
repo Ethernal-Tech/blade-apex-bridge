@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	defaultFundEthTokenAmount        = uint64(100_000) // TODO:
+	defaultFundEthTokenAmount        = uint64(100_000)
 	defaultPremineEthTokenAmount     = uint64(1_000_000_000_000)
 	defaultFundRelayerEthTokenAmount = uint64(5)
 
@@ -96,7 +96,7 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
 		MinBridgingFee:         defaultMinBridgingFeeAmount,
 		MinBridgingAmount:      MinUTxODefaultValue,
-		MinTokenBridgingAmount: ethgo.Gwei(1000),
+		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
 		MinOperationFee:        big.NewInt(0),
 		CurrencyID:             AP3XTokenID,
 
@@ -173,7 +173,7 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
 		MinBridgingFee:         defaultMinBridgingFeeAmount,
 		MinBridgingAmount:      MinUTxODefaultValue,
-		MinTokenBridgingAmount: ethgo.Gwei(1000),
+		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
 		MinOperationFee:        big.NewInt(0),
 		CurrencyID:             MATICTokenID,
 
@@ -517,7 +517,6 @@ func (ec *TestEVMChain) deployERC20Token(token EVMTokenInfo) (types.Address, err
 
 func (ec *TestEVMChain) FundUsersWithToken(address string, amount *big.Int, tokenID uint16) error {
 	// Look up the token contract address
-
 	tokenAddrHex, ok := ec.config.ConfigurableTokens[tokenID]
 	if !ok || tokenAddrHex == "" {
 		return fmt.Errorf("token with ID %d not found in configured tokens", tokenID)
@@ -830,7 +829,7 @@ func (ec *TestEVMChain) GetBridgingFee(
 	bridgingFee *big.Int,
 	_ *big.Int,
 	_ string,
-) (*big.Int, error) { // TODO: this will be different
+) (*big.Int, error) {
 	return bridgingFee, nil
 }
 
@@ -1140,7 +1139,7 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 	for _, nativeToken := range nativeTokens {
 		// We interpret the Cardano token PolicyID as the ERC20 contract address on the EVM chain.
 		tokenAddr := types.StringToAddress(nativeToken.Token.PolicyID)
-		tokenAmount := DfmToWei(big.NewInt(0).SetUint64(nativeToken.Amount)) // TODO: this is necessary for testing
+		tokenAmount := DfmToWei(big.NewInt(0).SetUint64(nativeToken.Amount))
 
 		// Encode ERC20 transfer(recipient, amount)
 		if contractsapi.SimpleERC20 == nil || contractsapi.SimpleERC20.Abi == nil {

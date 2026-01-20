@@ -22,7 +22,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,11 +47,11 @@ const (
 )
 
 var (
-	defaultMinBridgingFeeAmount          = ethgo.Ether(4)          // 4 ethers (4*10^18)
-	MinUTxODefaultValue                  = ethgo.Ether(1)          // 1 ether  (1*10^18)
-	PotentialFee                         = ethgo.Gwei(500_000_000) // 0.5 ether
-	defaultMinBridgingFeeAmountForTokens = ethgo.Gwei(2_860_000_000)
-	DefaultTokenMintAmount               = ethgo.Ether(1_000)
+	defaultMinBridgingFeeAmount          = ApexToWei(big.NewInt(4))        // 4 Apex (4*10^18)
+	MinUTxODefaultValue                  = ApexToWei(big.NewInt(1))        // 1 Apex  (1*10^18)
+	PotentialFee                         = DfmToWei(big.NewInt(500_000))   // 0.5 Apex
+	defaultMinBridgingFeeAmountForTokens = DfmToWei(big.NewInt(2_860_000)) // 2.86 Apex
+	DefaultTokenMintAmount               = ApexToWei(big.NewInt(1_000))    // 1000 Apex (1000*10^18)
 	DefaultMinOperationFee               = big.NewInt(0)
 )
 
@@ -672,7 +671,6 @@ func FundUserWithToken(
 	tokenName string, mintAmount *big.Int,
 	fundAmount *big.Int, tokenFundAmount *big.Int,
 ) (*wallet.TokenAmount, error) {
-
 	chain, err := apex.getChain(chainID)
 	if err != nil {
 		return nil, err
@@ -710,7 +708,7 @@ func FundAddressWithToken(
 		return nil, err
 	}
 
-	tokenAmount := wallet.NewTokenAmount(token, WeiToDfm(tokenFundAmount).Uint64()) // TODO:
+	tokenAmount := wallet.NewTokenAmount(token, WeiToDfm(tokenFundAmount).Uint64())
 
 	minterAddr, err := GetAddress(chain.config.NetworkType, minterWallet)
 	if err != nil {
@@ -771,7 +769,7 @@ func FundAddressesWithToken(
 		return nil, err
 	}
 
-	tokenAmount := wallet.NewTokenAmount(token, WeiToDfm(tokenFundAmount).Uint64()) // TODO: this is maybe wrong
+	tokenAmount := wallet.NewTokenAmount(token, WeiToDfm(tokenFundAmount).Uint64())
 	privateKey := ToCardanoPrivateKeyString(sender.SigningKey, sender.StakeSigningKey)
 	receivers := make([]GenericTxReceiver, len(addrs))
 

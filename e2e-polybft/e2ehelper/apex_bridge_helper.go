@@ -381,7 +381,7 @@ func ExecuteBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	senderUsers []*cardanofw.TestApexUser, receiverUsers []*cardanofw.TestApexUser,
 	chains []string, chainsDst map[string][]string, srcTokenIDs map[SrcDstChainPair]uint16,
-	sendAmountWei *big.Int, options ...ExecuteBridgingOption,
+	sendAmount *big.Int, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -417,7 +417,7 @@ func ExecuteBridging(
 	// send transactions
 	sendTxDatas := config.sendTxStrategy(
 		ctx, apex, chainsDst, senderUsers, receiverUsers,
-		sendAmountWei, txCountPerSender, srcTokenIDs)
+		sendAmount, txCountPerSender, srcTokenIDs)
 
 	for _, d := range sendTxDatas {
 		require.NoError(t, d.err)

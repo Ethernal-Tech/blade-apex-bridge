@@ -11,7 +11,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	"github.com/0xPolygon/polygon-edge/types"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/Ethernal-Tech/ethgo"
 )
 
 type RemoteCardanoChainConfig struct {
@@ -64,8 +63,8 @@ func GetInternalTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 					MultisigAddr:   []string{"addr_test1wrz24vv4tvfqsywkxn36rv5zagys2d7euafcgt50gmpgqpq4ju9uv"},
 					FeeAddr:        "addr_test1wq5dw0g9mpmjy0xd6g58kncapdf6vgcka9el4llhzwy5vhqz80tcq",
 				},
-				DefaultMinBridgingFee:   ethgo.Gwei(1_000_010_000),
-				MinBridgingFeeForTokens: ethgo.Gwei(1_000_010_000),
+				DefaultMinBridgingFee:   DfmToWei(big.NewInt(1_000_010)),
+				MinBridgingFeeForTokens: DfmToWei(big.NewInt(1_000_010)),
 			},
 		},
 		EVMChains: map[string]RemoteEVMChainConfig{
@@ -74,7 +73,7 @@ func GetInternalTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 					GatewayAddress: types.StringToAddress("0xc68221AD72397d85084f2D5C7089e4e9487c118c"),
 					JSONRPCAddr:    "https://rpc.nexus.testnet.apexfusion.org",
 				},
-				MinBridgingFee: ethgo.Gwei(1_000_010_000),
+				MinBridgingFee: DfmToWei(big.NewInt(1_000_010)),
 			},
 		},
 		BridgingAPIs: []string{
@@ -94,8 +93,8 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 					MultisigAddr:   []string{"addr_test1wr44r7qudqwrpsgfs3m4t47x7xmw55dk4k96faak0w4aeqqxxwlvt"},
 					FeeAddr:        "addr_test1wzct9v2gj9j9rmwx6atkjhcesglf3zcpz6c4y99u3nvg9ksfjj3zd",
 				},
-				DefaultMinBridgingFee:   ethgo.Gwei(1_000_010_000),
-				MinBridgingFeeForTokens: ethgo.Gwei(1_000_010_000),
+				DefaultMinBridgingFee:   DfmToWei(big.NewInt(1_000_010)),
+				MinBridgingFeeForTokens: DfmToWei(big.NewInt(1_000_010)),
 			},
 			ChainIDVector: {
 				Info: CardanoChainInfo{
@@ -104,8 +103,8 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 					MultisigAddr:   []string{"addr1w8nv7cp7revdt70yuc96z4ke9pasa70grc5clhyf7q70f4spev3dn"},
 					FeeAddr:        "addr1w8r7nnz8xg2hmudtfgp9u77uwttkuwef6g26dl6zppmwmsqknwcek",
 				},
-				DefaultMinBridgingFee:   ethgo.Gwei(1_000_010_000),
-				MinBridgingFeeForTokens: ethgo.Gwei(1_000_010_000),
+				DefaultMinBridgingFee:   DfmToWei(big.NewInt(1_000_010)),
+				MinBridgingFeeForTokens: DfmToWei(big.NewInt(1_000_010)),
 			},
 		},
 		EVMChains: map[string]RemoteEVMChainConfig{
@@ -114,7 +113,7 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 					GatewayAddress: types.StringToAddress("0x43Bca3122Efa14C68F9d385e3b4Da8847eca32Ba"),
 					JSONRPCAddr:    "https://rpc.nexus.testnet.apexfusion.org",
 				},
-				MinBridgingFee: ethgo.Gwei(1_000_010_000),
+				MinBridgingFee: DfmToWei(big.NewInt(1_000_010)),
 			},
 		},
 		BridgingAPIs: []string{
@@ -160,9 +159,9 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						},
 					},
 				},
-				DefaultMinBridgingFee:   ethgo.Ether(4),
-				MinBridgingFeeForTokens: ethgo.Gwei(2_860_000_000),
-				MinOperationFee:         ethgo.Ether(0),
+				DefaultMinBridgingFee:   ApexToWei(big.NewInt(4)),
+				MinBridgingFeeForTokens: DfmToWei(big.NewInt(2_860_000)),
+				MinOperationFee:         big.NewInt(0),
 			},
 			ChainIDVector: {
 				Info: CardanoChainInfo{
@@ -216,9 +215,9 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						},
 					},
 				},
-				DefaultMinBridgingFee:   ethgo.Ether(4),
-				MinBridgingFeeForTokens: ethgo.Gwei(2_860_000_000),
-				MinOperationFee:         ethgo.Ether(0),
+				DefaultMinBridgingFee:   ApexToWei(big.NewInt(4)),
+				MinBridgingFeeForTokens: DfmToWei(big.NewInt(2_860_000)),
+				MinOperationFee:         big.NewInt(0),
 			},
 			ChainIDCardano: {
 				Info: CardanoChainInfo{
@@ -265,9 +264,9 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						},
 					},
 				},
-				DefaultMinBridgingFee:   ethgo.Ether(4),
-				MinBridgingFeeForTokens: ethgo.Gwei(2_860_000_000),
-				MinOperationFee:         ethgo.Ether(0),
+				DefaultMinBridgingFee:   ApexToWei(big.NewInt(4)),
+				MinBridgingFeeForTokens: DfmToWei(big.NewInt(2_860_000)),
+				MinOperationFee:         big.NewInt(0),
 			},
 		},
 		EVMChains: map[string]RemoteEVMChainConfig{
@@ -318,8 +317,8 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						},
 					},
 				},
-				MinBridgingFee:  ethgo.Ether(4),
-				MinOperationFee: ethgo.Ether(0),
+				MinBridgingFee:  ApexToWei(big.NewInt(4)),
+				MinOperationFee: big.NewInt(0),
 			},
 		},
 		BridgingAPIs: []string{

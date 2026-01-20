@@ -12,7 +12,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -223,7 +222,7 @@ func Test_SkylineBridgeCC_General(t *testing.T) {
 	t.Run("Polygon <-> Nexus MATIC <-> xMATIC", func(t *testing.T) {
 		fmt.Printf("Starting bridging MATIC Polygon -> Nexus\n")
 
-		sendAmount := ethgo.Ether(1)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmount,
@@ -312,7 +311,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			apex.VectorInfo.GenesisWallet, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			ethgo.Ether(10), ethgo.Gwei(1_123_000_000))
+			cardanofw.ApexToWei(big.NewInt(10)), cardanofw.DfmToWei(big.NewInt(1_123_000)))
 		require.NoError(t, err)
 
 		executeInvalidTokenDirection(t, ctx, apex, vectorNexusXADATestConfig, cardanofw.AP3XTokenID, user, maxWaitTimeSec, retryDelaySec, false, 0)
@@ -320,7 +319,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 	//nolint:dupl
 	t.Run("4.Submitted invalid metadata - currency under min - token on source", func(t *testing.T) {
-		sendAmount := ethgo.Ether(1)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 		user, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
@@ -329,13 +328,13 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			apex.VectorInfo.GenesisWallet, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			ethgo.Ether(10), ethgo.Ether(10))
+			cardanofw.ApexToWei(big.NewInt(10)), cardanofw.ApexToWei(big.NewInt(10)))
 		require.NoError(t, err)
 
 		receivers := []sendtx.BridgingTxReceiver{
 			{
 				Addr:    user.GetAddress(cardanofw.ChainIDNexus),
-				Amount:  cardanofw.WeiToDfm(sendAmount).Uint64(), // TODO: check for this
+				Amount:  cardanofw.WeiToDfm(sendAmount).Uint64(),
 				TokenID: cardanofw.XADATokenID,
 			},
 		}
@@ -347,7 +346,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			operationFee, apex.VectorInfo.MultisigAddr[0])
 		require.NoError(t, err)
 
-		feeAmount.Sub(feeAmount, ethgo.Ether(1))
+		feeAmount.Sub(feeAmount, cardanofw.ApexToWei(big.NewInt(1)))
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDVector).CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDVector), cardanofw.ChainIDNexus,
@@ -362,7 +361,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, cardanofw.ChainIDVector, user,
 			apex.VectorInfo.MultisigAddr[0], totalValue,
 			[]wallet.TokenAmount{
-				{Token: tokensFunded.Token, Amount: cardanofw.WeiToDfm(sendAmount).Uint64()}, // TODO: uint64 to big.int
+				{Token: tokensFunded.Token, Amount: cardanofw.WeiToDfm(sendAmount).Uint64()},
 			},
 			metadata)
 		require.NoError(t, err)
@@ -398,7 +397,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			minterWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			ethgo.Gwei(1_500_000_000), ethgo.Ether(1))
+			cardanofw.DfmToWei(big.NewInt(1_500_000)), cardanofw.ApexToWei(big.NewInt(1)))
 		require.NoError(t, err)
 
 		executeInvalidSendNativeToken(t, ctx, apex, user, vectorNexusXADATestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0)
@@ -412,7 +411,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			apex.VectorInfo.GenesisWallet, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			ethgo.Ether(10), ethgo.Gwei(1_123_000_000))
+			cardanofw.ApexToWei(big.NewInt(10)), cardanofw.DfmToWei(big.NewInt(1_123_000)))
 		require.NoError(t, err)
 
 		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorNexusXADATestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0)
@@ -521,6 +520,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 	)
 
 	var lock sync.Mutex
+
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
@@ -790,7 +790,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 				receivers: map[string]cardanofw.ReceiverAmount{
 					user.GetAddress(cardanofw.ChainIDVector): {
 						TokenID: cardanofw.USDTTokenID,
-						Amount:  ethgo.Gwei(1_000_000_000_001_000),
+						Amount:  cardanofw.DfmToWei(new(big.Int).SetUint64(1_000_000_000_001)),
 					},
 				},
 				operationFee: big.NewInt(0),
@@ -806,15 +806,15 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 
 		_, err = cardanofw.FundUsersWithToken(
 			ctx, vectorChain, apex.VectorInfo.GenesisWallet,
-			apex.Users, cardanofw.XADATokenName, ethgo.Ether(2), ethgo.Gwei(1_000_000_000_001_000))
+			apex.Users, cardanofw.XADATokenName, cardanofw.ApexToWei(big.NewInt(2)), cardanofw.DfmToWei(big.NewInt(1_000_000_000_001)))
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(500000000001)),
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(500_000_000_001)),
 			cardanofw.XADATokenID)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(500000000000)),
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(500_000_000_000)),
 			cardanofw.XADATokenID)
 
 		t.Run("2. Nexus -> Vector xada", func(t *testing.T) {
@@ -970,7 +970,7 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 
 	t.Run("Bridge to relayer, custodial and plutus addresses", func(t *testing.T) {
 		vectorChain := apex.GetChainMust(t, cardanofw.ChainIDVector)
-		sendAmount := ethgo.Ether(5)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(5))
 
 		addresses := []string{
 			vectorChain.GetCustodialAddress(),
@@ -1114,7 +1114,7 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 
 		_, err = cardanofw.FundUsersWithToken(
 			ctx, vectorChain, apex.VectorInfo.GenesisWallet,
-			apex.Users, cardanofw.XADATokenName, ethgo.Ether(400), ethgo.Ether(400))
+			apex.Users, cardanofw.XADATokenName, cardanofw.ApexToWei(big.NewInt(400)), cardanofw.ApexToWei(big.NewInt(400)))
 		require.NoError(t, err)
 
 		for _, user := range apex.Users {
@@ -1291,7 +1291,7 @@ func Test_SkylineBridgeCC_WithRefund(t *testing.T) {
 				srcChainID:      cardanofw.ChainIDCardano,
 				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 			},
-		}, apex.Users[:userCnt], ethgo.Ether(10), cardanofw.DefaultTokenMintAmount)
+		}, apex.Users[:userCnt], cardanofw.ApexToWei(big.NewInt(10)), cardanofw.DefaultTokenMintAmount)
 
 	cardanoNexusTestConfig := newTestConfig(
 		t, apex, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDNexus, cardanofw.ADATokenID)

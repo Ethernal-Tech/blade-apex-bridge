@@ -12,7 +12,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,8 +32,13 @@ func executeInvalidBridgingFee(
 		minBridgingFee, operationFee, user, receivers, config.isCurrency)
 	bytesToReplace := []byte(cardanofw.WeiToChainNativeTokenAmount(config.srcChainID, feeAmount).String())
 
-	metadata = bytes.ReplaceAll(metadata, bytesToReplace,
-		[]byte(cardanofw.WeiToChainNativeTokenAmount(config.srcChainID, new(big.Int).Sub(minBridgingFee, cardanofw.DfmToWei(big.NewInt(1)))).String()))
+	metadata = bytes.ReplaceAll(
+		metadata,
+		bytesToReplace,
+		[]byte(cardanofw.WeiToChainNativeTokenAmount(
+			config.srcChainID,
+			new(big.Int).Sub(minBridgingFee, cardanofw.DfmToWei(big.NewInt(1))),
+		).String()))
 
 	beforeSendingAmount, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
@@ -99,7 +103,8 @@ func executeInvalidFeeReceiverAddr(
 
 		fmt.Printf("txHash: %s\n", txHash)
 
-		WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, initialBalances, cardanofw.DfmToWei(new(big.Int).SetUint64(sentTokenAmount[0].Amount)),
+		WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, initialBalances,
+			cardanofw.DfmToWei(new(big.Int).SetUint64(sentTokenAmount[0].Amount)),
 			refundEnabled, maxWaitTimeSec, retryIntervalSec)
 	}
 }
@@ -109,7 +114,7 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 ) {
 	t.Helper()
 
-	sendAmount := ethgo.Ether(1)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	user := apex.Users[len(apex.Users)-1]
 
@@ -185,7 +190,8 @@ func executeInvalidMismatchSendNativeTokenAmount(
 
 	fmt.Printf("txHash: %s\n", txHash)
 
-	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, cardanofw.DfmToWei(new(big.Int).SetUint64(nativeTokenAmount.Amount)),
+	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm,
+		cardanofw.DfmToWei(new(big.Int).SetUint64(nativeTokenAmount.Amount)),
 		refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 

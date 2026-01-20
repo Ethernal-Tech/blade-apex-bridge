@@ -13,7 +13,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -75,7 +74,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 				srcChainID:      cardanofw.ChainIDCardano,
 				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 			},
-		}, apex.Users[:userCnt], ethgo.Ether(10), cardanofw.DefaultTokenMintAmount)
+		}, apex.Users[:userCnt], cardanofw.ApexToWei(big.NewInt(10)), cardanofw.DefaultTokenMintAmount)
 
 	primeCardanoTestConfig := newTestConfig(
 		t, apex, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, cardanofw.AP3XTokenID)
@@ -274,7 +273,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDCardano,
 			minterWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			ethgo.Gwei(1_500_000_000), ethgo.Ether(1))
+			cardanofw.DfmToWei(big.NewInt(1_500_000)), cardanofw.ApexToWei(big.NewInt(1)))
 		require.NoError(t, err)
 
 		executeInvalidSendNativeToken(t, ctx, apex, user, cardanoPrimeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
@@ -288,7 +287,7 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			apex.VectorInfo.GenesisWallet, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			ethgo.Ether(10), ethgo.Gwei(1_123_000_000))
+			cardanofw.ApexToWei(big.NewInt(10)), cardanofw.DfmToWei(big.NewInt(1_123_000)))
 		require.NoError(t, err)
 
 		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorCardanoTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
@@ -349,7 +348,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 				srcChainID:      cardanofw.ChainIDCardano,
 				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 			},
-		}, apex.Users[:userCnt], ethgo.Ether(10), cardanofw.DefaultTokenMintAmount)
+		}, apex.Users[:userCnt], cardanofw.ApexToWei(big.NewInt(10)), cardanofw.DefaultTokenMintAmount)
 
 	// Fund user on Nexus with USDT token
 	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
@@ -377,7 +376,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			apex.VectorInfo.GenesisWallet, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			ethgo.Ether(10), ethgo.Gwei(1_123_000_000))
+			cardanofw.ApexToWei(big.NewInt(10)), cardanofw.DfmToWei(big.NewInt(1_123_000)))
 		require.NoError(t, err)
 
 		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorNexusXADATestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
@@ -531,7 +530,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 				srcChainID:      cardanofw.ChainIDCardano,
 				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 			},
-		}, apex.Users[:userCnt], ethgo.Ether(10), cardanofw.DefaultTokenMintAmount)
+		}, apex.Users[:userCnt], cardanofw.ApexToWei(big.NewInt(10)), cardanofw.DefaultTokenMintAmount)
 	cardanoToken := tokens[0]
 
 	primeCardanoTestConfig := newTestConfig(
@@ -622,7 +621,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDCardano,
 			minterWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			ethgo.Gwei(1_500_000_000), ethgo.Ether(1))
+			cardanofw.DfmToWei(big.NewInt(1_500_000)), cardanofw.ApexToWei(big.NewInt(1)))
 		require.NoError(t, err)
 
 		cardanoAddrAmounts, err := apex.GetBridgingAddressesTokenAmounts(ctx, cardanofw.ChainIDCardano)
@@ -648,7 +647,7 @@ func TestE2E_SkylineRefund_MBASpecific(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDCardano,
 			apex.CardanoInfo.GenesisWallet, user,
 			cardanofw.CAP3XTokenName, cardanofw.DefaultTokenMintAmount,
-			ethgo.Ether(10), ethgo.Gwei(1_123_000_000))
+			cardanofw.ApexToWei(big.NewInt(10)), cardanofw.DfmToWei(big.NewInt(1_123_000)))
 		require.NoError(t, err)
 
 		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, cardanoPrimeTestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, true, 0)
@@ -828,7 +827,7 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 			srcChainID:      cardanofw.ChainIDCardano,
 			srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 		},
-	}, apex.Users[:1], ethgo.Ether(5), ethgo.Ether(1_000))
+	}, apex.Users[:1], cardanofw.ApexToWei(big.NewInt(5)), cardanofw.ApexToWei(big.NewInt(1_000)))
 
 	var (
 		wg  sync.WaitGroup
@@ -962,7 +961,7 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 					ctx, apex, br.src,
 					apex.GetCardanoInfo(br.src).GenesisWallet, br.sender,
 					tokenName, cardanofw.DefaultTokenMintAmount,
-					ethgo.Ether(10), ethgo.Ether(100))
+					cardanofw.ApexToWei(big.NewInt(10)), cardanofw.ApexToWei(big.NewInt(100)))
 				require.NoError(t, err)
 
 				fmt.Printf("Added new token for chain: %s. Token: %s\n", br.src, token.TokenName())

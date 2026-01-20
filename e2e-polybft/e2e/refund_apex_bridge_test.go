@@ -12,7 +12,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +66,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 	t.Run("4. From prime to vector - not enough funds on destination multisig address", func(t *testing.T) {
 		var (
-			sendAmount = ethgo.Ether(100_600)
+			sendAmount = cardanofw.ApexToWei(big.NewInt(100_600))
 		)
 
 		operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
@@ -86,7 +85,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:    user.GetAddress(cardanofw.ChainIDVector),
-					Amount:  cardanofw.WeiToDfm(sendAmount).Uint64(), // TODO:
+					Amount:  cardanofw.WeiToDfm(sendAmount).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},
 			}, feeAmount, operationFee)
@@ -130,7 +129,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 	})
 
 	t.Run("9. Submitted with tokens to bridging addr", func(t *testing.T) {
-		sendAmount := ethgo.Ether(6)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(6))
 
 		operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
 		feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, true)
@@ -149,7 +148,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDPrime,
 			minterWallet, brSubmitterUser,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			ethgo.Ether(10), ethgo.Ether(1))
+			cardanofw.ApexToWei(big.NewInt(10)), cardanofw.ApexToWei(big.NewInt(1)))
 		require.NoError(t, err)
 
 		beforeSendingAmount, err := apex.GetBalance(ctx, brSubmitterUser, cardanofw.ChainIDPrime)
@@ -165,7 +164,7 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:    user.GetAddress(cardanofw.ChainIDVector),
-					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, feeAmount)).Uint64(), // TODO:
+					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, feeAmount)).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},
 			}, feeAmount, operationFee)
@@ -222,7 +221,7 @@ func TestE2E_ApexRefund_BatchRecreated(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	sendAmount := ethgo.Ether(1)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 	feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
 
 	brSubmitterUser := apex.Users[0]
@@ -287,8 +286,8 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxSubmitTryCount(t *testing.T) {
 	user := apex.Users[0]
 
 	var (
-		sendAmount  = ethgo.Ether(100_600)
-		sendAmount2 = ethgo.Ether(1)
+		sendAmount  = cardanofw.ApexToWei(big.NewInt(100_600))
+		sendAmount2 = cardanofw.ApexToWei(big.NewInt(1))
 	)
 
 	const (
@@ -368,7 +367,7 @@ func TestE2E_ApexRefund_ComplexScenarios_MaxBatchTryCount(t *testing.T) {
 	user := apex.Users[0]
 
 	var (
-		sendAmount = ethgo.Ether(80_000)
+		sendAmount = cardanofw.ApexToWei(big.NewInt(80_000))
 	)
 
 	feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
@@ -496,8 +495,8 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 
 		err error
 
-		sendAmount     = ethgo.Ether(1)
-		hugeSendAmount = ethgo.Ether(100_600)
+		sendAmount     = cardanofw.ApexToWei(big.NewInt(1))
+		hugeSendAmount = cardanofw.ApexToWei(big.NewInt(100_600))
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())

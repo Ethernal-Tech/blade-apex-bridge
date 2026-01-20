@@ -13,7 +13,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,7 +34,7 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(1),
 	)
-	sendAmount := ethgo.Ether(1)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
@@ -139,7 +138,7 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_ValidScenarios(t *testing.T) {
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
-	sendAmount := ethgo.Ether(1)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 	user := apex.Users[userCnt-1]
 	srcChain := cardanofw.ChainIDNexus
 
@@ -276,7 +275,7 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 
 	for _, dstChain := range dstChains {
 		t.Run("Wrong Tx-Type", func(t *testing.T) {
-			sendAmountWei := ethgo.Ether(uint64(1))
+			sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 			userPk, err := user.GetPrivateKey(srcChain)
 			require.NoError(t, err)
@@ -288,13 +287,13 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				userPk, dstChain,
 				user.GetAddress(dstChain),
 				apex.GetChainIDsConfig(),
-				sendAmountWei, fee,
+				sendAmount, fee,
 			)
 			require.ErrorContains(t, err, "failed to execute command")
 		})
 
 		t.Run("Wrong Nexus URL", func(t *testing.T) {
-			sendAmountWei := ethgo.Ether(uint64(1))
+			sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 			userPk, err := user.GetPrivateKey(srcChain)
 			require.NoError(t, err)
@@ -306,7 +305,7 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				userPk, dstChain,
 				user.GetAddress(dstChain),
 				apex.GetChainIDsConfig(),
-				sendAmountWei, fee,
+				sendAmount, fee,
 			)
 			require.ErrorContains(t, err, "Error: invalid --rpc-url flag")
 		})
@@ -326,7 +325,7 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				ctx, srcChain, nexusAdminUser, unfundedUser.NexusAddress.String(), big.NewInt(10), nil, nil)
 			require.NoError(t, err)
 
-			sendAmountWei := ethgo.Ether(uint64(20)) // try to send 20 ethers with users without enough funds
+			sendAmount := cardanofw.ApexToWei(big.NewInt(20)) // try to send 20 apexs with users without enough funds
 
 			// call SendTx command
 			err = sendTxParamsNPInvalidScenarios("evm",
@@ -335,7 +334,7 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				unfundedUserPk, dstChain,
 				unfundedUser.GetAddress(dstChain),
 				apex.GetChainIDsConfig(),
-				sendAmountWei, fee,
+				sendAmount, fee,
 			)
 			require.ErrorContains(t, err, "insufficient funds for execution")
 		})
@@ -369,7 +368,7 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
 	user := apex.Users[userCnt-1]
-	sendAmount := ethgo.Ether(1)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	t.Run("From Prime to Nexus one by one - wait for other side", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
@@ -632,20 +631,19 @@ func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
 // struggling on GH Actions
 func TestE2E_ABWithNexus_ApexRefund_DstN_InvalidScenarios(t *testing.T) {
 	const (
-		apiKey  = "test_api_key"
-		userCnt = 15
+		apiKey        = "test_api_key"
+		userCnt       = 15
+		premineAmount = uint64(50_000_000)
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	premineAmount := ethgo.Ether(50)
-
 	primeConfig := cardanofw.NewPrimeChainConfig()
-	primeConfig.PremineAmount = cardanofw.WeiToDfm(premineAmount).Uint64()
+	primeConfig.PremineAmount = premineAmount
 
 	vectorConfig := cardanofw.NewVectorChainConfig()
-	vectorConfig.PremineAmount = cardanofw.WeiToDfm(premineAmount).Uint64()
+	vectorConfig.PremineAmount = premineAmount
 
 	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
@@ -661,41 +659,41 @@ func TestE2E_ABWithNexus_ApexRefund_DstN_InvalidScenarios(t *testing.T) {
 	user := apex.Users[userCnt-1]
 
 	t.Run("Submitter not enough funds", func(t *testing.T) {
-		sendAmountWei := ethgo.Ether(100)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(100))
 
-		DstNexusSubmitterNotEnoughFunds(t, ctx, apex, cardanofw.ChainIDPrime, user, sendAmountWei)
+		DstNexusSubmitterNotEnoughFunds(t, ctx, apex, cardanofw.ChainIDPrime, user, sendAmount)
 	})
 
 	t.Run("Submitted invalid metadata", func(t *testing.T) {
-		sendAmountWei := ethgo.Ether(1)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
-		DstNexusInvalidMetadataSlicedOff(t, ctx, apex, cardanofw.ChainIDVector, user, sendAmountWei)
+		DstNexusInvalidMetadataSlicedOff(t, ctx, apex, cardanofw.ChainIDVector, user, sendAmount)
 	})
 
 	t.Run("Submitted invalid metadata - wrong type", func(t *testing.T) {
-		sendAmountWei := ethgo.Ether(1)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 		DstNexusInvalidMetadataWrongType(
 			t, ctx, apex, cardanofw.ChainIDPrime, user, cardanofw.DefaultRequestStateTimeoutSec,
-			sendAmountWei)
+			sendAmount)
 	})
 
 	t.Run("Submitted invalid metadata - invalid destination", func(t *testing.T) {
-		sendAmountWei := ethgo.Ether(1)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
-		DstNexusInvalidMetadataInvalidDestination(t, ctx, apex, cardanofw.ChainIDVector, user, 0, sendAmountWei)
+		DstNexusInvalidMetadataInvalidDestination(t, ctx, apex, cardanofw.ChainIDVector, user, 0, sendAmount)
 	})
 
 	t.Run("Submitted invalid metadata - invalid sender", func(t *testing.T) {
-		sendAmountWei := ethgo.Ether(1)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
-		DstNexusInvalidMetadataInvalidSender(t, ctx, apex, cardanofw.ChainIDPrime, user, 0, sendAmountWei)
+		DstNexusInvalidMetadataInvalidSender(t, ctx, apex, cardanofw.ChainIDPrime, user, 0, sendAmount)
 	})
 
 	t.Run("Submitted invalid metadata - empty tx", func(t *testing.T) {
-		sendAmountWei := ethgo.Ether(1)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
-		DstNexusInvalidMetadataInvalidTransactions(t, ctx, apex, cardanofw.ChainIDVector, user, 0, sendAmountWei)
+		DstNexusInvalidMetadataInvalidTransactions(t, ctx, apex, cardanofw.ChainIDVector, user, 0, sendAmount)
 	})
 }
 
@@ -707,7 +705,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 		userCnt = 1
 	)
 
-	sendAmountWei := ethgo.Ether(1)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	t.Run("Test insufficient gas price dynamicTx=true", func(t *testing.T) {
 		if cardanofw.ShouldSkipE2RRedundantTests() {
@@ -743,7 +741,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			SourceChain:      srcChain,
 			DestinationChain: cardanofw.ChainIDNexus,
 			Sender:           user,
-			WeiAmount:        sendAmountWei,
+			WeiAmount:        sendAmount,
 			SrcTokenID:       cardanofw.AP3XTokenID,
 			Receivers:        []*cardanofw.TestApexUser{user},
 		})
@@ -817,7 +815,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			SourceChain:      srcChain,
 			DestinationChain: cardanofw.ChainIDNexus,
 			Sender:           user,
-			WeiAmount:        sendAmountWei,
+			WeiAmount:        sendAmount,
 			SrcTokenID:       cardanofw.AP3XTokenID,
 			Receivers:        []*cardanofw.TestApexUser{user},
 		})
@@ -884,7 +882,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			SourceChain:      srcChain,
 			DestinationChain: cardanofw.ChainIDNexus,
 			Sender:           user,
-			WeiAmount:        sendAmountWei,
+			WeiAmount:        sendAmount,
 			SrcTokenID:       cardanofw.AP3XTokenID,
 			Receivers:        []*cardanofw.TestApexUser{user},
 		})
@@ -961,7 +959,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 
 		fmt.Printf("Dfm before Tx %d\n", prevBalanceDfm)
 
-		expectedAmount := new(big.Int).Set(sendAmountWei)
+		expectedAmount := new(big.Int).Set(sendAmount)
 		expectedAmount = expectedAmount.Add(expectedAmount, prevBalanceDfm)
 
 		txHash, err := apex.SubmitBridgingRequest(cardanofw.SubmitBridgingRequestData{
@@ -969,7 +967,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			SourceChain:      srcChain,
 			DestinationChain: cardanofw.ChainIDNexus,
 			Sender:           user,
-			WeiAmount:        sendAmountWei,
+			WeiAmount:        sendAmount,
 			SrcTokenID:       cardanofw.AP3XTokenID,
 			TokensInfo:       tokensInfo,
 			Receivers:        []*cardanofw.TestApexUser{user},
@@ -1028,7 +1026,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 
 		fmt.Printf("DFM Amount before Tx %d\n", prevBalanceDfm)
 
-		expectedAmount := new(big.Int).Set(sendAmountWei)
+		expectedAmount := new(big.Int).Set(sendAmount)
 		expectedAmount = expectedAmount.Add(expectedAmount, prevBalanceDfm)
 
 		txHash, err := apex.SubmitBridgingRequest(cardanofw.SubmitBridgingRequestData{
@@ -1036,7 +1034,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 			SourceChain:      srcChain,
 			DestinationChain: cardanofw.ChainIDNexus,
 			Sender:           user,
-			WeiAmount:        sendAmountWei,
+			WeiAmount:        sendAmount,
 			SrcTokenID:       cardanofw.AP3XTokenID,
 			TokensInfo:       tokensInfo,
 			Receivers:        []*cardanofw.TestApexUser{user},
@@ -1094,7 +1092,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 		fmt.Printf("DFM Amount before Tx %d\n", prevBalanceWei)
 
 		ethExpectedBalance := big.NewInt(int64(instances))
-		ethExpectedBalance.Mul(ethExpectedBalance, sendAmountWei)
+		ethExpectedBalance.Mul(ethExpectedBalance, sendAmount)
 		ethExpectedBalance.Add(ethExpectedBalance, prevBalanceWei)
 
 		for i := 0; i < instances; i++ {
@@ -1103,7 +1101,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 				SourceChain:      srcChain,
 				DestinationChain: cardanofw.ChainIDNexus,
 				Sender:           user,
-				WeiAmount:        sendAmountWei,
+				WeiAmount:        sendAmount,
 				SrcTokenID:       cardanofw.AP3XTokenID,
 				TokensInfo:       tokensInfo,
 				Receivers:        []*cardanofw.TestApexUser{user},
@@ -1160,7 +1158,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 		fmt.Printf("DFM Amount before Tx %d\n", prevBalanceWei)
 
 		ethExpectedBalance := big.NewInt(int64(instances))
-		ethExpectedBalance.Mul(ethExpectedBalance, sendAmountWei)
+		ethExpectedBalance.Mul(ethExpectedBalance, sendAmount)
 		ethExpectedBalance.Add(ethExpectedBalance, prevBalanceWei)
 
 		for i := 0; i < instances; i++ {
@@ -1169,7 +1167,7 @@ func TestE2E_ABWithNexus_ApexRefund_BatchFailed(t *testing.T) {
 				SourceChain:      srcChain,
 				DestinationChain: cardanofw.ChainIDNexus,
 				Sender:           user,
-				WeiAmount:        sendAmountWei,
+				WeiAmount:        sendAmount,
 				SrcTokenID:       cardanofw.AP3XTokenID,
 				TokensInfo:       tokensInfo,
 				Receivers:        []*cardanofw.TestApexUser{user},
@@ -1252,21 +1250,21 @@ func TestE2E_ApexBridgeWithNexus_NexusFundAmount(t *testing.T) {
 	}{
 		{
 			name:       "From nexus to prime - not enough funds",
-			sendAmount: ethgo.Ether(5),
+			sendAmount: cardanofw.ApexToWei(big.NewInt(5)),
 			fromChain:  cardanofw.ChainIDNexus,
 			toChain:    cardanofw.ChainIDPrime,
 			fundAmount: fundAmount,
 		},
 		{
 			name:       "From prime to nexus - not enough funds",
-			sendAmount: ethgo.Ether(15),
+			sendAmount: cardanofw.ApexToWei(big.NewInt(15)),
 			fromChain:  cardanofw.ChainIDPrime,
 			toChain:    cardanofw.ChainIDNexus,
 			fundAmount: fundAmount,
 		},
 		{
 			name:       "From nexus to vector - not enough funds",
-			sendAmount: ethgo.Ether(5),
+			sendAmount: cardanofw.ApexToWei(big.NewInt(5)),
 			fromChain:  cardanofw.ChainIDNexus,
 			toChain:    cardanofw.ChainIDVector,
 			fundAmount: fundAmount,
@@ -1334,10 +1332,10 @@ func TestE2E_ApexBridgeWithNexus_PrimeGoesDownAndThenUp(t *testing.T) {
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
 	user := apex.Users[0]
-	sendAmount := ethgo.Ether(1)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	// execute nexus to prime -> no wait
-	prevAmountPrime, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime) // TODO: maybe rename this
+	prevAmountPrime, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 	require.NoError(t, err)
 
 	tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, cardanofw.AP3XTokenID)
@@ -1435,7 +1433,7 @@ func SrcNexusSubmitterNotEnoughFunds(
 
 	fee := cardanofw.WeiToChainNativeTokenAmount(
 		cardanofw.ChainIDNexus, apex.GetMinBridgingFee(cardanofw.ChainIDNexus, false))
-	sendAmountWei := ethgo.Ether(uint64(2))
+	sendAmount := cardanofw.ApexToWei(big.NewInt(2))
 
 	unfundedUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 	require.NoError(t, err)
@@ -1450,7 +1448,7 @@ func SrcNexusSubmitterNotEnoughFunds(
 		unfundedUserPk, dstChain,
 		unfundedUser.GetAddress(dstChain),
 		apex.GetChainIDsConfig(),
-		sendAmountWei, fee,
+		sendAmount, fee,
 	)
 	require.ErrorContains(t, err, "insufficient funds for execution")
 }
@@ -1793,7 +1791,7 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
 	user := apex.Users[0]
-	sendAmount := ethgo.Ether(1)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	// execute prime to nexus -> no wait
 	prevAmountNexus, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)

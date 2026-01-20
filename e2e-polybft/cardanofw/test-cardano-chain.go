@@ -25,7 +25,6 @@ import (
 	"github.com/Ethernal-Tech/cardano-infrastructure/indexer/gouroboros"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/Ethernal-Tech/ethgo"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
@@ -35,8 +34,8 @@ const (
 )
 
 var (
-	defaultFundTokenAmount   = ethgo.Ether(100_000) // TODO: i think thats ok to be wei, idk
-	defaultPremineAmount     = ethgo.Ether(20_000)  // TODO: i think thats ok to be wei, idk
+	defaultFundTokenAmount   = ApexToWei(big.NewInt(100_000))
+	defaultPremineAmount     = ApexToWei(big.NewInt(20_000))
 	defaultNativeTokenAmount = big.NewInt(0)
 )
 
@@ -581,6 +580,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		if twoMinUtxo.Cmp(amount) > 0 {
 			amount.Set(twoMinUtxo)
 		}
+
 		tokenAmount := new(big.Int).SetUint64(ec.config.FundTokenAmount)
 
 		token, _, err := GetTokenAndPolicyForVerificationKey(
@@ -590,7 +590,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		}
 
 		if ta := ec.config.FundTokenAmount; ta != 0 {
-			if err := MintToken(ec, minterWallet, ec.config.FundTokenName, big.NewInt(0).SetUint64(ta)); err != nil { // TODO: check for this
+			if err := MintToken(ec, minterWallet, ec.config.FundTokenName, big.NewInt(0).SetUint64(ta)); err != nil {
 				return err
 			}
 		}
@@ -812,7 +812,7 @@ func (ec *TestCardanoChain) GetBridgingFee(
 	bridgingFee *big.Int,
 	operationFee *big.Int,
 	multiSigAddr string,
-) (*big.Int, error) { // TODO: maybe it will be big.Int
+) (*big.Int, error) {
 	fee, err := ec.txSender.GetBridgingFee(
 		ctx,
 		sendtx.BridgingTxDto{
@@ -837,7 +837,6 @@ func (ec *TestCardanoChain) CreateMetadata(
 	bridgingFee *big.Int,
 	operationFee *big.Int,
 ) ([]byte, error) {
-	// TODO: receivers can be WEI maybe
 	metadata, err := ec.txSender.CreateMetadata(
 		senderAddr, ec.ChainID(), dstChainID, receivers, WeiToDfm(bridgingFee).Uint64(), WeiToDfm(operationFee).Uint64())
 	if err != nil {

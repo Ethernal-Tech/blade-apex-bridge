@@ -107,7 +107,7 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 
 			if chain == cardanofw.ChainIDNexus {
 				change = cardanofw.PotentialFee
-				balanceAtleast = new(big.Int).Set(change) // TODO: see logic after
+				balanceAtleast = new(big.Int).Set(change)
 			} else {
 				txProvider, err := chainInfo[chain].info.GetTxProvider()
 				require.NoError(t, err)
@@ -141,9 +141,9 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 						Tokens: tokens,
 					},
 				})
-				require.NoError(t, err) // TODO: check for return value, amybe it will be big.Int
+				require.NoError(t, err)
 
-				minUtxoBig := cardanofw.DfmToWei(new(big.Int).SetUint64(minUtxo)) // TODO: delete this if it will be in wei
+				minUtxoBig := cardanofw.DfmToWei(new(big.Int).SetUint64(minUtxo))
 
 				change = new(big.Int)
 				if minUtxoBig.Cmp(cardanofw.MinUTxODefaultValue) > 0 {

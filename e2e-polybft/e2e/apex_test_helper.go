@@ -183,7 +183,7 @@ func submitColCoinsMismatchAndWait(
 
 	sentTokenAmount := []wallet.TokenAmount{{
 		Token:  token,
-		Amount: cardanofw.WeiToDfm(amount).Uint64(), // TODO: classic wallet problem
+		Amount: cardanofw.WeiToDfm(amount).Uint64(),
 	}}
 
 	submitMismatchAndWait(t, ctx, apex, config, user, metadata, weiAmount, sentTokenAmount, waitForAmount,
@@ -196,7 +196,13 @@ func executeInvalidMismatchSendLovelaceAmount(
 ) {
 	t.Helper()
 
-	receivers := createReceivers(apex, 1, config.dstChainID, new(big.Int).Mul(defaultSendAmount, big.NewInt(10)), config.tokenID)
+	receivers := createReceivers(
+		apex,
+		1,
+		config.dstChainID,
+		new(big.Int).Mul(defaultSendAmount, big.NewInt(10)),
+		config.tokenID,
+	)
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 
@@ -586,19 +592,19 @@ func executeInvalidTokenDirection(
 func getDefaultSendAmounts(
 	t *testing.T, config *testConfig,
 	feeAmount *big.Int, operationFee *big.Int,
-) (*big.Int, []wallet.TokenAmount, *big.Int) { // TODO: check this function once again
+) (*big.Int, []wallet.TokenAmount, *big.Int) {
 	t.Helper()
 
 	amount := new(big.Int).Add(feeAmount, operationFee)
 
 	waitForAmount := new(big.Int)
+
 	var tokens []wallet.TokenAmount
 
 	if config.isCurrency {
 		amount.Add(amount, defaultSendAmount)
 
 		waitForAmount.Set(amount)
-
 	} else {
 		waitForAmount.Set(defaultSendAmount)
 
@@ -607,7 +613,7 @@ func getDefaultSendAmounts(
 
 		tokens = []wallet.TokenAmount{{
 			Token:  token,
-			Amount: cardanofw.WeiToDfm(defaultSendAmount).Uint64(), // TODO: change this to wei
+			Amount: cardanofw.WeiToDfm(defaultSendAmount).Uint64(),
 		}}
 	}
 
@@ -658,7 +664,7 @@ func createObsoleteMetadata(
 		txs[i] = BridgingRequestMetadataTransactionBC{
 			Address:                     sendtx.AddrToMetaDataAddr(x.Addr),
 			IsNativeTokenOnSrc_Obsolete: boolToByte[!isCurrency],
-			Amount:                      new(big.Int).SetUint64(x.Amount), // TODO: this probably will be big.Int
+			Amount:                      new(big.Int).SetUint64(x.Amount),
 			TokenID:                     0,
 		}
 	}
