@@ -1488,7 +1488,7 @@ func (a *ApexSystem) UpdateChainTokenQuantity(
 }
 
 func (a *ApexSystem) DefundHotWallet(
-	chain ChainID, defundReceiverAddress string, defundDfm *big.Int, defundNativeTokenAmount *big.Int,
+	chain ChainID, defundReceiverAddress string, defundAmount *big.Int, defundNativeTokenAmount *big.Int,
 ) error {
 	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
 	if err != nil {
@@ -1502,7 +1502,7 @@ func (a *ApexSystem) DefundHotWallet(
 		"--chain-ids-config", a.GetChainIDsConfig(),
 		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
 		"--chain", chain,
-		"--amount", defundDfm.String(),
+		"--amount", defundAmount.String(),
 		"--native-token-amount", defundNativeTokenAmount.String(),
 		"--key", pk,
 		"--addr", defundReceiverAddress,
