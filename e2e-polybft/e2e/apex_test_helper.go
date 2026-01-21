@@ -115,7 +115,7 @@ func WaitForInvalidTestResult(
 		lowerBoundary := new(big.Int).Sub(
 			beforeSendingAmount[config.tokensInfo.SrcTokenName], sentAmount)
 
-		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundary,
+		fmt.Printf("Tx sent. hash: %s, lowerBoundary: %+v, higherBoundary: %+v\n", txHash, lowerBoundary,
 			beforeSendingAmount)
 
 		err := apex.WaitForAmountInRange(ctx, user, config.srcChainID, lowerBoundary,

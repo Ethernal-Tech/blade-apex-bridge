@@ -457,7 +457,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, minColCoinsAllowedToBridge,
 			cardanofw.USDTTokenID)
 
-		invalidAmount := new(big.Int).Sub(minColCoinsAllowedToBridge, big.NewInt(1))
+		invalidAmount := new(big.Int).Sub(minColCoinsAllowedToBridge, cardanofw.DfmToWei(big.NewInt(1)))
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
 				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, invalidAmount, cardanofw.USDTTokenID),
