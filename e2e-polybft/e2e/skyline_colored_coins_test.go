@@ -547,7 +547,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 			defer lock.Unlock()
 
 			nexusCfg := cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)
-			nexusCfg["minColCoinsAllowedToBridge"] = cardanofw.DfmToWei(big.NewInt(int64(minColCoinsAllowedToBridge))).String()
+			nexusCfg["minColCoinsAllowedToBridge"] = cardanofw.DfmToWei(big.NewInt(int64(minColCoinsAllowedToBridge)))
 		}, nil, nil, nil),
 	)
 

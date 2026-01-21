@@ -155,7 +155,7 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		FundTokenName:               CAP3XTokenName,
 		DefaultMinBridgingFee:       WeiToDfm(defaultMinBridgingFeeAmount).Uint64(),
 		MinBridgingFeeForTokens:     WeiToDfm(defaultMinBridgingFeeAmountForTokens).Uint64(),
-		MinOperationFee:             DefaultMinOperationFee.Uint64(),
+		MinOperationFee:             WeiToDfm(DefaultMinOperationFee).Uint64(),
 		BridgingAddressCnt:          1,
 	}
 }

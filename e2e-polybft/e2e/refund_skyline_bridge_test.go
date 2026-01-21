@@ -309,6 +309,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 
 	var (
 		minColCoinsAllowedToBridge = cardanofw.DfmToWei(big.NewInt(2))
+		lock                       sync.Mutex
 	)
 
 	ctx, cncl := context.WithCancel(context.Background())
@@ -328,8 +329,13 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithNexusConfig(nexusConfig),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			setting["minColCoinsAllowedToBridge"] = minColCoinsAllowedToBridge
+			t.Helper()
+
+			lock.Lock()
+			defer lock.Unlock()
+
+			nexusCfg := cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)
+			nexusCfg["minColCoinsAllowedToBridge"] = minColCoinsAllowedToBridge
 		}, nil, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
@@ -695,7 +701,7 @@ func TestE2E_SkylineRefund_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			setting["maxAmountAllowedToBridge"] = cardanofw.ApexToWei(big.NewInt(5)).String()
+			setting["maxAmountAllowedToBridge"] = cardanofw.ApexToWei(big.NewInt(5))
 		}, nil, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
@@ -794,7 +800,7 @@ func TestE2E_SkylineRefund_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			setting["maxTokenAmountAllowedToBridge"] = cardanofw.ApexToWei(big.NewInt(5)).String()
+			setting["maxTokenAmountAllowedToBridge"] = cardanofw.ApexToWei(big.NewInt(5))
 		}, nil, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
