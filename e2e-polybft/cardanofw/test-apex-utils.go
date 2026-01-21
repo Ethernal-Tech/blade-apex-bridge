@@ -670,7 +670,7 @@ func FundUserWithToken(
 	minterWallet *wallet.Wallet, userToFund *TestApexUser,
 	tokenName string, mintAmount *big.Int,
 	fundAmount *big.Int, tokenFundAmount *big.Int,
-) (*wallet.TokenAmount, error) {
+) (*GenericTokenAmount, error) {
 	chain, err := apex.getChain(chainID)
 	if err != nil {
 		return nil, err
@@ -691,7 +691,7 @@ func FundAddressWithToken(
 	minterWallet *wallet.Wallet, addrToFund string,
 	tokenName string, mintAmount *big.Int,
 	weiFundAmount *big.Int, tokenFundAmount *big.Int,
-) (*wallet.TokenAmount, error) {
+) (*GenericTokenAmount, error) {
 	if weiFundAmount == nil || weiFundAmount.Sign() <= 0 {
 		return nil, fmt.Errorf("wei amount must be greater than zero")
 	}
@@ -708,7 +708,7 @@ func FundAddressWithToken(
 		return nil, err
 	}
 
-	tokenAmount := wallet.NewTokenAmount(token, WeiToDfm(tokenFundAmount).Uint64())
+	tokenAmount := NewGenericTokenAmount(token, tokenFundAmount)
 
 	minterAddr, err := GetAddress(chain.config.NetworkType, minterWallet)
 	if err != nil {
@@ -747,7 +747,7 @@ func FundUsersWithToken(
 	ctx context.Context, chain *TestCardanoChain,
 	sender *wallet.Wallet, users []*TestApexUser,
 	tokenName string, fundAmount *big.Int, tokenFundAmount *big.Int,
-) (*wallet.TokenAmount, error) {
+) (*GenericTokenAmount, error) {
 	addrs := make([]string, len(users))
 
 	for i, u := range users {
@@ -762,14 +762,14 @@ func FundAddressesWithToken(
 	ctx context.Context, chain *TestCardanoChain,
 	sender *wallet.Wallet, addrs []string,
 	tokenName string, fundAmount *big.Int, tokenFundAmount *big.Int,
-) (*wallet.TokenAmount, error) {
+) (*GenericTokenAmount, error) {
 	token, _, err := GetTokenAndPolicyForVerificationKey(
 		chain.ChainID(), chain.config.NetworkType, sender.VerificationKey, tokenName)
 	if err != nil {
 		return nil, err
 	}
 
-	tokenAmount := wallet.NewTokenAmount(token, WeiToDfm(tokenFundAmount).Uint64())
+	tokenAmount := NewGenericTokenAmount(token, tokenFundAmount)
 	privateKey := ToCardanoPrivateKeyString(sender.SigningKey, sender.StakeSigningKey)
 	receivers := make([]GenericTxReceiver, len(addrs))
 
@@ -777,7 +777,7 @@ func FundAddressesWithToken(
 		receivers[i] = GenericTxReceiver{
 			Addr:   addr,
 			Amount: fundAmount,
-			NativeTokens: []wallet.TokenAmount{
+			NativeTokens: []GenericTokenAmount{
 				tokenAmount,
 			},
 		}

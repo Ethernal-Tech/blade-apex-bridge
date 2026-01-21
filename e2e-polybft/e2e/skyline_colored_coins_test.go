@@ -60,11 +60,10 @@ func Test_CardanoToNexus(t *testing.T) {
 
 		_, err = apex.SubmitTx(
 			ctx, cardanofw.ChainIDNexus, user,
-			receiver.GetAddress(cardanofw.ChainIDNexus), big.NewInt(1_000_000),
-			[]wallet.TokenAmount{
-				{Token: wallet.Token{PolicyID: apex.NexusInfo.Tokens[cardanofw.USDTTokenID].ChainSpecific}, Amount: 2},
-			},
-			[]byte{})
+			receiver.GetAddress(cardanofw.ChainIDNexus), cardanofw.ApexToWei(big.NewInt(1)),
+			[]cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(
+				wallet.Token{PolicyID: apex.NexusInfo.Tokens[cardanofw.USDTTokenID].ChainSpecific}, cardanofw.DfmToWei(big.NewInt(2))),
+			}, []byte{})
 		require.NoError(t, err)
 
 		balance, err = nexusChain.GetAddressBalance(ctx, receiver.GetAddress(cardanofw.ChainIDNexus))
@@ -360,10 +359,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 		txHash, err := apex.SubmitTx(
 			ctx, cardanofw.ChainIDVector, user,
 			apex.VectorInfo.MultisigAddr[0], totalValue,
-			[]wallet.TokenAmount{
-				{Token: tokensFunded.Token, Amount: cardanofw.WeiToDfm(sendAmount).Uint64()},
-			},
-			metadata)
+			[]cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(tokensFunded.Token, sendAmount)}, metadata)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDVector, txHash, apex.Config.APIKey, 0)

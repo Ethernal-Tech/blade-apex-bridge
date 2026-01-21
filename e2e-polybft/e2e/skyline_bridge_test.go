@@ -808,9 +808,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		txHash, err := apex.SubmitTx(
 			ctx, cardanofw.ChainIDVector, user,
 			apex.VectorInfo.MultisigAddr[0], totalValue,
-			[]wallet.TokenAmount{
-				{Token: tokensFunded.Token, Amount: cardanofw.WeiToDfm(sendAmount).Uint64()},
-			},
+			[]cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(tokensFunded.Token, sendAmount)},
 			metadata)
 		require.NoError(t, err)
 
@@ -2527,12 +2525,12 @@ func TestE2E_SkylineBridge_DisabledDirection(t *testing.T) {
 func fundTestUsersWithToken(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, testConfigs []*testConfig,
 	users []*cardanofw.TestApexUser, amount, tokenAmount *big.Int,
-) []*wallet.TokenAmount {
+) []*cardanofw.GenericTokenAmount {
 	t.Helper()
 
 	wg := sync.WaitGroup{}
 	errs := make([]error, len(testConfigs))
-	tokenAmounts := make([]*wallet.TokenAmount, len(testConfigs))
+	tokenAmounts := make([]*cardanofw.GenericTokenAmount, len(testConfigs))
 
 	for i, tcfg := range testConfigs {
 		wg.Add(1)

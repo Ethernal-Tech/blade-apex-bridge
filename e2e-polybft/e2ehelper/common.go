@@ -8,7 +8,6 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
-	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
 type IApexSystem interface {
@@ -33,7 +32,7 @@ type IApexSystem interface {
 	) error
 	SubmitTx(
 		ctx context.Context, sourceChain cardanofw.ChainID, sender *cardanofw.TestApexUser,
-		receiver string, dfmAmount *big.Int, nativeTokenAmounts []cardanowallet.TokenAmount, data []byte,
+		receiver string, dfmAmount *big.Int, nativeTokenAmounts []cardanofw.GenericTokenAmount, data []byte,
 	) (string, error)
 	RedistributeTokens(
 		ctx context.Context, chainID cardanofw.ChainID,

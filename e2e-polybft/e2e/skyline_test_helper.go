@@ -11,7 +11,6 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
-	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -104,8 +103,7 @@ func executeInvalidFeeReceiverAddr(
 		fmt.Printf("txHash: %s\n", txHash)
 
 		WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, initialBalances,
-			cardanofw.DfmToWei(new(big.Int).SetUint64(sentTokenAmount[0].Amount)),
-			refundEnabled, maxWaitTimeSec, retryIntervalSec)
+			sentTokenAmount[0].Amount, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 	}
 }
 
@@ -155,15 +153,16 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 
 func executeInvalidMismatchSendNativeTokenAmount(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
-	config *testConfig, nativeTokenAmount wallet.TokenAmount,
+	config *testConfig, nativeTokenAmount cardanofw.GenericTokenAmount,
 	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
+	nativeTokenAmountDfm := cardanofw.WeiToDfm(nativeTokenAmount.Amount).Uint64()
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    user.GetAddress(config.dstChainID),
-			Amount:  nativeTokenAmount.Amount,
+			Amount:  nativeTokenAmountDfm,
 			TokenID: config.tokensInfo.SrcTokenID,
 		},
 	}
@@ -176,7 +175,7 @@ func executeInvalidMismatchSendNativeTokenAmount(
 		minBridgingFee, operationFee, user, receivers, config.isCurrency)
 
 	bridgingRequestMetadata := bytes.Replace(metadata,
-		[]byte(fmt.Sprintf("%d", nativeTokenAmount.Amount)), []byte(fmt.Sprintf("%d", nativeTokenAmount.Amount+1)), 1)
+		[]byte(fmt.Sprintf("%d", nativeTokenAmountDfm)), []byte(fmt.Sprintf("%d", nativeTokenAmountDfm+1)), 1)
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
@@ -184,20 +183,19 @@ func executeInvalidMismatchSendNativeTokenAmount(
 	txHash, err := apex.SubmitTx(ctx, config.srcChainID,
 		user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		new(big.Int).Add(feeAmount, operationFee),
-		[]wallet.TokenAmount{nativeTokenAmount}, bridgingRequestMetadata,
+		[]cardanofw.GenericTokenAmount{nativeTokenAmount}, bridgingRequestMetadata,
 	)
 	require.NoError(t, err)
 
 	fmt.Printf("txHash: %s\n", txHash)
 
 	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm,
-		cardanofw.DfmToWei(new(big.Int).SetUint64(nativeTokenAmount.Amount)),
-		refundEnabled, maxWaitTimeSec, retryIntervalSec)
+		nativeTokenAmount.Amount, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
 func executeInvalidSendNativeToken(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
-	config *testConfig, nativeTokenAmount wallet.TokenAmount,
+	config *testConfig, nativeTokenAmount cardanofw.GenericTokenAmount,
 	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
@@ -240,7 +238,7 @@ func executeInvalidSendNativeToken(
 
 	txHash, err := apex.SubmitTx(ctx, config.srcChainID, user,
 		apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		weiAmount, []wallet.TokenAmount{nativeTokenAmount}, metadata)
+		weiAmount, []cardanofw.GenericTokenAmount{nativeTokenAmount}, metadata)
 	require.NoError(t, err)
 
 	fmt.Printf("txHash: %s\n", txHash)

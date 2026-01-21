@@ -1425,7 +1425,7 @@ func (a *ApexSystem) WaitForAmount(
 			return nil, err
 		}
 
-		// fmt.Printf("Amounts: %+v, tokenName: %+v\n", amounts, tokenName)
+		fmt.Printf("Amounts: %+v, tokenName: %+v\n", amounts, tokenName)
 		newBalance := amounts[tokenName]
 		if newBalance == nil {
 			newBalance = big.NewInt(0)
@@ -1653,7 +1653,7 @@ func (a *ApexSystem) RedistributeTokens(
 
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
-	receiverAddr string, amount *big.Int, nativeTokens []cardanowallet.TokenAmount, data []byte,
+	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte,
 ) (string, error) {
 	const (
 		numRetries = 5

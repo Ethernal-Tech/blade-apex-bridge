@@ -970,7 +970,7 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 					cardanofw.ApexToWei(big.NewInt(10)), cardanofw.ApexToWei(big.NewInt(100)))
 				require.NoError(t, err)
 
-				fmt.Printf("Added new token for chain: %s. Token: %s\n", br.src, token.TokenName())
+				fmt.Printf("Added new token for chain: %s. Token: %s\n", br.src, token.Token.String())
 			}
 
 			if !br.isValid {

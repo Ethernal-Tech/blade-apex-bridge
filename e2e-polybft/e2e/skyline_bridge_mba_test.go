@@ -803,7 +803,7 @@ func TestE2E_SkylineBridgeMBA_MutltipleAddresses_Native(t *testing.T) {
 			cardanofw.ApexToWei(big.NewInt(2)), cardanofw.ApexToWei(big.NewInt(100)))
 		require.NoError(t, err)
 
-		tokenName = cardanoToken.TokenName()
+		tokenName = cardanoToken.Token.String()
 
 		// Fund users for native token tests on Vector chain
 		_, err = cardanofw.FundUserWithToken(
