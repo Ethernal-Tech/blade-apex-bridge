@@ -745,8 +745,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
-					Addr: user.GetAddress(cardanofw.ChainIDVector),
-					// TO DO: this if for now, i hope that amount will be in big.Int
+					Addr:    user.GetAddress(cardanofw.ChainIDVector),
 					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, minBridgingFee)).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},
@@ -859,8 +858,7 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
-					Addr: user.GetAddress(cardanofw.ChainIDVector),
-					// TO DO: this if for now, i that amount will be in big.Int
+					Addr:    user.GetAddress(cardanofw.ChainIDVector),
 					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, minBridgingFee)).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},
@@ -978,8 +976,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
-					Addr: user.GetAddress(cardanofw.ChainIDVector),
-					// TO DO: this if for now, i that amount will be in big.Int
+					Addr:    user.GetAddress(cardanofw.ChainIDVector),
 					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, feeAmount)).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},

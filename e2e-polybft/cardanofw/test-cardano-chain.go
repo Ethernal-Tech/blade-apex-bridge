@@ -63,7 +63,6 @@ type TestCardanoChainConfig struct {
 	DefaultMinBridgingFee       uint64
 	MinBridgingFeeForTokens     uint64
 	MinOperationFee             uint64
-	MinColCoinsAllowedToBridge  uint64
 	BridgeAddrHasStake          bool
 	BridgingAddressCnt          int
 	UseIndexer                  bool

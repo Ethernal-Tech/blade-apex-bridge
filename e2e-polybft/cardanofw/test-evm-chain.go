@@ -62,12 +62,11 @@ type TestEVMChainConfig struct {
 	ApexConfig             uint8
 	BurnContractInfo       *polybft.BurnContractInfo
 
-	MinBridgingFee             *big.Int
-	MinBridgingAmount          *big.Int
-	MinTokenBridgingAmount     *big.Int
-	MinOperationFee            *big.Int
-	MinColCoinsAllowedToBridge *big.Int
-	CurrencyID                 uint16
+	MinBridgingFee         *big.Int
+	MinBridgingAmount      *big.Int
+	MinTokenBridgingAmount *big.Int
+	MinOperationFee        *big.Int
+	CurrencyID             uint16
 
 	// Tokens that should be locked/unlocked on this chain
 	LockUnlockTokens []EVMTokenInfo
