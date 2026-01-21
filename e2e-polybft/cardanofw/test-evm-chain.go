@@ -1115,7 +1115,7 @@ func (ec *TestEVMChain) sendTx(
 }
 
 func (ec *TestEVMChain) sendTxWithNativeTokens(
-	privateKey string, receiver string, amount *big.Int, data []byte, nativeTokens []infrawallet.TokenAmount,
+	privateKey string, receiver string, amount *big.Int, data []byte, nativeTokens []GenericTokenAmount,
 ) (*ethgo.Receipt, error) {
 	privateKeyECDSA, err := crypto.HexToECDSA(privateKey)
 	if err != nil {
@@ -1138,7 +1138,6 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 	for _, nativeToken := range nativeTokens {
 		// We interpret the Cardano token PolicyID as the ERC20 contract address on the EVM chain.
 		tokenAddr := types.StringToAddress(nativeToken.Token.PolicyID)
-		tokenAmount := DfmToWei(big.NewInt(0).SetUint64(nativeToken.Amount))
 
 		// Encode ERC20 transfer(recipient, amount)
 		if contractsapi.SimpleERC20 == nil || contractsapi.SimpleERC20.Abi == nil {
@@ -1150,7 +1149,7 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 			return nil, fmt.Errorf("transfer method not found in SimpleERC20 ABI")
 		}
 
-		transferData, err := transferMethod.Encode([]interface{}{recipient, tokenAmount})
+		transferData, err := transferMethod.Encode([]interface{}{recipient, nativeToken.Amount})
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode transfer call: %w", err)
 		}

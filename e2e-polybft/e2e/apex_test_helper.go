@@ -130,7 +130,7 @@ func WaitForInvalidTestResult(
 // Test methods
 func submitMismatchAndWait(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	metadata []byte, lovelaceAmount *big.Int, sentTokenAmount []wallet.TokenAmount, waitForAmount *big.Int,
+	metadata []byte, lovelaceAmount *big.Int, sentTokenAmount []cardanofw.GenericTokenAmount, waitForAmount *big.Int,
 	waitOption WaitOption, maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8,
 ) {
 	t.Helper()
@@ -181,10 +181,7 @@ func submitColCoinsMismatchAndWait(
 	token, err := wallet.NewTokenWithFullName(config.tokensInfo.SrcTokenName, true)
 	require.NoError(t, err)
 
-	sentTokenAmount := []wallet.TokenAmount{{
-		Token:  token,
-		Amount: cardanofw.WeiToDfm(amount).Uint64(),
-	}}
+	sentTokenAmount := []cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(token, amount)}
 
 	submitMismatchAndWait(t, ctx, apex, config, user, metadata, weiAmount, sentTokenAmount, waitForAmount,
 		waitOption, maxWaitTimeSec, retryIntervalSec, addrIndex)
@@ -592,14 +589,14 @@ func executeInvalidTokenDirection(
 func getDefaultSendAmounts(
 	t *testing.T, config *testConfig,
 	feeAmount *big.Int, operationFee *big.Int,
-) (*big.Int, []wallet.TokenAmount, *big.Int) {
+) (*big.Int, []cardanofw.GenericTokenAmount, *big.Int) {
 	t.Helper()
 
 	amount := new(big.Int).Add(feeAmount, operationFee)
 
 	waitForAmount := new(big.Int)
 
-	var tokens []wallet.TokenAmount
+	var tokens []cardanofw.GenericTokenAmount
 
 	if config.isCurrency {
 		amount.Add(amount, defaultSendAmount)
@@ -611,10 +608,7 @@ func getDefaultSendAmounts(
 		token, err := wallet.NewTokenWithFullName(config.tokensInfo.SrcTokenName, true)
 		require.NoError(t, err)
 
-		tokens = []wallet.TokenAmount{{
-			Token:  token,
-			Amount: cardanofw.WeiToDfm(defaultSendAmount).Uint64(),
-		}}
+		tokens = []cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(token, defaultSendAmount)}
 	}
 
 	return amount, tokens, waitForAmount

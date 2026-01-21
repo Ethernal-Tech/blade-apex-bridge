@@ -31,7 +31,6 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 
 	tokensToFundApex := big.NewInt(100)
 	tokensToFund := cardanofw.ApexToWei(tokensToFundApex)
-	tokensToFundDfm := cardanofw.ApexToDfm(tokensToFundApex).Uint64()
 
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
@@ -55,32 +54,27 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 		go func(chain string) {
 			defer wg.Done()
 
-			tokens := func() []cardanowallet.TokenAmount {
+			tokens := func() []cardanofw.GenericTokenAmount {
 				if chain == cardanofw.ChainIDNexus {
 					chainInfo := apex.GetEvmInfo(chain)
-					tokens := make([]cardanowallet.TokenAmount, len(fundableTokensPerChain[chain]))
+					tokens := make([]cardanofw.GenericTokenAmount, len(fundableTokensPerChain[chain]))
 
 					for i, tokenID := range fundableTokensPerChain[chain] {
-						tokens[i] = cardanowallet.TokenAmount{
-							Token:  cardanowallet.Token{PolicyID: chainInfo.Tokens[tokenID].ChainSpecific},
-							Amount: tokensToFundDfm,
-						}
+						tokens[i] = cardanofw.NewGenericTokenAmount(
+							cardanowallet.Token{PolicyID: chainInfo.Tokens[tokenID].ChainSpecific}, tokensToFund)
 					}
 
 					return tokens
 				}
 
 				chainInfo := apex.GetCardanoInfo(chain)
-				tokens := make([]cardanowallet.TokenAmount, len(fundableTokensPerChain[chain]))
+				tokens := make([]cardanofw.GenericTokenAmount, len(fundableTokensPerChain[chain]))
 
 				for i, tokenID := range fundableTokensPerChain[chain] {
 					token, err := cardanowallet.NewTokenWithFullNameTry(chainInfo.Tokens[tokenID].ChainSpecific)
 					require.NoError(t, err)
 
-					tokens[i] = cardanowallet.TokenAmount{
-						Token:  token,
-						Amount: tokensToFundDfm,
-					}
+					tokens[i] = cardanofw.NewGenericTokenAmount(token, tokensToFund)
 				}
 
 				return tokens
@@ -168,7 +162,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 				// 2. Refund amount in Wei
 				refundAmount := new(big.Int).Sub(balance[cardanowallet.AdaTokenName], change)
 
-				tokens := make([]cardanowallet.TokenAmount, 0, len(balance)-1)
+				tokens := make([]cardanofw.GenericTokenAmount, 0, len(balance)-1)
 
 				// 3. Token refunds
 				for token, amount := range balance {
@@ -176,10 +170,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 						continue
 					}
 
-					tokens = append(tokens, cardanowallet.TokenAmount{
-						Token:  cardanowallet.Token{PolicyID: token},
-						Amount: cardanofw.WeiToDfm(amount).Uint64(),
-					})
+					tokens = append(tokens, cardanofw.NewGenericTokenAmount(cardanowallet.Token{PolicyID: token}, amount))
 				}
 
 				wg.Add(1)
@@ -260,6 +251,11 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 
 			refundAmountLovelace := new(big.Int).Sub(lovelaceBalance, changePlusPotentialFee)
 
+			genericTokens := make([]cardanofw.GenericTokenAmount, 0, len(tokens))
+			for _, t := range tokens {
+				genericTokens = append(genericTokens, cardanofw.NewGenericTokenAmount(t.Token, cardanofw.DfmToWei(new(big.Int).SetUint64(t.Amount))))
+			}
+
 			wg.Add(1)
 
 			go func(user *cardanofw.TestApexUser, chain string) {
@@ -268,7 +264,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 				fmt.Printf("Defunding %s address: %s\n", chain, senderAddr)
 
 				_, err := apex.SubmitTx(ctx, chain, user, funderReceiverAddr,
-					refundAmountLovelace, tokens, nil)
+					refundAmountLovelace, genericTokens, nil)
 
 				if err != nil {
 					mu.Lock()
@@ -683,8 +679,8 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 		token, err := cardanowallet.NewTokenWithFullNameTry(vectorCardanoTestConfig.tokensInfo.SrcTokenName)
 		require.NoError(t, err)
 
-		tokenAmount := &cardanowallet.TokenAmount{
-			Amount: 1_000_000,
+		tokenAmount := &cardanofw.GenericTokenAmount{
+			Amount: cardanofw.ApexToWei(big.NewInt(1)),
 			Token:  token,
 		}
 

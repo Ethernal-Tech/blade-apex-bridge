@@ -866,7 +866,7 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
-			sendAmount, []infrawallet.TokenAmount{*tokensFunded}, metadata)
+			sendAmount, []cardanofw.GenericTokenAmount{*tokensFunded}, metadata)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
@@ -984,7 +984,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
-			sendAmount, []infrawallet.TokenAmount{*tokensFunded}, metadata)
+			sendAmount, []cardanofw.GenericTokenAmount{*tokensFunded}, metadata)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)

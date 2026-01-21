@@ -16,10 +16,22 @@ type ITestApexChainServer interface {
 	Start() error
 }
 
+type GenericTokenAmount struct {
+	infrawallet.Token
+	Amount *big.Int
+}
+
+func NewGenericTokenAmount(token infrawallet.Token, amount *big.Int) GenericTokenAmount {
+	return GenericTokenAmount{
+		Token:  token,
+		Amount: amount,
+	}
+}
+
 type GenericTxReceiver struct {
 	Addr         string
 	Amount       *big.Int
-	NativeTokens []infrawallet.TokenAmount
+	NativeTokens []GenericTokenAmount
 }
 
 type ReceiverAmount struct {
@@ -271,22 +283,22 @@ func (td *TestApexChainDummy) GetAddressBalanceWithTokenName(
 var _ ITestApexChain = (*TestApexChainDummy)(nil)
 
 func createTxReceiver(
-	addr string, amount *big.Int, token *infrawallet.Token, tokenAmount *big.Int,
+	addr string, amountDfm *big.Int, token *infrawallet.Token, tokenAmountDfm *big.Int,
 ) GenericTxReceiver {
-	var nativeTokens []infrawallet.TokenAmount
+	var nativeTokens []GenericTokenAmount
 
-	if token != nil && tokenAmount != nil && tokenAmount.BitLen() != 0 {
-		nativeTokens = []infrawallet.TokenAmount{
+	if token != nil && tokenAmountDfm != nil && tokenAmountDfm.BitLen() != 0 {
+		nativeTokens = []GenericTokenAmount{
 			{
 				Token:  *token,
-				Amount: tokenAmount.Uint64(),
+				Amount: DfmToWei(tokenAmountDfm),
 			},
 		}
 	}
 
 	return GenericTxReceiver{
 		Addr:         addr,
-		Amount:       DfmToWei(amount),
+		Amount:       DfmToWei(amountDfm),
 		NativeTokens: nativeTokens,
 	}
 }
