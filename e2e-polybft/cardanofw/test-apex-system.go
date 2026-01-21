@@ -210,8 +210,8 @@ func NewSkylineSystem(
 		opt(config)
 	}
 
-	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee.Uint64()
-	config.VectorConfig.MinOperationFee = DefaultMinOperationFee.Uint64()
+	config.PrimeConfig.MinOperationFee = WeiToDfm(DefaultMinOperationFee).Uint64()
+	config.VectorConfig.MinOperationFee = WeiToDfm(DefaultMinOperationFee).Uint64()
 	config.NexusConfig.MinOperationFee = DefaultMinOperationFee
 	config.PolygonConfig.MinOperationFee = DefaultMinOperationFee
 
