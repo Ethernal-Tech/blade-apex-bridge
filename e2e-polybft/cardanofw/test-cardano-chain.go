@@ -954,6 +954,7 @@ func (ec *TestCardanoChain) SendTx(
 	}
 
 	receiversDto := make([]sendtx.TxReceiversDto, len(receivers))
+
 	for i, r := range receivers {
 		nativeTokens := make([]infrawallet.TokenAmount, 0, len(r.NativeTokens))
 		for _, nativeToken := range r.NativeTokens {

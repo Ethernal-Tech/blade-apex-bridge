@@ -1425,7 +1425,7 @@ func (a *ApexSystem) WaitForAmount(
 			return nil, err
 		}
 
-		fmt.Printf("Amounts: %+v, tokenName: %+v\n", amounts, tokenName)
+		// fmt.Printf("Amounts: %+v, tokenName: %+v\n", amounts, tokenName)
 		newBalance := amounts[tokenName]
 		if newBalance == nil {
 			newBalance = big.NewInt(0)
