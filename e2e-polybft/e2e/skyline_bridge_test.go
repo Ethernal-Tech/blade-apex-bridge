@@ -1099,6 +1099,18 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		require.Equal(t, initialTreasuryBalance.Add(initialTreasuryBalance, new(big.Int).SetUint64(1_000_000)).Uint64(), newTreasuryBalance.Uint64())
 	})
+
+	t.Run("19. Bridging request with more than min operation fee", func(t *testing.T) {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
+		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false, cardanofw.DefaultMinOperationFee+1)
+
+		newTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
+		require.NoError(t, err)
+
+		require.Equal(t, initialTreasuryBalance.Add(initialTreasuryBalance, new(big.Int).SetUint64(cardanofw.DefaultMinOperationFee+1)).Uint64(), newTreasuryBalance.Uint64())
+	})
 }
 
 func TestE2E_SkylineBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
