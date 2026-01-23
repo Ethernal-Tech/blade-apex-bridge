@@ -926,7 +926,10 @@ func Test_E2E_SkylineTestnetPrintBalances(t *testing.T) {
 	printSkylineUserBalances(t, apex, apex.Users, balances)
 }
 
+// This test is necessary to start manually.
 func TestE2E_SkylineTestnetBridge_NexusSrcGasPrice_NonDecreasing(t *testing.T) {
+	t.Skip("Skipping manual test")
+
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
@@ -953,10 +956,12 @@ func TestE2E_SkylineTestnetBridge_NexusSrcGasPrice_NonDecreasing(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
+
 	wg.Add(len(apex.Users))
 
 	// 2. Execute Load (Spam)
 	t.Log("Starting bridge spam to raise gas price...")
+
 	for _, user := range apex.Users {
 		go func(u *cardanofw.TestApexUser) {
 			defer wg.Done()
@@ -967,6 +972,7 @@ func TestE2E_SkylineTestnetBridge_NexusSrcGasPrice_NonDecreasing(t *testing.T) {
 		}(user)
 		time.Sleep(2 * time.Second)
 	}
+
 	wg.Wait()
 
 	// 3. Measure Peak (Immediately after load)
