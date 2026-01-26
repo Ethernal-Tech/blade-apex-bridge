@@ -935,7 +935,7 @@ func TestE2E_SkylineTestnetBridge_NexusSrcGasPrice_NonDecreasing(t *testing.T) {
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, config)
 	require.NoError(t, err)
 
-	sendAmountDfm := cardanofw.ApexToDfm(big.NewInt(1))
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	client, err := jsonrpc.NewEthClient(config.EVMChains[cardanofw.ChainIDNexus].Info.JSONRPCAddr)
 	require.NoError(t, err)
@@ -947,7 +947,7 @@ func TestE2E_SkylineTestnetBridge_NexusSrcGasPrice_NonDecreasing(t *testing.T) {
 	t.Logf("GasPrice Before: %d", gasPriceBefore)
 
 	bridgingDirections := []e2ehelper.ExecuteBridgingConfig{
-		{SrcChain: cardanofw.ChainIDNexus, DstChain: cardanofw.ChainIDVector, SrcTokenID: cardanofw.USDTTokenID, SendAmountDfm: sendAmountDfm},
+		{SrcChain: cardanofw.ChainIDNexus, DstChain: cardanofw.ChainIDVector, SrcTokenID: cardanofw.USDTTokenID, SendAmountWei: sendAmount},
 	}
 
 	var wg sync.WaitGroup
