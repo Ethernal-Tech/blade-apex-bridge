@@ -22,7 +22,7 @@ const (
 	DefaultRPCAddress          = "http://127.0.0.1:8545"
 	defaultNumRetries          = 1000
 	gasLimitIncreasePercentage = 100
-	feeIncreasePercentage      = 100
+	feeIncreasePercentage      = 30
 	DefaultTimeoutTransactions = 50 * time.Second
 	DefaultPollFreq            = 1 * time.Second
 )
