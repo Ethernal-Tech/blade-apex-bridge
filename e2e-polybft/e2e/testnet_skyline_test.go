@@ -7,11 +7,13 @@ import (
 	"math/big"
 	"sync"
 	"testing"
+	"time"
 
 	"slices"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
+	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	"github.com/Ethernal-Tech/cardano-infrastructure/common"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
@@ -917,6 +919,73 @@ func Test_E2E_SkylineTestnetPrintBalances(t *testing.T) {
 
 	balances, _ := cardanofw.GetUsersBalances(ctx, apex, skylineChains, apex.Users)
 	printSkylineUserBalances(t, apex, apex.Users, balances)
+}
+
+// This test is necessary to start manually.
+func TestE2E_SkylineTestnetBridge_NexusSrcGasPrice_NonDecreasing(t *testing.T) {
+	t.Skip("Skipping manual test")
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	const numOfInstanceForSequentialTests = 10
+
+	config := cardanofw.GetTestnetSkylineBridgeConfig()
+
+	apex, err := cardanofw.SetupSkylineRemoteBridge(t, config)
+	require.NoError(t, err)
+
+	sendAmountDfm := cardanofw.ApexToDfm(big.NewInt(1))
+
+	client, err := jsonrpc.NewEthClient(config.EVMChains[cardanofw.ChainIDNexus].Info.JSONRPCAddr)
+	require.NoError(t, err)
+
+	// 1. Measure Before
+	gasPriceBefore, err := client.GasPrice()
+	require.NoError(t, err)
+
+	t.Logf("GasPrice Before: %d", gasPriceBefore)
+
+	bridgingDirections := []e2ehelper.ExecuteBridgingConfig{
+		{SrcChain: cardanofw.ChainIDNexus, DstChain: cardanofw.ChainIDVector, SrcTokenID: cardanofw.USDTTokenID, SendAmountDfm: sendAmountDfm},
+	}
+
+	var wg sync.WaitGroup
+
+	wg.Add(len(apex.Users))
+
+	// 2. Execute Load (Spam)
+	t.Log("Starting bridge spam to raise gas price...")
+
+	for _, user := range apex.Users {
+		go func(u *cardanofw.TestApexUser) {
+			defer wg.Done()
+			e2ehelper.ExecuteBridgingWaitAfterSubmitsExtended(
+				t, ctx, apex, numOfInstanceForSequentialTests, u,
+				bridgingDirections,
+				bridgingOpts...)
+		}(user)
+		time.Sleep(2 * time.Second)
+	}
+
+	wg.Wait()
+
+	// 3. Measure Peak (Immediately after load)
+	gasPricePeak, err := client.GasPrice()
+	require.NoError(t, err)
+	t.Logf("GasPrice Peak (after load): %d", gasPricePeak)
+
+	// 4. Wait 5 Minutes (with monitoring)
+	t.Log("Waiting 5 minutes to verify GasPrice does NOT decrease...")
+
+	time.Sleep(5 * time.Minute)
+
+	// 5. Measure Final
+	gasPriceFinal, err := client.GasPrice()
+	require.NoError(t, err)
+
+	t.Logf("GasPrice Summary -> Start: %d, Peak: %d, Final: %d",
+		gasPriceBefore, gasPricePeak, gasPriceFinal)
 }
 
 func printSkylineUserBalances(
