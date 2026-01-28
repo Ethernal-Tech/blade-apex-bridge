@@ -211,10 +211,10 @@ func NewSkylineSystem(
 		opt(config)
 	}
 
-	config.PrimeConfig.MinOperationFee = DefaultMinOperationFee
-	config.VectorConfig.MinOperationFee = DefaultMinOperationFee
-	config.NexusConfig.MinOperationFee = DfmToWei(new(big.Int).SetUint64(DefaultMinOperationFee))
-	config.PolygonConfig.MinOperationFee = DfmToWei(new(big.Int).SetUint64(DefaultMinOperationFee))
+	config.PrimeConfig.MinOperationFee = WeiToDfm(DefaultMinOperationFee).Uint64()
+	config.VectorConfig.MinOperationFee = WeiToDfm(DefaultMinOperationFee).Uint64()
+	config.NexusConfig.MinOperationFee = DefaultMinOperationFee
+	config.PolygonConfig.MinOperationFee = DefaultMinOperationFee
 
 	users := make([]*TestApexUser, config.UserCnt)
 
@@ -805,11 +805,11 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			TxProvider:               cardanowallet.NewTxProviderOgmios(a.PrimeInfo.OgmiosURL),
 			TestNetMagic:             a.Config.PrimeConfig.NetworkMagic,
 			TTLSlotNumberInc:         ttlSlotNumberInc,
-			MinUtxoValue:             MinUTxODefaultValue,
+			MinUtxoValue:             WeiToDfm(MinUTxODefaultValue).Uint64(),
 			DefaultMinFeeForBridging: a.Config.PrimeConfig.DefaultMinBridgingFee,
 			MinFeeForBridgingTokens:  a.Config.PrimeConfig.MinBridgingFeeForTokens,
 			MinOperationFeeAmount:    a.Config.PrimeConfig.MinOperationFee,
-			PotentialFee:             PotentialFee,
+			PotentialFee:             WeiToDfm(PotentialFee).Uint64(),
 			Tokens:                   primeTokens,
 		},
 	}
@@ -828,10 +828,10 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			TxProvider:               cardanowallet.NewTxProviderOgmios(a.VectorInfo.OgmiosURL),
 			TestNetMagic:             a.Config.VectorConfig.NetworkMagic,
 			TTLSlotNumberInc:         ttlSlotNumberInc,
-			MinUtxoValue:             MinUTxODefaultValue,
+			MinUtxoValue:             WeiToDfm(MinUTxODefaultValue).Uint64(),
 			DefaultMinFeeForBridging: a.Config.VectorConfig.DefaultMinBridgingFee,
 			MinFeeForBridgingTokens:  a.Config.VectorConfig.MinBridgingFeeForTokens,
-			PotentialFee:             PotentialFee,
+			PotentialFee:             WeiToDfm(PotentialFee).Uint64(),
 			Tokens:                   vectorTokens,
 		}
 	}
@@ -850,12 +850,12 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			TxProvider:               cardanowallet.NewTxProviderOgmios(a.CardanoInfo.OgmiosURL),
 			TestNetMagic:             a.Config.CardanoConfig.NetworkMagic,
 			TTLSlotNumberInc:         ttlSlotNumberInc,
-			MinUtxoValue:             MinUTxODefaultValue,
+			MinUtxoValue:             WeiToDfm(MinUTxODefaultValue).Uint64(),
 			DefaultMinFeeForBridging: a.Config.CardanoConfig.DefaultMinBridgingFee,
 			MinFeeForBridgingTokens:  a.Config.CardanoConfig.MinBridgingFeeForTokens,
 			MinOperationFeeAmount:    a.Config.CardanoConfig.MinOperationFee,
 			Tokens:                   cardanoTokens,
-			PotentialFee:             PotentialFee,
+			PotentialFee:             WeiToDfm(PotentialFee).Uint64(),
 		}
 	}
 
@@ -883,7 +883,7 @@ func (a *ApexSystem) FundWallets(ctx context.Context) error {
 	})
 }
 
-func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, dfmAmount *big.Int) error {
+func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, weiAmount *big.Int) error {
 	chain, err := a.getChain(chainID)
 	if err != nil {
 		return err
@@ -897,7 +897,7 @@ func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, dfm
 	receivers := []GenericTxReceiver{
 		{
 			Addr:   chain.GetHotWalletAddresses()[0],
-			Amount: DfmToChainNativeTokenAmount(chainID, dfmAmount),
+			Amount: weiAmount,
 		},
 	}
 
@@ -1344,10 +1344,6 @@ func (a *ApexSystem) GetBalance(
 		return nil, err
 	}
 
-	for key, value := range balance {
-		balance[key] = ChainNativeTokenAmountToDfm(chainID, value)
-	}
-
 	return balance, err
 }
 
@@ -1361,10 +1357,6 @@ func (a *ApexSystem) GetBalanceWithTokenName(
 	balance, err := chain.GetAddressBalanceWithTokenName(ctx, user.GetAddress(chainID), tokenName)
 	if err != nil {
 		return nil, err
-	}
-
-	for key, value := range balance {
-		balance[key] = ChainNativeTokenAmountToDfm(chainID, value)
 	}
 
 	return balance, err
@@ -1508,7 +1500,7 @@ func (a *ApexSystem) UpdateChainTokenQuantity(
 }
 
 func (a *ApexSystem) DefundHotWallet(
-	chain ChainID, defundReceiverAddress string, defundDfm *big.Int, defundNativeTokenAmount *big.Int,
+	chain ChainID, defundReceiverAddress string, defundAmount *big.Int, defundNativeTokenAmount *big.Int,
 ) error {
 	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
 	if err != nil {
@@ -1522,7 +1514,7 @@ func (a *ApexSystem) DefundHotWallet(
 		"--chain-ids-config", a.GetChainIDsConfig(),
 		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
 		"--chain", chain,
-		"--amount", defundDfm.String(),
+		"--amount", defundAmount.String(),
 		"--native-token-amount", defundNativeTokenAmount.String(),
 		"--key", pk,
 		"--addr", defundReceiverAddress,
@@ -1673,7 +1665,7 @@ func (a *ApexSystem) RedistributeTokens(
 
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
-	receiverAddr string, lovelaceDfmAmount *big.Int, nativeTokens []cardanowallet.TokenAmount, data []byte,
+	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte,
 ) (string, error) {
 	const (
 		numRetries = 5
@@ -1693,7 +1685,7 @@ func (a *ApexSystem) SubmitTx(
 	receivers := []GenericTxReceiver{
 		{
 			Addr:         receiverAddr,
-			Amount:       DfmToChainNativeTokenAmount(sourceChain, lovelaceDfmAmount),
+			Amount:       amount,
 			NativeTokens: nativeTokens,
 		},
 	}
@@ -1719,7 +1711,7 @@ type SubmitBridgingRequestData struct {
 	SourceChain      ChainID
 	DestinationChain ChainID
 	Sender           *TestApexUser
-	DFMAmount        *big.Int
+	WeiAmount        *big.Int
 	SrcTokenID       uint16
 	Receivers        []*TestApexUser
 	TokensInfo       *BridgingTokensInfo
@@ -1841,7 +1833,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 		receiversMap[receiver.GetAddress(data.DestinationChain)] = ReceiverAmount{
 			TokenID: data.TokensInfo.SrcTokenID,
-			Amount:  DfmToChainNativeTokenAmount(data.SourceChain, data.DFMAmount),
+			Amount:  data.WeiAmount,
 		}
 	}
 
@@ -1867,7 +1859,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		return "", fmt.Errorf("error while retrieving the private key: %w", err)
 	}
 
-	operationFee := uint64(0)
+	operationFee := big.NewInt(0)
 	if a.IsSkyline {
 		operationFee = DefaultMinOperationFee
 	}
@@ -1889,9 +1881,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 	isCurrencySrc := srcCurrencyID == data.SrcTokenID
 
-	feeAmount := DfmToChainNativeTokenAmount(
-		data.SourceChain, new(big.Int).SetUint64(
-			a.GetMinBridgingFee(data.SourceChain, !isCurrencySrc)))
+	feeAmount := a.GetMinBridgingFee(data.SourceChain, !isCurrencySrc)
 
 	txHash, err := infracommon.ExecuteWithRetry(data.Context, func(ctx context.Context) (string, error) {
 		txHash, err := srcChain.BridgingRequest(BridgingRequestParams{
@@ -2233,31 +2223,31 @@ func (a *ApexSystem) SetDependencies(upgradeParams *SetDependenciesSCParams) err
 	return RunCommand(ResolveApexBridgeBinary(), cmnd, os.Stdout)
 }
 
-func (a *ApexSystem) GetMinBridgingFee(chainID ChainID, isNativeTokenBridging bool) uint64 {
+func (a *ApexSystem) GetMinBridgingFee(chainID ChainID, isNativeTokenBridging bool) *big.Int {
 	switch chainID {
 	case ChainIDNexus:
-		return WeiToDfm(a.Config.NexusConfig.MinBridgingFee).Uint64()
+		return a.Config.NexusConfig.MinBridgingFee
 	case ChainIDPolygon:
-		return WeiToDfm(a.Config.PolygonConfig.MinBridgingFee).Uint64()
+		return a.Config.PolygonConfig.MinBridgingFee
 	default:
 		config := a.getCardanoConfig(chainID)
 
 		if isNativeTokenBridging {
-			return config.MinBridgingFeeForTokens
+			return DfmToWei(new(big.Int).SetUint64(config.MinBridgingFeeForTokens))
 		}
 
-		return config.DefaultMinBridgingFee
+		return DfmToWei(new(big.Int).SetUint64(config.DefaultMinBridgingFee))
 	}
 }
 
-func (a *ApexSystem) GetMinOperationFee(chainID ChainID) uint64 {
+func (a *ApexSystem) GetMinOperationFee(chainID ChainID) *big.Int {
 	switch chainID {
 	case ChainIDNexus:
-		return WeiToDfm(a.Config.NexusConfig.MinOperationFee).Uint64()
+		return a.Config.NexusConfig.MinOperationFee
 	case ChainIDPolygon:
-		return WeiToDfm(a.Config.PolygonConfig.MinOperationFee).Uint64()
+		return a.Config.PolygonConfig.MinOperationFee
 	default:
-		return a.getCardanoConfig(chainID).MinOperationFee
+		return DfmToWei(new(big.Int).SetUint64(a.getCardanoConfig(chainID).MinOperationFee))
 	}
 }
 

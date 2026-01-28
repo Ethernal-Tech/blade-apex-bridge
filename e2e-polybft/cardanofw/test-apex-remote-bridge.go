@@ -3,6 +3,7 @@ package cardanofw
 import (
 	"encoding/json"
 	"errors"
+	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,8 +22,8 @@ type RemoteCardanoChainConfig struct {
 
 type RemoteEVMChainConfig struct {
 	Info            EVMChainInfo
-	MinBridgingFee  uint64
-	MinOperationFee uint64
+	MinBridgingFee  *big.Int
+	MinOperationFee *big.Int
 }
 
 type RemoteApexBridgeConfig struct {
@@ -72,7 +73,7 @@ func GetInternalTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 					GatewayAddress: types.StringToAddress("0xc68221AD72397d85084f2D5C7089e4e9487c118c"),
 					JSONRPCAddr:    "https://rpc.nexus.testnet.apexfusion.org",
 				},
-				MinBridgingFee: 1_000_010,
+				MinBridgingFee: DfmToWei(big.NewInt(1_000_010)),
 			},
 		},
 		BridgingAPIs: []string{
@@ -112,7 +113,7 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 					GatewayAddress: types.StringToAddress("0x43Bca3122Efa14C68F9d385e3b4Da8847eca32Ba"),
 					JSONRPCAddr:    "https://rpc.nexus.testnet.apexfusion.org",
 				},
-				MinBridgingFee: 1_000_010,
+				MinBridgingFee: DfmToWei(big.NewInt(1_000_010)),
 			},
 		},
 		BridgingAPIs: []string{
@@ -316,8 +317,8 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						},
 					},
 				},
-				MinBridgingFee:  4_000_000,
-				MinOperationFee: 0,
+				MinBridgingFee:  ApexToWei(big.NewInt(4)),
+				MinOperationFee: big.NewInt(0),
 			},
 		},
 		BridgingAPIs: []string{

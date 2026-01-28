@@ -6,13 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
-	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,23 +29,30 @@ func executeInvalidBridgingFee(
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
 		minBridgingFee, operationFee, user, receivers, config.isCurrency)
-	bytesToReplace := []byte(strconv.FormatUint(feeAmount, 10))
-	metadata = bytes.ReplaceAll(metadata, bytesToReplace, []byte(fmt.Sprintf("%d", minBridgingFee-1)))
+	bytesToReplace := []byte(cardanofw.WeiToChainNativeTokenAmount(config.srcChainID, feeAmount).String())
 
-	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
+	metadata = bytes.ReplaceAll(
+		metadata,
+		bytesToReplace,
+		[]byte(cardanofw.WeiToChainNativeTokenAmount(
+			config.srcChainID,
+			new(big.Int).Sub(minBridgingFee, cardanofw.DfmToWei(big.NewInt(1))),
+		).String()))
+
+	beforeSendingAmount, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
 
-	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
+	defaultAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		lovelaceAmount, sentTokenAmount, metadata)
+		defaultAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
 	fmt.Printf("txHash: %s\n", txHash)
 
-	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
+	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
 		refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
@@ -65,13 +70,14 @@ func executeInvalidFeeReceiverAddr(
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    apex.GetCardanoInfo(config.dstChainID).FeeAddr,
-			Amount:  minBridgingFee,
+			Amount:  cardanofw.WeiToDfm(minBridgingFee).Uint64(),
 			TokenID: invalidSrcTokenID,
 		},
 	}
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
-		minBridgingFee, operationFee, user, receivers, config.isCurrency)
+		minBridgingFee,
+		operationFee, user, receivers, config.isCurrency)
 
 	sentAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, operationFee)
 
@@ -86,18 +92,18 @@ func executeInvalidFeeReceiverAddr(
 
 		fmt.Printf("txHash: %s\n", txHash)
 
-		WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, initialBalances, sentAmount.Uint64(),
+		WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, initialBalances, sentAmount,
 			refundEnabled, maxWaitTimeSec, retryIntervalSec)
 	} else {
 		txHash, err := apex.SubmitTx(
 			ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-			new(big.Int).SetUint64(feeAmount+operationFee), sentTokenAmount, metadata)
+			new(big.Int).Add(feeAmount, operationFee), sentTokenAmount, metadata)
 		require.NoError(t, err)
 
 		fmt.Printf("txHash: %s\n", txHash)
 
-		WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, initialBalances, sentTokenAmount[0].Amount,
-			refundEnabled, maxWaitTimeSec, retryIntervalSec)
+		WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, initialBalances,
+			sentTokenAmount[0].Amount, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 	}
 }
 
@@ -106,14 +112,14 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 ) {
 	t.Helper()
 
-	sendAmount := uint64(1_000_000)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	user := apex.Users[len(apex.Users)-1]
 
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    user.GetAddress(config.dstChainID),
-			Amount:  sendAmount,
+			Amount:  cardanofw.WeiToDfm(sendAmount).Uint64(),
 			TokenID: config.tokensInfo.SrcTokenID,
 		},
 	}
@@ -124,7 +130,8 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, !config.isCurrency)
 
 	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
-		ctx, config.dstChainID, receivers, minBridgingFee, operationFee, multisigAddr)
+		ctx, config.dstChainID, receivers, minBridgingFee,
+		operationFee, multisigAddr)
 	require.NoError(t, err)
 
 	metadata, err := apex.GetChainMust(t, config.srcChainID).CreateMetadata(
@@ -135,23 +142,27 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 	// Send only half bytes of metadata making it invalid
 	metadata = metadata[0 : len(metadata)/2]
 
+	totalAmount := new(big.Int).Add(sendAmount, feeAmount)
+	totalAmount.Add(totalAmount, operationFee)
+
 	_, err = apex.SubmitTx(
-		ctx, config.srcChainID, user,
-		multisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount+operationFee), nil, metadata)
+		ctx, config.srcChainID, user, multisigAddr,
+		totalAmount, nil, metadata)
 	require.Error(t, err)
 }
 
 func executeInvalidMismatchSendNativeTokenAmount(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
-	config *testConfig, nativeTokenAmount wallet.TokenAmount,
+	config *testConfig, nativeTokenAmount cardanofw.GenericTokenAmount,
 	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
 
+	nativeTokenAmountDfm := cardanofw.WeiToDfm(nativeTokenAmount.Amount).Uint64()
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    user.GetAddress(config.dstChainID),
-			Amount:  nativeTokenAmount.Amount,
+			Amount:  nativeTokenAmountDfm,
 			TokenID: config.tokensInfo.SrcTokenID,
 		},
 	}
@@ -164,27 +175,27 @@ func executeInvalidMismatchSendNativeTokenAmount(
 		minBridgingFee, operationFee, user, receivers, config.isCurrency)
 
 	bridgingRequestMetadata := bytes.Replace(metadata,
-		[]byte(fmt.Sprintf("%d", nativeTokenAmount.Amount)), []byte(fmt.Sprintf("%d", nativeTokenAmount.Amount+1)), 1)
+		[]byte(fmt.Sprintf("%d", nativeTokenAmountDfm)), []byte(fmt.Sprintf("%d", nativeTokenAmountDfm+1)), 1)
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
 
 	txHash, err := apex.SubmitTx(ctx, config.srcChainID,
 		user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		new(big.Int).SetUint64(feeAmount+operationFee),
-		[]wallet.TokenAmount{nativeTokenAmount}, bridgingRequestMetadata,
+		new(big.Int).Add(feeAmount, operationFee),
+		[]cardanofw.GenericTokenAmount{nativeTokenAmount}, bridgingRequestMetadata,
 	)
 	require.NoError(t, err)
 
 	fmt.Printf("txHash: %s\n", txHash)
 
-	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, nativeTokenAmount.Amount,
-		refundEnabled, maxWaitTimeSec, retryIntervalSec)
+	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm,
+		nativeTokenAmount.Amount, refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
 func executeInvalidSendNativeToken(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
-	config *testConfig, nativeTokenAmount wallet.TokenAmount,
+	config *testConfig, nativeTokenAmount cardanofw.GenericTokenAmount,
 	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, addrIndex uint8,
 ) {
 	t.Helper()
@@ -192,7 +203,7 @@ func executeInvalidSendNativeToken(
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    user.GetAddress(config.dstChainID),
-			Amount:  defaultSendAmount,
+			Amount:  cardanofw.WeiToDfm(defaultSendAmount).Uint64(),
 			TokenID: config.tokensInfo.SrcTokenID,
 		},
 	}
@@ -201,7 +212,7 @@ func executeInvalidSendNativeToken(
 	receiversForFeeCalculation := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    user.GetAddress(config.dstChainID),
-			Amount:  defaultSendAmount,
+			Amount:  cardanofw.WeiToDfm(defaultSendAmount).Uint64(),
 			TokenID: config.tokensInfo.SrcTokenID,
 		},
 	}
@@ -221,16 +232,18 @@ func executeInvalidSendNativeToken(
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
 
-	lovelaceAmount := defaultSendAmount + feeAmount + operationFee
+	weiAmount := new(big.Int).Add(defaultSendAmount, feeAmount)
+
+	weiAmount.Add(weiAmount, operationFee)
 
 	txHash, err := apex.SubmitTx(ctx, config.srcChainID, user,
 		apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		new(big.Int).SetUint64(lovelaceAmount), []wallet.TokenAmount{nativeTokenAmount}, metadata)
+		weiAmount, []cardanofw.GenericTokenAmount{nativeTokenAmount}, metadata)
 	require.NoError(t, err)
 
 	fmt.Printf("txHash: %s\n", txHash)
 
-	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, lovelaceAmount,
+	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, weiAmount,
 		refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
@@ -294,9 +307,9 @@ func executeInvalidNexusBridgingRequest(
 		return err
 	}
 
-	feeAmount := cardanofw.DfmToChainNativeTokenAmount(
-		cardanofw.ChainIDNexus, new(big.Int).SetUint64(
-			apex.GetMinBridgingFee(cardanofw.ChainIDNexus, true)))
+	feeAmount := cardanofw.WeiToChainNativeTokenAmount(
+		cardanofw.ChainIDNexus,
+		apex.GetMinBridgingFee(cardanofw.ChainIDNexus, true))
 
 	if data.feeAmount != nil {
 		feeAmount = data.feeAmount

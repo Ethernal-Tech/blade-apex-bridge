@@ -32,7 +32,7 @@ const (
 
 type colCoinInvalidOpts struct {
 	receivers        []sendtx.BridgingTxReceiver
-	amount           uint64
+	amount           *big.Int
 	waitOption       WaitOption
 	metadataModifier func([]byte) []byte
 }
@@ -41,7 +41,7 @@ type colCoinInvalidOpts struct {
 type BridgingRequestMetadataTransactionBC struct {
 	Address                     []string `cbor:"a" json:"a"`
 	IsNativeTokenOnSrc_Obsolete byte     `cbor:"nt" json:"nt"` //nolint:stylecheck
-	Amount                      uint64   `cbor:"m" json:"m"`
+	Amount                      *big.Int `cbor:"m" json:"m"`
 	TokenID                     uint16   `cbor:"t" json:"t"`
 }
 
@@ -51,8 +51,8 @@ type BridgingRequestMetadataBC struct {
 	DestinationChainID string                                 `cbor:"d" json:"d"`
 	SenderAddr         []string                               `cbor:"s" json:"s"`
 	Transactions       []BridgingRequestMetadataTransactionBC `cbor:"tx" json:"tx"`
-	BridgingFee        uint64                                 `cbor:"fa" json:"fa"`
-	OperationFee       uint64                                 `cbor:"of" json:"of"`
+	BridgingFee        *big.Int                               `cbor:"fa" json:"fa"`
+	OperationFee       *big.Int                               `cbor:"of" json:"of"`
 }
 
 type testConfig struct {
@@ -68,8 +68,8 @@ type testConfig struct {
 	isCurrency      bool
 }
 
-const (
-	defaultSendAmount = uint64(1_000_000)
+var (
+	defaultSendAmount = cardanofw.ApexToWei(big.NewInt(1))
 )
 
 func newTestConfig(
@@ -103,7 +103,7 @@ func newTestConfig(
 // Util methods
 func WaitForInvalidTestResult(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	txHash string, beforeSendingAmountDfm map[string]*big.Int, sentAmount uint64,
+	txHash string, beforeSendingAmount map[string]*big.Int, sentAmount *big.Int,
 	refundEnabled bool, maxWaitTimeSec, retryIntervalSec uint,
 ) {
 	t.Helper()
@@ -112,14 +112,14 @@ func WaitForInvalidTestResult(
 	numRetries := max(1, int(maxWaitTimeSec/retryIntervalSec))
 
 	if refundEnabled {
-		lowerBoundaryDfm := new(big.Int).Sub(
-			beforeSendingAmountDfm[config.tokensInfo.SrcTokenName], new(big.Int).SetUint64(sentAmount))
+		lowerBoundary := new(big.Int).Sub(
+			beforeSendingAmount[config.tokensInfo.SrcTokenName], sentAmount)
 
-		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, lowerBoundaryDfm,
-			beforeSendingAmountDfm)
+		fmt.Printf("Tx sent. hash: %s, lowerBoundary: %+v, higherBoundary: %+v\n", txHash, lowerBoundary,
+			beforeSendingAmount)
 
-		err := apex.WaitForAmountInRange(ctx, user, config.srcChainID, lowerBoundaryDfm,
-			beforeSendingAmountDfm[config.tokensInfo.SrcTokenName], numRetries,
+		err := apex.WaitForAmountInRange(ctx, user, config.srcChainID, lowerBoundary,
+			beforeSendingAmount[config.tokensInfo.SrcTokenName], numRetries,
 			time.Second*time.Duration(retryIntervalSec), config.tokensInfo.SrcTokenName)
 		require.NoError(t, err)
 	} else {
@@ -130,12 +130,12 @@ func WaitForInvalidTestResult(
 // Test methods
 func submitMismatchAndWait(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	metadata []byte, lovelaceAmount *big.Int, sentTokenAmount []wallet.TokenAmount, waitForAmount uint64,
+	metadata []byte, lovelaceAmount *big.Int, sentTokenAmount []cardanofw.GenericTokenAmount, waitForAmount *big.Int,
 	waitOption WaitOption, maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8,
 ) {
 	t.Helper()
 
-	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
+	beforeSendingAmount, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
 
 	txHash, err := apex.SubmitTx(
@@ -152,14 +152,14 @@ func submitMismatchAndWait(
 	}
 
 	if waitOption != NoWait {
-		WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
+		WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
 			waitOption == WaitRefundEnabled, maxWaitTimeSec, retryIntervalSec)
 	}
 }
 
 func submitColCoinsMismatchAndWait(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	receivers []sendtx.BridgingTxReceiver, amount uint64,
+	receivers []sendtx.BridgingTxReceiver, amount *big.Int,
 	maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8,
 	waitOption WaitOption, metadataModifier func([]byte) []byte,
 ) {
@@ -176,17 +176,14 @@ func submitColCoinsMismatchAndWait(
 	}
 
 	waitForAmount := amount
-	lovelaceAmount := new(big.Int).SetUint64(feeAmount + operationFee)
+	weiAmount := new(big.Int).Add(feeAmount, operationFee)
 
 	token, err := wallet.NewTokenWithFullName(config.tokensInfo.SrcTokenName, true)
 	require.NoError(t, err)
 
-	sentTokenAmount := []wallet.TokenAmount{{
-		Token:  token,
-		Amount: amount,
-	}}
+	sentTokenAmount := []cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(token, amount)}
 
-	submitMismatchAndWait(t, ctx, apex, config, user, metadata, lovelaceAmount, sentTokenAmount, waitForAmount,
+	submitMismatchAndWait(t, ctx, apex, config, user, metadata, weiAmount, sentTokenAmount, waitForAmount,
 		waitOption, maxWaitTimeSec, retryIntervalSec, addrIndex)
 }
 
@@ -196,7 +193,13 @@ func executeInvalidMismatchSendLovelaceAmount(
 ) {
 	t.Helper()
 
-	receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount*10, config.tokenID)
+	receivers := createReceivers(
+		apex,
+		1,
+		config.dstChainID,
+		new(big.Int).Mul(defaultSendAmount, big.NewInt(10)),
+		config.tokenID,
+	)
 
 	operationFee := apex.GetMinOperationFee(config.srcChainID)
 
@@ -205,7 +208,7 @@ func executeInvalidMismatchSendLovelaceAmount(
 		operationFee,
 		user, receivers, config.isCurrency)
 
-	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
+	defaultAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee)
 
 	waitOption := WaitRefundDisabled
@@ -213,7 +216,7 @@ func executeInvalidMismatchSendLovelaceAmount(
 		waitOption = WaitRefundEnabled
 	}
 
-	submitMismatchAndWait(t, ctx, apex, config, user, metadata, lovelaceAmount, sentTokenAmount, waitForAmount,
+	submitMismatchAndWait(t, ctx, apex, config, user, metadata, defaultAmount, sentTokenAmount, waitForAmount,
 		waitOption, maxWaitTimeSec, retryIntervalSec, addrIndex)
 }
 
@@ -229,7 +232,7 @@ func executeInvalidColCoin(
 }
 
 func executeInvalidMismatchSendColCoinsMultipleInstancesParalel(
-	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, amount uint64,
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, amount *big.Int,
 	instances int, maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool,
 	addrIndex uint8,
 ) {
@@ -243,7 +246,8 @@ func executeInvalidMismatchSendColCoinsMultipleInstancesParalel(
 		go func(idx int) {
 			defer wg.Done()
 
-			receivers := createReceivers(apex, 1, config.dstChainID, amount*10, config.tokenID)
+			receivers := createReceivers(apex, 1, config.dstChainID,
+				new(big.Int).Mul(amount, big.NewInt(10)), config.tokenID)
 
 			waitOption := WaitRefundDisabled
 			if refundEnabled {
@@ -267,7 +271,8 @@ func executeInvalidMismatchSendAmountMultipleInstances(
 	const instances = 5
 
 	for i := 0; i < instances; i++ {
-		receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount*10, config.tokenID)
+		receivers := createReceivers(apex, 1, config.dstChainID,
+			new(big.Int).Mul(defaultSendAmount, big.NewInt(10)), config.tokenID)
 
 		operationFee := apex.GetMinOperationFee(config.srcChainID)
 
@@ -276,18 +281,18 @@ func executeInvalidMismatchSendAmountMultipleInstances(
 			operationFee,
 			apex.Users[i], receivers, config.isCurrency)
 
-		beforeSendingAmountDfm, err := apex.GetBalance(ctx, apex.Users[i], config.srcChainID)
+		beforeSendingAmount, err := apex.GetBalance(ctx, apex.Users[i], config.srcChainID)
 		require.NoError(t, err)
 
-		lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
+		defaultAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 			t, config, feeAmount, operationFee)
 
 		txHash, err := apex.SubmitTx(
 			ctx, config.srcChainID, apex.Users[i],
-			apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex], lovelaceAmount, sentTokenAmount, metadata)
+			apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex], defaultAmount, sentTokenAmount, metadata)
 		require.NoError(t, err)
 
-		WaitForInvalidTestResult(t, ctx, apex, config, apex.Users[i], txHash, beforeSendingAmountDfm, waitForAmount,
+		WaitForInvalidTestResult(t, ctx, apex, config, apex.Users[i], txHash, beforeSendingAmount, waitForAmount,
 			refundEnabled, maxWaitTimeSec, retryIntervalSec)
 	}
 }
@@ -309,7 +314,8 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 		go func(idx int) {
 			defer wg.Done()
 
-			receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount*10, config.tokenID)
+			receivers := createReceivers(apex, 1, config.dstChainID,
+				new(big.Int).Mul(defaultSendAmount, big.NewInt(10)), config.tokenID)
 
 			operationFee := apex.GetMinOperationFee(config.srcChainID)
 
@@ -318,18 +324,18 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 				operationFee,
 				apex.Users[i], receivers, config.isCurrency)
 
-			beforeSendingAmountDfm, err := apex.GetBalance(ctx, apex.Users[idx], config.srcChainID)
+			beforeSendingAmount, err := apex.GetBalance(ctx, apex.Users[idx], config.srcChainID)
 			require.NoError(t, err)
 
-			lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
+			defaultAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 				t, config, feeAmount, operationFee)
 
 			txHashe, err := apex.SubmitTx(
 				ctx, config.srcChainID, apex.Users[idx],
-				apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex], lovelaceAmount, sentTokenAmount, metadata)
+				apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex], defaultAmount, sentTokenAmount, metadata)
 			require.NoError(t, err)
 
-			WaitForInvalidTestResult(t, ctx, apex, config, apex.Users[idx], txHashe, beforeSendingAmountDfm, waitForAmount,
+			WaitForInvalidTestResult(t, ctx, apex, config, apex.Users[idx], txHashe, beforeSendingAmount, waitForAmount,
 				refundEnabled, maxWaitTimeSec, retryIntervalSec)
 		}(i)
 	}
@@ -352,19 +358,19 @@ func executeInvalidMetadataType(
 		operationFee, user, receivers, config.isCurrency)
 	metadata = bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
 
-	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
+	beforeSendingAmount, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
 
-	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
+	defaultAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		lovelaceAmount, sentTokenAmount, metadata)
+		defaultAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
 	if refundEnabled {
-		WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
+		WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
 			refundEnabled, maxWaitTimeSec, retryIntervalSec)
 	} else {
 		_, err = cardanofw.WaitForRequestStates(ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, nil, maxWaitTimeSec)
@@ -409,7 +415,7 @@ func executeObsoleteMetadata(
 		currentAmount = big.NewInt(0)
 	}
 
-	expectedAmount := new(big.Int).Add(currentAmount, big.NewInt(int64(defaultSendAmount)))
+	expectedAmount := new(big.Int).Add(currentAmount, defaultSendAmount)
 
 	numRetries := max(1, int(maxWaitTimeSec/retryIntervalSec))
 
@@ -429,7 +435,7 @@ func executeInvalidDestination(
 	receiversForFeeCalculation := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    user.GetAddress(config.dstChainID),
-			Amount:  defaultSendAmount,
+			Amount:  cardanofw.WeiToDfm(defaultSendAmount).Uint64(),
 			TokenID: config.tokensInfo.SrcTokenID,
 		},
 	}
@@ -452,19 +458,19 @@ func executeInvalidDestination(
 
 	metadata = bytes.Replace(metadata, fmt.Appendf(nil, "\"%s\"", config.dstChainID), []byte("\"unknown\""), 1)
 
-	beforeSendingAmountDfm, err := apex.GetBalanceWithTokenName(
+	beforeSendingAmount, err := apex.GetBalanceWithTokenName(
 		ctx, user, config.srcChainID, config.tokensInfo.SrcTokenName)
 	require.NoError(t, err)
 
-	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
+	weiAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		lovelaceAmount, sentTokenAmount, metadata)
+		weiAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
-	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
+	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
 		refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
@@ -495,11 +501,11 @@ func executeInvalidMetadataInvalidSender(
 	// remove this after we make correct validation on oracle!
 	metadata = bytes.Replace(metadata, []byte("[\"dummy\"]"), []byte("\"\""), 1)
 
-	lovelaceAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, operationFee)
+	defaultAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, operationFee)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		lovelaceAmount, sentTokenAmount, metadata)
+		defaultAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)
@@ -516,7 +522,7 @@ func executeInvalidEmptyReceivers(
 	receiversForFeeCalculation := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    user.GetAddress(config.dstChainID),
-			Amount:  defaultSendAmount,
+			Amount:  defaultSendAmount.Uint64(),
 			TokenID: config.tokensInfo.SrcTokenID,
 		},
 	}
@@ -535,18 +541,18 @@ func executeInvalidEmptyReceivers(
 		user.GetAddress(config.srcChainID), config.dstChainID, receivers, feeAmount, operationFee)
 	require.NoError(t, err)
 
-	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
+	beforeSendingAmount, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
 
-	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
+	defaultAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		lovelaceAmount, sentTokenAmount, metadata)
+		defaultAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
-	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
+	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
 		refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
@@ -565,54 +571,55 @@ func executeInvalidTokenDirection(
 		apex.GetMinBridgingFee(config.srcChainID, false),
 		operationFee, user, receivers, config.isCurrency)
 
-	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
+	beforeSendingAmount, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
 
-	lovelaceAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
+	defaultAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee)
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		lovelaceAmount, sentTokenAmount, metadata)
+		defaultAmount, sentTokenAmount, metadata)
 	require.NoError(t, err)
 
-	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
+	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
 		refundEnabled, maxWaitTimeSec, retryIntervalSec)
 }
 
 func getDefaultSendAmounts(
 	t *testing.T, config *testConfig,
-	feeAmount uint64, operationFee uint64,
-) (*big.Int, []wallet.TokenAmount, uint64) {
+	feeAmount *big.Int, operationFee *big.Int,
+) (*big.Int, []cardanofw.GenericTokenAmount, *big.Int) {
 	t.Helper()
 
-	lovelaceAmount := defaultSendAmount + feeAmount + operationFee
-	waitForAmount := lovelaceAmount
+	amount := new(big.Int).Add(feeAmount, operationFee)
 
-	tokens := []wallet.TokenAmount(nil)
+	waitForAmount := new(big.Int)
 
-	if !config.isCurrency {
-		waitForAmount = defaultSendAmount
-		lovelaceAmount = feeAmount + operationFee
+	var tokens []cardanofw.GenericTokenAmount
+
+	if config.isCurrency {
+		amount.Add(amount, defaultSendAmount)
+
+		waitForAmount.Set(amount)
+	} else {
+		waitForAmount.Set(defaultSendAmount)
 
 		token, err := wallet.NewTokenWithFullName(config.tokensInfo.SrcTokenName, true)
 		require.NoError(t, err)
 
-		tokens = []wallet.TokenAmount{{
-			Token:  token,
-			Amount: defaultSendAmount,
-		}}
+		tokens = []cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(token, defaultSendAmount)}
 	}
 
-	return new(big.Int).SetUint64(lovelaceAmount), tokens, waitForAmount
+	return amount, tokens, waitForAmount
 }
 
 func createMetadata(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	srcChain, dstChain cardanofw.ChainID, bridgingFee, operationFee uint64,
+	srcChain, dstChain cardanofw.ChainID, bridgingFee, operationFee *big.Int,
 	sender *cardanofw.TestApexUser, receivers []sendtx.BridgingTxReceiver,
 	isCurrency bool,
-) ([]byte, uint64) {
+) ([]byte, *big.Int) {
 	t.Helper()
 
 	srcTestChain := apex.GetChainMust(t, srcChain)
@@ -631,9 +638,9 @@ func createMetadata(
 
 func createObsoleteMetadata(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
-	srcChain, dstChain cardanofw.ChainID, bridgingFee, operationFee uint64,
+	srcChain, dstChain cardanofw.ChainID, bridgingFee, operationFee *big.Int,
 	sender *cardanofw.TestApexUser, receivers []sendtx.BridgingTxReceiver, isCurrency bool,
-) ([]byte, uint64) {
+) ([]byte, *big.Int) {
 	t.Helper()
 
 	srcTestChain := apex.GetChainMust(t, srcChain)
@@ -651,7 +658,7 @@ func createObsoleteMetadata(
 		txs[i] = BridgingRequestMetadataTransactionBC{
 			Address:                     sendtx.AddrToMetaDataAddr(x.Addr),
 			IsNativeTokenOnSrc_Obsolete: boolToByte[!isCurrency],
-			Amount:                      x.Amount,
+			Amount:                      new(big.Int).SetUint64(x.Amount),
 			TokenID:                     0,
 		}
 	}
@@ -661,8 +668,8 @@ func createObsoleteMetadata(
 		DestinationChainID: dstChain,
 		SenderAddr:         sendtx.AddrToMetaDataAddr(sender.GetAddress(srcChain)),
 		Transactions:       txs,
-		BridgingFee:        feeAmount,
-		OperationFee:       operationFee,
+		BridgingFee:        cardanofw.WeiToDfm(feeAmount),
+		OperationFee:       cardanofw.WeiToDfm(operationFee),
 	}
 
 	metadataBytes, err := json.Marshal(map[int]BridgingRequestMetadataBC{
@@ -674,14 +681,14 @@ func createObsoleteMetadata(
 }
 
 func createReceivers(
-	apex *cardanofw.ApexSystem, receiversCount int, dstChain string, sendAmount uint64, tokenID uint16,
+	apex *cardanofw.ApexSystem, receiversCount int, dstChain string, sendAmount *big.Int, tokenID uint16,
 ) []sendtx.BridgingTxReceiver {
 	receivers := make([]sendtx.BridgingTxReceiver, receiversCount)
 
 	for i := range receivers {
 		receivers[i] = sendtx.BridgingTxReceiver{
 			Addr:    apex.Users[len(apex.Users)-1-i].GetAddress(dstChain),
-			Amount:  sendAmount,
+			Amount:  cardanofw.WeiToDfm(sendAmount).Uint64(),
 			TokenID: tokenID,
 		}
 	}

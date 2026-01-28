@@ -35,20 +35,24 @@ const (
 	BatchStateExecuted                  = "ExecutedOnDestination"
 	BridgingRequestStatusInvalidRequest = "InvalidRequest"
 
-	MinUTxODefaultValue                  = uint64(1_000_000)
-	ttlSlotNumberInc                     = 500
-	PotentialFee                         = 500_000
-	maxInputs                            = 40
-	defaultMinBridgingFeeAmount          = uint64(4_000_000)
-	defaultMinBridgingFeeAmountForTokens = uint64(2_860_000)
-	DefaultMinOperationFee               = uint64(0)
-	DefaultRequestStateTimeoutSec        = 300
+	ttlSlotNumberInc = 500
+	maxInputs        = 40
 
-	DefaultTokenName       = "test1"
-	DefaultTokenMintAmount = uint64(1_000_000_000)
+	DefaultRequestStateTimeoutSec = 300
+
+	DefaultTokenName = "test1"
 
 	MintNFTTokenName = "custodial_nft_token"
 	MintNFTAmount    = uint64(1)
+)
+
+var (
+	defaultMinBridgingFeeAmount          = ApexToWei(big.NewInt(4))        // 4 Apex (4*10^18)
+	MinUTxODefaultValue                  = ApexToWei(big.NewInt(1))        // 1 Apex  (1*10^18)
+	PotentialFee                         = DfmToWei(big.NewInt(500_000))   // 0.5 Apex
+	defaultMinBridgingFeeAmountForTokens = DfmToWei(big.NewInt(2_860_000)) // 2.86 Apex
+	DefaultTokenMintAmount               = ApexToWei(big.NewInt(1_000))    // 1000 Apex (1000*10^18)
+	DefaultMinOperationFee               = big.NewInt(0)
 )
 
 type BatchTypes uint8
@@ -664,9 +668,9 @@ func GetTokenAndPolicyForVerificationKey(
 func FundUserWithToken(
 	ctx context.Context, apex *ApexSystem, chainID ChainID,
 	minterWallet *wallet.Wallet, userToFund *TestApexUser,
-	tokenName string, mintAmount uint64,
-	lovelaceFundAmount uint64, tokenFundAmount uint64,
-) (*wallet.TokenAmount, error) {
+	tokenName string, mintAmount *big.Int,
+	fundAmount *big.Int, tokenFundAmount *big.Int,
+) (*GenericTokenAmount, error) {
 	chain, err := apex.getChain(chainID)
 	if err != nil {
 		return nil, err
@@ -679,21 +683,21 @@ func FundUserWithToken(
 
 	return FundAddressWithToken(
 		ctx, cardanoChain, minterWallet, userToFund.GetAddress(chain.ChainID()),
-		tokenName, mintAmount, lovelaceFundAmount, tokenFundAmount)
+		tokenName, mintAmount, fundAmount, tokenFundAmount)
 }
 
 func FundAddressWithToken(
 	ctx context.Context, chain *TestCardanoChain,
 	minterWallet *wallet.Wallet, addrToFund string,
-	tokenName string, mintAmount uint64,
-	lovelaceFundAmount uint64, tokenFundAmount uint64,
-) (*wallet.TokenAmount, error) {
-	if lovelaceFundAmount == 0 {
-		return nil, fmt.Errorf("lovelace amount must be greater than zero")
+	tokenName string, mintAmount *big.Int,
+	weiFundAmount *big.Int, tokenFundAmount *big.Int,
+) (*GenericTokenAmount, error) {
+	if weiFundAmount == nil || weiFundAmount.Sign() <= 0 {
+		return nil, fmt.Errorf("wei amount must be greater than zero")
 	}
 
-	if mintAmount > 0 {
-		if err := MintToken(chain, minterWallet, tokenName, mintAmount); err != nil {
+	if mintAmount != nil && mintAmount.Sign() > 0 {
+		if err := MintToken(chain, minterWallet, tokenName, WeiToDfm(mintAmount)); err != nil {
 			return nil, err
 		}
 	}
@@ -704,7 +708,7 @@ func FundAddressWithToken(
 		return nil, err
 	}
 
-	tokenAmount := wallet.NewTokenAmount(token, tokenFundAmount)
+	tokenAmount := NewGenericTokenAmount(token, tokenFundAmount)
 
 	minterAddr, err := GetAddress(chain.config.NetworkType, minterWallet)
 	if err != nil {
@@ -716,11 +720,11 @@ func FundAddressWithToken(
 	}
 
 	return FundAddressesWithToken(
-		ctx, chain, minterWallet, []string{addrToFund}, tokenName, lovelaceFundAmount, tokenFundAmount)
+		ctx, chain, minterWallet, []string{addrToFund}, tokenName, weiFundAmount, tokenFundAmount)
 }
 
 func MintToken(
-	chain *TestCardanoChain, minterWallet *wallet.Wallet, tokenName string, mintAmount uint64,
+	chain *TestCardanoChain, minterWallet *wallet.Wallet, tokenName string, mintDfmAmount *big.Int,
 ) error {
 	args := []string{
 		"bridge-admin", "mint-native-token",
@@ -729,7 +733,7 @@ func MintToken(
 		"--network-id", fmt.Sprintf("%v", chain.config.NetworkType),
 		"--testnet-magic", fmt.Sprintf("%v", chain.config.NetworkMagic),
 		"--token-name", tokenName,
-		"--amount", fmt.Sprintf("%v", mintAmount),
+		"--amount", mintDfmAmount.String(),
 	}
 
 	if len(minterWallet.StakeSigningKey) > 0 {
@@ -742,8 +746,8 @@ func MintToken(
 func FundUsersWithToken(
 	ctx context.Context, chain *TestCardanoChain,
 	sender *wallet.Wallet, users []*TestApexUser,
-	tokenName string, lovelaceFundAmount uint64, tokenFundAmount uint64,
-) (*wallet.TokenAmount, error) {
+	tokenName string, fundAmount *big.Int, tokenFundAmount *big.Int,
+) (*GenericTokenAmount, error) {
 	addrs := make([]string, len(users))
 
 	for i, u := range users {
@@ -751,29 +755,29 @@ func FundUsersWithToken(
 	}
 
 	return FundAddressesWithToken(
-		ctx, chain, sender, addrs, tokenName, lovelaceFundAmount, tokenFundAmount)
+		ctx, chain, sender, addrs, tokenName, fundAmount, tokenFundAmount)
 }
 
 func FundAddressesWithToken(
 	ctx context.Context, chain *TestCardanoChain,
 	sender *wallet.Wallet, addrs []string,
-	tokenName string, lovelaceFundAmount uint64, tokenFundAmount uint64,
-) (*wallet.TokenAmount, error) {
+	tokenName string, fundAmount *big.Int, tokenFundAmount *big.Int,
+) (*GenericTokenAmount, error) {
 	token, _, err := GetTokenAndPolicyForVerificationKey(
 		chain.ChainID(), chain.config.NetworkType, sender.VerificationKey, tokenName)
 	if err != nil {
 		return nil, err
 	}
 
-	tokenAmount := wallet.NewTokenAmount(token, tokenFundAmount)
+	tokenAmount := NewGenericTokenAmount(token, tokenFundAmount)
 	privateKey := ToCardanoPrivateKeyString(sender.SigningKey, sender.StakeSigningKey)
 	receivers := make([]GenericTxReceiver, len(addrs))
 
 	for i, addr := range addrs {
 		receivers[i] = GenericTxReceiver{
 			Addr:   addr,
-			Amount: new(big.Int).SetUint64(lovelaceFundAmount),
-			NativeTokens: []wallet.TokenAmount{
+			Amount: fundAmount,
+			NativeTokens: []GenericTokenAmount{
 				tokenAmount,
 			},
 		}
@@ -785,7 +789,7 @@ func FundAddressesWithToken(
 	}
 
 	fmt.Printf("Funded %s with lovelace: %d, native tokens: %s. txHash: %s\n",
-		addrs, lovelaceFundAmount, tokenAmount, txHash)
+		addrs, fundAmount, tokenAmount, txHash)
 
 	return &tokenAmount, nil
 }

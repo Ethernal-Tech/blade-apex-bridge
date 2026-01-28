@@ -93,9 +93,9 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
 		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
 		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
-		MinBridgingFee:         DfmToWei(new(big.Int).SetUint64(defaultMinBridgingFeeAmount)),
-		MinBridgingAmount:      DfmToWei(new(big.Int).SetUint64(MinUTxODefaultValue)),
-		MinTokenBridgingAmount: DfmToWei(new(big.Int).SetUint64(1)),
+		MinBridgingFee:         defaultMinBridgingFeeAmount,
+		MinBridgingAmount:      MinUTxODefaultValue,
+		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
 		MinOperationFee:        big.NewInt(0),
 		CurrencyID:             AP3XTokenID,
 
@@ -127,12 +127,12 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 }
 
 func NewRemoteNexusChainConfig(
-	isEnabled bool, minBridgingFeeAmount uint64, minOperationFee uint64) *TestEVMChainConfig {
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int) *TestEVMChainConfig {
 	return &TestEVMChainConfig{
 		IsEnabled:       isEnabled,
 		ChainID:         ChainIDNexus,
-		MinBridgingFee:  DfmToWei(new(big.Int).SetUint64(minBridgingFeeAmount)),
-		MinOperationFee: DfmToWei(new(big.Int).SetUint64(minOperationFee)),
+		MinBridgingFee:  minBridgingFeeAmount,
+		MinOperationFee: minOperationFee,
 		CurrencyID:      AP3XTokenID,
 		LockUnlockTokens: []EVMTokenInfo{
 			{
@@ -170,9 +170,9 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
 		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
 		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
-		MinBridgingFee:         DfmToWei(new(big.Int).SetUint64(defaultMinBridgingFeeAmount)),
-		MinBridgingAmount:      DfmToWei(new(big.Int).SetUint64(MinUTxODefaultValue)),
-		MinTokenBridgingAmount: DfmToWei(new(big.Int).SetUint64(1)),
+		MinBridgingFee:         defaultMinBridgingFeeAmount,
+		MinBridgingAmount:      MinUTxODefaultValue,
+		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
 		MinOperationFee:        big.NewInt(0),
 		CurrencyID:             MATICTokenID,
 
@@ -516,8 +516,6 @@ func (ec *TestEVMChain) deployERC20Token(token EVMTokenInfo) (types.Address, err
 
 func (ec *TestEVMChain) FundUsersWithToken(address string, amount *big.Int, tokenID uint16) error {
 	// Look up the token contract address
-	amount = DfmToWei(amount)
-
 	tokenAddrHex, ok := ec.config.ConfigurableTokens[tokenID]
 	if !ok || tokenAddrHex == "" {
 		return fmt.Errorf("token with ID %d not found in configured tokens", tokenID)
@@ -722,7 +720,7 @@ func retry(ctx context.Context, workingDirectory string, action func() error) er
 
 func (ec *TestEVMChain) RegisterChain(validator *TestApexValidator) error {
 	return validator.RegisterChain(
-		ec.ChainID(), WeiToDfm(ec.config.InitialHotWalletAmount), big.NewInt(0), ChainTypeEVM)
+		ec.ChainID(), ec.config.InitialHotWalletAmount, big.NewInt(0), ChainTypeEVM)
 }
 
 func (ec *TestEVMChain) GenerateChainConfigs(
@@ -827,10 +825,10 @@ func (ec *TestEVMChain) GetBridgingFee(
 	_ context.Context,
 	_ string,
 	_ []sendtx.BridgingTxReceiver,
-	bridgingFee uint64,
-	_ uint64,
+	bridgingFee *big.Int,
+	_ *big.Int,
 	_ string,
-) (uint64, error) {
+) (*big.Int, error) {
 	return bridgingFee, nil
 }
 
@@ -838,8 +836,8 @@ func (ec *TestEVMChain) CreateMetadata(
 	senderAddr string,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
-	bridgingFee uint64,
-	operationFee uint64,
+	bridgingFee *big.Int,
+	operationFee *big.Int,
 ) ([]byte, error) {
 	return nil, nil
 }
@@ -1117,7 +1115,7 @@ func (ec *TestEVMChain) sendTx(
 }
 
 func (ec *TestEVMChain) sendTxWithNativeTokens(
-	privateKey string, receiver string, amount *big.Int, data []byte, nativeTokens []infrawallet.TokenAmount,
+	privateKey string, receiver string, amount *big.Int, data []byte, nativeTokens []GenericTokenAmount,
 ) (*ethgo.Receipt, error) {
 	privateKeyECDSA, err := crypto.HexToECDSA(privateKey)
 	if err != nil {
@@ -1140,7 +1138,6 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 	for _, nativeToken := range nativeTokens {
 		// We interpret the Cardano token PolicyID as the ERC20 contract address on the EVM chain.
 		tokenAddr := types.StringToAddress(nativeToken.Token.PolicyID)
-		tokenAmount := DfmToWei(big.NewInt(0).SetUint64(nativeToken.Amount))
 
 		// Encode ERC20 transfer(recipient, amount)
 		if contractsapi.SimpleERC20 == nil || contractsapi.SimpleERC20.Abi == nil {
@@ -1152,7 +1149,7 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 			return nil, fmt.Errorf("transfer method not found in SimpleERC20 ABI")
 		}
 
-		transferData, err := transferMethod.Encode([]interface{}{recipient, tokenAmount})
+		transferData, err := transferMethod.Encode([]interface{}{recipient, nativeToken.Amount})
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode transfer call: %w", err)
 		}

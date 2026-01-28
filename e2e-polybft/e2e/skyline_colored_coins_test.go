@@ -12,7 +12,6 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,7 +45,7 @@ func Test_CardanoToNexus(t *testing.T) {
 
 	t.Run("Test SendTx with erc20 tokens on Nexus", func(t *testing.T) {
 		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(2), cardanofw.USDTTokenID)
+		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.USDTTokenID)
 		require.NoError(t, err)
 
 		receiver := apex.Users[1]
@@ -61,11 +60,10 @@ func Test_CardanoToNexus(t *testing.T) {
 
 		_, err = apex.SubmitTx(
 			ctx, cardanofw.ChainIDNexus, user,
-			receiver.GetAddress(cardanofw.ChainIDNexus), big.NewInt(1_000_000),
-			[]wallet.TokenAmount{
-				{Token: wallet.Token{PolicyID: apex.NexusInfo.Tokens[cardanofw.USDTTokenID].ChainSpecific}, Amount: 2},
-			},
-			[]byte{})
+			receiver.GetAddress(cardanofw.ChainIDNexus), cardanofw.ApexToWei(big.NewInt(1)),
+			[]cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(
+				wallet.Token{PolicyID: apex.NexusInfo.Tokens[cardanofw.USDTTokenID].ChainSpecific}, cardanofw.DfmToWei(big.NewInt(2))),
+			}, []byte{})
 		require.NoError(t, err)
 
 		balance, err = nexusChain.GetAddressBalance(ctx, receiver.GetAddress(cardanofw.ChainIDNexus))
@@ -79,7 +77,7 @@ func Test_CardanoToNexus(t *testing.T) {
 
 	t.Run("Cardano -> Nexus - ADA -> xADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, big.NewInt(100_000_000),
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.ApexToWei(big.NewInt(100)),
 			cardanofw.ADATokenID)
 	})
 }
@@ -121,118 +119,118 @@ func Test_SkylineBridgeCC_General(t *testing.T) {
 
 	t.Run("Nexus <-> Vector USTD <-> wUSDT", func(t *testing.T) {
 		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(2), cardanofw.USDTTokenID)
+		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.USDTTokenID)
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.DfmToWei(big.NewInt(1)),
 			cardanofw.USDTTokenID)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(1),
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
 			cardanofw.USDTTokenID)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.DfmToWei(big.NewInt(1)),
 			cardanofw.USDTTokenID)
 	})
 
 	t.Run("Cardano -> Nexus - ADA -> xADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, big.NewInt(100_000_000),
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(100_000_000)),
 			cardanofw.ADATokenID)
 	})
 
 	t.Run("Nexus -> Cardano - xADA -> ADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDCardano, cardanofw.DfmToWei(big.NewInt(10_000_000)),
 			cardanofw.XADATokenID)
 	})
 
 	t.Run("Cardano -> Vector - ADA -> xADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, big.NewInt(20_000_000),
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, cardanofw.DfmToWei(big.NewInt(20_000_000)),
 			cardanofw.ADATokenID)
 	})
 
 	t.Run("Vector -> Cardano - xADA -> ADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.DfmToWei(big.NewInt(10_000_000)),
 			cardanofw.XADATokenID)
 	})
 
 	t.Run("Vector -> Nexus xADA -> xADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(1),
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
 			cardanofw.XADATokenID)
 	})
 
 	t.Run("Nexus -> Vector xADA -> xADA", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(1),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.DfmToWei(big.NewInt(1)),
 			cardanofw.XADATokenID)
 	})
 
 	t.Run("Prime -> Cardano - AP3X -> CAP3X", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
+			t, ctx, apex, user, user, cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, cardanofw.DfmToWei(big.NewInt(10_000_000)),
 			cardanofw.AP3XTokenID)
 	})
 
 	t.Run("Cardano -> Prime - CAP3X -> AP3X", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, big.NewInt(10_000_000),
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, cardanofw.DfmToWei(big.NewInt(10_000_000)),
 			cardanofw.CAP3XTokenID)
 	})
 
 	t.Run("Nexus <-> Polygon USDT <-> wUSDT", func(t *testing.T) {
 		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(2), cardanofw.USDTTokenID)
+		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.USDTTokenID)
 		require.NoError(t, err)
 
 		fmt.Printf("Starting bridging USDT Nexus -> Polygon\n")
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, big.NewInt(1),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
 			cardanofw.USDTTokenID)
 
 		fmt.Printf("Starting bridging USDT Polygon -> Nexus\n")
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, big.NewInt(1),
+			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
 			cardanofw.USDTTokenID)
 	})
 
 	t.Run("Polygon <-> Nexus USDC <-> wUSDC", func(t *testing.T) {
 		polygonChain := apex.GetChainMust(t, cardanofw.ChainIDPolygon).(*cardanofw.TestEVMChain)
-		err := polygonChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDPolygon), big.NewInt(2), cardanofw.USDCTokenID)
+		err := polygonChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDPolygon), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.USDCTokenID)
 		require.NoError(t, err)
 
 		fmt.Printf("Starting bridging USDC Polygon -> Nexus\n")
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, big.NewInt(1),
+			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
 			cardanofw.USDCTokenID)
 
 		fmt.Printf("Starting bridging USDC Nexus -> Polygon\n")
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, big.NewInt(1),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
 			cardanofw.USDCTokenID)
 	})
 
 	t.Run("Polygon <-> Nexus MATIC <-> xMATIC", func(t *testing.T) {
 		fmt.Printf("Starting bridging MATIC Polygon -> Nexus\n")
 
-		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmountDfm,
+			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmount,
 			cardanofw.MATICTokenID)
 
 		fmt.Printf("Starting bridging xMATIC Nexus -> Polygon\n")
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, sendAmountDfm,
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, sendAmount,
 			cardanofw.XMATICTokenID)
 	})
 }
@@ -244,9 +242,12 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		maxWaitTimeSec = 600
 		retryDelaySec  = 5
-
-		minColCoinsAllowedToBridge = uint64(2)
 	)
+
+	var lock sync.Mutex
+
+	minColCoinsAllowedToBridgeDfm := uint64(2)
+	minColCoinsAllowedToBridge := cardanofw.DfmToWei(new(big.Int).SetUint64(minColCoinsAllowedToBridgeDfm))
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
@@ -265,9 +266,15 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithNexusConfig(nexusConfig),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+			t.Helper()
+
+			lock.Lock()
+			defer lock.Unlock()
+
 			mp["refundEnabled"] = false
-			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			setting["minColCoinsAllowedToBridge"] = minColCoinsAllowedToBridge
+
+			vcCfg := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", cardanofw.ChainIDVector)
+			vcCfg["minColCoinsAllowedToBridge"] = minColCoinsAllowedToBridgeDfm
 		}, nil, nil, nil),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
@@ -287,7 +294,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 	// Fund user with USDT tokens on Nexus for tests
 	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-	err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(100), cardanofw.USDTTokenID)
+	err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(100)), cardanofw.USDTTokenID)
 	require.NoError(t, err)
 
 	t.Run("1. Cardano -> Nexus - Mismatch submitted and receiver amounts", func(t *testing.T) {
@@ -303,7 +310,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			apex.VectorInfo.GenesisWallet, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), uint64(1_123_000))
+			cardanofw.ApexToWei(big.NewInt(10)), cardanofw.DfmToWei(big.NewInt(1_123_000)))
 		require.NoError(t, err)
 
 		executeInvalidTokenDirection(t, ctx, apex, vectorNexusXADATestConfig, cardanofw.AP3XTokenID, user, maxWaitTimeSec, retryDelaySec, false, 0)
@@ -311,22 +318,22 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 	//nolint:dupl
 	t.Run("4.Submitted invalid metadata - currency under min - token on source", func(t *testing.T) {
-		sendAmount := uint64(1_000_000)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 		user, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 		require.NoError(t, err)
 
-		tokensFunded, err := cardanofw.FundUserWithToken(
+		tokensFunded, err := cardanofw.FundUserWithToken( // this is necessary to fix
 			ctx, apex, cardanofw.ChainIDVector,
 			apex.VectorInfo.GenesisWallet, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), uint64(10_000_000))
+			cardanofw.ApexToWei(big.NewInt(10)), cardanofw.ApexToWei(big.NewInt(10)))
 		require.NoError(t, err)
 
 		receivers := []sendtx.BridgingTxReceiver{
 			{
 				Addr:    user.GetAddress(cardanofw.ChainIDNexus),
-				Amount:  sendAmount,
+				Amount:  cardanofw.WeiToDfm(sendAmount).Uint64(),
 				TokenID: cardanofw.XADATokenID,
 			},
 		}
@@ -338,20 +345,21 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			operationFee, apex.VectorInfo.MultisigAddr[0])
 		require.NoError(t, err)
 
-		feeAmount -= 1_000_000
+		feeAmount.Sub(feeAmount, cardanofw.ApexToWei(big.NewInt(1)))
 
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDVector).CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDVector), cardanofw.ChainIDNexus,
-			receivers, feeAmount, operationFee)
+			receivers, feeAmount,
+			operationFee)
 		require.NoError(t, err)
+
+		totalValue := new(big.Int).Add(sendAmount, feeAmount)
+		totalValue.Add(totalValue, operationFee)
 
 		txHash, err := apex.SubmitTx(
 			ctx, cardanofw.ChainIDVector, user,
-			apex.VectorInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount+operationFee),
-			[]wallet.TokenAmount{
-				{Token: tokensFunded.Token, Amount: sendAmount},
-			},
-			metadata)
+			apex.VectorInfo.MultisigAddr[0], totalValue,
+			[]cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(tokensFunded.Token, sendAmount)}, metadata)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDVector, txHash, apex.Config.APIKey, 0)
@@ -385,7 +393,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			minterWallet, user,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(1_500_000), uint64(1_000_000))
+			cardanofw.DfmToWei(big.NewInt(1_500_000)), cardanofw.ApexToWei(big.NewInt(1)))
 		require.NoError(t, err)
 
 		executeInvalidSendNativeToken(t, ctx, apex, user, vectorNexusXADATestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0)
@@ -399,7 +407,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDVector,
 			apex.VectorInfo.GenesisWallet, user,
 			cardanofw.XADATokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), uint64(1_123_000))
+			cardanofw.ApexToWei(big.NewInt(10)), cardanofw.DfmToWei(big.NewInt(1_123_000)))
 		require.NoError(t, err)
 
 		executeInvalidMismatchSendNativeTokenAmount(t, ctx, apex, user, vectorNexusXADATestConfig, *tokensFunded, maxWaitTimeSec, retryDelaySec, false, 0)
@@ -407,12 +415,12 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 	t.Run("12. Vector -> Nexus - Mismatch submitted and receiver amounts - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, minColCoinsAllowedToBridge,
 			cardanofw.USDTTokenID)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
-				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, minColCoinsAllowedToBridge*10, cardanofw.USDTTokenID),
+				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, new(big.Int).Mul(minColCoinsAllowedToBridge, big.NewInt(10)), cardanofw.USDTTokenID),
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitRefundDisabled,
 			},
@@ -424,7 +432,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 		for i := range instances {
 			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, user, apex.Users[i], cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+				t, ctx, apex, user, apex.Users[i], cardanofw.ChainIDNexus, cardanofw.ChainIDVector, minColCoinsAllowedToBridge,
 				cardanofw.USDTTokenID)
 		}
 
@@ -433,7 +441,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 	t.Run("14. Vector -> Nexus - Invalid destination - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, minColCoinsAllowedToBridge,
 			cardanofw.USDTTokenID)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
@@ -450,7 +458,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 	t.Run("15. Vector -> Nexus - Invalid metadata type - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, minColCoinsAllowedToBridge,
 			cardanofw.USDTTokenID)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, 60, retryDelaySec, 0,
@@ -467,10 +475,10 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 	t.Run("16. Vector -> Nexus - Invalid receiver amount - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, minColCoinsAllowedToBridge,
 			cardanofw.USDTTokenID)
 
-		invalidAmount := minColCoinsAllowedToBridge - 1
+		invalidAmount := new(big.Int).Sub(minColCoinsAllowedToBridge, big.NewInt(1))
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 			colCoinInvalidOpts{
 				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, invalidAmount, cardanofw.USDTTokenID),
@@ -482,7 +490,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 
 	t.Run("17. Vector -> Nexus - Invalid receiver address - USDT on source", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(minColCoinsAllowedToBridge)),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, minColCoinsAllowedToBridge,
 			cardanofw.USDTTokenID)
 
 		executeInvalidColCoin(t, ctx, apex, vectorNexusUSDTTestConfig, user, maxWaitTimeSec, retryDelaySec, 0,
@@ -490,7 +498,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 				receivers: []sendtx.BridgingTxReceiver{
 					{
 						Addr:    "addr1qxyz...invalidaddress",
-						Amount:  minColCoinsAllowedToBridge,
+						Amount:  cardanofw.WeiToDfm(minColCoinsAllowedToBridge).Uint64(),
 						TokenID: cardanofw.USDTTokenID,
 					},
 				},
@@ -506,6 +514,8 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 		apiKey                     = "test_api_key"
 		minColCoinsAllowedToBridge = uint64(2)
 	)
+
+	var lock sync.Mutex
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
@@ -527,8 +537,13 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 		cardanofw.WithPolygonConfig(polygonConfig),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
-			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			setting["minColCoinsAllowedToBridge"] = minColCoinsAllowedToBridge
+			t.Helper()
+
+			lock.Lock()
+			defer lock.Unlock()
+
+			nexusCfg := cardanofw.GetMapFromInterfaceKey(mp, "ethChains", cardanofw.ChainIDNexus)
+			nexusCfg["minColCoinsAllowedToBridge"] = cardanofw.DfmToWei(big.NewInt(int64(minColCoinsAllowedToBridge)))
 		}, nil, nil, nil),
 	)
 
@@ -538,7 +553,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 
 	// funding for tests
 	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-	err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(1000000000001), cardanofw.USDTTokenID)
+	err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(1000000000001)), cardanofw.USDTTokenID)
 	require.NoError(t, err)
 
 	sendAmount := cardanofw.DfmToWei(big.NewInt(1_000_000))
@@ -771,7 +786,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 				receivers: map[string]cardanofw.ReceiverAmount{
 					user.GetAddress(cardanofw.ChainIDVector): {
 						TokenID: cardanofw.USDTTokenID,
-						Amount:  cardanofw.DfmToWei(big.NewInt(1000000000001)),
+						Amount:  cardanofw.DfmToWei(new(big.Int).SetUint64(1_000_000_000_001)),
 					},
 				},
 				operationFee: big.NewInt(0),
@@ -781,20 +796,21 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc(t *testing.T) {
 		})
 
 		vectorChain := apex.GetChainMust(t, cardanofw.ChainIDVector).(*cardanofw.TestCardanoChain)
-		err = cardanofw.MintToken(vectorChain, apex.VectorInfo.GenesisWallet, cardanofw.XADATokenName, 10000000000010)
+		err = cardanofw.MintToken(vectorChain, apex.VectorInfo.GenesisWallet, cardanofw.XADATokenName,
+			new(big.Int).SetUint64(10000000000010))
 		require.NoError(t, err)
 
 		_, err = cardanofw.FundUsersWithToken(
 			ctx, vectorChain, apex.VectorInfo.GenesisWallet,
-			apex.Users, cardanofw.XADATokenName, 2_000_000, 1000000000001)
+			apex.Users, cardanofw.XADATokenName, cardanofw.ApexToWei(big.NewInt(2)), cardanofw.DfmToWei(big.NewInt(1_000_000_000_001)))
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(500000000001),
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(500_000_000_001)),
 			cardanofw.XADATokenID)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(500000000000),
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(500_000_000_000)),
 			cardanofw.XADATokenID)
 
 		t.Run("2. Nexus -> Vector xada", func(t *testing.T) {
@@ -927,7 +943,7 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 
 	user := apex.Users[usrCnt-1]
 
-	sendAmount := big.NewInt(1_000_000)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	t.Run("Send radom tokens to custodial, relayer and plutus addresses", func(t *testing.T) {
 		vectorChain := apex.GetChainMust(t, cardanofw.ChainIDVector)
@@ -938,18 +954,19 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 			vectorChain.GetCardanoScriptInfo().PlutusAddress,
 		}
 
-		err := cardanofw.MintToken(vectorChain.(*cardanofw.TestCardanoChain), apex.VectorInfo.GenesisWallet, "ranodom-token", 3*1000000000000)
+		err := cardanofw.MintToken(vectorChain.(*cardanofw.TestCardanoChain), apex.VectorInfo.GenesisWallet, "ranodom-token",
+			new(big.Int).Mul(big.NewInt(3), new(big.Int).SetUint64(1_000_000_000_000)))
 		require.NoError(t, err)
 
 		_, err = cardanofw.FundAddressesWithToken(
 			ctx, vectorChain.(*cardanofw.TestCardanoChain), apex.VectorInfo.GenesisWallet,
-			addresses, "ranodom-token", 40000000000, 1000000000000)
+			addresses, "ranodom-token", new(big.Int).SetUint64(40_000_000_000), new(big.Int).SetUint64(1_000_000_000_000))
 		require.NoError(t, err)
 	})
 
 	t.Run("Bridge to relayer, custodial and plutus addresses", func(t *testing.T) {
 		vectorChain := apex.GetChainMust(t, cardanofw.ChainIDVector)
-		sendAmountDfm := big.NewInt(5_000_000)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(5))
 
 		addresses := []string{
 			vectorChain.GetCustodialAddress(),
@@ -972,7 +989,7 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
 		err := nexusChain.FundUsersWithToken(
 			user.GetAddress(cardanofw.ChainIDNexus),
-			big.NewInt(200_000_000),
+			cardanofw.DfmToWei(big.NewInt(200_000_000)),
 			cardanofw.USDTTokenID,
 		)
 		require.NoError(t, err)
@@ -985,7 +1002,7 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 				{SrcChain: cardanofw.ChainIDCardano, DstChain: cardanofw.ChainIDVector, SrcTokenID: cardanofw.ADATokenID},
 				{SrcChain: cardanofw.ChainIDNexus, DstChain: cardanofw.ChainIDVector, SrcTokenID: cardanofw.USDTTokenID},
 			},
-			sendAmountDfm,
+			sendAmount,
 		)
 	})
 
@@ -1087,18 +1104,19 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 
 		var wg sync.WaitGroup
 
-		err := cardanofw.MintToken(vectorChain, apex.VectorInfo.GenesisWallet, cardanofw.XADATokenName, uint64(len(apex.Users)*400_000_000))
+		err := cardanofw.MintToken(vectorChain, apex.VectorInfo.GenesisWallet, cardanofw.XADATokenName,
+			new(big.Int).Mul(big.NewInt(int64(len(apex.Users))), new(big.Int).SetUint64(400_000_000)))
 		require.NoError(t, err)
 
 		_, err = cardanofw.FundUsersWithToken(
 			ctx, vectorChain, apex.VectorInfo.GenesisWallet,
-			apex.Users, cardanofw.XADATokenName, 400_000_000, 400_000_000)
+			apex.Users, cardanofw.XADATokenName, cardanofw.ApexToWei(big.NewInt(400)), cardanofw.ApexToWei(big.NewInt(400)))
 		require.NoError(t, err)
 
 		for _, user := range apex.Users {
 			err := nexusChain.FundUsersWithToken(
 				user.GetAddress(cardanofw.ChainIDNexus),
-				big.NewInt(200_000_000),
+				cardanofw.DfmToWei(big.NewInt(200_000_000)),
 				cardanofw.USDTTokenID,
 			)
 			require.NoError(t, err)
@@ -1109,16 +1127,16 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 				defer wg.Done()
 
 				e2ehelper.ExecuteSingleBridging(
-					t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(100_000_000),
-					cardanofw.USDTTokenID)
+					t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector,
+					cardanofw.DfmToWei(big.NewInt(100_000_000)), cardanofw.USDTTokenID)
 			}()
 
 			go func() {
 				defer wg.Done()
 
 				e2ehelper.ExecuteSingleBridging(
-					t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus, big.NewInt(200_000_000),
-					cardanofw.XADATokenID)
+					t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDNexus,
+					cardanofw.DfmToWei(big.NewInt(200_000_000)), cardanofw.XADATokenID)
 			}()
 		}
 
@@ -1131,9 +1149,10 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 		}
 
 		const (
-			sendAmount = uint64(1_000_000)
-			instances  = 5
+			instances = 5
 		)
+
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 		for idx, br := range bridgingRequests {
 			fmt.Printf("5.%d %s -> %s - srcTokenID: %d\n", idx+1, br.src, br.dest, br.srcTokenID)
@@ -1147,7 +1166,7 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 				map[e2ehelper.SrcDstChainPair]uint16{
 					e2ehelper.NewChainPair(br.src, br.dest): br.srcTokenID,
 				},
-				new(big.Int).SetUint64(sendAmount))
+				sendAmount)
 		}
 	})
 
@@ -1157,11 +1176,12 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 		}
 
 		const (
-			sendAmount          = uint64(1_000_000)
 			sequentialInstances = 5
 			parallelInstances   = 10
 			receivers           = 1
 		)
+
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 		for idx, br := range bridgingRequests {
 			fmt.Printf("6.%d %s -> %s - srcTokenID: %d\n", idx+1, br.src, br.dest, br.srcTokenID)
@@ -1177,7 +1197,7 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 				map[e2ehelper.SrcDstChainPair]uint16{
 					e2ehelper.NewChainPair(br.src, br.dest): br.srcTokenID,
 				},
-				new(big.Int).SetUint64(sendAmount),
+				sendAmount,
 			)
 		}
 	})
@@ -1188,31 +1208,33 @@ func Test_SkylineBridgeCC_ValidScenarios(t *testing.T) {
 		}
 
 		const (
-			sendAmount = uint64(1_000_000)
-			instances  = 5
+			instances = 5
 		)
+
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 		e2ehelper.ExecuteBridgingExtended(
 			t, ctx, apex, 1,
 			apex.Users[:instances],
 			[]*cardanofw.TestApexUser{user},
 			getBridgingRequests(bridgingRequests),
-			new(big.Int).SetUint64(sendAmount),
+			sendAmount,
 		)
 	})
 
 	t.Run("8. All directions sequential and parallel", func(t *testing.T) {
 		const (
-			sendAmount = uint64(1_000_000)
-			instances  = 5
+			instances = 5
 		)
+
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 		e2ehelper.ExecuteBridgingExtended(
 			t, ctx, apex, instances,
 			apex.Users[:instances],
 			[]*cardanofw.TestApexUser{user},
 			getBridgingRequests(bridgingRequests),
-			new(big.Int).SetUint64(sendAmount),
+			sendAmount,
 		)
 	})
 }
@@ -1228,9 +1250,9 @@ func Test_SkylineBridgeCC_WithRefund(t *testing.T) {
 
 		maxWaitTimeSec = 600
 		retryDelaySec  = 5
-
-		colCoinsAmount = uint64(2)
 	)
+
+	colCoinsAmount := cardanofw.DfmToWei(big.NewInt(2))
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
@@ -1265,7 +1287,7 @@ func Test_SkylineBridgeCC_WithRefund(t *testing.T) {
 				srcChainID:      cardanofw.ChainIDCardano,
 				srcMinterWallet: apex.CardanoInfo.GenesisWallet,
 			},
-		}, apex.Users[:userCnt], uint64(10_000_000), cardanofw.DefaultTokenMintAmount)
+		}, apex.Users[:userCnt], cardanofw.ApexToWei(big.NewInt(10)), cardanofw.DefaultTokenMintAmount)
 
 	cardanoNexusTestConfig := newTestConfig(
 		t, apex, apex.Config.CardanoConfig, &apex.CardanoInfo, cardanofw.ChainIDNexus, cardanofw.ADATokenID)
@@ -1276,7 +1298,7 @@ func Test_SkylineBridgeCC_WithRefund(t *testing.T) {
 
 	// Fund user on Nexus with USDT token
 	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-	err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), big.NewInt(100), cardanofw.USDTTokenID)
+	err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(100)), cardanofw.USDTTokenID)
 	require.NoError(t, err)
 
 	fmt.Printf("User: %+v\n", user.GetAddress(cardanofw.ChainIDNexus))
@@ -1313,7 +1335,7 @@ func Test_SkylineBridgeCC_WithRefund(t *testing.T) {
 		default:
 			executeInvalidColCoin(t, ctx, apex, testConfig, user, maxWaitTimeSec, retryDelaySec, 0,
 				colCoinInvalidOpts{
-					receivers:  createReceivers(apex, 1, testConfig.dstChainID, colCoinsAmount*10, tokenID),
+					receivers:  createReceivers(apex, 1, testConfig.dstChainID, new(big.Int).Mul(colCoinsAmount, big.NewInt(10)), tokenID),
 					amount:     colCoinsAmount,
 					waitOption: NoWait,
 				},
@@ -1324,28 +1346,28 @@ func Test_SkylineBridgeCC_WithRefund(t *testing.T) {
 	t.Run("1. Bridging xADA from Nexus to Cardano (ADA), Refund ADA on Cardano", func(t *testing.T) {
 		// mint some xADA on Nexus for user
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, big.NewInt(100_000_000),
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.ApexToWei(big.NewInt(100)),
 			cardanofw.ADATokenID)
 
 		e2ehelper.ExecuteBridgingWithRefund(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDCardano, big.NewInt(10_000_000),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDCardano, cardanofw.ApexToWei(big.NewInt(10)),
 			cardanofw.XADATokenID, refundTrigger)
 	})
 
 	t.Run("2. Bridging USDT from Nexus to Vector (USDT), Refund USDT on Vector", func(t *testing.T) {
 		// mint some USDT on Nexus for user
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(10*colCoinsAmount)),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, new(big.Int).Mul(big.NewInt(10), colCoinsAmount),
 			cardanofw.USDTTokenID)
 
 		e2ehelper.ExecuteBridgingWithRefund(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, big.NewInt(int64(colCoinsAmount)),
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDVector, colCoinsAmount,
 			cardanofw.USDTTokenID, refundTrigger)
 	})
 
 	t.Run("3. Bridging ADA from Cardano to Vector (xADA), Refund xADA on Vector", func(t *testing.T) {
 		e2ehelper.ExecuteBridgingWithRefund(
-			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, big.NewInt(10_000_000),
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, cardanofw.ApexToWei(big.NewInt(10)),
 			cardanofw.ADATokenID, refundTrigger)
 	})
 }
