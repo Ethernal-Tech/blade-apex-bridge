@@ -326,6 +326,57 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 				MinOperationFee: big.NewInt(0),
 				TreasuryAddress: "",
 			},
+			// DN_TODO: Add Polygon
+			ChainIDPolygon: {
+				Info: EVMChainInfo{
+					GatewayAddress:           types.StringToAddress("0x53F9124643E3D15f8d753733C5d908CD6aA65178"),
+					NativeTokenWalletAddress: types.StringToAddress("0x55f32E6DbDC141fd395555a4238bD15FDC386F8D"),
+					JSONRPCAddr:              "https://rpc.nexus.testnet.apexfusion.org",
+					Tokens: map[uint16]Token{
+						AP3XTokenID: {
+							ChainSpecific:     cardanowallet.AdaTokenName,
+							LockUnlock:        true,
+							IsWrappedCurrency: false,
+						},
+						XADATokenID: {
+							ChainSpecific:     "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f",
+							LockUnlock:        false,
+							IsWrappedCurrency: false,
+						},
+						USDTTokenID: {
+							ChainSpecific:     "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0",
+							LockUnlock:        true,
+							IsWrappedCurrency: false,
+						},
+					},
+					DestChain: map[ChainID][]Direction{
+						ChainIDCardano: {
+							{
+								SourceTokenID:      XADATokenID,
+								DestinationTokenID: ADATokenID,
+								TrackSource:        false,
+								TrackDestination:   true,
+							},
+						},
+						ChainIDVector: {
+							{
+								SourceTokenID:      XADATokenID,
+								DestinationTokenID: XADATokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+							{
+								SourceTokenID:      USDTTokenID,
+								DestinationTokenID: USDTTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+					},
+				},
+				MinBridgingFee:  ApexToWei(big.NewInt(4)),
+				MinOperationFee: big.NewInt(0),
+			},
 		},
 		BridgingAPIs: []string{
 			"http://validator-1-skyline-partner.testnet.ethernal.work:10003",
@@ -496,6 +547,7 @@ func SetupSkylineRemoteBridge(
 	vectorRemoteConfig := remoteConfig.CardanoChains[ChainIDVector]
 	cardanoRemoteConfig := remoteConfig.CardanoChains[ChainIDCardano]
 	nexusRemoteConfig := remoteConfig.EVMChains[ChainIDNexus]
+	polygonRemoteConfig := remoteConfig.EVMChains[ChainIDPolygon]
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig: NewRemotePrimeChainConfig(
 			primeRemoteConfig.DefaultMinBridgingFee, primeRemoteConfig.MinBridgingFeeForTokens,
@@ -508,6 +560,8 @@ func SetupSkylineRemoteBridge(
 			cardanoRemoteConfig.MinOperationFee, cardanoRemoteConfig.TreasuryAddress),
 		NexusConfig: NewRemoteNexusChainConfig(true,
 			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee, nexusRemoteConfig.TreasuryAddress),
+		PolygonConfig: NewRemotePolygonChainConfig(true,
+			polygonRemoteConfig.MinBridgingFee, polygonRemoteConfig.MinOperationFee),
 		APIKey: remoteConfig.BridgingAPIKey,
 	}
 
@@ -553,6 +607,14 @@ func SetupSkylineRemoteBridge(
 		indexer:               e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 
+	polygonChain := &TestEVMChain{
+		config:                apexConfig.PolygonConfig,
+		gatewayAddr:           polygonRemoteConfig.Info.GatewayAddress,
+		nativeTokenWalletAddr: polygonRemoteConfig.Info.NativeTokenWalletAddress,
+		jsonRPCAddr:           polygonRemoteConfig.Info.JSONRPCAddr,
+		indexer:               e2eindexer.NewTxsExecutedComponentDummy(),
+	}
+
 	usersData, err := GetTestnetApexUsers(
 		NewApexNetworkTypes(ApexNetworkTypesParams{
 			PrimeConfig:   apexConfig.PrimeConfig,
@@ -571,12 +633,13 @@ func SetupSkylineRemoteBridge(
 		FunderUser:   usersData.Funder,
 		Users:        usersData.Users,
 		IsSkyline:    true,
-		chains:       []ITestApexChain{primeChain, vectorChain, cardanoChain, nexusChain},
+		chains:       []ITestApexChain{primeChain, vectorChain, cardanoChain, nexusChain, polygonChain},
 		bridgingAPIs: remoteConfig.BridgingAPIs,
 		PrimeInfo:    primeRemoteConfig.Info,
 		VectorInfo:   vectorRemoteConfig.Info,
 		CardanoInfo:  cardanoRemoteConfig.Info,
 		NexusInfo:    nexusRemoteConfig.Info,
+		PolygonInfo:  polygonRemoteConfig.Info,
 		EcosystemTokens: map[uint16]string{
 			USDTTokenID:  USDTTokenName,
 			XADATokenID:  XADATokenName,

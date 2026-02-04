@@ -604,6 +604,57 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 
 		executeAllDirectionsMulReceiversTest(t, bridgingDirections)
 	})
+
+	t.Run("Nexus <-> Polygon USDT <-> wUSDT", func(t *testing.T) {
+		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.USDTTokenID)
+		require.NoError(t, err)
+
+		fmt.Printf("Starting bridging USDT Nexus -> Polygon\n")
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
+			cardanofw.USDTTokenID)
+
+		fmt.Printf("Starting bridging USDT Polygon -> Nexus\n")
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
+			cardanofw.USDTTokenID)
+	})
+
+	t.Run("Polygon <-> Nexus USDC <-> wUSDC", func(t *testing.T) {
+		polygonChain := apex.GetChainMust(t, cardanofw.ChainIDPolygon).(*cardanofw.TestEVMChain)
+		err := polygonChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDPolygon), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.USDCTokenID)
+		require.NoError(t, err)
+
+		fmt.Printf("Starting bridging USDC Polygon -> Nexus\n")
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
+			cardanofw.USDCTokenID)
+
+		fmt.Printf("Starting bridging USDC Nexus -> Polygon\n")
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
+			cardanofw.USDCTokenID)
+	})
+
+	t.Run("Polygon <-> Nexus MATIC <-> xMATIC", func(t *testing.T) {
+		fmt.Printf("Starting bridging MATIC Polygon -> Nexus\n")
+
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmount,
+			cardanofw.MATICTokenID)
+
+		fmt.Printf("Starting bridging xMATIC Nexus -> Polygon\n")
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, sendAmount,
+			cardanofw.XMATICTokenID)
+	})
 }
 
 func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
@@ -909,6 +960,22 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios_NexusSrc(t *testing.T) {
 		})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
+	})
+
+	t.Run("13. Invalid eth receiver address", func(t *testing.T) {
+		err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDPolygon),
+			sender:     user,
+			receivers: map[string]cardanofw.ReceiverAmount{
+				"addr_test1invalidaddress": {
+					TokenID: cardanofw.USDTTokenID,
+					Amount:  sendAmount,
+				},
+			},
+			operationFee: big.NewInt(0),
+			tokenInfo:    tokenInfo,
+		})
+		require.NoError(t, err)
 	})
 }
 

@@ -205,6 +205,35 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 	}
 }
 
+func NewRemotePolygonChainConfig(
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int) *TestEVMChainConfig {
+	return &TestEVMChainConfig{
+		IsEnabled:       isEnabled,
+		ChainID:         ChainIDPolygon,
+		MinBridgingFee:  minBridgingFeeAmount,
+		MinOperationFee: minOperationFee,
+		CurrencyID:      MATICTokenID,
+		LockUnlockTokens: []EVMTokenInfo{
+			{
+				ID:     USDCTokenID,
+				Name:   USDCTokenName,
+				Symbol: USDCTokenName,
+			},
+		},
+		MintTokens: []EVMTokenInfo{
+			{
+				ID:     USDTTokenID,
+				Name:   USDTTokenName,
+				Symbol: USDTTokenName,
+			},
+		},
+		ConfigurableTokens: map[uint16]string{
+			USDCTokenID: "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0", //DN_TODO: update with real address
+			USDTTokenID: "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f",
+		},
+	}
+}
+
 type TestEVMChain struct {
 	config                *TestEVMChainConfig
 	admin                 *crypto.ECDSAKey
