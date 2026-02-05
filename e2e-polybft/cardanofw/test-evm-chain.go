@@ -127,9 +127,9 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 				Symbol: USDCTokenName,
 			},
 			{
-				ID:     XMATICTokenID,
-				Name:   XMATICTokenName,
-				Symbol: XMATICTokenName,
+				ID:     XPOLTokenID,
+				Name:   XPOLTokenName,
+				Symbol: XPOLTokenName,
 			},
 		},
 	}
@@ -157,10 +157,16 @@ func NewRemoteNexusChainConfig(
 				Name:   XADATokenName,
 				Symbol: XADATokenName,
 			},
+			{
+				ID:     XPOLTokenID,
+				Name:   XPOLTokenName,
+				Symbol: XPOLTokenName,
+			},
 		},
 		ConfigurableTokens: map[uint16]string{
 			USDTTokenID: "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0",
 			XADATokenID: "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f",
+			XPOLTokenID: "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f", // TODO: put real token address
 		},
 	}
 }
@@ -184,7 +190,7 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 		MinBridgingAmount:      MinUTxODefaultValue,
 		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
 		MinOperationFee:        DfmToWei(DefaultMinOperationFee),
-		CurrencyID:             MATICTokenID,
+		CurrencyID:             POLTokenID,
 
 		TreasuryAddress: defaultPolygonTreasuryAddress,
 
@@ -197,9 +203,9 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 		},
 		MintTokens: []EVMTokenInfo{
 			{
-				ID:     USDTTokenID,
-				Name:   USDTTokenName,
-				Symbol: USDTTokenName,
+				ID:     PAP3XTokenID,
+				Name:   PAP3XTokenName,
+				Symbol: PAP3XTokenName,
 			},
 		},
 	}
@@ -212,24 +218,16 @@ func NewRemotePolygonChainConfig(
 		ChainID:         ChainIDPolygon,
 		MinBridgingFee:  minBridgingFeeAmount,
 		MinOperationFee: minOperationFee,
-		CurrencyID:      MATICTokenID,
-		LockUnlockTokens: []EVMTokenInfo{
-			{
-				ID:     USDCTokenID,
-				Name:   USDCTokenName,
-				Symbol: USDCTokenName,
-			},
-		},
+		CurrencyID:      POLTokenID,
 		MintTokens: []EVMTokenInfo{
 			{
-				ID:     USDTTokenID,
-				Name:   USDTTokenName,
-				Symbol: USDTTokenName,
+				ID:     PAP3XTokenID,
+				Name:   PAP3XTokenName,
+				Symbol: PAP3XTokenName,
 			},
 		},
 		ConfigurableTokens: map[uint16]string{
-			USDCTokenID: "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0", //DN_TODO: update with real address
-			USDTTokenID: "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f",
+			PAP3XTokenID: "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0", // TODO: update with real address
 		},
 	}
 }

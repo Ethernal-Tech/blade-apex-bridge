@@ -619,16 +619,20 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 				// - Polygon <-> Nexus = wUSDT/USDC/MATIC <-> USDT/wUSDC/xMATIC
 				a.NexusInfo.DestChain[ChainIDPolygon] = []Direction{
 					{
-						SourceTokenID:      USDTTokenID,
+						SourceTokenID:      USDTTokenID, // TODO: CHECK FOR THIS
 						DestinationTokenID: USDTTokenID,
 					},
 					{
-						SourceTokenID:      USDCTokenID,
+						SourceTokenID:      USDCTokenID, // TODO: CHECK FOR THIS
 						DestinationTokenID: USDCTokenID,
 					},
 					{
-						SourceTokenID:      XMATICTokenID,
-						DestinationTokenID: MATICTokenID,
+						SourceTokenID:      XPOLTokenID,
+						DestinationTokenID: POLTokenID,
+					},
+					{
+						SourceTokenID:      AP3XTokenID,
+						DestinationTokenID: PAP3XTokenID,
 					},
 				}
 
@@ -638,7 +642,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					IsWrappedCurrency: false,
 				}
 
-				a.NexusInfo.Tokens[XMATICTokenID] = Token{
+				a.NexusInfo.Tokens[XPOLTokenID] = Token{
 					ChainSpecific:     "",
 					LockUnlock:        false,
 					IsWrappedCurrency: true,
@@ -647,16 +651,20 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 				a.PolygonInfo.DestChain = map[ChainID][]Direction{
 					ChainIDNexus: {
 						{
-							SourceTokenID:      USDTTokenID,
+							SourceTokenID:      USDTTokenID, // TODO: CHECK FOR THIS
 							DestinationTokenID: USDTTokenID,
 						},
 						{
-							SourceTokenID:      USDCTokenID,
+							SourceTokenID:      USDCTokenID, // TODO: CHECK FOR THIS
 							DestinationTokenID: USDCTokenID,
 						},
 						{
-							SourceTokenID:      MATICTokenID,
-							DestinationTokenID: XMATICTokenID,
+							SourceTokenID:      POLTokenID,
+							DestinationTokenID: XPOLTokenID,
+						},
+						{
+							SourceTokenID:      PAP3XTokenID,
+							DestinationTokenID: AP3XTokenID,
 						},
 					},
 				}
@@ -672,16 +680,22 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						LockUnlock:        true,
 						IsWrappedCurrency: false,
 					},
-					MATICTokenID: { // currency token on Polygon - required by validatorcomponents
+					POLTokenID: { // currency token on Polygon - required by validatorcomponents
 						ChainSpecific:     cardanowallet.AdaTokenName,
 						LockUnlock:        true,
 						IsWrappedCurrency: false,
 					},
+					PAP3XTokenID: {
+						ChainSpecific:     "", // TODO:
+						LockUnlock:        false,
+						IsWrappedCurrency: true,
+					},
 				}
 
 				a.EcosystemTokens[USDCTokenID] = USDCTokenName
-				a.EcosystemTokens[MATICTokenID] = MATICTokenName
-				a.EcosystemTokens[XMATICTokenID] = XMATICTokenName
+				a.EcosystemTokens[POLTokenID] = POLTokenName
+				a.EcosystemTokens[XPOLTokenID] = XPOLTokenName
+				a.EcosystemTokens[PAP3XTokenID] = PAP3XTokenName
 			}
 		}
 	} else {

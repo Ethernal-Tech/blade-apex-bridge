@@ -234,13 +234,13 @@ func Test_SkylineBridgeCC_General(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmount,
-			cardanofw.MATICTokenID, true)
+			cardanofw.POLTokenID, true)
 
 		fmt.Printf("Starting bridging xMATIC Nexus -> Polygon\n")
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, sendAmount,
-			cardanofw.XMATICTokenID, true)
+			cardanofw.XPOLTokenID, true)
 	})
 }
 

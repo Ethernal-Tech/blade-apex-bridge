@@ -296,6 +296,11 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 							LockUnlock:        true,
 							IsWrappedCurrency: false,
 						},
+						XPOLTokenID: {
+							ChainSpecific:     "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0", // TODO: put desired token address
+							LockUnlock:        false,
+							IsWrappedCurrency: true,
+						},
 					},
 					DestChain: map[ChainID][]Direction{
 						ChainIDCardano: {
@@ -316,6 +321,20 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 							{
 								SourceTokenID:      USDTTokenID,
 								DestinationTokenID: USDTTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+						ChainIDPolygon: {
+							{
+								SourceTokenID:      AP3XTokenID,
+								DestinationTokenID: PAP3XTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+							{
+								SourceTokenID:      XPOLTokenID,
+								DestinationTokenID: POLTokenID,
 								TrackSource:        false,
 								TrackDestination:   false,
 							},
@@ -326,50 +345,36 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 				MinOperationFee: big.NewInt(0),
 				TreasuryAddress: "",
 			},
-			// DN_TODO: Add Polygon
 			ChainIDPolygon: {
 				Info: EVMChainInfo{
-					GatewayAddress:           types.StringToAddress("0x53F9124643E3D15f8d753733C5d908CD6aA65178"),
-					NativeTokenWalletAddress: types.StringToAddress("0x55f32E6DbDC141fd395555a4238bD15FDC386F8D"),
-					JSONRPCAddr:              "https://rpc.nexus.testnet.apexfusion.org",
+					GatewayAddress:           types.StringToAddress("0x53F9124643E3D15f8d753733C5d908CD6aA65178"), // TODO: put desired contract address
+					NativeTokenWalletAddress: types.StringToAddress("0x55f32E6DbDC141fd395555a4238bD15FDC386F8D"), // TODO: put desired contract address
+					JSONRPCAddr:              "https://polygon-amoy.drpc.org",                                     // TODO: maybe this address is not good enough
 					Tokens: map[uint16]Token{
-						AP3XTokenID: {
-							ChainSpecific:     cardanowallet.AdaTokenName,
+						POLTokenID: {
+							ChainSpecific:     cardanowallet.AdaTokenName, // TODO: check for this
 							LockUnlock:        true,
 							IsWrappedCurrency: false,
 						},
-						XADATokenID: {
-							ChainSpecific:     "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f",
+						XPOLTokenID: {
+							ChainSpecific:     "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f", // TODO: desired token address
 							LockUnlock:        false,
-							IsWrappedCurrency: false,
-						},
-						USDTTokenID: {
-							ChainSpecific:     "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0",
-							LockUnlock:        true,
 							IsWrappedCurrency: false,
 						},
 					},
 					DestChain: map[ChainID][]Direction{
-						ChainIDCardano: {
+						ChainIDNexus: {
 							{
-								SourceTokenID:      XADATokenID,
-								DestinationTokenID: ADATokenID,
-								TrackSource:        false,
+								SourceTokenID:      POLTokenID,
+								DestinationTokenID: XPOLTokenID,
+								TrackSource:        true,
 								TrackDestination:   true,
 							},
-						},
-						ChainIDVector: {
 							{
-								SourceTokenID:      XADATokenID,
-								DestinationTokenID: XADATokenID,
-								TrackSource:        false,
-								TrackDestination:   false,
-							},
-							{
-								SourceTokenID:      USDTTokenID,
-								DestinationTokenID: USDTTokenID,
-								TrackSource:        false,
-								TrackDestination:   false,
+								SourceTokenID:      PAP3XTokenID,
+								DestinationTokenID: AP3XTokenID,
+								TrackSource:        true,
+								TrackDestination:   true,
 							},
 						},
 					},

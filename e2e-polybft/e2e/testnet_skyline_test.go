@@ -605,9 +605,78 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 		executeAllDirectionsMulReceiversTest(t, bridgingDirections)
 	})
 
+	// TODO: check for this test
 	t.Run("Nexus <-> Polygon USDT <-> wUSDT", func(t *testing.T) {
 		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
 		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.USDTTokenID)
+		require.NoError(t, err)
+
+		fmt.Printf("Starting bridging USDT Nexus -> Polygon\n")
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
+			cardanofw.USDTTokenID)
+
+		fmt.Printf("Starting bridging USDT Polygon -> Nexus\n")
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
+			cardanofw.USDTTokenID)
+	})
+
+	// TODO: check for this test
+	t.Run("Polygon <-> Nexus USDC <-> wUSDC", func(t *testing.T) {
+		polygonChain := apex.GetChainMust(t, cardanofw.ChainIDPolygon).(*cardanofw.TestEVMChain)
+		err := polygonChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDPolygon), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.USDCTokenID)
+		require.NoError(t, err)
+
+		fmt.Printf("Starting bridging USDC Polygon -> Nexus\n")
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
+			cardanofw.USDCTokenID)
+
+		fmt.Printf("Starting bridging USDC Nexus -> Polygon\n")
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
+			cardanofw.USDCTokenID)
+	})
+
+	t.Run("Polygon <-> Nexus POL <-> xPOL", func(t *testing.T) {
+		fmt.Printf("Starting bridging POL Polygon -> Nexus\n")
+
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmount,
+			cardanofw.POLTokenID)
+
+		fmt.Printf("Starting bridging xPOL Nexus -> Polygon\n")
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, sendAmount,
+			cardanofw.XPOLTokenID)
+	})
+
+	t.Run("Nexus <-> Polygon AP3X <-> pAP3X", func(t *testing.T) {
+		fmt.Printf("Starting bridging AP3X Nexus -> Polygon\n")
+
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, sendAmount,
+			cardanofw.AP3XTokenID)
+
+		fmt.Printf("Starting bridging pAP3X Polygon -> Nexus\n")
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmount,
+			cardanofw.PAP3XTokenID)
+	})
+
+	t.Run("Nexus <-> Polygon xPOL <-> POL", func(t *testing.T) {
+		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.XPOLTokenID)
 		require.NoError(t, err)
 
 		fmt.Printf("Starting bridging USDT Nexus -> Polygon\n")
@@ -638,22 +707,6 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
 			cardanofw.USDCTokenID)
-	})
-
-	t.Run("Polygon <-> Nexus MATIC <-> xMATIC", func(t *testing.T) {
-		fmt.Printf("Starting bridging MATIC Polygon -> Nexus\n")
-
-		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
-
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmount,
-			cardanofw.MATICTokenID)
-
-		fmt.Printf("Starting bridging xMATIC Nexus -> Polygon\n")
-
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, sendAmount,
-			cardanofw.XMATICTokenID)
 	})
 }
 
