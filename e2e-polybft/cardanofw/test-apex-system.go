@@ -1007,49 +1007,6 @@ func (a *ApexSystem) GenerateChainIDsConfig() error {
 	return nil
 }
 
-func (a *ApexSystem) generateChainIDsConfigFile() *ChainIDsConfigFile {
-	chainIDConfig := []ChainIDConfig{
-		{
-			ChainID:    ChainIDPrime,
-			ChainIDNum: ChainIDToInt(ChainIDPrime),
-			ChainType:  ChainTypeCardanoStr,
-		},
-		{
-			ChainID:    ChainIDVector,
-			ChainIDNum: ChainIDToInt(ChainIDVector),
-			ChainType:  ChainTypeCardanoStr,
-		},
-	}
-
-	if a.Config.CardanoConfig != nil && a.Config.CardanoConfig.IsEnabled {
-		chainIDConfig = append(chainIDConfig, ChainIDConfig{
-			ChainID:    ChainIDCardano,
-			ChainIDNum: ChainIDToInt(ChainIDCardano),
-			ChainType:  ChainTypeCardanoStr,
-		})
-	}
-
-	if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
-		chainIDConfig = append(chainIDConfig, ChainIDConfig{
-			ChainID:    ChainIDNexus,
-			ChainIDNum: ChainIDToInt(ChainIDNexus),
-			ChainType:  ChainTypeEVMStr,
-		})
-	}
-
-	if a.Config.PolygonConfig != nil && a.Config.PolygonConfig.IsEnabled {
-		chainIDConfig = append(chainIDConfig, ChainIDConfig{
-			ChainID:    ChainIDPolygon,
-			ChainIDNum: ChainIDToInt(ChainIDPolygon),
-			ChainType:  ChainTypeEVMStr,
-		})
-	}
-
-	return &ChainIDsConfigFile{
-		ChainIDConfig: chainIDConfig,
-	}
-}
-
 func (a *ApexSystem) loadChainIDsConfigFile() (*ChainIDsConfigFile, error) {
 	chainIDsConfigFilePath := a.GetChainIDsDefaultConfigPath()
 
@@ -1058,7 +1015,7 @@ func (a *ApexSystem) loadChainIDsConfigFile() (*ChainIDsConfigFile, error) {
 		return nil, fmt.Errorf("error while reading ChainIDConfig JSON: %w", err)
 	}
 
-	var chainConfigs = make([]ChainIDConfig, len(chainIDsConfigFile.ChainIDConfig))
+	var chainConfigs = make([]ChainIDConfig, 0, len(chainIDsConfigFile.ChainIDConfig))
 
 	for _, chainIDConfig := range chainIDsConfigFile.ChainIDConfig {
 		if ((a.Config.CardanoConfig != nil && a.Config.CardanoConfig.IsEnabled) && chainIDConfig.ChainID == ChainIDCardano) ||

@@ -739,8 +739,8 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 		"--output-relayer-file-name", RelayerConfigFileName,
 		"--dbs-path", dbsPath,
 		"--relayer-data-dir", validator.server.DataDir(),
-		"--evm-min-fee-for-bridging", WeiToDfm(ec.config.MinBridgingFee).String(),
-		"--min-operation-fee", WeiToDfm(ec.config.MinOperationFee).String(),
+		"--evm-min-fee-for-bridging", ec.config.MinBridgingFee.String(),
+		"--min-operation-fee", ec.config.MinOperationFee.String(),
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
