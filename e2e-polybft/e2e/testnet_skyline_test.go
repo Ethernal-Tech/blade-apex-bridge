@@ -984,7 +984,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios_NexusSrc(t *testing.T) {
 			sender:     user,
 			receivers: map[string]cardanofw.ReceiverAmount{
 				"addr_test1invalidaddress": {
-					TokenID: cardanofw.USDTTokenID,
+					TokenID: cardanofw.XPOLTokenID,
 					Amount:  sendAmount,
 				},
 			},
