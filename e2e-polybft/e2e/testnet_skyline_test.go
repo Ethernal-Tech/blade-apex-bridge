@@ -605,43 +605,6 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 		executeAllDirectionsMulReceiversTest(t, bridgingDirections)
 	})
 
-	// TODO: check for this test
-	t.Run("Nexus <-> Polygon USDT <-> wUSDT", func(t *testing.T) {
-		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.USDTTokenID)
-		require.NoError(t, err)
-
-		fmt.Printf("Starting bridging USDT Nexus -> Polygon\n")
-
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.USDTTokenID)
-
-		fmt.Printf("Starting bridging USDT Polygon -> Nexus\n")
-
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.USDTTokenID)
-	})
-
-	// TODO: check for this test
-	t.Run("Polygon <-> Nexus USDC <-> wUSDC", func(t *testing.T) {
-		polygonChain := apex.GetChainMust(t, cardanofw.ChainIDPolygon).(*cardanofw.TestEVMChain)
-		err := polygonChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDPolygon), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.USDCTokenID)
-		require.NoError(t, err)
-
-		fmt.Printf("Starting bridging USDC Polygon -> Nexus\n")
-
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.USDCTokenID)
-
-		fmt.Printf("Starting bridging USDC Nexus -> Polygon\n")
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.USDCTokenID)
-	})
-
 	t.Run("Polygon <-> Nexus POL <-> xPOL", func(t *testing.T) {
 		fmt.Printf("Starting bridging POL Polygon -> Nexus\n")
 
@@ -679,34 +642,34 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.XPOLTokenID)
 		require.NoError(t, err)
 
-		fmt.Printf("Starting bridging USDT Nexus -> Polygon\n")
+		fmt.Printf("Starting bridging XPOL Nexus -> Polygon\n")
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.USDTTokenID)
+			cardanofw.XPOLTokenID)
 
-		fmt.Printf("Starting bridging USDT Polygon -> Nexus\n")
+		fmt.Printf("Starting bridging POL Polygon -> Nexus\n")
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.USDTTokenID)
+			cardanofw.POLTokenID)
 	})
 
-	t.Run("Polygon <-> Nexus USDC <-> wUSDC", func(t *testing.T) {
+	t.Run("Polygon <-> Nexus pAP3X <-> AP3X", func(t *testing.T) {
 		polygonChain := apex.GetChainMust(t, cardanofw.ChainIDPolygon).(*cardanofw.TestEVMChain)
-		err := polygonChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDPolygon), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.USDCTokenID)
+		err := polygonChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDPolygon), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.PAP3XTokenID)
 		require.NoError(t, err)
 
-		fmt.Printf("Starting bridging USDC Polygon -> Nexus\n")
+		fmt.Printf("Starting bridging pAP3X Polygon -> Nexus\n")
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.USDCTokenID)
+			cardanofw.PAP3XTokenID)
 
-		fmt.Printf("Starting bridging USDC Nexus -> Polygon\n")
+		fmt.Printf("Starting bridging AP3X Nexus -> Polygon\n")
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.USDCTokenID)
+			cardanofw.AP3XTokenID)
 	})
 }
 
