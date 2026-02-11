@@ -207,6 +207,11 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 				Name:   PAP3XTokenName,
 				Symbol: PAP3XTokenName,
 			},
+			{
+				ID:     USDTTokenID,
+				Name:   USDTTokenName,
+				Symbol: USDTTokenName,
+			},
 		},
 	}
 }
