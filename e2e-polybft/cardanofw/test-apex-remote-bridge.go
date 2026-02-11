@@ -352,7 +352,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 					JSONRPCAddr:              "https://polygon-amoy.drpc.org",                                     // TODO: maybe this address is not good enough
 					Tokens: map[uint16]Token{
 						POLTokenID: {
-							ChainSpecific:     cardanowallet.AdaTokenName, // TODO: check for this
+							ChainSpecific:     cardanowallet.AdaTokenName,
 							LockUnlock:        true,
 							IsWrappedCurrency: false,
 						},

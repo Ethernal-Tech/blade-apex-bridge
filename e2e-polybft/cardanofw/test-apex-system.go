@@ -619,11 +619,11 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 				// - Polygon <-> Nexus = wUSDT/USDC/MATIC <-> USDT/wUSDC/xMATIC
 				a.NexusInfo.DestChain[ChainIDPolygon] = []Direction{
 					{
-						SourceTokenID:      USDTTokenID, // TODO: CHECK FOR THIS
+						SourceTokenID:      USDTTokenID,
 						DestinationTokenID: USDTTokenID,
 					},
 					{
-						SourceTokenID:      USDCTokenID, // TODO: CHECK FOR THIS
+						SourceTokenID:      USDCTokenID,
 						DestinationTokenID: USDCTokenID,
 					},
 					{
@@ -651,11 +651,11 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 				a.PolygonInfo.DestChain = map[ChainID][]Direction{
 					ChainIDNexus: {
 						{
-							SourceTokenID:      USDTTokenID, // TODO: CHECK FOR THIS
+							SourceTokenID:      USDTTokenID,
 							DestinationTokenID: USDTTokenID,
 						},
 						{
-							SourceTokenID:      USDCTokenID, // TODO: CHECK FOR THIS
+							SourceTokenID:      USDCTokenID,
 							DestinationTokenID: USDCTokenID,
 						},
 						{
@@ -686,7 +686,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						IsWrappedCurrency: false,
 					},
 					PAP3XTokenID: {
-						ChainSpecific:     "", // TODO:
+						ChainSpecific:     "",
 						LockUnlock:        false,
 						IsWrappedCurrency: true,
 					},
