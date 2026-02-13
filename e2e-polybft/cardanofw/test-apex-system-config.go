@@ -16,6 +16,7 @@ const (
 	ChainIDVector  ChainID = "vector"
 	ChainIDNexus   ChainID = "nexus"
 	ChainIDPolygon ChainID = "polygon"
+	ChainIDSolana  ChainID = "solana"
 
 	ChainIDCardano ChainID = "cardano"
 
@@ -40,6 +41,7 @@ const (
 	MATICTokenID  uint16 = 14
 	USDCTokenID   uint16 = 15
 	XMATICTokenID uint16 = 16
+	SOLTokenID    uint16 = 17
 )
 
 // Human readable token names

@@ -28,6 +28,7 @@ import (
 const (
 	ChainTypeCardano = iota
 	ChainTypeEVM
+	ChainTypeSolana
 
 	BatchStateFailedToExecute           = "FailedToExecuteOnDestination"
 	BatchStateIncludedInBatch           = "IncludedInBatch"
