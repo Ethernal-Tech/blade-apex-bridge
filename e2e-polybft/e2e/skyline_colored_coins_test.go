@@ -235,7 +235,7 @@ func Test_SkylineBridgeCC_General(t *testing.T) {
 	})
 }
 
-func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
+func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled_(t *testing.T) {
 	const (
 		apiKey  = "test_api_key"
 		userCnt = 10
