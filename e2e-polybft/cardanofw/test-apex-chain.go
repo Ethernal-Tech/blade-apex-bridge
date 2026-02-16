@@ -22,6 +22,11 @@ type GenericTxReceiver struct {
 	NativeTokens []infrawallet.TokenAmount
 }
 
+type ReceiverAmount struct {
+	TokenID uint16
+	Amount  *big.Int
+}
+
 type ITestApexChain interface {
 	RunChain(t *testing.T) error
 	Stop() error
