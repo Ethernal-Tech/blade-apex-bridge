@@ -347,7 +347,7 @@ func TestE2E_ApexBridge_SrcNexus_InvalidScenarios_MinValuesMisconfigured(t *test
 		hex.EncodeToString(adminPrivKey),
 		apex.NexusInfo.GatewayAddress.String(),
 		big.NewInt(1),
-		nil, nil, nil),
+		big.NewInt(1), nil, nil),
 	)
 
 	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
@@ -385,6 +385,46 @@ func TestE2E_ApexBridge_SrcNexus_InvalidScenarios_MinValuesMisconfigured(t *test
 			require.NoError(t, err)
 
 			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDNexus, txHash, apiKey, 300)
+		}
+	})
+
+	t.Run("Bridging 1 wei to cardano chain", func(t *testing.T) {
+		user := apex.Users[userCnt-1]
+		privKey, err := user.NexusWallet.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		feeAmount := cardanofw.WeiToChainNativeTokenAmount(
+			cardanofw.ChainIDNexus,
+			apex.GetMinBridgingFee(cardanofw.ChainIDNexus, true))
+
+		sendAmount := big.NewInt(1)
+
+		for _, dstChain := range dstChains {
+			tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, dstChain, cardanofw.AP3XTokenID)
+			require.NoError(t, err)
+
+			tokenBalance, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDNexus, tokenInfo.SrcTokenName)
+			require.NoError(t, err)
+
+			txHash, err := nexusChain.DirectBridgingRequest(
+				cardanofw.ChainIDToInt(dstChain),
+				hex.EncodeToString(privKey),
+				map[string]cardanofw.ReceiverAmount{
+					user.GetAddress(cardanofw.ChainIDVector): {
+						TokenID: cardanofw.AP3XTokenID,
+						Amount:  sendAmount,
+					},
+				},
+				feeAmount,
+				big.NewInt(0),
+				tokenInfo.SrcTokenName,
+				true)
+
+			require.NotEqual(t, "", txHash)
+			require.NoError(t, err)
+
+			err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus,
+				tokenBalance[tokenInfo.SrcTokenName], 10, time.Second*10, tokenInfo.SrcTokenName)
 		}
 	})
 }
@@ -474,7 +514,7 @@ func TestE2E_SkylineBridge_SrcNexus_Invalid_MinBridgingFeeMisconfigured(t *testi
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDNexus, txHash, apiKey, 300)
 	})
 
-	t.Run("Bridging 1 wei to utxo chains", func(t *testing.T) {
+	t.Run("Bridging 1 wei to cardano chain", func(t *testing.T) {
 		sendAmount := big.NewInt(1)
 
 		tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDVector, cardanofw.USDTTokenID)
