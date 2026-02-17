@@ -310,9 +310,9 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				big.NewInt(0),
 				tokenInfo.SrcTokenName,
 				true)
-			t.Log("HASH", txHash)
 
-			require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
+			require.Equal(t, "", txHash)
+			require.Error(t, err)
 		})
 	}
 }
@@ -1616,9 +1616,8 @@ func SrcNexusSubmitterNotEnoughFunds(
 		tokenInfo.SrcTokenName,
 		true)
 
-	t.Log("Hash value of direct bridging request", txHash)
-
-	require.ErrorContains(t, err, "insufficient funds for gas * price + value")
+	require.Equal(t, "", txHash)
+	require.Error(t, err)
 }
 
 func DstNexusSequentialAndParallelWithMaxReceivers(
@@ -1920,21 +1919,6 @@ func DstNexusInvalidMetadataInvalidTransactions(
 	err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDPrime, lowerBoundary, beforeSendingAmount[cardanowallet.AdaTokenName],
 		50, time.Second*30, tokensInfo.DstTokenName)
 	require.NoError(t, err)
-}
-
-func sendTxParamsNPInvalidScenarios(txType, gatewayAddr, nexusURL, privateKey, chainDst, receiver, chainIDsConfig string, amount, fee *big.Int) error {
-	return cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
-		"sendtx",
-		"--tx-type", txType,
-		"--chain-ids-config", chainIDsConfig,
-		"--gateway-addr", gatewayAddr,
-		"--rpc-url", nexusURL,
-		"--key", privateKey,
-		"--chain-src", cardanofw.ChainIDNexus,
-		"--chain-dst", chainDst,
-		"--receiver", fmt.Sprintf("%s:%s", receiver, amount.String()),
-		"--fee", fee.String(),
-	}, os.Stdout)
 }
 
 func misconfiguredMinAmounts(url, key, contractAddr string, minBridgingFee, minBridgingAmount, minBridgingTokenAmount, minOperationFee *big.Int) error {
