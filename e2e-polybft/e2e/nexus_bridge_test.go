@@ -333,12 +333,10 @@ func TestE2E_ApexBridge_SrcNexus_InvalidScenarios_MinValuesMisconfigured(t *test
 		hex.EncodeToString(adminPrivKey),
 		apex.NexusInfo.GatewayAddress.String(),
 		big.NewInt(1),
-		nil, nil, nil),
+		big.NewInt(1), nil, nil),
 	)
 
 	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-
-	dstChains := []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector}
 
 	t.Run("Bridging min fee on sc less than oracle", func(t *testing.T) {
 		user := apex.Users[userCnt-1]
@@ -349,22 +347,46 @@ func TestE2E_ApexBridge_SrcNexus_InvalidScenarios_MinValuesMisconfigured(t *test
 
 		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
-		for _, dstChain := range dstChains {
-			txHash, err := nexusChain.DirectBridgingRequest(
-				cardanofw.ChainIDToInt(dstChain),
-				hex.EncodeToString(privKey),
-				map[string]cardanofw.ReceiverAmount{
-					user.GetAddress(cardanofw.ChainIDVector): {
-						TokenID: uint16(1),
-						Amount:  sendAmount,
-					},
+		txHash, err := nexusChain.DirectBridgingRequest(
+			cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			hex.EncodeToString(privKey),
+			map[string]cardanofw.ReceiverAmount{
+				user.GetAddress(cardanofw.ChainIDVector): {
+					TokenID: uint16(1),
+					Amount:  sendAmount,
 				},
-				feeAmount)
+			},
+			feeAmount)
 
-			require.NoError(t, err)
+		require.NoError(t, err)
 
-			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDNexus, txHash, apiKey, 300)
-		}
+		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDNexus, txHash, apiKey, 300)
+	})
+	t.Run("Bridging 1 wei to cardano chain", func(t *testing.T) {
+		sendAmount := big.NewInt(1)
+
+		user := apex.Users[userCnt-1]
+		privKey, err := user.NexusWallet.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		feeAmount := cardanofw.DfmToChainNativeTokenAmount(
+			cardanofw.ChainIDNexus,
+			new(big.Int).SetUint64(apex.Config.NexusConfig.MinBridgingFee))
+
+		txHash, err := nexusChain.DirectBridgingRequest(
+			cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
+			hex.EncodeToString(privKey),
+			map[string]cardanofw.ReceiverAmount{
+				user.GetAddress(cardanofw.ChainIDVector): {
+					TokenID: uint16(1),
+					Amount:  sendAmount,
+				},
+			},
+			feeAmount)
+
+		require.NoError(t, err)
+
+		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDNexus, txHash, apiKey, 300)
 	})
 }
 
