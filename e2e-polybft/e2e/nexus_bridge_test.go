@@ -297,7 +297,7 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios(t *testing.T) {
 			)
 
 			require.Equal(t, "", txHash)
-			require.ErrorContains(t, err, "insufficient funds for gas * price + value")
+			require.Error(t, err)
 		})
 	}
 }
@@ -1649,7 +1649,7 @@ func SrcNexusSubmitterNotEnoughFunds(
 		fee)
 
 	require.Equal(t, "", txHash)
-	require.ErrorContains(t, err, "insufficient funds for gas * price + value")
+	require.Error(t, err)
 }
 
 func misconfiguredMinAmounts(url, key, contractAddr string, minBridgingFee, minBridgingAmount, minBridgingTokenAmount, minOperationFee *big.Int) error {

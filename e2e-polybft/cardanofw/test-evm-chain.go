@@ -438,7 +438,6 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 		})
 
 		totalTokenAmount.Add(totalTokenAmount, ra.Amount)
-
 	}
 
 	totalAmount := big.NewInt(0)
