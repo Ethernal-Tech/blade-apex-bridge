@@ -335,6 +335,9 @@ func TestE2E_ApexBridge_SrcNexus_InvalidScenarios_MinValuesMisconfigured(t *test
 		cardanofw.WithAPIKey(apiKey),
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+			mp["refundEnabled"] = false
+		}, nil, nil, nil),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -403,9 +406,6 @@ func TestE2E_ApexBridge_SrcNexus_InvalidScenarios_MinValuesMisconfigured(t *test
 			tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, dstChain, cardanofw.AP3XTokenID)
 			require.NoError(t, err)
 
-			tokenBalance, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDNexus, tokenInfo.SrcTokenName)
-			require.NoError(t, err)
-
 			txHash, err := nexusChain.DirectBridgingRequest(
 				cardanofw.ChainIDToInt(dstChain),
 				hex.EncodeToString(privKey),
@@ -423,8 +423,7 @@ func TestE2E_ApexBridge_SrcNexus_InvalidScenarios_MinValuesMisconfigured(t *test
 			require.NotEqual(t, "", txHash)
 			require.NoError(t, err)
 
-			err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDNexus,
-				tokenBalance[tokenInfo.SrcTokenName], 10, time.Second*10, tokenInfo.SrcTokenName)
+			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDNexus, txHash, apiKey, 300)
 		}
 	})
 }
