@@ -280,10 +280,6 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios(t *testing.T) {
 
 			sendAmountWei := cardanofw.ApexToWei(big.NewInt(20)) // try to send 20 ethers with users without enough funds
 
-			balanceDfm, err := apex.GetBalance(ctx, unfundedUser, cardanofw.ChainIDNexus)
-			require.NoError(t, err)
-			t.Log("BALANCE OF USER IS", balanceDfm)
-
 			txHash, err := nexusChain.DirectBridgingRequest(
 				cardanofw.ChainIDToInt(dstChain),
 				unfundedUserPk,
