@@ -1665,14 +1665,6 @@ func misconfiguredMinAmounts(url, key, contractAddr string, minBridgingFee, minB
 		args = append(args, "--min-bridging-amount", minBridgingAmount.String())
 	}
 
-	if minBridgingTokenAmount != nil {
-		args = append(args, "--min-token-bridging-amount", minBridgingTokenAmount.String())
-	}
-
-	if minOperationFee != nil {
-		args = append(args, "--min-operation-fee", minOperationFee.String())
-	}
-
 	return cardanofw.RunCommand(
 		cardanofw.ResolveApexBridgeBinary(),
 		args,
