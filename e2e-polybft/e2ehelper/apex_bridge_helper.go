@@ -50,7 +50,7 @@ func ExecuteSingleBridging(
 			SourceChain:      srcChain,
 			DestinationChain: dstChain,
 			Sender:           senderUser,
-			DFMAmount:        sendAmount,
+			WeiAmount:        sendAmount,
 			SrcTokenID:       srcTokenID,
 			Receivers:        []*cardanofw.TestApexUser{receiverUser},
 			TokensInfo:       tokensInfo,
@@ -60,7 +60,7 @@ func ExecuteSingleBridging(
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
-	expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
+	expectedAmount := new(big.Int).Add(prevAmount, new(big.Int).Set(sendAmount))
 
 	fmt.Printf("Expected amount: %+v\n", expectedAmount)
 
@@ -121,7 +121,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 				SourceChain:      srcChain,
 				DestinationChain: dstChain,
 				Sender:           receiverUser,
-				DFMAmount:        sendAmount,
+				WeiAmount:        sendAmount,
 				SrcTokenID:       srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{receiverUser},
 				TokensInfo:       tokensInfo,
@@ -165,7 +165,7 @@ func ExecuteBridgingWaitAfterSubmits(
 				SourceChain:      srcChain,
 				DestinationChain: dstChain,
 				Sender:           receiverUser,
-				DFMAmount:        sendAmount,
+				WeiAmount:        sendAmount,
 				SrcTokenID:       srcTokenID,
 				Receivers:        []*cardanofw.TestApexUser{receiverUser},
 				TokensInfo:       tokensInfo,
@@ -217,7 +217,7 @@ func ExecuteBridgingWithRefund(
 			SourceChain:      srcChain,
 			DestinationChain: dstChain,
 			Sender:           senderUser,
-			DFMAmount:        sendAmount,
+			WeiAmount:        sendAmount,
 			SrcTokenID:       srcTokenID,
 			Receivers:        []*cardanofw.TestApexUser{receiverUser},
 			TokensInfo:       tokensInfo,
@@ -231,16 +231,16 @@ func ExecuteBridgingWithRefund(
 	// so we validate amount in a range instead of exact match.
 	if tokensInfo.DstTokenName == cardanowallet.AdaTokenName {
 		// decrease upper boundary by 1 to ensure refund has happened, not only bridging
-		upperBoundaryDfm := new(big.Int).Sub(
+		upperBoundary := new(big.Int).Sub(
 			new(big.Int).Add(prevAmount, sendAmount),
 			big.NewInt(1),
 		)
 
 		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHash, prevAmount,
-			upperBoundaryDfm)
+			upperBoundary)
 
 		err = apex.WaitForAmountInRange(ctx, receiverUser, dstChain, prevAmount,
-			upperBoundaryDfm, config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime,
+			upperBoundary, config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime,
 			tokensInfo.DstTokenName)
 		require.NoError(t, err)
 
@@ -261,7 +261,7 @@ type ExecuteBridgingConfig struct {
 	SrcChain      string
 	DstChain      string
 	SrcTokenID    uint16
-	SendAmountDfm *big.Int
+	SendAmountWei *big.Int
 }
 
 func ExecuteBridgingWaitAfterSubmitsExtended(
@@ -323,7 +323,7 @@ func ExecuteBridgingWaitAfterSubmitsExtended(
 						SourceChain:      dir.SrcChain,
 						DestinationChain: dir.DstChain,
 						Sender:           receiverUser,
-						DFMAmount:        dir.SendAmountDfm,
+						WeiAmount:        dir.SendAmountWei,
 						SrcTokenID:       dir.SrcTokenID,
 						Receivers:        []*cardanofw.TestApexUser{receiverUser},
 						TokensInfo:       tokensInfo,
@@ -332,7 +332,7 @@ func ExecuteBridgingWaitAfterSubmitsExtended(
 
 				fmt.Printf("Direction %d Tx[%d] sent. hash: %s\n", idx, j, txHash)
 
-				expectedAmount.Add(expectedAmount, dir.SendAmountDfm)
+				expectedAmount.Add(expectedAmount, dir.SendAmountWei)
 			}
 
 			expectedAmounts[idx] = expectedAmountInfo{
@@ -392,7 +392,7 @@ func ExecuteBridging(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	senderUsers []*cardanofw.TestApexUser, receiverUsers []*cardanofw.TestApexUser,
 	chains []string, chainsDst map[string][]string, srcTokenIDs map[SrcDstChainPair]uint16,
-	sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
+	sendAmount *big.Int, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -428,7 +428,7 @@ func ExecuteBridging(
 	// send transactions
 	sendTxDatas := config.sendTxStrategy(
 		ctx, apex, chainsDst, senderUsers, receiverUsers,
-		sendAmountDfm, txCountPerSender, srcTokenIDs)
+		sendAmount, txCountPerSender, srcTokenIDs)
 
 	for _, d := range sendTxDatas {
 		require.NoError(t, d.err)
@@ -457,7 +457,7 @@ func ExecuteBridging(
 			originalDesiredAmounts[txData.DstChainID][tokensInfo.DstTokenName] = big.NewInt(0)
 		}
 
-		expectedAmount := new(big.Int).Set(txData.SendAmountDfm)
+		expectedAmount := new(big.Int).Set(txData.SendAmount)
 
 		originalDesiredAmounts[txData.DstChainID][tokensInfo.DstTokenName].Add(
 			originalDesiredAmounts[txData.DstChainID][tokensInfo.DstTokenName], expectedAmount)
@@ -492,7 +492,7 @@ func ExecuteBridging(
 				for _, txHash := range apex.GetChainMust(t, chainPair.srcChain).GetIndexer().GetFailedTxs() {
 					// check whether failed transaction is one of these sent from the users (ignore funding transaction rollbacks)
 					if _, exists := txHashTxDataMap[txHash]; exists {
-						sum.Add(sum, txHashTxDataMap[txHash].SendAmountDfm)
+						sum.Add(sum, txHashTxDataMap[txHash].SendAmount)
 					}
 				}
 
@@ -536,7 +536,7 @@ func ExecuteBridging(
 			wgResults.Add(1)
 
 			go func(idx, idxChain int, receiver *cardanofw.TestApexUser,
-				dstChain string, srcChain string, initialAmountDfm *big.Int) {
+				dstChain string, srcChain string, initialAmount *big.Int) {
 				defer wgResults.Done()
 
 				bigIntCache := new(big.Int)
@@ -546,7 +546,7 @@ func ExecuteBridging(
 					defer lock.RUnlock()
 
 					receivedAmount := bigIntCache.Add(
-						bigIntCache.Set(initialAmountDfm), desiredAmounts[dstChain][tokensInfo.DstTokenName])
+						bigIntCache.Set(initialAmount), desiredAmounts[dstChain][tokensInfo.DstTokenName])
 
 					return receivedAmount
 				}
@@ -603,7 +603,7 @@ func ExecuteBridging(
 func ExecuteBridgingExtended(
 	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	senderUsers []*cardanofw.TestApexUser, receiverUsers []*cardanofw.TestApexUser,
-	directions []BridgingDirectionConfig, sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
+	directions []BridgingDirectionConfig, sendAmount *big.Int, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -676,12 +676,12 @@ func ExecuteBridgingExtended(
 
 	// send transactions
 	type extendedTxData struct {
-		SrcChainID    string
-		DstChainID    string
-		TxHash        string
-		SendAmountDfm *big.Int
-		DstTokenName  string
-		err           error
+		SrcChainID   string
+		DstChainID   string
+		TxHash       string
+		SendAmount   *big.Int
+		DstTokenName string
+		err          error
 	}
 
 	var (
@@ -709,7 +709,7 @@ func ExecuteBridgingExtended(
 							SourceChain:      dr.SrcChain,
 							DestinationChain: dr.DstChain,
 							Sender:           senderUser,
-							DFMAmount:        sendAmountDfm,
+							WeiAmount:        sendAmount,
 							SrcTokenID:       dr.SrcTokenID,
 							Receivers:        receiverUsers,
 							TokensInfo:       dr.TokensInfo,
@@ -733,11 +733,11 @@ func ExecuteBridgingExtended(
 
 					muSend.Lock()
 					sendTxDatas = append(sendTxDatas, &extendedTxData{
-						SrcChainID:    dr.SrcChain,
-						DstChainID:    dr.DstChain,
-						TxHash:        txHash,
-						SendAmountDfm: sendAmountDfm,
-						DstTokenName:  dr.TokensInfo.DstTokenName,
+						SrcChainID:   dr.SrcChain,
+						DstChainID:   dr.DstChain,
+						TxHash:       txHash,
+						SendAmount:   sendAmount,
+						DstTokenName: dr.TokensInfo.DstTokenName,
 					})
 					muSend.Unlock()
 				}
@@ -772,7 +772,7 @@ func ExecuteBridgingExtended(
 			originalDesiredAmounts[txData.DstChainID][txData.DstTokenName] = big.NewInt(0)
 		}
 
-		expectedAmount := new(big.Int).Set(txData.SendAmountDfm)
+		expectedAmount := new(big.Int).Set(txData.SendAmount)
 
 		originalDesiredAmounts[txData.DstChainID][txData.DstTokenName].Add(
 			originalDesiredAmounts[txData.DstChainID][txData.DstTokenName], expectedAmount)
@@ -805,7 +805,7 @@ func ExecuteBridgingExtended(
 					if txData, exists := txHashTxDataMap[txHash]; exists &&
 						txData.DstChainID == combo.dstChain &&
 						txData.DstTokenName == combo.dstTokenName {
-						sum.Add(sum, txData.SendAmountDfm)
+						sum.Add(sum, txData.SendAmount)
 					}
 				}
 

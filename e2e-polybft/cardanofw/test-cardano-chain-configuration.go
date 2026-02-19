@@ -1,6 +1,7 @@
 package cardanofw
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 
@@ -68,7 +69,11 @@ func testVectorShelleyGenesis(mp map[string]interface{}) {
 func updateJSON(content []byte, callback func(mp map[string]interface{})) ([]byte, error) {
 	// Parse []byte into a map
 	var data map[string]interface{}
-	if err := json.Unmarshal(content, &data); err != nil {
+
+	dec := json.NewDecoder(bytes.NewReader(content))
+	dec.UseNumber()
+
+	if err := dec.Decode(&data); err != nil {
 		return nil, err
 	}
 

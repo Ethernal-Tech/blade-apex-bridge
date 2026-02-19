@@ -7,17 +7,17 @@ const (
 	WeiDecimals = 18
 )
 
-func DfmToChainNativeTokenAmount(chainID string, dfmAmount *big.Int) *big.Int {
-	if chainID == ChainIDNexus || chainID == ChainIDPolygon {
-		return DfmToWei(dfmAmount)
+func WeiToChainNativeTokenAmount(chainID string, weiAmount *big.Int) *big.Int {
+	if chainID != ChainIDNexus && chainID != ChainIDPolygon {
+		return WeiToDfm(weiAmount)
 	}
 
-	return dfmAmount
+	return weiAmount
 }
 
-func ChainNativeTokenAmountToDfm(chainID string, nativeTokenAmount *big.Int) *big.Int {
-	if chainID == ChainIDNexus || chainID == ChainIDPolygon {
-		return WeiToDfm(nativeTokenAmount)
+func ChainNativeTokenAmountToWei(chainID string, nativeTokenAmount *big.Int) *big.Int {
+	if chainID != ChainIDNexus && chainID != ChainIDPolygon {
+		return DfmToWei(nativeTokenAmount)
 	}
 
 	return nativeTokenAmount

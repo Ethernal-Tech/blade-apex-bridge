@@ -16,7 +16,7 @@ import (
 type SubmittedTxData struct {
 	SrcChainID, DstChainID cardanofw.ChainID
 	TxHash                 string
-	SendAmountDfm          *big.Int
+	SendAmount             *big.Int
 	TokensInfo             *cardanofw.BridgingTokensInfo
 	err                    error
 }
@@ -153,7 +153,7 @@ func WithTimeoutConfig(tc TimeoutConfig) ExecuteBridgingOption {
 var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
 		ctx context.Context, apex IApexSystem, chainsDst map[string][]string,
-		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int,
+		senders, receivers []*cardanofw.TestApexUser, sendAmount *big.Int, txCountPerSender int,
 		srcTokenIDs map[SrcDstChainPair]uint16) []*SubmittedTxData {
 
 		var (
@@ -191,7 +191,7 @@ var (
 									SourceChain:      srcChain,
 									DestinationChain: dstChain,
 									Sender:           senderUser,
-									DFMAmount:        sendAmountDfm,
+									WeiAmount:        sendAmount,
 									SrcTokenID:       srcTokenIDs[NewChainPair(srcChain, dstChain)],
 									Receivers:        receivers,
 									TokensInfo:       tokensInfo,
@@ -213,11 +213,11 @@ var (
 
 							mu.Lock()
 							submittedTxData = append(submittedTxData, &SubmittedTxData{
-								SrcChainID:    srcChain,
-								DstChainID:    dstChain,
-								TxHash:        txHash,
-								SendAmountDfm: sendAmountDfm,
-								TokensInfo:    tokensInfo,
+								SrcChainID: srcChain,
+								DstChainID: dstChain,
+								TxHash:     txHash,
+								SendAmount: sendAmount,
+								TokensInfo: tokensInfo,
 							})
 							mu.Unlock()
 						}

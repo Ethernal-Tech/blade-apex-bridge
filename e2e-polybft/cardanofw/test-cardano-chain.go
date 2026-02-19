@@ -30,15 +30,17 @@ import (
 )
 
 const (
-	defaultFundTokenAmount   = uint64(100_000_000_000)
-	defaultPremineAmount     = uint64(20_000_000_000)
-	defaultNativeTokenAmount = uint64(0)
-
 	cardanoSmartContractDir = "cardano-smart-contracts"
 
 	defaultCardanoTreasuryAddress = "addr_test1wrphkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtcl6szpr"
 	defaultPrimeTreasuryAddress   = "addr_test1vqeux7xwusdju9dvsj8h7mca9aup2k439kfmwy773xxc2hcu7zy99"
 	defaultVectorTreasuryAddress  = "addr_test1vq6xsx99frfepnsjuhzac48vl9s2lc9awkvfknkgs89srqqslj660"
+)
+
+var (
+	defaultFundTokenAmount   = ApexToWei(big.NewInt(100_000))
+	defaultPremineAmount     = ApexToWei(big.NewInt(20_000))
+	defaultNativeTokenAmount = big.NewInt(0)
 )
 
 type TestCardanoChainConfig struct {
@@ -94,14 +96,14 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		NodesCount:                  4,
 		InitialHotWalletAmount:      big.NewInt(0),
 		InitialHotWalletTokenAmount: big.NewInt(0),
-		PremineAmount:               defaultPremineAmount,
-		FundAmount:                  defaultFundTokenAmount,
-		FundFeeAmount:               defaultFundTokenAmount,
-		FundTokenAmount:             defaultNativeTokenAmount,
+		PremineAmount:               WeiToDfm(defaultPremineAmount).Uint64(),
+		FundAmount:                  WeiToDfm(defaultFundTokenAmount).Uint64(),
+		FundFeeAmount:               WeiToDfm(defaultFundTokenAmount).Uint64(),
+		FundTokenAmount:             WeiToDfm(defaultNativeTokenAmount).Uint64(),
 		FundUTxOCount:               1,
 		FundFeeUTxOCount:            1,
-		DefaultMinBridgingFee:       defaultMinBridgingFeeAmount,
-		MinBridgingFeeForTokens:     defaultMinBridgingFeeAmountForTokens,
+		DefaultMinBridgingFee:       WeiToDfm(defaultMinBridgingFeeAmount).Uint64(),
+		MinBridgingFeeForTokens:     WeiToDfm(defaultMinBridgingFeeAmountForTokens).Uint64(),
 		MinOperationFee:             uint64(0),
 		TreasuryAddress:             defaultPrimeTreasuryAddress,
 		BridgeAddrHasStake:          true,
@@ -119,22 +121,22 @@ func NewVectorChainConfig(mintableTokens ...map[uint16]string) *TestCardanoChain
 		NodesCount:                  4,
 		InitialHotWalletAmount:      big.NewInt(0),
 		InitialHotWalletTokenAmount: big.NewInt(0),
-		PremineAmount:               defaultPremineAmount,
-		FundAmount:                  defaultFundTokenAmount,
-		FundFeeAmount:               defaultFundTokenAmount,
-		FundTokenAmount:             defaultNativeTokenAmount,
+		PremineAmount:               WeiToDfm(defaultPremineAmount).Uint64(),
+		FundAmount:                  WeiToDfm(defaultFundTokenAmount).Uint64(),
+		FundFeeAmount:               WeiToDfm(defaultFundTokenAmount).Uint64(),
+		FundTokenAmount:             WeiToDfm(defaultNativeTokenAmount).Uint64(),
 		FundTokenName:               XADATokenName,
 		FundUTxOCount:               1,
 		FundFeeUTxOCount:            1,
-		DefaultMinBridgingFee:       defaultMinBridgingFeeAmount,
-		MinBridgingFeeForTokens:     defaultMinBridgingFeeAmountForTokens,
+		DefaultMinBridgingFee:       WeiToDfm(defaultMinBridgingFeeAmount).Uint64(),
+		MinBridgingFeeForTokens:     WeiToDfm(defaultMinBridgingFeeAmountForTokens).Uint64(),
 		MinOperationFee:             uint64(0),
 		TreasuryAddress:             defaultVectorTreasuryAddress,
 		BridgingAddressCnt:          1,
 	}
 
 	if len(mintableTokens) > 0 {
-		cfg.FundRelayerAmount = defaultFundTokenAmount
+		cfg.FundRelayerAmount = WeiToDfm(defaultFundTokenAmount).Uint64()
 		cfg.CustodialAddressGeneration = true
 		cfg.MintableTokens = mintableTokens[0]
 	}
@@ -152,14 +154,14 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		NodesCount:                  4,
 		InitialHotWalletAmount:      big.NewInt(0),
 		InitialHotWalletTokenAmount: big.NewInt(0),
-		PremineAmount:               defaultPremineAmount,
-		FundAmount:                  defaultFundTokenAmount,
-		FundFeeAmount:               defaultFundTokenAmount,
-		FundTokenAmount:             defaultNativeTokenAmount,
+		PremineAmount:               WeiToDfm(defaultPremineAmount).Uint64(),
+		FundAmount:                  WeiToDfm(defaultFundTokenAmount).Uint64(),
+		FundFeeAmount:               WeiToDfm(defaultFundTokenAmount).Uint64(),
+		FundTokenAmount:             WeiToDfm(defaultNativeTokenAmount).Uint64(),
 		FundTokenName:               CAP3XTokenName,
-		DefaultMinBridgingFee:       defaultMinBridgingFeeAmount,
-		MinBridgingFeeForTokens:     defaultMinBridgingFeeAmountForTokens,
-		MinOperationFee:             DefaultMinOperationFee,
+		DefaultMinBridgingFee:       WeiToDfm(defaultMinBridgingFeeAmount).Uint64(),
+		MinBridgingFeeForTokens:     WeiToDfm(defaultMinBridgingFeeAmountForTokens).Uint64(),
+		MinOperationFee:             WeiToDfm(DefaultMinOperationFee).Uint64(),
 		TreasuryAddress:             defaultCardanoTreasuryAddress,
 		BridgingAddressCnt:          1,
 	}
@@ -582,7 +584,14 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 
 	if ec.config.FundTokenAmount != 0 || ec.config.FundAmount != 0 {
 		addr := ec.multisigAddr[0]
-		amount := new(big.Int).SetUint64(max(2*MinUTxODefaultValue, ec.config.FundAmount))
+		twoMinUtxo := WeiToDfm(new(big.Int).Mul(MinUTxODefaultValue, big.NewInt(2)))
+
+		amount := new(big.Int).SetUint64(ec.config.FundAmount)
+
+		if twoMinUtxo.Cmp(amount) > 0 {
+			amount.Set(twoMinUtxo)
+		}
+
 		tokenAmount := new(big.Int).SetUint64(ec.config.FundTokenAmount)
 
 		token, _, err := GetTokenAndPolicyForVerificationKey(
@@ -592,7 +601,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 		}
 
 		if ta := ec.config.FundTokenAmount; ta != 0 {
-			if err := MintToken(ec, minterWallet, ec.config.FundTokenName, ta); err != nil {
+			if err := MintToken(ec, minterWallet, ec.config.FundTokenName, big.NewInt(0).SetUint64(ta)); err != nil {
 				return err
 			}
 		}
@@ -602,7 +611,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 			firstTokenAmount, lastTokenAmount := SplitAmountNTimes(tokenAmount, utxoCount)
 
 			for range utxoCount - 1 {
-				receivers = append(receivers, createTxReceiver(addr, firstAmount, &token, firstTokenAmount))
+				receivers = append(receivers, createTxReceiver(addr, firstAmount, &token, firstTokenAmount)) //
 			}
 
 			receivers = append(receivers, createTxReceiver(addr, lastAmount, &token, lastTokenAmount))
@@ -619,20 +628,20 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	}
 
 	if ec.config.CustodialAddress != "" && ec.config.CustodialNFT != nil {
-		lovelaceFundAmount := 2 * MinUTxODefaultValue
+		dfmFundAmount := new(big.Int).Mul(big.NewInt(2), WeiToDfm(MinUTxODefaultValue))
 
-		if err := MintToken(ec, minterWallet, MintNFTTokenName, 1); err != nil {
+		if err := MintToken(ec, minterWallet, MintNFTTokenName, big.NewInt(1)); err != nil {
 			return err
 		}
 
 		receivers = append(receivers,
 			createTxReceiver(ec.config.CustodialAddress,
-				big.NewInt(0).SetUint64(lovelaceFundAmount),
+				dfmFundAmount,
 				ec.config.CustodialNFT, big.NewInt(1)))
 
 		outputInfo = append(outputInfo,
 			fmt.Sprintf("%s custodial addr funded with NFT `%s` amount: %d, %d\n",
-				ec.ChainID(), ec.GetCustodialNFT().String(), lovelaceFundAmount, MintNFTAmount))
+				ec.ChainID(), ec.GetCustodialNFT().String(), dfmFundAmount, MintNFTAmount))
 	}
 
 	txHash, err := ec.SendTx(
@@ -651,8 +660,8 @@ func (ec *TestCardanoChain) InitContracts(_ context.Context, _ *crypto.ECDSAKey,
 }
 
 func (ec *TestCardanoChain) RegisterChain(validator *TestApexValidator) error {
-	return validator.RegisterChain(ec.ChainID(), ec.config.InitialHotWalletAmount,
-		ec.config.InitialHotWalletTokenAmount, ChainTypeCardano)
+	return validator.RegisterChain(ec.ChainID(), DfmToWei(ec.config.InitialHotWalletAmount),
+		DfmToWei(ec.config.InitialHotWalletTokenAmount), ChainTypeCardano)
 }
 
 func (ec *TestCardanoChain) GenerateChainConfigs(
@@ -669,7 +678,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		"--network-magic", fmt.Sprint(ec.config.NetworkMagic),
 		"--network-id", fmt.Sprint(ec.config.NetworkType),
 		"--ogmios-url", ec.ogmiosURL,
-		"--utxo-min-amount", strconv.FormatUint(MinUTxODefaultValue, 10),
+		"--utxo-min-amount", WeiToDfm(MinUTxODefaultValue).String(),
 		"--output-dir", validator.GetBridgingConfigsDir(),
 		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
 		"--output-relayer-file-name", RelayerConfigFileName,
@@ -768,7 +777,7 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 	balanceTransformed := make(map[string]*big.Int, len(balance))
 
 	for key, value := range balance {
-		balanceTransformed[key] = new(big.Int).SetUint64(value)
+		balanceTransformed[key] = DfmToWei(new(big.Int).SetUint64(value))
 	}
 
 	return balanceTransformed, nil
@@ -815,31 +824,36 @@ func (ec *TestCardanoChain) GetBridgingFee(
 	ctx context.Context,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
-	bridgingFee uint64,
-	operationFee uint64,
+	bridgingFee *big.Int,
+	operationFee *big.Int,
 	multiSigAddr string,
-) (uint64, error) {
-	return ec.txSender.GetBridgingFee(
+) (*big.Int, error) {
+	fee, err := ec.txSender.GetBridgingFee(
 		ctx,
 		sendtx.BridgingTxDto{
 			SrcChainID:      ec.ChainID(),
 			DstChainID:      dstChainID,
 			Receivers:       receivers,
 			BridgingAddress: multiSigAddr,
-			BridgingFee:     bridgingFee,
-			OperationFee:    operationFee,
+			BridgingFee:     WeiToDfm(bridgingFee).Uint64(),
+			OperationFee:    WeiToDfm(operationFee).Uint64(),
 		})
+	if err != nil {
+		return nil, err
+	}
+
+	return DfmToWei(new(big.Int).SetUint64(fee)), nil
 }
 
 func (ec *TestCardanoChain) CreateMetadata(
 	senderAddr string,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
-	bridgingFee uint64,
-	operationFee uint64,
+	bridgingFee *big.Int,
+	operationFee *big.Int,
 ) ([]byte, error) {
 	metadata, err := ec.txSender.CreateMetadata(
-		senderAddr, ec.ChainID(), dstChainID, receivers, bridgingFee, operationFee)
+		senderAddr, ec.ChainID(), dstChainID, receivers, WeiToDfm(bridgingFee).Uint64(), WeiToDfm(operationFee).Uint64())
 	if err != nil {
 		return nil, err
 	}
@@ -859,7 +873,7 @@ func (ec *TestCardanoChain) BridgingRequest(params BridgingRequestParams) (strin
 	for receiverAddress, receiverAmount := range params.Receivers {
 		receivers = append(receivers, sendtx.BridgingTxReceiver{
 			Addr:    receiverAddress,
-			Amount:  DfmToChainNativeTokenAmount(ec.ChainID(), receiverAmount.Amount).Uint64(),
+			Amount:  WeiToDfm(receiverAmount.Amount).Uint64(),
 			TokenID: receiverAmount.TokenID,
 		})
 	}
@@ -878,8 +892,8 @@ func (ec *TestCardanoChain) BridgingRequest(params BridgingRequestParams) (strin
 			SenderAddrPolicyScript: policyScript,
 			Receivers:              receivers,
 			BridgingAddress:        multisigAddr,
-			BridgingFee:            params.FeeAmount.Uint64(),
-			OperationFee:           params.OperationFee,
+			BridgingFee:            WeiToDfm(params.FeeAmount).Uint64(),
+			OperationFee:           WeiToDfm(params.OperationFee).Uint64(),
 		})
 	if err != nil {
 		return "", err
@@ -956,11 +970,20 @@ func (ec *TestCardanoChain) SendTx(
 	}
 
 	receiversDto := make([]sendtx.TxReceiversDto, len(receivers))
+
 	for i, r := range receivers {
+		nativeTokens := make([]infrawallet.TokenAmount, 0, len(r.NativeTokens))
+		for _, nativeToken := range r.NativeTokens {
+			nativeTokens = append(nativeTokens, infrawallet.TokenAmount{
+				Token:  nativeToken.Token,
+				Amount: WeiToDfm(nativeToken.Amount).Uint64(),
+			})
+		}
+
 		receiversDto[i] = sendtx.TxReceiversDto{
 			Addr:         r.Addr,
-			Amount:       r.Amount.Uint64(),
-			NativeTokens: r.NativeTokens,
+			Amount:       WeiToDfm(r.Amount).Uint64(),
+			NativeTokens: nativeTokens,
 		}
 	}
 

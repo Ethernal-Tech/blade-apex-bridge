@@ -28,7 +28,6 @@ import (
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -252,7 +251,7 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 	// send bridging tx should work after upgrading
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
-		cardanofw.ApexToDfm(big.NewInt(1)), cardanofw.AP3XTokenID, false)
+		cardanofw.ApexToWei(big.NewInt(1)), cardanofw.AP3XTokenID, false)
 }
 
 func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
@@ -344,7 +343,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	defer cncl()
 
 	srcChain, dstChain := cardanofw.ChainIDPrime, cardanofw.ChainIDVector
-	sendAmountDfm := cardanofw.ApexToDfm(big.NewInt(1))
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig()
 	primeConfig.PremineAmount = 500_000_000
 	vectorConfig.PremineAmount = 500_000_000
@@ -379,7 +378,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	require.NoError(t, err)
 
 	// fund multsig addr
-	txHashFund, err := apex.SubmitTx(ctx, srcChain, apex.Users[0], multisigAddr, big.NewInt(10_000_000), nil, nil, nil)
+	txHashFund, err := apex.SubmitTx(ctx, srcChain, apex.Users[0], multisigAddr, cardanofw.ApexToWei(big.NewInt(10)), nil, nil, nil)
 	require.NoError(t, err)
 
 	fmt.Printf("multsig addr %s funded: %s\n", multisigAddr, txHashFund)
@@ -401,7 +400,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	require.NoError(t, err)
 
 	prevAmount := cardanofw.SetOrDefault(balance[infrawallet.AdaTokenName], big.NewInt(0))
-	expectedAmount := new(big.Int).Add(prevAmount, sendAmountDfm)
+	expectedAmount := new(big.Int).Add(prevAmount, sendAmount)
 
 	tokensInfo, err := apex.GetBridgingTokensInfo(srcChain, dstChain, cardanofw.AP3XTokenID)
 	require.NoError(t, err)
@@ -409,7 +408,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	receiversMap := make(map[string]cardanofw.ReceiverAmount, 1)
 	receiversMap[apex.Users[0].VectorAddress.String()] = cardanofw.ReceiverAmount{
 		TokenID: tokensInfo.SrcTokenID,
-		Amount:  sendAmountDfm,
+		Amount:  sendAmount,
 	}
 
 	txHash, err := apex.GetChainMust(t, srcChain).BridgingRequest(
@@ -419,10 +418,8 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 			PrivateKey:     senderUserBuilder.String(),
 			ChainIDsConfig: apex.GetChainIDsConfig(),
 			Receivers:      receiversMap,
-			FeeAmount: new(big.Int).SetUint64(
-				apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false),
-			),
-			OperationFee:   0,
+			FeeAmount:      apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false),
+			OperationFee:   big.NewInt(0),
 			IsCurrencySrc:  true,
 			IsCurrencyDest: true,
 		},
@@ -466,7 +463,7 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 
 	user := apex.Users[0]
 
-	sendAmount := uint64(1_000_000)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	// Initiate bridging PRIME -> VECTOR
 	txHash, err := apex.SubmitBridgingRequest(
@@ -475,7 +472,7 @@ func TestE2E_ApexBridge_BatchRecreated(t *testing.T) {
 			SourceChain:      cardanofw.ChainIDPrime,
 			DestinationChain: cardanofw.ChainIDVector,
 			Sender:           user,
-			DFMAmount:        new(big.Int).SetUint64(sendAmount),
+			WeiAmount:        sendAmount,
 			SrcTokenID:       cardanofw.AP3XTokenID,
 			Receivers:        []*cardanofw.TestApexUser{user},
 		},
@@ -508,7 +505,7 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		cardanofw.WithNexusEnabled(true),
 		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 			setting := cardanofw.GetMapFromInterfaceKey(mp, "bridgingSettings")
-			setting["maxAmountAllowedToBridge"] = new(big.Int).SetUint64(5_000_000)
+			setting["maxAmountAllowedToBridge"] = cardanofw.ApexToWei(big.NewInt(5))
 		}, nil, nil, nil),
 	)
 
@@ -516,7 +513,7 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 
 	var (
 		user             = apex.Users[0]
-		apexSendAmount   = cardanofw.ApexToDfm(big.NewInt(10))
+		sendAmount       = cardanofw.ApexToWei(big.NewInt(10))
 		bridgingRequests = []struct {
 			src    string
 			dest   string
@@ -526,8 +523,8 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			{src: cardanofw.ChainIDVector, dest: cardanofw.ChainIDPrime, sender: apex.Users[0]},
 			{src: cardanofw.ChainIDNexus, dest: cardanofw.ChainIDPrime, sender: apex.Users[0]},
 		}
-		txHashes               = make([]string, len(bridgingRequests))
-		beforeSendingAmountDfm = make([]map[string]*big.Int, len(bridgingRequests))
+		txHashes            = make([]string, len(bridgingRequests))
+		beforeSendingAmount = make([]map[string]*big.Int, len(bridgingRequests))
 	)
 
 	var wg sync.WaitGroup
@@ -543,7 +540,7 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 			tokensInfo, err := apex.GetBridgingTokensInfo(br.src, br.dest, cardanofw.AP3XTokenID)
 			require.NoError(t, err)
 
-			beforeSendingAmountDfm[i], err = apex.GetBalanceWithTokenName(ctx, user, src, tokensInfo.SrcTokenName)
+			beforeSendingAmount[i], err = apex.GetBalanceWithTokenName(ctx, user, src, tokensInfo.SrcTokenName)
 			require.NoError(t, err)
 
 			txHashes[i], err = apex.SubmitBridgingRequest(cardanofw.SubmitBridgingRequestData{
@@ -551,7 +548,7 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 				SourceChain:      src,
 				DestinationChain: dest,
 				Sender:           sender,
-				DFMAmount:        apexSendAmount,
+				WeiAmount:        sendAmount,
 				SrcTokenID:       tokensInfo.SrcTokenID,
 				TokensInfo:       tokensInfo,
 				Receivers:        []*cardanofw.TestApexUser{user},
@@ -570,13 +567,13 @@ func TestE2E_ApexBridge_Over_Max_Allowed_To_Bridge(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			lowerBoundaryDfm := new(big.Int).Sub(
-				beforeSendingAmountDfm[idx][infrawallet.AdaTokenName],
-				new(big.Int).Add(apexSendAmount, new(big.Int).SetUint64(apex.GetMinBridgingFee(br.src, false))))
+			lowerBoundary := new(big.Int).Sub(
+				beforeSendingAmount[idx][infrawallet.AdaTokenName],
+				new(big.Int).Add(sendAmount, apex.GetMinBridgingFee(br.src, false)))
 
-			fmt.Printf("Tx hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundaryDfm, beforeSendingAmountDfm[idx])
+			fmt.Printf("Tx hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %+v\n", txHashes[idx], lowerBoundary, beforeSendingAmount[idx])
 
-			err := apex.WaitForAmountInRange(ctx, apex.Users[0], br.src, lowerBoundaryDfm, beforeSendingAmountDfm[idx][infrawallet.AdaTokenName],
+			err := apex.WaitForAmountInRange(ctx, apex.Users[0], br.src, lowerBoundary, beforeSendingAmount[idx][infrawallet.AdaTokenName],
 				60, time.Second*30, infrawallet.AdaTokenName)
 			require.NoError(t, err)
 		}()
@@ -625,14 +622,14 @@ func TestE2E_FundAmount(t *testing.T) {
 	}{
 		{
 			name:       "From prime to vector - not enough funds",
-			sendAmount: new(big.Int).SetUint64(5_000_000),
+			sendAmount: cardanofw.ApexToWei(new(big.Int).SetUint64(5)),
 			fromChain:  cardanofw.ChainIDPrime,
 			toChain:    cardanofw.ChainIDVector,
 			fundAmount: fundAmountVector,
 		},
 		{
 			name:       "From vector to prime - not enough funds",
-			sendAmount: new(big.Int).SetUint64(15_000_000),
+			sendAmount: cardanofw.ApexToWei(new(big.Int).SetUint64(15)),
 			fromChain:  cardanofw.ChainIDVector,
 			toChain:    cardanofw.ChainIDPrime,
 			fundAmount: fundAmountPrime,
@@ -660,7 +657,7 @@ func TestE2E_FundAmount(t *testing.T) {
 					SourceChain:      tc.fromChain,
 					DestinationChain: tc.toChain,
 					Sender:           user,
-					DFMAmount:        tc.sendAmount,
+					WeiAmount:        tc.sendAmount,
 					SrcTokenID:       tokensInfo.SrcTokenID,
 					TokensInfo:       tokensInfo,
 					Receivers:        []*cardanofw.TestApexUser{user},
@@ -673,7 +670,7 @@ func TestE2E_FundAmount(t *testing.T) {
 			err = apex.WaitForExactAmount(ctx, user, tc.toChain, expectedAmount, 20, time.Second*10, tokensInfo.DstTokenName)
 			require.Error(t, err)
 
-			require.NoError(t, apex.FundChainHotWallet(ctx, tc.toChain, big.NewInt(tc.fundAmount)))
+			require.NoError(t, apex.FundChainHotWallet(ctx, tc.toChain, cardanofw.DfmToWei(big.NewInt(tc.fundAmount))))
 
 			txHash, err = apex.SubmitBridgingRequest(
 				cardanofw.SubmitBridgingRequestData{
@@ -681,7 +678,7 @@ func TestE2E_FundAmount(t *testing.T) {
 					SourceChain:      tc.fromChain,
 					DestinationChain: tc.toChain,
 					Sender:           user,
-					DFMAmount:        tc.sendAmount,
+					WeiAmount:        tc.sendAmount,
 					SrcTokenID:       tokensInfo.SrcTokenID,
 					TokensInfo:       tokensInfo,
 					Receivers:        []*cardanofw.TestApexUser{user},
@@ -731,10 +728,10 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 	})
 
 	t.Run("Submitted not enough funds - invalid send amount", func(t *testing.T) {
-		sendAmount := uint64(800_000)
+		sendAmount := cardanofw.DfmToWei(big.NewInt(800_000))
 
 		operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
-		feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
+		minBridgingFee := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
 
 		beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
@@ -750,14 +747,15 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:    user.GetAddress(cardanofw.ChainIDVector),
-					Amount:  sendAmount - feeAmount,
+					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, minBridgingFee)).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},
-			}, feeAmount, operationFee)
+			}, minBridgingFee,
+			operationFee)
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr[0],
-			new(big.Int).SetUint64(sendAmount), nil, metadata, nil)
+			sendAmount, nil, metadata, nil)
 		require.NoError(t, err)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -834,10 +832,10 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 	})
 
 	t.Run("8. Submitted with tokens to bridging addr", func(t *testing.T) {
-		sendAmount := uint64(5_000_000)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(5))
 
 		operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
-		feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, true)
+		minBridgingFee := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, true)
 
 		minterUser := apex.Users[userCnt-1]
 
@@ -850,7 +848,7 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDPrime,
 			minterWallet, brSubmitterUser,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), uint64(1_000_000))
+			cardanofw.ApexToWei(big.NewInt(10)), cardanofw.ApexToWei(big.NewInt(1)))
 		require.NoError(t, err)
 
 		tokensInfo, err := apex.GetBridgingTokensInfo(
@@ -862,14 +860,14 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:    user.GetAddress(cardanofw.ChainIDVector),
-					Amount:  sendAmount - feeAmount,
+					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, minBridgingFee)).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},
-			}, feeAmount, operationFee)
+			}, minBridgingFee, operationFee)
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
-			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata, nil)
+			sendAmount, []cardanofw.GenericTokenAmount{*tokensFunded}, metadata, nil)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
@@ -922,7 +920,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			apex.ResetIndexers()
 		})
 
-		sendAmountDfm := big.NewInt(5_000_000)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(5))
 
 		minterUser := apex.Users[userCnt-2]
 
@@ -935,11 +933,11 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDPrime,
 			minterWallet, brSubmitterUser,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(20_000_000), uint64(1_000_000))
+			cardanofw.ApexToWei(big.NewInt(20)), cardanofw.ApexToWei(big.NewInt(1)))
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmountDfm,
+			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmount,
 			cardanofw.AP3XTokenID, false)
 	})
 
@@ -952,7 +950,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			apex.ResetIndexers()
 		})
 
-		sendAmount := uint64(5_000_000)
+		sendAmount := cardanofw.ApexToWei(big.NewInt(5))
 
 		operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
 		feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, true)
@@ -968,7 +966,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			ctx, apex, cardanofw.ChainIDPrime,
 			minterWallet, brSubmitterUser,
 			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
-			uint64(10_000_000), uint64(1_000_000))
+			cardanofw.ApexToWei(big.NewInt(10)), cardanofw.ApexToWei(big.NewInt(1)))
 		require.NoError(t, err)
 
 		tokensInfo, err := apex.GetBridgingTokensInfo(
@@ -980,26 +978,27 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:    user.GetAddress(cardanofw.ChainIDVector),
-					Amount:  sendAmount - feeAmount,
+					Amount:  cardanofw.WeiToDfm(new(big.Int).Sub(sendAmount, feeAmount)).Uint64(),
 					TokenID: tokensInfo.SrcTokenID,
 				},
 			}, feeAmount, operationFee)
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
-			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata, nil)
+			sendAmount, []cardanofw.GenericTokenAmount{*tokensFunded}, metadata, nil)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
 
 		const (
-			sendAmountVec = uint64(1_000_000)
-			instances     = 10
+			instances = 10
 		)
+
+		sendAmountVec := cardanofw.ApexToWei(big.NewInt(1))
 
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
 			t, ctx, apex, instances, minterUser,
-			cardanofw.ChainIDVector, cardanofw.ChainIDPrime, new(big.Int).SetUint64(sendAmountVec), cardanofw.AP3XTokenID)
+			cardanofw.ChainIDVector, cardanofw.ChainIDPrime, sendAmountVec, cardanofw.AP3XTokenID)
 	})
 
 	t.Run("From prime to vector wait for each submit", func(t *testing.T) {
@@ -1012,12 +1011,13 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		})
 
 		const (
-			sendAmount = uint64(1_000_000)
-			instances  = 5
+			instances = 5
 		)
 
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
+
 		e2ehelper.ExecuteBridgingOneByOneWaitOnOtherSide(
-			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, new(big.Int).SetUint64(sendAmount),
+			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmount,
 			cardanofw.AP3XTokenID)
 	})
 
@@ -1031,12 +1031,13 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		})
 
 		const (
-			instances  = 5
-			sendAmount = uint64(1_000_005)
+			instances = 5
 		)
 
+		sendAmount := cardanofw.DfmToWei(big.NewInt(1_000_005))
+
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
-			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, new(big.Int).SetUint64(sendAmount),
+			t, ctx, apex, instances, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmount,
 			cardanofw.AP3XTokenID)
 	})
 
@@ -1050,9 +1051,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		})
 
 		const (
-			sendAmount = uint64(1_000_000)
-			instances  = 5
+			instances = 5
 		)
+
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 		e2ehelper.ExecuteBridging(
 			t, ctx, apex, 1, apex.Users[:instances], []*cardanofw.TestApexUser{user},
@@ -1063,7 +1065,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			map[e2ehelper.SrcDstChainPair]uint16{
 				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): cardanofw.AP3XTokenID,
 			},
-			new(big.Int).SetUint64(sendAmount))
+			sendAmount)
 	})
 
 	t.Run("From vector to prime one by one", func(t *testing.T) {
@@ -1076,12 +1078,13 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		})
 
 		const (
-			sendAmount = uint64(1_000_000)
-			instances  = 5
+			instances = 5
 		)
 
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
+
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
-			t, ctx, apex, instances, user, cardanofw.ChainIDVector, cardanofw.ChainIDPrime, new(big.Int).SetUint64(sendAmount),
+			t, ctx, apex, instances, user, cardanofw.ChainIDVector, cardanofw.ChainIDPrime, sendAmount,
 			cardanofw.AP3XTokenID)
 	})
 
@@ -1095,9 +1098,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		})
 
 		const (
-			instances  = 5
-			sendAmount = uint64(1_000_000)
+			instances = 5
 		)
+
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 		e2ehelper.ExecuteBridging(
 			t, ctx, apex, 1, apex.Users[:instances], []*cardanofw.TestApexUser{user},
@@ -1108,7 +1112,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			map[e2ehelper.SrcDstChainPair]uint16{
 				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDPrime): cardanofw.AP3XTokenID,
 			},
-			new(big.Int).SetUint64(sendAmount))
+			sendAmount)
 	})
 
 	t.Run("From prime to vector sequential and parallel", func(t *testing.T) {
@@ -1155,8 +1159,11 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		})
 
 		const (
-			instances  = 5
-			sendAmount = uint64(1_000_000)
+			instances = 5
+		)
+
+		var (
+			sendAmount = cardanofw.ApexToWei(big.NewInt(1))
 		)
 
 		e2ehelper.ExecuteBridging(
@@ -1172,7 +1179,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): cardanofw.AP3XTokenID,
 				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDPrime): cardanofw.AP3XTokenID,
 			},
-			new(big.Int).SetUint64(sendAmount))
+			sendAmount)
 	})
 
 	t.Run("Both directions sequential and parallel", func(t *testing.T) {
@@ -1218,7 +1225,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			startAgainAfter       = time.Second * 120
 			validatorStoppingIdx1 = 1
 			validatorStoppingIdx2 = 2
-			sendAmount            = uint64(1_000_000)
+		)
+
+		var (
+			sendAmount = cardanofw.ApexToWei(big.NewInt(1))
 		)
 
 		t.Cleanup(func() {
@@ -1241,7 +1251,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): cardanofw.AP3XTokenID,
 				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDPrime): cardanofw.AP3XTokenID,
 			},
-			new(big.Int).SetUint64(sendAmount),
+			sendAmount,
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
 				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx1, validatorStoppingIdx2}},
@@ -1266,8 +1276,9 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 			startAgainAfter       = time.Second * 1000
 			validatorStoppingIdx1 = 1
 			validatorStoppingIdx2 = 2
-			sendAmount            = uint64(1_000_000)
 		)
+
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 		e2ehelper.ExecuteBridging(
 			t, ctx, apex, sequentialInstances,
@@ -1282,7 +1293,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 				e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): cardanofw.AP3XTokenID,
 				e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDPrime): cardanofw.AP3XTokenID,
 			},
-			new(big.Int).SetUint64(sendAmount),
+			sendAmount,
 			e2ehelper.WithWaitForUnexpectedBridges(true),
 			e2ehelper.WithTimeoutConfig(e2ehelper.NewTimeoutConfig(
 				e2ehelper.WithBridgingNumRetries(500),
@@ -1356,7 +1367,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 				chainExpectedAmounts[key] = big.NewInt(0)
 			}
 
-			chainExpectedAmounts[key].Add(chainExpectedAmounts[key], cardanofw.ApexToDfm(br.amount))
+			chainExpectedAmounts[key].Add(chainExpectedAmounts[key], cardanofw.ApexToWei(br.amount))
 
 			if _, exists := chainReceivers[key]; !exists {
 				chainReceivers[key] = receivers[br.receiverIdx]
@@ -1376,7 +1387,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 					defundReceiversExpectedAmount[key] = big.NewInt(0)
 				}
 
-				defundReceiversExpectedAmount[key].Add(defundReceiversExpectedAmount[key], cardanofw.ApexToDfm(defundAmount))
+				defundReceiversExpectedAmount[key].Add(defundReceiversExpectedAmount[key], cardanofw.ApexToWei(defundAmount))
 
 				if _, exists := defundReceivers[key]; !exists {
 					defundReceivers[key] = defundReceiver
@@ -1396,7 +1407,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		for _, br := range bridgingRequests {
 			wg.Add(1)
 
-			go func(src string, dest string, sender *cardanofw.TestApexUser, receiver *cardanofw.TestApexUser, amount *big.Int) {
+			go func(src string, dest string, sender *cardanofw.TestApexUser, receiver *cardanofw.TestApexUser, sendAmount *big.Int) {
 				defer wg.Done()
 
 				txHash, err := apex.SubmitBridgingRequest(cardanofw.SubmitBridgingRequestData{
@@ -1404,14 +1415,14 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 					SourceChain:      src,
 					DestinationChain: dest,
 					Sender:           sender,
-					DFMAmount:        amount,
+					WeiAmount:        sendAmount,
 					SrcTokenID:       cardanofw.AP3XTokenID,
 					Receivers:        []*cardanofw.TestApexUser{receiver},
 				})
 				require.NoError(t, err)
 
 				fmt.Printf("Bridging request: %v to %v sent. hash: %s\n", src, dest, txHash)
-			}(br.src, br.dest, br.sender, receivers[br.receiverIdx], cardanofw.ApexToDfm(br.amount))
+			}(br.src, br.dest, br.sender, receivers[br.receiverIdx], cardanofw.ApexToWei(br.amount))
 		}
 
 		wg.Wait()
@@ -1549,16 +1560,13 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
-		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
+		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100)).Uint64()
 
 		primeConfig, vectorConfig, nexusConfig := cardanofw.NewPrimeChainConfig(),
 			cardanofw.NewVectorChainConfig(), cardanofw.NewNexusChainConfig(true)
-		primeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
-			cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		vectorConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
-			cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		nexusConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
-			cardanofw.ChainIDNexus, initialFundInDfm)
+		primeConfig.FundAmount = initialFundInDfm
+		vectorConfig.FundAmount = initialFundInDfm
+		nexusConfig.FundAmount = cardanofw.ApexToWei(big.NewInt(100))
 
 		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
@@ -1624,16 +1632,13 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
-		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100))
+		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100)).Uint64()
 
 		primeConfig, vectorConfig, nexusConfig := cardanofw.NewPrimeChainConfig(),
 			cardanofw.NewVectorChainConfig(), cardanofw.NewNexusChainConfig(true)
-		primeConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
-			cardanofw.ChainIDPrime, initialFundInDfm).Uint64()
-		vectorConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
-			cardanofw.ChainIDVector, initialFundInDfm).Uint64()
-		nexusConfig.FundAmount = cardanofw.DfmToChainNativeTokenAmount(
-			cardanofw.ChainIDNexus, initialFundInDfm)
+		primeConfig.FundAmount = initialFundInDfm
+		vectorConfig.FundAmount = initialFundInDfm
+		nexusConfig.FundAmount = cardanofw.ApexToWei(big.NewInt(100))
 
 		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
@@ -1676,7 +1681,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			bridgeTransactions(ctx, apex, []*bridingRequest{request}, receivers)
 
 			require.NoError(t, apex.DefundHotWallet(
-				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToDfm(apexDefundAndFundAmount), big.NewInt(0)))
+				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToWei(apexDefundAndFundAmount), big.NewInt(0)))
 		}
 
 		fmt.Printf("Confirming that bridging requests will not be processed\n")
@@ -1713,7 +1718,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 	primeConfig, vectorConfig, nexusConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig(), cardanofw.NewNexusChainConfig(true)
 	primeConfig.PremineAmount = 30_000_000_000
 	vectorConfig.PremineAmount = 30_000_000_000
-	nexusConfig.PremineAmount = ethgo.Ether(30_000_000_000)
+	nexusConfig.PremineAmount = cardanofw.ApexToWei(new(big.Int).SetUint64(30_000_000_000))
 
 	apex := cardanofw.SetupAndRunReactorBridge(
 		t, ctx,
@@ -1746,7 +1751,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 			waitTime   = time.Second * 10
 		)
 
-		sendAmount := new(big.Int).SetInt64(1_000_000)
+		sendAmount := cardanofw.ApexToWei(new(big.Int).SetInt64(1))
 
 		bridgingRequests := []struct {
 			src            cardanofw.ChainID
@@ -1801,7 +1806,7 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests_AllDirections(t *testing.T) {
 							SourceChain:      src,
 							DestinationChain: dest,
 							Sender:           apex.Users[idx],
-							DFMAmount:        sendAmount,
+							WeiAmount:        sendAmount,
 							SrcTokenID:       cardanofw.AP3XTokenID,
 							Receivers:        []*cardanofw.TestApexUser{user},
 						})
@@ -1895,7 +1900,7 @@ func fundWallets(
 
 	for _, chain := range chains {
 		require.NoError(t,
-			apex.FundChainHotWallet(ctx, chain, cardanofw.ApexToDfm(fundAmountApex)),
+			apex.FundChainHotWallet(ctx, chain, cardanofw.ApexToWei(fundAmountApex)),
 		)
 	}
 
@@ -1912,7 +1917,7 @@ func defundWallets(
 
 	fmt.Printf("Defunding hot wallets\n")
 
-	defundAmount := cardanofw.ApexToDfm(defundAmountApex)
+	defundAmount := cardanofw.ApexToWei(defundAmountApex)
 
 	for _, chain := range chains {
 		require.NoError(t,
@@ -1930,7 +1935,7 @@ func defundWallets(
 
 func sendWithoutWaitInvalidMetadataWrongType(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, sender, receiver *cardanofw.TestApexUser,
-	originChainID, destinationChainID string, sendAmount uint64,
+	originChainID, destinationChainID string, sendAmount *big.Int,
 ) error {
 	t.Helper()
 
@@ -1940,14 +1945,14 @@ func sendWithoutWaitInvalidMetadataWrongType(
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    receiver.GetAddress(destinationChainID),
-			Amount:  sendAmount,
+			Amount:  cardanofw.WeiToDfm(sendAmount).Uint64(),
 			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
 
 	metadata, feeAmount := createMetadata(t, ctx, apex, originChainID, destinationChainID,
 		apex.GetMinBridgingFee(originChainID, false),
-		0, sender, receivers, false)
+		big.NewInt(0), sender, receivers, false)
 	metadata = bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
 
 	multisigAddress, err := apex.GetChainMust(t, originChainID).GetAddressToBridgeTo(ctx, false)
@@ -1955,7 +1960,7 @@ func sendWithoutWaitInvalidMetadataWrongType(
 		return err
 	}
 
-	_, err = apex.SubmitTx(ctx, originChainID, sender, multisigAddress, new(big.Int).SetUint64(sendAmount+feeAmount), nil,
+	_, err = apex.SubmitTx(ctx, originChainID, sender, multisigAddress, new(big.Int).Add(sendAmount, feeAmount), nil,
 		metadata, nil)
 	if err != nil {
 		return err
@@ -1979,10 +1984,11 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 	defer cncl()
 
 	vectorConfig := cardanofw.NewVectorChainConfig()
+	minUtxoDfm := cardanofw.WeiToDfm(cardanofw.MinUTxODefaultValue).Uint64()
 	vectorConfig.FundUTxOCount = fundUtxoCount
-	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * fundUtxoCount
+	vectorConfig.FundAmount = minUtxoDfm * fundUtxoCount
 	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
-	sendAmount := vectorConfig.FundAmount - cardanofw.MinUTxODefaultValue*3
+	sendAmount := cardanofw.DfmToWei(big.NewInt(0).SetUint64(vectorConfig.FundAmount - minUtxoDfm*3))
 
 	// adding indexer because there are many funding transactions
 	vectorConfig.UseIndexer = true
@@ -2054,7 +2060,7 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.Users[0], apex.Users[0],
-		cardanofw.ChainIDPrime, cardanofw.ChainIDVector, new(big.Int).SetUint64(sendAmount), cardanofw.AP3XTokenID, false)
+		cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmount, cardanofw.AP3XTokenID, false)
 
 	require.Equal(t, uint64(2), getLastConfirmedBatchID(cardanofw.ChainIDVector))
 
@@ -2087,11 +2093,11 @@ func TestE2E_ApexBridge_UTxOConsolidationWithBothDirections(t *testing.T) {
 
 	primeConfig, vectorConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewVectorChainConfig()
 	vectorConfig.FundUTxOCount = fundUtxoCount
-	vectorConfig.FundAmount = cardanofw.MinUTxODefaultValue * parallelInstances * sequentialInstances
+	vectorConfig.FundAmount = cardanofw.WeiToDfm(cardanofw.MinUTxODefaultValue).Uint64() * parallelInstances * sequentialInstances
 	vectorConfig.InitialHotWalletAmount = new(big.Int).SetUint64(vectorConfig.FundAmount)
 	vectorConfig.UseIndexer = true
 	primeConfig.FundUTxOCount = fundUtxoCount
-	primeConfig.FundAmount = cardanofw.MinUTxODefaultValue * parallelInstances * sequentialInstances
+	primeConfig.FundAmount = cardanofw.WeiToDfm(cardanofw.MinUTxODefaultValue).Uint64() * parallelInstances * sequentialInstances
 	primeConfig.InitialHotWalletAmount = new(big.Int).SetUint64(primeConfig.FundAmount)
 	primeConfig.UseIndexer = true
 	sendAmount := cardanofw.MinUTxODefaultValue
@@ -2159,7 +2165,7 @@ func TestE2E_ApexBridge_UTxOConsolidationWithBothDirections(t *testing.T) {
 			e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): cardanofw.AP3XTokenID,
 			e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDPrime): cardanofw.AP3XTokenID,
 		},
-		new(big.Int).SetUint64(sendAmount),
+		sendAmount,
 		e2ehelper.WithWaitForUnexpectedBridges(true),
 		e2ehelper.WithTimeoutConfig(e2ehelper.NewTimeoutConfig(
 			e2ehelper.WithBridgingNumRetries(200),
@@ -2189,14 +2195,14 @@ func submitInvalidSendAmountTransaction(
 		senderUser.GetAddress(src), dest, []sendtx.BridgingTxReceiver{
 			{
 				Addr:    receiverUserAddr,
-				Amount:  sendAmount.Uint64() * 10,
+				Amount:  cardanofw.WeiToDfm(sendAmount).Uint64() * 10,
 				TokenID: tokensInfo.SrcTokenID,
 			},
 		}, feeAmount, operationFee)
 	require.NoError(t, err)
 
 	_, err = apex.SubmitTx(ctx, src, senderUser, srcTestChain.GetHotWalletAddresses()[0],
-		new(big.Int).Add(sendAmount, new(big.Int).SetUint64(feeAmount)), nil, bridgingRequestMetadata, nil)
+		new(big.Int).Add(sendAmount, feeAmount), nil, bridgingRequestMetadata, nil)
 	require.NoError(t, err)
 }
 
@@ -2205,10 +2211,10 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 ) {
 	t.Helper()
 
-	sendAmount := uint64(1_000_000)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
-	feeAmount := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
+	minBridgingFee := apex.GetMinBridgingFee(cardanofw.ChainIDPrime, false)
 
 	tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.AP3XTokenID)
 	require.NoError(t, err)
@@ -2216,7 +2222,7 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    user.GetAddress(cardanofw.ChainIDVector),
-			Amount:  sendAmount,
+			Amount:  cardanofw.WeiToDfm(sendAmount).Uint64(),
 			TokenID: tokensInfo.SrcTokenID,
 		},
 	}
@@ -2231,7 +2237,7 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 
 	_, err = apex.SubmitTx(
 		ctx, cardanofw.ChainIDPrime, user,
-		apex.PrimeInfo.MultisigAddr[0], new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata, nil)
+		apex.PrimeInfo.MultisigAddr[0], new(big.Int).Add(sendAmount, minBridgingFee), nil, metadata, nil)
 	require.Error(t, err)
 }
 
@@ -2242,9 +2248,10 @@ func PrimeToVectorSequentialAndParallelWithMaxReceivers(
 	t.Helper()
 
 	const (
-		receivers  = 4
-		sendAmount = uint64(1_000_000)
+		receivers = 4
 	)
+
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	e2ehelper.ExecuteBridging(
 		t, ctx, apex, sequentialInstances,
@@ -2257,7 +2264,7 @@ func PrimeToVectorSequentialAndParallelWithMaxReceivers(
 		map[e2ehelper.SrcDstChainPair]uint16{
 			e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): cardanofw.AP3XTokenID,
 		},
-		new(big.Int).SetUint64(sendAmount),
+		sendAmount,
 		options...)
 }
 
@@ -2267,9 +2274,7 @@ func PrimeVectorBothDirectionsSequentialAndParallel(
 ) {
 	t.Helper()
 
-	const (
-		sendAmount = uint64(1_000_000)
-	)
+	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	options = append(
 		options,
@@ -2289,7 +2294,7 @@ func PrimeVectorBothDirectionsSequentialAndParallel(
 			e2ehelper.NewChainPair(cardanofw.ChainIDPrime, cardanofw.ChainIDVector): cardanofw.AP3XTokenID,
 			e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDPrime): cardanofw.AP3XTokenID,
 		},
-		new(big.Int).SetUint64(sendAmount),
+		sendAmount,
 		options...)
 }
 

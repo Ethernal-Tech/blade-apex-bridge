@@ -16,10 +16,22 @@ type ITestApexChainServer interface {
 	Start() error
 }
 
+type GenericTokenAmount struct {
+	infrawallet.Token
+	Amount *big.Int
+}
+
+func NewGenericTokenAmount(token infrawallet.Token, amount *big.Int) GenericTokenAmount {
+	return GenericTokenAmount{
+		Token:  token,
+		Amount: amount,
+	}
+}
+
 type GenericTxReceiver struct {
 	Addr         string
 	Amount       *big.Int
-	NativeTokens []infrawallet.TokenAmount
+	NativeTokens []GenericTokenAmount
 }
 
 type ReceiverAmount struct {
@@ -34,7 +46,7 @@ type BridgingRequestParams struct {
 	ChainIDsConfig string
 	Receivers      map[string]ReceiverAmount
 	FeeAmount      *big.Int
-	OperationFee   uint64
+	OperationFee   *big.Int
 	IsCurrencySrc  bool
 	IsCurrencyDest bool
 }
@@ -68,16 +80,16 @@ type ITestApexChain interface {
 		ctx context.Context,
 		dstChainID string,
 		receivers []sendtx.BridgingTxReceiver,
-		bridgingFee uint64,
-		operationFee uint64,
+		bridgingFee *big.Int,
+		operationFee *big.Int,
 		multiSigAddr string,
-	) (uint64, error)
+	) (*big.Int, error)
 	CreateMetadata(
 		senderAddr string,
 		dstChainID string,
 		receivers []sendtx.BridgingTxReceiver,
-		bridgingFee uint64,
-		operationFee uint64,
+		bridgingFee *big.Int,
+		operationFee *big.Int,
 	) ([]byte, error)
 	GetServerMust(t *testing.T, indx int) ITestApexChainServer
 	GetIndexer() e2eindexer.TxsExecutedComponent
@@ -206,19 +218,19 @@ func (td *TestApexChainDummy) GetBridgingFee(
 	ctx context.Context,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
-	bridgingFee uint64,
-	operationFee uint64,
+	bridgingFee *big.Int,
+	operationFee *big.Int,
 	multiSigAddr string,
-) (uint64, error) {
-	return 0, nil
+) (*big.Int, error) {
+	return big.NewInt(0), nil
 }
 
 func (td *TestApexChainDummy) CreateMetadata(
 	senderAddr string,
 	dstChainID string,
 	receivers []sendtx.BridgingTxReceiver,
-	bridgingFee uint64,
-	operationFee uint64,
+	bridgingFee *big.Int,
+	operationFee *big.Int,
 ) ([]byte, error) {
 	return nil, nil
 }
@@ -276,22 +288,22 @@ func (td *TestApexChainDummy) GetTreasuryAddress() string {
 var _ ITestApexChain = (*TestApexChainDummy)(nil)
 
 func createTxReceiver(
-	addr string, amount *big.Int, token *infrawallet.Token, tokenAmount *big.Int,
+	addr string, amountDfm *big.Int, token *infrawallet.Token, tokenAmountDfm *big.Int,
 ) GenericTxReceiver {
-	var nativeTokens []infrawallet.TokenAmount
+	var nativeTokens []GenericTokenAmount
 
-	if token != nil && tokenAmount != nil && tokenAmount.BitLen() != 0 {
-		nativeTokens = []infrawallet.TokenAmount{
+	if token != nil && tokenAmountDfm != nil && tokenAmountDfm.BitLen() != 0 {
+		nativeTokens = []GenericTokenAmount{
 			{
 				Token:  *token,
-				Amount: tokenAmount.Uint64(),
+				Amount: DfmToWei(tokenAmountDfm),
 			},
 		}
 	}
 
 	return GenericTxReceiver{
 		Addr:         addr,
-		Amount:       amount,
+		Amount:       DfmToWei(amountDfm),
 		NativeTokens: nativeTokens,
 	}
 }
