@@ -1356,55 +1356,6 @@ func (a *ApexSystem) ValidateTreasuryAddressBalance(
 	return nil
 }
 
-func (a *ApexSystem) GetTreasuryAddressBalance(ctx context.Context, t *testing.T, chainID ChainID) (*big.Int, error) {
-	t.Helper()
-
-	var (
-		balance map[string]*big.Int
-		err     error
-	)
-
-	if !a.IsSkyline {
-		return nil, nil
-	}
-
-	chain := a.GetChainMust(t, chainID)
-
-	treasuryAddress := chain.GetTreasuryAddress()
-
-	balance, err = chain.GetAddressBalance(ctx, treasuryAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	if balance[cardanowallet.AdaTokenName] == nil {
-		return big.NewInt(0), nil
-	}
-
-	return balance[cardanowallet.AdaTokenName], nil
-}
-
-func (a *ApexSystem) ValidateTreasuryAddressBalance(
-	ctx context.Context, t *testing.T, chainID ChainID, previousBalance *big.Int, numberOfBridgingRequests uint64,
-) error {
-	t.Helper()
-
-	treasuryBalance, err := a.GetTreasuryAddressBalance(ctx, t, chainID)
-	if err != nil {
-		return err
-	}
-
-	expectedBalance := previousBalance.Add(previousBalance,
-		new(big.Int).Mul(new(big.Int).SetUint64(numberOfBridgingRequests),
-			a.GetMinOperationFee(chainID)))
-
-	if treasuryBalance.Cmp(expectedBalance) != 0 {
-		return fmt.Errorf("treasury address balance mismatch: expected %s, but received %s", expectedBalance, treasuryBalance)
-	}
-
-	return nil
-}
-
 func (a *ApexSystem) GetBalanceWithTokenName(
 	ctx context.Context, user *TestApexUser, chainID ChainID, tokenName string) (map[string]*big.Int, error) {
 	chain, err := a.getChain(chainID)

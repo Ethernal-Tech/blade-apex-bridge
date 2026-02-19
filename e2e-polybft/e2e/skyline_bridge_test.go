@@ -941,7 +941,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 			ctx, cardanofw.ChainIDVector, user,
 			apex.VectorInfo.MultisigAddr[0], totalValue,
 			[]cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(tokensFunded.Token, sendAmount)},
-			metadata, new(big.Int).SetUint64(operationFee))
+			metadata, operationFee)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDVector, txHash, apex.Config.APIKey, 0)
@@ -1097,7 +1097,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false, 0)
+		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false, big.NewInt(0))
 
 		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime, initialTreasuryBalance, 0)
 		require.NoError(t, err)
@@ -1112,31 +1112,35 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		newTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		require.Equal(t, initialTreasuryBalance.Add(initialTreasuryBalance, new(big.Int).SetUint64(cardanofw.DefaultMinOperationFee)).Uint64(), newTreasuryBalance.Uint64())
+		require.Equal(t, initialTreasuryBalance.Add(initialTreasuryBalance, cardanofw.DefaultMinOperationFee).Uint64(), newTreasuryBalance.Uint64())
 	})
 
 	t.Run("18. Bridging request with less than min operation fee", func(t *testing.T) {
 		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false, 1_000_000)
+		opFeeValue := big.NewInt(1_000_000)
+
+		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false, opFeeValue)
 
 		newTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		require.Equal(t, initialTreasuryBalance.Add(initialTreasuryBalance, new(big.Int).SetUint64(1_000_000)).Uint64(), newTreasuryBalance.Uint64())
+		require.Equal(t, initialTreasuryBalance.Add(initialTreasuryBalance, opFeeValue).Uint64(), newTreasuryBalance.Uint64())
 	})
 
 	t.Run("19. Bridging request with more than min operation fee", func(t *testing.T) {
 		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false, cardanofw.DefaultMinOperationFee+1)
+		opFeeValue := new(big.Int).Add(cardanofw.DefaultMinOperationFee, big.NewInt(1))
+
+		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false, opFeeValue)
 
 		newTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		require.Equal(t, initialTreasuryBalance.Add(initialTreasuryBalance, new(big.Int).SetUint64(cardanofw.DefaultMinOperationFee+1)).Uint64(), newTreasuryBalance.Uint64())
+		require.Equal(t, initialTreasuryBalance.Add(initialTreasuryBalance, opFeeValue).Uint64(), newTreasuryBalance.Uint64())
 	})
 }
 
@@ -2652,7 +2656,7 @@ func sendInvalidSendAmountTransaction(
 
 	_, err = apex.SubmitTx(
 		ctx, src, senderUser, srcTestChain.GetHotWalletAddresses()[0],
-		new(big.Int).Add(sendAmount, new(big.Int).Add(feeAmount, operationFee)), nil, metadata, new(big.Int).SetUint64(operationFee))
+		new(big.Int).Add(sendAmount, new(big.Int).Add(feeAmount, operationFee)), nil, metadata, operationFee)
 	require.NoError(t, err)
 }
 

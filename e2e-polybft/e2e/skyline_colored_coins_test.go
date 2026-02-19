@@ -366,7 +366,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 		txHash, err := apex.SubmitTx(
 			ctx, cardanofw.ChainIDVector, user,
 			apex.VectorInfo.MultisigAddr[0], totalValue,
-			[]cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(tokensFunded.Token, sendAmount)}, metadata, new(big.Int).SetUint64(operationFee))
+			[]cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(tokensFunded.Token, sendAmount)}, metadata, operationFee)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDVector, txHash, apex.Config.APIKey, 0)

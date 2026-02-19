@@ -47,7 +47,7 @@ func executeInvalidBridgingFee(
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		defaultAmount, sentTokenAmount, metadata, new(big.Int).SetUint64(operationFee))
+		defaultAmount, sentTokenAmount, metadata, operationFee)
 	require.NoError(t, err)
 
 	fmt.Printf("txHash: %s\n", txHash)
@@ -87,7 +87,7 @@ func executeInvalidFeeReceiverAddr(
 	if config.isCurrency {
 		txHash, err := apex.SubmitTx(
 			ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-			sentAmount, nil, metadata, new(big.Int).SetUint64(operationFee))
+			sentAmount, nil, metadata, operationFee)
 		require.NoError(t, err)
 
 		fmt.Printf("txHash: %s\n", txHash)
@@ -97,7 +97,7 @@ func executeInvalidFeeReceiverAddr(
 	} else {
 		txHash, err := apex.SubmitTx(
 			ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-			new(big.Int).Add(feeAmount, operationFee), sentTokenAmount, metadata, new(big.Int).SetUint64(operationFee))
+			new(big.Int).Add(feeAmount, operationFee), sentTokenAmount, metadata, operationFee)
 		require.NoError(t, err)
 
 		fmt.Printf("txHash: %s\n", txHash)
@@ -148,7 +148,7 @@ func executeInvalidMetadataSlicedOff(t *testing.T, ctx context.Context, apex *ca
 	_, err = apex.SubmitTx(
 		ctx, config.srcChainID, user, multisigAddr,
 		totalAmount,
-		nil, metadata, new(big.Int).SetUint64(operationFee))
+		nil, metadata, operationFee)
 	require.Error(t, err)
 }
 
@@ -185,7 +185,7 @@ func executeInvalidMismatchSendNativeTokenAmount(
 		user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		new(big.Int).Add(feeAmount, operationFee),
 		[]cardanofw.GenericTokenAmount{nativeTokenAmount}, bridgingRequestMetadata,
-		new(big.Int).SetUint64(operationFee))
+		operationFee)
 	require.NoError(t, err)
 
 	fmt.Printf("txHash: %s\n", txHash)
@@ -240,7 +240,7 @@ func executeInvalidSendNativeToken(
 	txHash, err := apex.SubmitTx(ctx, config.srcChainID, user,
 		apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		weiAmount, []cardanofw.GenericTokenAmount{nativeTokenAmount},
-		metadata, new(big.Int).SetUint64(operationFee))
+		metadata, operationFee)
 	require.NoError(t, err)
 
 	fmt.Printf("txHash: %s\n", txHash)
@@ -254,7 +254,7 @@ func executeInvalidMetadataWrongLabel(
 ) {
 	t.Helper()
 
-	sendAmount := uint64(1_000_000)
+	sendAmount := big.NewInt(1_000_000)
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, cardanofw.ChainIDPrime)
 	require.NoError(t, err)
@@ -271,7 +271,7 @@ func executeInvalidMetadataWrongLabel(
 	operationFee := apex.GetMinOperationFee(cardanofw.ChainIDPrime)
 
 	txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr[0],
-		new(big.Int).SetUint64(sendAmount), nil, bridgingRequestMetadata, new(big.Int).SetUint64(operationFee))
+		sendAmount, nil, bridgingRequestMetadata, operationFee)
 	require.NoError(t, err)
 
 	fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -286,11 +286,11 @@ func executeInvalidMetadataWrongLabel(
 func executeBridgingRequestOperationFee(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem,
 	user *cardanofw.TestApexUser, config *testConfig, addrIndex uint8,
-	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, wrongOpFeeInMetadata bool, customOperationFee uint64,
+	maxWaitTimeSec, retryIntervalSec uint, refundEnabled bool, wrongOpFeeInMetadata bool, customOperationFee *big.Int,
 ) {
 	t.Helper()
 
-	sendAmount := uint64(1_000_000)
+	sendAmount := big.NewInt(1_000_000)
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
@@ -298,7 +298,7 @@ func executeBridgingRequestOperationFee(
 	receivers := []sendtx.BridgingTxReceiver{
 		{
 			Addr:    user.GetAddress(config.dstChainID),
-			Amount:  sendAmount,
+			Amount:  cardanofw.WeiToDfm(sendAmount).Uint64(),
 			TokenID: config.tokensInfo.SrcTokenID,
 		},
 	}
@@ -314,7 +314,7 @@ func executeBridgingRequestOperationFee(
 	require.NoError(t, err)
 
 	if wrongOpFeeInMetadata {
-		operationFee = 0
+		operationFee = big.NewInt(0)
 	}
 
 	metadata, err := apex.GetChainMust(t, config.srcChainID).CreateMetadata(
@@ -322,11 +322,11 @@ func executeBridgingRequestOperationFee(
 		receivers, feeAmount, operationFee)
 	require.NoError(t, err)
 
-	lovelaceAmount := sendAmount + feeAmount
+	lovelaceAmount := new(big.Int).Add(sendAmount, feeAmount)
 
-	opFee := func(customOperationFee uint64) *big.Int {
-		if customOperationFee > 0 {
-			return new(big.Int).SetUint64(customOperationFee)
+	opFee := func(customOperationFee *big.Int) *big.Int {
+		if customOperationFee != nil {
+			return customOperationFee
 		}
 
 		return nil
@@ -334,7 +334,7 @@ func executeBridgingRequestOperationFee(
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user,
-		multisigAddr, new(big.Int).SetUint64(lovelaceAmount), nil, metadata, opFee(customOperationFee))
+		multisigAddr, lovelaceAmount, nil, metadata, opFee(customOperationFee))
 	require.NoError(t, err)
 
 	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, lovelaceAmount,
