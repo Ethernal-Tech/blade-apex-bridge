@@ -1528,7 +1528,7 @@ func SrcNexusSubmitterNotEnoughFunds(
 	require.NoError(t, err)
 
 	tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus,
-		cardanofw.ChainIDVector,
+		dstChain,
 		cardanofw.AP3XTokenID)
 	require.NoError(t, err)
 
@@ -1539,7 +1539,7 @@ func SrcNexusSubmitterNotEnoughFunds(
 		cardanofw.ChainIDToInt(dstChain),
 		unfundedUserPk,
 		map[string]cardanofw.ReceiverAmount{
-			unfundedUser.GetAddress(cardanofw.ChainIDVector): {
+			unfundedUser.GetAddress(dstChain): {
 				TokenID: cardanofw.AP3XTokenID,
 				Amount:  sendAmount,
 			},
