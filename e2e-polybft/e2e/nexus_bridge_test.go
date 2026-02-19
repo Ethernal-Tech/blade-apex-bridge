@@ -285,7 +285,7 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios(t *testing.T) {
 				unfundedUserPk,
 				map[string]cardanofw.ReceiverAmount{
 					unfundedUser.GetAddress(cardanofw.ChainIDVector): {
-						TokenID: uint16(1),
+						TokenID: cardanofw.AP3XTokenID,
 						Amount:  sendAmountWei,
 					},
 				},
@@ -348,7 +348,7 @@ func TestE2E_ApexBridge_SrcNexus_InvalidScenarios_MinValuesMisconfigured(t *test
 			hex.EncodeToString(privKey),
 			map[string]cardanofw.ReceiverAmount{
 				user.GetAddress(cardanofw.ChainIDVector): {
-					TokenID: uint16(1),
+					TokenID: cardanofw.AP3XTokenID,
 					Amount:  sendAmount,
 				},
 			},
@@ -374,7 +374,7 @@ func TestE2E_ApexBridge_SrcNexus_InvalidScenarios_MinValuesMisconfigured(t *test
 			hex.EncodeToString(privKey),
 			map[string]cardanofw.ReceiverAmount{
 				user.GetAddress(cardanofw.ChainIDVector): {
-					TokenID: uint16(1),
+					TokenID: cardanofw.AP3XTokenID,
 					Amount:  sendAmount,
 				},
 			},
@@ -1637,8 +1637,8 @@ func SrcNexusSubmitterNotEnoughFunds(
 		cardanofw.ChainIDToInt(dstChain),
 		unfundedUserPk,
 		map[string]cardanofw.ReceiverAmount{
-			unfundedUser.GetAddress(cardanofw.ChainIDVector): {
-				TokenID: cardanofw.ChainTypeEVM,
+			unfundedUser.GetAddress(dstChain): {
+				TokenID: cardanofw.AP3XTokenID,
 				Amount:  sendAmount,
 			},
 		},
