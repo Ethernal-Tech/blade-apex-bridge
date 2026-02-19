@@ -3,11 +3,16 @@ package solanafw
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
+	"path"
 	"path/filepath"
 	"sync"
+	"testing"
+	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
+	"github.com/0xPolygon/polygon-edge/helper/common"
 )
 
 const (
@@ -17,16 +22,35 @@ const (
 )
 
 type TestSolanaClusterConfig struct {
-	ID         int
-	NodesCount int
-	Port       int
-	WSPort     int
-	SlotTime   int
-	TmpDir     string
+	t *testing.T
+
+	ID            int
+	NodesCount    int
+	Port          int
+	WSPort        int
+	SlotTime      int
+	TmpDir        string
+	Premine       []string
+	PremineAmount *big.Int // default is 10000_000_000_000 SOL
+	LogsDir       string
 }
 
-func (c *TestSolanaClusterConfig) Dir(name string) string {
-	return filepath.Join(c.TmpDir, name)
+func (cfg *TestSolanaClusterConfig) Dir(name string) string {
+	return filepath.Join(cfg.TmpDir, name)
+}
+
+func (cfg *TestSolanaClusterConfig) initLogsDir(t *testing.T) error {
+	t.Helper()
+
+	logsDir := path.Join("../..", fmt.Sprintf("e2e-logs-%d%s", time.Now().UTC().Unix(), "solana"), t.Name())
+
+	if err := common.CreateDirSafe(logsDir, 0755); err != nil {
+		return err
+	}
+
+	cfg.LogsDir = logsDir
+
+	return nil
 }
 
 type TestSolanaCluster struct {
@@ -52,19 +76,39 @@ func WithWSPort(port int) SolanaClusterOption {
 	}
 }
 
-func NewSolanaTestCluster(opts ...SolanaClusterOption) (*TestSolanaCluster, error) {
+func WithPremine(pubkeys ...string) SolanaClusterOption {
+	return func(h *TestSolanaClusterConfig) {
+		h.Premine = append(h.Premine, pubkeys...)
+	}
+}
+
+func WithPremineAmount(amount *big.Int) SolanaClusterOption {
+	return func(h *TestSolanaClusterConfig) {
+		h.PremineAmount = amount
+	}
+}
+
+func NewSolanaTestCluster(t *testing.T, opts ...SolanaClusterOption) (*TestSolanaCluster, error) {
+	t.Helper()
+
 	config := &TestSolanaClusterConfig{
+		t:          t,
 		NodesCount: 1,
 		Port:       DefaultPort,
 		WSPort:     DefaultWSPort,
 		SlotTime:   DefaultSlotTime,
 	}
 
+	var err error
+
+	err = config.initLogsDir(t)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, opt := range opts {
 		opt(config)
 	}
-
-	var err error
 
 	config.TmpDir, err = os.MkdirTemp("", "solana-")
 	if err != nil {
@@ -95,6 +139,7 @@ func (c *TestSolanaCluster) NewTestServer(id int, port int, wsPort int) error {
 		WSPort:   wsPort,
 		SlotTime: c.Config.SlotTime,
 		// StdOut:   c.Config.GetStdout(fmt.Sprintf("solana-node-%d", id)),
+		LogsDir: c.Config.LogsDir,
 	})
 	if err != nil {
 		return err

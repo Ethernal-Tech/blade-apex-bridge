@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,10 +14,31 @@ import (
 // https://solana.com/docs/intro/installation
 
 func Test_SkylineSolana(t *testing.T) {
-	solanaChain, err := cardanofw.NewTestSolanaChain(cardanofw.NewTestSolanaChainConfig())
-	require.NoError(t, err)
+	const (
+		apiKey = "test_api_key"
+	)
 
-	defer solanaChain.Stop()
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig()
+
+	solanaConfig := cardanofw.NewSolanaChainConfig(true)
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithSolanaConfig(solanaConfig),
+		cardanofw.WithUserCnt(1),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	fmt.Println("solana user addr: ", apex.Users[0].SolanaAddress)
 
 	time.Sleep(60 * time.Second)
 }

@@ -3,6 +3,7 @@ package solanafw
 import (
 	"fmt"
 	"io"
+	"math/big"
 	"strconv"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
@@ -11,12 +12,14 @@ import (
 const hostIP = "127.0.0.1"
 
 type TestSolanaServerConfig struct {
-	ID       int
-	Port     int
-	WSPort   int
-	SlotTime int
-	LogsDir  string
-	StdOut   io.Writer
+	ID            int
+	Port          int
+	WSPort        int
+	SlotTime      int
+	LogsDir       string
+	Premine       []string
+	PremineAmount *big.Int
+	StdOut        io.Writer
 }
 
 type TestSolanaServer struct {
@@ -57,8 +60,22 @@ func (t *TestSolanaServer) Start() error {
 		"--slot-time", strconv.Itoa(t.config.SlotTime),
 		"--no-tui",    // Display streams of logs instead of terminal UI dashboard
 		"--no-studio", // Disable studio
-		"--log-level", "error",
 	}
+
+	if t.config.LogsDir != "" {
+		args = append(args, "--log-path", t.config.LogsDir)
+	}
+
+	if len(t.config.Premine) > 0 {
+		for _, premine := range t.config.Premine {
+			args = append(args, "--airdrop", premine)
+		}
+	}
+
+	if t.config.PremineAmount != nil {
+		args = append(args, "--airdrop-amount", t.config.PremineAmount.String())
+	}
+
 	binary := ResolveSurfPoolBinary()
 
 	node, err := framework.NewNode(binary, args, t.config.StdOut)

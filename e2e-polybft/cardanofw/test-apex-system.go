@@ -224,7 +224,7 @@ func NewSkylineSystem(
 		users[i], err = NewTestApexUser(
 			NewApexNetworkTypes(ApexNetworkTypesParams{
 				PrimeConfig: config.PrimeConfig, VectorConfig: config.VectorConfig, CardanoConfig: config.CardanoConfig,
-				NexusConfig: config.NexusConfig, PolygonConfig: config.PolygonConfig,
+				NexusConfig: config.NexusConfig, PolygonConfig: config.PolygonConfig, SolanaConfig: config.SolanaConfig,
 			}),
 		)
 		if err != nil {
@@ -242,6 +242,11 @@ func NewSkylineSystem(
 		return nil, fmt.Errorf("failed to create polygon chain: %w", err)
 	}
 
+	solana, err := NewTestSolanaChain(config.SolanaConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create solana chain: %w", err)
+	}
+
 	apex := &ApexSystem{
 		Config:            config,
 		Users:             users,
@@ -251,7 +256,7 @@ func NewSkylineSystem(
 			NewTestCardanoChain(config.PrimeConfig),
 			NewTestCardanoChain(config.VectorConfig),
 			NewTestCardanoChain(config.CardanoConfig),
-			nexus, polygon,
+			nexus, polygon, solana,
 		},
 		IsSkyline: true,
 	}
@@ -440,7 +445,9 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 		require.NoError(t, err)
 
 		for _, chain := range a.chains {
-			if chain.ChainID() == ChainIDNexus || chain.ChainID() == ChainIDPolygon {
+			if chain.ChainID() == ChainIDNexus ||
+				chain.ChainID() == ChainIDPolygon ||
+				chain.ChainID() == ChainIDSolana {
 				continue
 			}
 
@@ -947,6 +954,8 @@ func (a *ApexSystem) DeployMintingContracts(ctx context.Context) error {
 							chainInfo.Tokens[tokenID] = token
 						}
 					}
+				case ChainIDSolana:
+					// wTODO: Implement solana minting contract setup
 				default:
 					return fmt.Errorf("unimplemented cardano contract setup for chain %s", chain.ChainID())
 				}

@@ -7,6 +7,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/types"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	solanawallet "github.com/Ethernal-Tech/solana-infrastructure/wallet"
 )
 
 type ApexNetworkTypes struct {
@@ -17,6 +18,7 @@ type ApexNetworkTypes struct {
 	IsCardanoEnabled bool
 	IsNexusEnabled   bool
 	IsPolygonEnabled bool
+	IsSolanaEnabled  bool
 }
 
 type ApexNetworkTypesParams struct {
@@ -26,12 +28,14 @@ type ApexNetworkTypesParams struct {
 
 	NexusConfig   *TestEVMChainConfig
 	PolygonConfig *TestEVMChainConfig
+
+	SolanaConfig *TestSolanaChainConfig
 }
 
 func NewApexNetworkTypes(p ApexNetworkTypesParams) *ApexNetworkTypes {
 	var (
-		vectorNetworkType, cardanoNetworkType                               cardanowallet.CardanoNetworkType
-		vectorIsEnabled, cardanoIsEnabled, nexusIsEnabled, polygonIsEnabled bool
+		vectorNetworkType, cardanoNetworkType                                                cardanowallet.CardanoNetworkType
+		vectorIsEnabled, cardanoIsEnabled, nexusIsEnabled, polygonIsEnabled, solanaIsEnabled bool
 	)
 
 	if p.VectorConfig != nil {
@@ -52,6 +56,10 @@ func NewApexNetworkTypes(p ApexNetworkTypesParams) *ApexNetworkTypes {
 		polygonIsEnabled = p.PolygonConfig.IsEnabled
 	}
 
+	if p.SolanaConfig != nil {
+		solanaIsEnabled = p.SolanaConfig.IsEnabled
+	}
+
 	return &ApexNetworkTypes{
 		Prime:            p.PrimeConfig.NetworkType,
 		Vector:           vectorNetworkType,
@@ -60,6 +68,7 @@ func NewApexNetworkTypes(p ApexNetworkTypesParams) *ApexNetworkTypes {
 		IsCardanoEnabled: cardanoIsEnabled,
 		IsNexusEnabled:   nexusIsEnabled,
 		IsPolygonEnabled: polygonIsEnabled,
+		IsSolanaEnabled:  solanaIsEnabled,
 	}
 }
 
@@ -70,6 +79,7 @@ func NewApexNetworkTypesFromSystem(apex *ApexSystem) *ApexNetworkTypes {
 		CardanoConfig: apex.Config.CardanoConfig,
 		NexusConfig:   apex.Config.NexusConfig,
 		PolygonConfig: apex.Config.PolygonConfig,
+		SolanaConfig:  apex.Config.SolanaConfig,
 	})
 }
 
@@ -99,6 +109,10 @@ type TestApexUser struct {
 	HasPolygonWallet bool
 	PolygonWallet    *crypto.ECDSAKey
 	PolygonAddress   types.Address
+
+	HasSolanaWallet bool
+	SolanaWallet    *solanawallet.Wallet
+	SolanaAddress   string
 }
 
 func NewTestApexUser(
@@ -113,6 +127,8 @@ func NewTestApexUser(
 		nexusUserAddress                                 = types.Address{}
 		polygonWallet      *crypto.ECDSAKey              = nil
 		polygonUserAddress                               = types.Address{}
+		solanaWallet       *solanawallet.Wallet          = nil
+		solanaUserAddress                                = ""
 	)
 
 	primeWallet, err := cardanowallet.GenerateWallet(false)
@@ -167,6 +183,15 @@ func NewTestApexUser(
 		polygonUserAddress = polygonWallet.Address()
 	}
 
+	if networks.IsSolanaEnabled {
+		solanaWallet, err = solanawallet.NewWallet()
+		if err != nil {
+			return nil, err
+		}
+
+		solanaUserAddress = solanaWallet.PublicKey.String()
+	}
+
 	return &TestApexUser{
 		PrimeWallet:      primeWallet,
 		PrimeAddress:     primeUserAddress,
@@ -182,6 +207,9 @@ func NewTestApexUser(
 		PolygonWallet:    polygonWallet,
 		PolygonAddress:   polygonUserAddress,
 		HasPolygonWallet: networks.IsPolygonEnabled,
+		HasSolanaWallet:  networks.IsSolanaEnabled,
+		SolanaWallet:     solanaWallet,
+		SolanaAddress:    solanaUserAddress,
 	}, nil
 }
 
@@ -288,6 +316,12 @@ func (u *TestApexUser) GetAddress(chain ChainID) string {
 		}
 
 		return ""
+	case ChainIDSolana:
+		if u.HasSolanaWallet {
+			return u.SolanaAddress
+		}
+
+		return ""
 	}
 
 	return ""
@@ -331,6 +365,12 @@ func (u *TestApexUser) GetPrivateKey(chain ChainID) (string, error) {
 		}
 
 		return "", fmt.Errorf("user doesn't have a polygon wallet")
+	case ChainIDSolana:
+		if u.HasSolanaWallet {
+			return u.SolanaWallet.PrivateKey.String(), nil
+		}
+
+		return "", fmt.Errorf("user doesn't have a solana wallet")
 	}
 
 	return "", nil

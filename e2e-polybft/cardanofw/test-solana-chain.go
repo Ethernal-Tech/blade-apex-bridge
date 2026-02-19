@@ -9,9 +9,9 @@ import (
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/solanafw"
-	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
-	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	carsendtx "github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
+	carwallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	solanawallet "github.com/Ethernal-Tech/solana-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,6 +21,7 @@ type TestSolanaChainConfig struct {
 
 	InitialHotWalletAmount *big.Int
 	FundAmount             *big.Int
+	PreminesAddresses      []string
 	StartingPort           int
 
 	MinBridgingFee         *big.Int
@@ -30,10 +31,10 @@ type TestSolanaChainConfig struct {
 	CurrencyID             uint16
 }
 
-func NewTestSolanaChainConfig() *TestSolanaChainConfig {
+func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 	return &TestSolanaChainConfig{
 		ChainID:                ChainIDSolana,
-		IsEnabled:              true,
+		IsEnabled:              enabled,
 		StartingPort:           8899,
 		InitialHotWalletAmount: big.NewInt(0),
 		FundAmount:             big.NewInt(0),
@@ -46,11 +47,12 @@ func NewTestSolanaChainConfig() *TestSolanaChainConfig {
 }
 
 type TestSolanaChain struct {
-	config  *TestSolanaChainConfig
-	cluster *solanafw.TestSolanaCluster
-	// admin wallet - funded from start
+	config      *TestSolanaChainConfig
+	cluster     *solanafw.TestSolanaCluster
+	admin       *solanawallet.Wallet
 	jsonRPCAddr string
 	gatewayAddr string
+	indexer     e2eindexer.TxsExecutedComponent
 }
 
 var _ ITestApexChain = (*TestSolanaChain)(nil)
@@ -67,16 +69,21 @@ func NewTestSolanaChain(config *TestSolanaChainConfig) (ITestApexChain, error) {
 	}
 
 	// Generate a new admin wallet
+	admin, err := solanawallet.NewWallet()
+	if err != nil {
+		return nil, err
+	}
 
 	return &TestSolanaChain{
-		config: config,
-		// admin wallet
+		config:  config,
+		admin:   admin,
+		indexer: e2eindexer.NewTxsExecutedComponentDummy(),
 	}, nil
 }
 
 // wTODO: Implement this for sending bridging requests to the solana chain
 func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string, error) {
-	panic("unimplemented")
+	panic("unimplemented") //nolint:gocritic
 }
 
 // ChainID implements ITestApexChain.
@@ -88,13 +95,15 @@ func (sc *TestSolanaChain) CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridgeUR
 	return nil
 }
 
-func (sc *TestSolanaChain) CreateMetadata(senderAddr string, dstChainID string, receivers []sendtx.BridgingTxReceiver, bridgingFee *big.Int, operationFee *big.Int) ([]byte, error) {
+func (sc *TestSolanaChain) CreateMetadata(senderAddr string,
+	dstChainID string, receivers []carsendtx.BridgingTxReceiver,
+	bridgingFee *big.Int, operationFee *big.Int) ([]byte, error) {
 	return nil, nil
 }
 
 // wTODO: Implement this for creating wallets on the solana chain
 func (sc *TestSolanaChain) CreateWallets(validator *TestApexValidator) error {
-	panic("unimplemented")
+	return nil
 }
 
 func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsConfig string) error {
@@ -104,22 +113,23 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 
 // wTODO: Implement this for funding wallets on the solana chain
 func (sc *TestSolanaChain) FundWallets(ctx context.Context) error {
-	panic("unimplemented")
+	return nil
 }
 
 // wTODO: Implement this for generating chain configs on the solana chain
 // generate-configs solana-chain cli command required
 func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexValidator) error {
-	panic("unimplemented")
+	return nil
 }
 
 // wTODO: Implement this for getting the balance of an address on the solana chain
 func (sc *TestSolanaChain) GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error) {
-	panic("unimplemented")
+	return nil, nil
 }
 
-func (sc *TestSolanaChain) GetAddressBalanceWithTokenName(ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
-	panic("unimplemented")
+func (sc *TestSolanaChain) GetAddressBalanceWithTokenName(
+	ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
+	return nil, nil
 }
 
 func (sc *TestSolanaChain) GetAddressToBridgeTo(ctx context.Context, hasTokens bool) (string, error) {
@@ -128,13 +138,17 @@ func (sc *TestSolanaChain) GetAddressToBridgeTo(ctx context.Context, hasTokens b
 
 // wTODO: Implement this for getting the admin private key on the solana chain
 func (sc *TestSolanaChain) GetAdminPrivateKey() (string, error) {
-	panic("unimplemented") //nolint:gocritic
+	if sc.admin == nil {
+		return "", fmt.Errorf("admin private key is not set")
+	}
+
+	return sc.admin.PrivateKey.String(), nil
 }
 
 func (sc *TestSolanaChain) GetBridgingFee(
 	_ context.Context,
 	_ string,
-	_ []sendtx.BridgingTxReceiver,
+	_ []carsendtx.BridgingTxReceiver,
 	bridgingFee *big.Int,
 	_ *big.Int,
 	_ string,
@@ -148,7 +162,7 @@ func (*TestSolanaChain) GetBridgingStakeAddressInfo(
 	ctx context.Context,
 	indx uint8,
 	expectError bool,
-) (infrawallet.QueryStakeAddressInfo, error) {
+) (carwallet.QueryStakeAddressInfo, error) {
 	t.Helper()
 
 	panic("unimplemented") //nolint:gocritic
@@ -163,6 +177,7 @@ func (sc *TestSolanaChain) GetCustodialAddress() string {
 }
 
 func (*TestSolanaChain) GetExistingStakePools(t *testing.T, ctx context.Context) []string {
+	t.Helper()
 	panic("unimplemented") //nolint:gocritic
 }
 
@@ -172,7 +187,7 @@ func (sc *TestSolanaChain) GetHotWalletAddresses() []string {
 
 // GetIndexer implements ITestApexChain.
 func (sc *TestSolanaChain) GetIndexer() e2eindexer.TxsExecutedComponent {
-	panic("unimplemented") //nolint:gocritic
+	return sc.indexer
 }
 
 func (sc *TestSolanaChain) GetMintableTokens() map[uint16]string {
@@ -182,7 +197,7 @@ func (sc *TestSolanaChain) GetMintableTokens() map[uint16]string {
 
 // GetRelayerAddress implements ITestApexChain.
 func (sc *TestSolanaChain) GetRelayerAddress() string {
-	panic("unimplemented") //nolint:gocritic
+	return ""
 }
 
 // GetServerMust implements ITestApexChain.
@@ -195,25 +210,32 @@ func (sc *TestSolanaChain) GetServerMust(t *testing.T, indx int) ITestApexChainS
 }
 
 // wTODO: Implement this for initializing solana contract
-func (sc *TestSolanaChain) InitContracts(ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string, chainIDsConfig string) error {
-	panic("unimplemented") //nolint:gocritic
+func (sc *TestSolanaChain) InitContracts(
+	ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string, chainIDsConfig string) error {
+	return nil
 }
 
 // wTODO: Implement this when SolanaInfo is added to the ApexSystem
 func (*TestSolanaChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error {
-	panic("unimplemented") //nolint:gocritic
+	t.Helper()
+
+	return nil
 }
 
+// wTODO: Implement this for registering the solana chain
 func (sc *TestSolanaChain) RegisterChain(validator *TestApexValidator) error {
-	return validator.RegisterChain(
-		sc.ChainID(), sc.config.InitialHotWalletAmount, big.NewInt(0), ChainTypeSolana)
+	// return validator.RegisterChain(
+	// 	sc.ChainID(), sc.config.InitialHotWalletAmount, big.NewInt(0), ChainTypeSolana)
+	return nil
 }
 
 // RunChain implements ITestApexChain.
 func (sc *TestSolanaChain) RunChain(t *testing.T) error {
 	t.Helper()
 
-	cluster, err := solanafw.NewSolanaTestCluster(
+	cluster, err := solanafw.NewSolanaTestCluster(t,
+		solanafw.WithPremine(sc.admin.PublicKey.String()),
+		solanafw.WithPremine(sc.config.PreminesAddresses...),
 		solanafw.WithPort(sc.config.StartingPort),
 		solanafw.WithWSPort(sc.config.StartingPort+1),
 	)
@@ -232,10 +254,10 @@ func (sc *TestSolanaChain) RunChain(t *testing.T) error {
 // wTODO: Implement this for sending a transaction to the solana chain
 func (sc *TestSolanaChain) SendTx(ctx context.Context,
 	privateKey string, metadata []byte, receivers []GenericTxReceiver) (string, error) {
-	panic("unimplemented") //nolint:gocritic
+	return "", nil
 }
 
-func (sc *TestSolanaChain) SetCustodialNFT(token wallet.Token) {
+func (sc *TestSolanaChain) SetCustodialNFT(token carwallet.Token) {
 	panic("unimplemented") //nolint:gocritic
 }
 
@@ -247,5 +269,5 @@ func (sc *TestSolanaChain) Stop() error {
 	return nil
 }
 
-func (sc *TestSolanaChain) UpdateTxSendChainConfiguration(_ map[string]sendtx.ChainConfig) {
+func (sc *TestSolanaChain) UpdateTxSendChainConfiguration(_ map[string]carsendtx.ChainConfig) {
 }
