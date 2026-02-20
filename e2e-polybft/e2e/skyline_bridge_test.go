@@ -1118,7 +1118,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		opFeeValue := big.NewInt(1_000_000)
+		opFeeValue := cardanofw.DfmToWei(big.NewInt(1_000_000))
 
 		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false, opFeeValue)
 
@@ -1132,7 +1132,7 @@ func TestE2E_SkylineBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, cardanofw.ChainIDPrime)
 		require.NoError(t, err)
 
-		opFeeValue := new(big.Int).Add(cardanofw.DefaultMinOperationFee, big.NewInt(1))
+		opFeeValue := new(big.Int).Add(cardanofw.DefaultMinOperationFee, cardanofw.DfmToWei(big.NewInt(1)))
 
 		executeBridgingRequestOperationFee(t, ctx, apex, user, primeTestConfig, 0, maxWaitTimeSec, retryDelaySec, false, false, opFeeValue)
 
