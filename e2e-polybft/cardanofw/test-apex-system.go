@@ -1696,7 +1696,7 @@ func (a *ApexSystem) SubmitTx(
 	if opFee == nil {
 		operationFee = 0
 	} else {
-		operationFee = opFee.Uint64()
+		operationFee = WeiToDfm(opFee).Uint64()
 	}
 
 	receivers := []GenericTxReceiver{

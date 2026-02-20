@@ -52,7 +52,7 @@ var (
 	PotentialFee                         = DfmToWei(big.NewInt(500_000))   // 0.5 Apex
 	defaultMinBridgingFeeAmountForTokens = DfmToWei(big.NewInt(2_860_000)) // 2.86 Apex
 	DefaultTokenMintAmount               = ApexToWei(big.NewInt(1_000))    // 1000 Apex (1000*10^18)
-	DefaultMinOperationFee               = big.NewInt(0)
+	DefaultMinOperationFee               = ApexToWei(big.NewInt(1))
 )
 
 type BatchTypes uint8

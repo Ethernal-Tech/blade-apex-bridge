@@ -401,6 +401,8 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context, chainIDsConfi
 		params := []string{
 			"bridge-admin",
 			"register-gateway-token",
+			"--chain", ec.ChainID(),
+			"--chain-ids-config", chainIDsConfig,
 			"--node-url", ec.jsonRPCAddr,
 			"--key", hex.EncodeToString(pk),
 			"--gateway-addr", ec.gatewayAddr.String(),
@@ -425,7 +427,9 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context, chainIDsConfi
 		params := []string{
 			"bridge-admin",
 			"register-gateway-token",
+			"--chain", ec.ChainID(),
 			"--node-url", ec.jsonRPCAddr,
+			"--chain-ids-config", chainIDsConfig,
 			"--key", hex.EncodeToString(pk),
 			"--gateway-addr", ec.gatewayAddr.String(),
 			"--token-sc-addr", "0x0000000000000000000000000000000000000000",

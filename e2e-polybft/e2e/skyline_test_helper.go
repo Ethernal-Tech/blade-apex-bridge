@@ -290,7 +290,7 @@ func executeBridgingRequestOperationFee(
 ) {
 	t.Helper()
 
-	sendAmount := big.NewInt(1_000_000)
+	sendAmount := cardanofw.DfmToWei(big.NewInt(1_000_000))
 
 	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)

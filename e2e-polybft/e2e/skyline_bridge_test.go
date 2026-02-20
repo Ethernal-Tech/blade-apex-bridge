@@ -19,7 +19,6 @@ import (
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
-	"github.com/Ethernal-Tech/ethgo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -185,7 +184,7 @@ func TestE2E_SkylineBridge_OperationFeeNotSet(t *testing.T) {
 			apex.ResetIndexers()
 		})
 
-		sendAmountDfm := big.NewInt(1_500_000)
+		sendAmountDfm := cardanofw.DfmToWei(big.NewInt(1_500_000))
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDVector, sendAmountDfm,
@@ -209,7 +208,7 @@ func TestE2E_SkylineBridge_OperationFeeNotSet(t *testing.T) {
 			apex.ResetIndexers()
 		})
 
-		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
+		sendAmountDfm := cardanofw.ApexToWei(big.NewInt(1))
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmountDfm,
