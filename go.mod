@@ -10,7 +10,7 @@ require (
 	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20251223104118-181f582d1471
 	github.com/Ethernal-Tech/ethgo v0.0.0-20240801172627-47215d9e504c
 	github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04
-	github.com/Ethernal-Tech/solana-infrastructure v0.0.0-20260218110223-e4aae72b3adc
+	github.com/Ethernal-Tech/solana-infrastructure v0.0.0-20260220130115-f47dfb4d6aef
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.10
 	github.com/alibabacloud-go/oos-20190601/v4 v4.4.2
 	github.com/alibabacloud-go/tea v1.3.2
@@ -70,6 +70,7 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129 // indirect
 	github.com/blendle/zapdriver v1.3.1 // indirect
 	github.com/blinklabs-io/gouroboros v0.103.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
@@ -84,6 +85,7 @@ require (
 	github.com/utxorpc/go-codegen v0.11.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.mongodb.org/mongo-driver v1.12.2 // indirect
+	go.uber.org/ratelimit v0.2.0 // indirect
 )
 
 require (

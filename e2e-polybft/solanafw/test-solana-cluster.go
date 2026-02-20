@@ -139,7 +139,9 @@ func (c *TestSolanaCluster) NewTestServer(id int, port int, wsPort int) error {
 		WSPort:   wsPort,
 		SlotTime: c.Config.SlotTime,
 		// StdOut:   c.Config.GetStdout(fmt.Sprintf("solana-node-%d", id)),
-		LogsDir: c.Config.LogsDir,
+		LogsDir:       c.Config.LogsDir,
+		Premine:       c.Config.Premine,
+		PremineAmount: c.Config.PremineAmount,
 	})
 	if err != nil {
 		return err

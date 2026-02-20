@@ -3,8 +3,9 @@ package cardanofw
 import "math/big"
 
 const (
-	DfmDecimals = 6
-	WeiDecimals = 18
+	DfmDecimals    = 6
+	WeiDecimals    = 18
+	SolanaDecimals = 9
 )
 
 func WeiToChainNativeTokenAmount(chainID string, weiAmount *big.Int) *big.Int {
@@ -49,6 +50,20 @@ func DfmToWei(dfm *big.Int) *big.Int {
 	base := big.NewInt(10)
 
 	return wei.Mul(wei, base.Exp(base, big.NewInt(WeiDecimals-DfmDecimals), nil))
+}
+
+func SolanaToWei(solana *big.Int) *big.Int {
+	wei := new(big.Int).Set(solana)
+	base := big.NewInt(10)
+
+	return wei.Mul(wei, base.Exp(base, big.NewInt(WeiDecimals-SolanaDecimals), nil))
+}
+
+func WeiToSolana(wei *big.Int) *big.Int {
+	solana := new(big.Int).Set(wei)
+	base := big.NewInt(10)
+
+	return solana.Div(solana, base.Exp(base, big.NewInt(WeiDecimals-SolanaDecimals), nil))
 }
 
 func WeiToDfm(wei *big.Int) *big.Int {

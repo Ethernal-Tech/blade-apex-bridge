@@ -39,6 +39,9 @@ func Test_SkylineSolana(t *testing.T) {
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
 
 	fmt.Println("solana user addr: ", apex.Users[0].SolanaAddress)
+	balance, err := apex.GetBalance(ctx, apex.Users[0], cardanofw.ChainIDSolana)
+	require.NoError(t, err)
+	fmt.Println("solana user balance: ", balance)
 
 	time.Sleep(60 * time.Second)
 }

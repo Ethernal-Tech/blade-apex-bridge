@@ -102,5 +102,5 @@ func (t TestSolanaServer) Port() int {
 }
 
 func (t *TestSolanaServer) NetworkAddress() string {
-	return fmt.Sprintf("localhost:%d", t.config.Port)
+	return fmt.Sprintf("http://%s:%d", hostIP, t.config.Port)
 }

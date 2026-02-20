@@ -81,6 +81,10 @@ func NewTestSolanaChain(config *TestSolanaChainConfig) (ITestApexChain, error) {
 	}, nil
 }
 
+func (sc *TestSolanaChain) GetTxProvider() (*solanawallet.Provider, error) {
+	return solanawallet.NewProvider(sc.jsonRPCAddr), nil
+}
+
 // wTODO: Implement this for sending bridging requests to the solana chain
 func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string, error) {
 	panic("unimplemented") //nolint:gocritic
@@ -122,9 +126,23 @@ func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexVal
 	return nil
 }
 
-// wTODO: Implement this for getting the balance of an address on the solana chain
 func (sc *TestSolanaChain) GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error) {
-	return nil, nil
+	txProvider, err := sc.GetTxProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	pubKey, err := solanawallet.PublicKeyFromAddress(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	balance, err := txProvider.GetBalance(ctx, pubKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]*big.Int{addr: SolanaToWei(big.NewInt(int64(balance)))}, nil
 }
 
 func (sc *TestSolanaChain) GetAddressBalanceWithTokenName(

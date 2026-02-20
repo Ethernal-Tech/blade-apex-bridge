@@ -314,7 +314,6 @@ func (asc *ApexSystemConfig) applyPremineFundingOptions(users []*TestApexUser) {
 		}
 
 		if user.HasSolanaWallet {
-			fmt.Println("solana premine: ", user.SolanaAddress)
 			asc.SolanaConfig.PreminesAddresses = append(asc.SolanaConfig.PreminesAddresses, user.SolanaAddress)
 		}
 	}
