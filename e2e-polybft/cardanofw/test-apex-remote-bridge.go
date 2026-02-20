@@ -379,7 +379,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						},
 					},
 				},
-				MinBridgingFee:  ApexToWei(big.NewInt(4)),
+				MinBridgingFee:  defaultMinBridgingFeeAmountPolygon,
 				MinOperationFee: big.NewInt(0),
 			},
 		},
