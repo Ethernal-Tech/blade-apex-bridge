@@ -873,6 +873,7 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 			"--chain-src", ec.config.ChainID,
 			"--chain-dst", brParams.DestChainID,
 			"--fee", brParams.FeeAmount.String(),
+			"--operation-fee", brParams.OperationFee.String(),
 		}
 	} else {
 		receiverTokenID := uint16(0)
@@ -903,7 +904,7 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 			"--chain-src", ec.config.ChainID,
 			"--chain-dst", brParams.DestChainID,
 			"--fee", brParams.FeeAmount.String(),
-			"--operation-fee", ec.config.MinOperationFee.String(),
+			"--operation-fee", brParams.OperationFee.String(),
 			"--src-token-id", fmt.Sprint(receiverTokenID),
 		}
 
