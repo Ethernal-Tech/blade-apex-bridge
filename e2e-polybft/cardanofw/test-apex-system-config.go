@@ -23,6 +23,10 @@ const (
 	PrometheusAndDataDogTelemetry
 )
 
+const (
+	AP3XTokenID uint16 = 1
+)
+
 type ApexSystemConfig struct {
 	APIValidatorID int // -1 all validators
 	APIPortStart   int
