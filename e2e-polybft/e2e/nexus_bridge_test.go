@@ -288,7 +288,7 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 			require.NoError(t, err)
 
 			_, err = apex.SubmitTx(
-				ctx, srcChain, nexusAdminUser, unfundedUser.NexusAddress.String(), cardanofw.ApexToWei(big.NewInt(10)), nil, nil)
+				ctx, srcChain, nexusAdminUser, unfundedUser.NexusAddress.String(), cardanofw.ApexToWei(big.NewInt(10)), nil, nil, nil)
 			require.NoError(t, err) // fund unfundedUser with amount less than sending amount
 
 			feeAmount := cardanofw.WeiToChainNativeTokenAmount(
@@ -309,7 +309,8 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				feeAmount,
 				big.NewInt(0),
 				tokenInfo.SrcTokenName,
-				true)
+				true,
+			)
 
 			require.Equal(t, "", txHash)
 			require.Error(t, err)
@@ -382,7 +383,8 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios_MinValuesMisconfigure
 				feeAmount,
 				big.NewInt(0),
 				tokenInfo.SrcTokenName,
-				true)
+				true,
+			)
 
 			require.NotEqual(t, "", txHash)
 			require.NoError(t, err)
@@ -418,7 +420,8 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios_MinValuesMisconfigure
 				feeAmount,
 				big.NewInt(0),
 				tokenInfo.SrcTokenName,
-				true)
+				true,
+			)
 
 			require.NotEqual(t, "", txHash)
 			require.NoError(t, err)
@@ -1547,7 +1550,8 @@ func SrcNexusSubmitterNotEnoughFunds(
 		fee,
 		big.NewInt(0),
 		tokenInfo.SrcTokenName,
-		true)
+		true,
+	)
 
 	require.Equal(t, "", txHash)
 	require.Error(t, err)
