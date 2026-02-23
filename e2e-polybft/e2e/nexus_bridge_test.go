@@ -317,7 +317,7 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 	}
 }
 
-func TestE2E_ApexBridge_SrcNexus_InvalidScenarios_MinValuesMisconfigured(t *testing.T) {
+func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios_MinValuesMisconfigured(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
 	}
