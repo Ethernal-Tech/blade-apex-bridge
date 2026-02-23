@@ -1345,7 +1345,7 @@ func (a *ApexSystem) ValidateTreasuryAddressBalance(
 		return err
 	}
 
-	expectedBalance := previousBalance.Add(previousBalance,
+	expectedBalance := new(big.Int).Add(previousBalance,
 		new(big.Int).Mul(new(big.Int).SetUint64(numberOfBridgingRequests),
 			a.GetMinOperationFee(chainID)))
 
