@@ -19,12 +19,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus}
+var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon}
 var fundableTokensPerChain = map[cardanofw.ChainID][]uint16{
 	cardanofw.ChainIDPrime:   {},
 	cardanofw.ChainIDVector:  {cardanofw.XADATokenID},
 	cardanofw.ChainIDCardano: {cardanofw.CAP3XTokenID},
 	cardanofw.ChainIDNexus:   {cardanofw.USDTTokenID},
+	cardanofw.ChainIDPolygon: {},
 }
 
 func Test_E2E_SkylineTestnetFund(t *testing.T) {
@@ -33,6 +34,9 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 
 	tokensToFundApex := big.NewInt(100)
 	tokensToFund := cardanofw.ApexToWei(tokensToFundApex)
+
+	tokensToFundPolygon := big.NewInt(5)
+	tokensToFundPol := cardanofw.ApexToWei(tokensToFundPolygon)
 
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
@@ -87,10 +91,15 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 
 				fmt.Printf("Funding %s address: %s\n", chain, receiverAddr)
 
+				amountToFund := tokensToFund
+				if chain == cardanofw.ChainIDPolygon {
+					amountToFund = tokensToFundPol
+				}
+
 				// resubmit the transaction in case of error because of a possible rollback
 				_, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
 					txHash, err := apex.SubmitTx(ctx, chain, apex.FunderUser, receiverAddr,
-						tokensToFund, tokens, nil, nil)
+						amountToFund, tokens, nil, nil)
 					if errors.Is(err, common.ErrRetryTimeout) {
 						return "", common.ErrRetryTryAgain
 					}
