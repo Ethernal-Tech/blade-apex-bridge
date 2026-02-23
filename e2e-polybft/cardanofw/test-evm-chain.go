@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -931,6 +932,7 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 	feeAmount *big.Int,
 	operationFee *big.Int,
 	tokenContractAddrSrc string,
+	isReactorBridging bool,
 ) (
 	string, error,
 ) {
@@ -953,14 +955,16 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 			TokenID:  ra.TokenID,
 		})
 
-		if tokenContractAddrSrc != "" {
-			totalTokenAmount.Add(totalTokenAmount, ra.Amount)
-		}
+		totalTokenAmount.Add(totalTokenAmount, ra.Amount)
 	}
 
 	totalAmount := big.NewInt(0)
 	totalAmount.Add(totalAmount, feeAmount)
 	totalAmount.Add(totalAmount, operationFee)
+
+	if isReactorBridging {
+		totalAmount.Add(totalAmount, totalTokenAmount)
+	}
 
 	txRelayer, err := txrelayer.NewTxRelayer(
 		txrelayer.WithIPAddress(ec.jsonRPCAddr),
@@ -979,7 +983,7 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 
 	key := crypto.NewECDSAKey(privateKeyECDSA)
 
-	if tokenContractAddrSrc != "" {
+	if strings.Contains(tokenContractAddrSrc, "0x") {
 		approveMethod, err := abi.NewMethod("function approve(address spender, uint256 value)")
 		if err != nil {
 			return "", err
