@@ -111,7 +111,6 @@ func (sc *TestSolanaChain) CreateWallets(validator *TestApexValidator) error {
 }
 
 func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsConfig string) error {
-	// Unnecessary until we need a coloredcoin support
 	return nil
 }
 
