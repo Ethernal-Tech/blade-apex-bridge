@@ -3,7 +3,6 @@ package solanafw
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"os"
 	"path"
 	"path/filepath"
@@ -24,15 +23,13 @@ const (
 type TestSolanaClusterConfig struct {
 	t *testing.T
 
-	ID            int
-	NodesCount    int
-	Port          int
-	WSPort        int
-	SlotTime      int
-	TmpDir        string
-	Premine       []string
-	PremineAmount *big.Int // default is 10000_000_000_000 SOL
-	LogsDir       string
+	ID         int
+	NodesCount int
+	Port       int
+	WSPort     int
+	SlotTime   int
+	TmpDir     string
+	LogsDir    string
 }
 
 func (cfg *TestSolanaClusterConfig) Dir(name string) string {
@@ -73,18 +70,6 @@ func WithPort(port int) SolanaClusterOption {
 func WithWSPort(port int) SolanaClusterOption {
 	return func(h *TestSolanaClusterConfig) {
 		h.WSPort = port
-	}
-}
-
-func WithPremine(pubkeys ...string) SolanaClusterOption {
-	return func(h *TestSolanaClusterConfig) {
-		h.Premine = append(h.Premine, pubkeys...)
-	}
-}
-
-func WithPremineAmount(amount *big.Int) SolanaClusterOption {
-	return func(h *TestSolanaClusterConfig) {
-		h.PremineAmount = amount
 	}
 }
 
@@ -139,9 +124,7 @@ func (c *TestSolanaCluster) NewTestServer(id int, port int, wsPort int) error {
 		WSPort:   wsPort,
 		SlotTime: c.Config.SlotTime,
 		// StdOut:   c.Config.GetStdout(fmt.Sprintf("solana-node-%d", id)),
-		LogsDir:       c.Config.LogsDir,
-		Premine:       c.Config.Premine,
-		PremineAmount: c.Config.PremineAmount,
+		LogsDir: c.Config.LogsDir,
 	})
 	if err != nil {
 		return err

@@ -10,6 +10,6 @@ func tryResolveFromEnv(env, name string) string {
 	return name
 }
 
-func ResolveSurfPoolBinary() string {
-	return tryResolveFromEnv("SURF_POOL_BINARY", "surfpool")
+func ResolveSolanaTestValidatorBinary() string {
+	return tryResolveFromEnv("SOLANA_TEST_VALIDATOR_BINARY", "solana-test-validator")
 }

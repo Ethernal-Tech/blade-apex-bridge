@@ -3,7 +3,8 @@ package solanafw
 import (
 	"fmt"
 	"io"
-	"math/big"
+	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
@@ -11,20 +12,22 @@ import (
 
 const hostIP = "127.0.0.1"
 
+// ValidatorLogFileName is the name of the file where solana-test-validator logs are written when LogsDir is set.
+const ValidatorLogFileName = "validator.log"
+
 type TestSolanaServerConfig struct {
-	ID            int
-	Port          int
-	WSPort        int
-	SlotTime      int
-	LogsDir       string
-	Premine       []string
-	PremineAmount *big.Int
-	StdOut        io.Writer
+	ID       int
+	Port     int
+	WSPort   int
+	SlotTime int
+	LogsDir  string
+	StdOut   io.Writer
 }
 
 type TestSolanaServer struct {
-	config *TestSolanaServerConfig
-	node   *framework.Node
+	config  *TestSolanaServerConfig
+	node    *framework.Node
+	logFile *os.File
 }
 
 func NewSolanaTestServer(config *TestSolanaServerConfig) (*TestSolanaServer, error) {
@@ -46,40 +49,72 @@ func (t *TestSolanaServer) Stop(removeDB ...bool) error {
 
 	t.node = nil
 
+	if t.logFile != nil {
+		_ = t.logFile.Close()
+		t.logFile = nil
+	}
+
+	// Remove the ledger directory after the server is stopped to free disk space.
+	if t.config.LogsDir != "" {
+		ledgerDir := filepath.Join(t.config.LogsDir, "ledger")
+		if err := os.RemoveAll(ledgerDir); err != nil {
+			fmt.Printf("warning: failed to remove ledger dir %s: %v\n", ledgerDir, err)
+		}
+	}
+
 	return nil
 }
 
 func (t *TestSolanaServer) Start() error {
-	fmt.Println("Starting Solana server with logs directory: ", t.config.LogsDir)
-	// Build arguments
-	args := []string{
-		"start",
-		"--port", strconv.Itoa(t.config.Port),
-		"--ws-port", strconv.Itoa(t.config.WSPort),
-		"--host", hostIP,
-		"--slot-time", strconv.Itoa(t.config.SlotTime),
-		"--no-tui",    // Display streams of logs instead of terminal UI dashboard
-		"--no-studio", // Disable studio
-	}
-
+	// solana-test-validator requires --ledger (required). RPC/WS ports and bind address
+	// are set via --rpc-port and --bind-address.
+	ledgerDir := "test-ledger"
 	if t.config.LogsDir != "" {
-		args = append(args, "--log-path", t.config.LogsDir)
+		ledgerDir = filepath.Join(t.config.LogsDir, "ledger")
 	}
 
-	if len(t.config.Premine) > 0 {
-		for _, premine := range t.config.Premine {
-			args = append(args, "--airdrop", premine)
+	fmt.Println("Starting Solana test validator with ledger directory: ", ledgerDir)
+
+	args := []string{
+		"--ledger", ledgerDir,
+		"--rpc-port", strconv.Itoa(t.config.Port),
+		"--bind-address", hostIP,
+		"--log", // stream validator log to stdout (we redirect to file when LogsDir is set)
+	}
+
+	if t.config.SlotTime > 0 {
+		args = append(args, "--ticks-per-slot", strconv.Itoa(t.config.SlotTime))
+	}
+
+	binary := ResolveSolanaTestValidatorBinary()
+
+	stdout := t.config.StdOut
+	if stdout == nil {
+		stdout = os.Stdout
+	}
+
+	// When LogsDir is set, write validator logs only to a file (no stdout) so the terminal is not flooded.
+	if t.config.LogsDir != "" {
+		logPath := filepath.Join(t.config.LogsDir, ValidatorLogFileName)
+
+		logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_TRUNC, 0600)
+		if err != nil {
+			return fmt.Errorf("open validator log file %s: %w", logPath, err)
 		}
+
+		t.logFile = logFile
+		stdout = logFile
+
+		fmt.Println("Solana test validator logs will be written to: ", logPath)
 	}
 
-	if t.config.PremineAmount != nil {
-		args = append(args, "--airdrop-amount", t.config.PremineAmount.String())
-	}
-
-	binary := ResolveSurfPoolBinary()
-
-	node, err := framework.NewNode(binary, args, t.config.StdOut)
+	node, err := framework.NewNode(binary, args, stdout)
 	if err != nil {
+		if t.logFile != nil {
+			_ = t.logFile.Close()
+			t.logFile = nil
+		}
+
 		return err
 	}
 
