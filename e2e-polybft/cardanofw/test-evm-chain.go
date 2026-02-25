@@ -39,6 +39,9 @@ const (
 	defaultPremineEthTokenAmount     = uint64(1_000_000_000_000)
 	defaultFundRelayerEthTokenAmount = uint64(5)
 
+	defaultNexusTreasuryAddress   = "0xcCB2dDA531690E0eacf03338116Ea214c6379cD4"
+	defaultPolygonTreasuryAddress = "0x721a6a568e78588e8226e8AeEeBa77f8ce7Db62e"
+
 	initContractsTryCount      = 3
 	initContractsRetryWaitTime = time.Second * 5
 )
@@ -68,6 +71,8 @@ type TestEVMChainConfig struct {
 	MinTokenBridgingAmount *big.Int
 	MinOperationFee        *big.Int
 	CurrencyID             uint16
+
+	TreasuryAddress string
 
 	// Tokens that should be locked/unlocked on this chain
 	LockUnlockTokens []EVMTokenInfo
@@ -99,6 +104,8 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
 		MinOperationFee:        big.NewInt(0),
 		CurrencyID:             AP3XTokenID,
+
+		TreasuryAddress: defaultNexusTreasuryAddress,
 
 		LockUnlockTokens: []EVMTokenInfo{
 			{
@@ -174,8 +181,10 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 		MinBridgingFee:         defaultMinBridgingFeeAmount,
 		MinBridgingAmount:      MinUTxODefaultValue,
 		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
-		MinOperationFee:        big.NewInt(0),
+		MinOperationFee:        DfmToWei(DefaultMinOperationFee),
 		CurrencyID:             MATICTokenID,
+
+		TreasuryAddress: defaultPolygonTreasuryAddress,
 
 		LockUnlockTokens: []EVMTokenInfo{
 			{
@@ -245,6 +254,10 @@ func (ec *TestEVMChain) GetExistingStakePools(t *testing.T, ctx context.Context)
 	t.Helper()
 
 	panic("unimplemented") //nolint:gocritic
+}
+
+func (ec *TestEVMChain) GetTreasuryAddress() string {
+	return ec.config.TreasuryAddress
 }
 
 var _ ITestApexChain = (*TestEVMChain)(nil)
@@ -389,6 +402,7 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context, chainIDsConfi
 		params := []string{
 			"bridge-admin",
 			"register-gateway-token",
+			"--chain", ec.ChainID(),
 			"--chain-ids-config", chainIDsConfig,
 			"--node-url", ec.jsonRPCAddr,
 			"--key", hex.EncodeToString(pk),
@@ -414,8 +428,9 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context, chainIDsConfi
 		params := []string{
 			"bridge-admin",
 			"register-gateway-token",
-			"--chain-ids-config", chainIDsConfig,
+			"--chain", ec.ChainID(),
 			"--node-url", ec.jsonRPCAddr,
+			"--chain-ids-config", chainIDsConfig,
 			"--key", hex.EncodeToString(pk),
 			"--gateway-addr", ec.gatewayAddr.String(),
 			"--token-sc-addr", "0x0000000000000000000000000000000000000000",
@@ -678,6 +693,7 @@ func (ec *TestEVMChain) InitContracts(
 		"--min-token-bridging-amount", ec.config.MinTokenBridgingAmount.String(),
 		"--min-operation-fee", ec.config.MinOperationFee.String(),
 		"--currency-token-id", fmt.Sprint(ec.config.CurrencyID),
+		"--treasury-addr", ec.config.TreasuryAddress,
 		"--clone",
 	}
 
@@ -858,6 +874,7 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 			"--chain-src", ec.config.ChainID,
 			"--chain-dst", brParams.DestChainID,
 			"--fee", brParams.FeeAmount.String(),
+			"--operation-fee", brParams.OperationFee.String(),
 		}
 	} else {
 		receiverTokenID := uint16(0)
@@ -888,7 +905,7 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 			"--chain-src", ec.config.ChainID,
 			"--chain-dst", brParams.DestChainID,
 			"--fee", brParams.FeeAmount.String(),
-			"--operation-fee", ec.config.MinOperationFee.String(),
+			"--operation-fee", brParams.OperationFee.String(),
 			"--src-token-id", fmt.Sprint(receiverTokenID),
 		}
 
@@ -1051,14 +1068,16 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 }
 
 func (ec *TestEVMChain) SendTx(
-	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
+	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver, operationFee uint64,
 ) (string, error) {
 	if ln := len(receivers); ln != 1 {
 		return "", fmt.Errorf("evm SendTx currently supports only one receiver but got %d", ln)
 	}
 
+	opFee := new(big.Int).SetUint64(operationFee)
+
 	rec, err := ec.sendTxWithNativeTokens(privateKey, receivers[0].Addr, receivers[0].Amount,
-		metadata, receivers[0].NativeTokens)
+		metadata, receivers[0].NativeTokens, opFee)
 	if err != nil {
 		return "", err
 	}
@@ -1119,7 +1138,8 @@ func (ec *TestEVMChain) sendTx(
 }
 
 func (ec *TestEVMChain) sendTxWithNativeTokens(
-	privateKey string, receiver string, amount *big.Int, data []byte, nativeTokens []GenericTokenAmount,
+	privateKey string, receiver string, amount *big.Int, data []byte,
+	nativeTokens []GenericTokenAmount, operationFee *big.Int,
 ) (*ethgo.Receipt, error) {
 	privateKeyECDSA, err := crypto.HexToECDSA(privateKey)
 	if err != nil {
@@ -1138,6 +1158,8 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 	key := crypto.NewECDSAKey(privateKeyECDSA)
 	receiverAddr := types.StringToAddress(receiver)
 	recipient := receiverAddr
+
+	treasuryAddress := types.StringToAddress(ec.config.TreasuryAddress)
 
 	for _, nativeToken := range nativeTokens {
 		// We interpret the Cardano token PolicyID as the ERC20 contract address on the EVM chain.
@@ -1183,6 +1205,20 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 		return nil, err
 	} else if receipt.Status != uint64(types.ReceiptSuccess) {
 		return nil, fmt.Errorf("currency transfer for chain %s failed: %d", ec.config.ChainID, receipt.Status)
+	}
+
+	if operationFee.Cmp(big.NewInt(0)) == 1 {
+		_, err = txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
+			types.WithFrom(key.Address()),
+			types.WithValue(operationFee),
+			types.WithInput(data),
+			types.WithTo(&treasuryAddress),
+		)), key)
+		if err != nil {
+			return nil, err
+		} else if receipt.Status != uint64(types.ReceiptSuccess) {
+			return nil, fmt.Errorf("operation fee transfer for chain %s failed: %d", ec.config.ChainID, receipt.Status)
+		}
 	}
 
 	return receipt, nil

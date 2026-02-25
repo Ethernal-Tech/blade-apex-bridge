@@ -16,8 +16,9 @@ import (
 )
 
 func ExecuteSingleBridging(
-	t *testing.T, ctx context.Context, apex IApexSystem, senderUser, receiverUser *cardanofw.TestApexUser,
-	srcChain, dstChain string, sendAmount *big.Int, srcTokenID uint16, options ...ExecuteBridgingOption,
+	t *testing.T, ctx context.Context, apex IApexSystem, senderUser,
+	receiverUser *cardanofw.TestApexUser, srcChain, dstChain string, sendAmount *big.Int,
+	srcTokenID uint16, validateTreasury bool, options ...ExecuteBridgingOption,
 ) {
 	t.Helper()
 
@@ -37,6 +38,11 @@ func ExecuteSingleBridging(
 	require.NoError(t, err)
 
 	prevAmount := cardanofw.SetOrDefault(balance[tokensInfo.DstTokenName], big.NewInt(0))
+
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, srcChain)
+	require.NoError(t, err)
+
+	shouldCheckTreasuryBalance := initialTreasuryBalance != nil && validateTreasury
 
 	txHash, err := apex.SubmitBridgingRequest(
 		cardanofw.SubmitBridgingRequestData{
@@ -60,8 +66,13 @@ func ExecuteSingleBridging(
 
 	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmount,
 		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, tokensInfo.DstTokenName)
-
 	require.NoError(t, err)
+
+	if shouldCheckTreasuryBalance {
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, srcChain, initialTreasuryBalance, 1)
+		require.NoError(t, err)
+		fmt.Printf("Treasury address balance validated\n")
+	}
 }
 
 func ExecuteTokenRedistribution(

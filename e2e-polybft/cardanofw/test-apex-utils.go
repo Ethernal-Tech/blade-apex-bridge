@@ -52,7 +52,7 @@ var (
 	PotentialFee                         = DfmToWei(big.NewInt(500_000))   // 0.5 Apex
 	defaultMinBridgingFeeAmountForTokens = DfmToWei(big.NewInt(2_860_000)) // 2.86 Apex
 	DefaultTokenMintAmount               = ApexToWei(big.NewInt(1_000))    // 1000 Apex (1000*10^18)
-	DefaultMinOperationFee               = big.NewInt(0)
+	DefaultMinOperationFee               = DfmToWei(big.NewInt(1_000_001)) // 1.000001 Apex (1.000001*10^18)
 )
 
 type BatchTypes uint8
@@ -783,7 +783,7 @@ func FundAddressesWithToken(
 		}
 	}
 
-	txHash, err := chain.SendTx(ctx, privateKey, nil, receivers)
+	txHash, err := chain.SendTx(ctx, privateKey, nil, receivers, 0)
 	if err != nil {
 		return nil, err
 	}

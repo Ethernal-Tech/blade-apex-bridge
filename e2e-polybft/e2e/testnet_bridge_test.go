@@ -58,12 +58,14 @@ func Test_E2E_TestnetDistributeFromPrimeToFunderWallets(t *testing.T) {
 		fmt.Printf("bridging %v apex to vector\n", apexAmountToBridge)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmount, cardanofw.AP3XTokenID, bridgingOpts...)
+			t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
+			sendAmount, cardanofw.AP3XTokenID, true, bridgingOpts...)
 	}
 
 	fmt.Printf("bridging %v apex to nexus\n", apexAmountToBridge)
 	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus, sendAmount, cardanofw.AP3XTokenID, bridgingOpts...)
+		t, ctx, apex, apex.FunderUser, apex.FunderUser, cardanofw.ChainIDPrime, cardanofw.ChainIDNexus,
+		sendAmount, cardanofw.AP3XTokenID, true, bridgingOpts...)
 
 	balances = getUserLovelaceBalances(ctx, apex, nil)
 	printUserBalances(apex, nil, balances)
@@ -171,7 +173,7 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 
 				fmt.Printf("Defunding %s address: %s\n", chain, addr)
 
-				_, err := apex.SubmitTx(ctx, chain, user, apex.FunderUser.GetAddress(chain), toDefund, nil, nil)
+				_, err := apex.SubmitTx(ctx, chain, user, apex.FunderUser.GetAddress(chain), toDefund, nil, nil, nil)
 				if err != nil {
 					fmt.Printf("error while defunding %s address: %s, err: %v\n", chain, addr, err)
 				}
@@ -228,7 +230,7 @@ func Test_E2E_TestnetFund(t *testing.T) {
 
 				// resubmit the transaction in case of error because of a possible rollback
 				_, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
-					txHash, err := apex.SubmitTx(ctx, chain, apex.FunderUser, addr, cardanofw.ApexToWei(big.NewInt(apexToFund)), nil, nil)
+					txHash, err := apex.SubmitTx(ctx, chain, apex.FunderUser, addr, cardanofw.ApexToWei(big.NewInt(apexToFund)), nil, nil, nil)
 					if errors.Is(err, infracommon.ErrRetryTimeout) {
 						return "", infracommon.ErrRetryTryAgain
 					}
@@ -279,7 +281,7 @@ func Test_E2E_SanityCheck(t *testing.T) {
 		fmt.Printf("bridging from %s to %s\n", dir.src, dir.dest)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, cardanofw.AP3XTokenID, bridgingOpts...)
+			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, cardanofw.AP3XTokenID, true, bridgingOpts...)
 	}
 }
 

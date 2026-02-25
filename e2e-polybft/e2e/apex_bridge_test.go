@@ -250,7 +250,8 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 
 	// send bridging tx should work after upgrading
 	e2ehelper.ExecuteSingleBridging(
-		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ApexToWei(big.NewInt(1)), cardanofw.AP3XTokenID)
+		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDPrime, cardanofw.ChainIDVector,
+		cardanofw.ApexToWei(big.NewInt(1)), cardanofw.AP3XTokenID, false)
 }
 
 func TestE2E_ApexBridge_CardanoOracleState(t *testing.T) {
@@ -377,7 +378,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	require.NoError(t, err)
 
 	// fund multsig addr
-	txHashFund, err := apex.SubmitTx(ctx, srcChain, apex.Users[0], multisigAddr, cardanofw.ApexToWei(big.NewInt(10)), nil, nil)
+	txHashFund, err := apex.SubmitTx(ctx, srcChain, apex.Users[0], multisigAddr, cardanofw.ApexToWei(big.NewInt(10)), nil, nil, nil)
 	require.NoError(t, err)
 
 	fmt.Printf("multsig addr %s funded: %s\n", multisigAddr, txHashFund)
@@ -754,7 +755,7 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr[0],
-			sendAmount, nil, metadata)
+			sendAmount, nil, metadata, nil)
 		require.NoError(t, err)
 
 		fmt.Printf("Tx sent. hash: %s\n", txHash)
@@ -866,7 +867,7 @@ func TestE2E_ApexBridge_InvalidScenarios_RefundDisabled(t *testing.T) {
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
-			sendAmount, []cardanofw.GenericTokenAmount{*tokensFunded}, metadata)
+			sendAmount, []cardanofw.GenericTokenAmount{*tokensFunded}, metadata, nil)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
@@ -937,7 +938,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, brSubmitterUser, user, cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmount,
-			cardanofw.AP3XTokenID)
+			cardanofw.AP3XTokenID, false)
 	})
 
 	t.Run("Submitted with tokens to bridging addr - confirming that batcher functions", func(t *testing.T) {
@@ -984,7 +985,7 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 		require.NoError(t, err)
 
 		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, brSubmitterUser, apex.PrimeInfo.MultisigAddr[0],
-			sendAmount, []cardanofw.GenericTokenAmount{*tokensFunded}, metadata)
+			sendAmount, []cardanofw.GenericTokenAmount{*tokensFunded}, metadata, nil)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, 0)
@@ -1960,7 +1961,7 @@ func sendWithoutWaitInvalidMetadataWrongType(
 	}
 
 	_, err = apex.SubmitTx(ctx, originChainID, sender, multisigAddress, new(big.Int).Add(sendAmount, feeAmount), nil,
-		metadata)
+		metadata, nil)
 	if err != nil {
 		return err
 	}
@@ -2059,7 +2060,7 @@ func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
 
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.Users[0], apex.Users[0],
-		cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmount, cardanofw.AP3XTokenID)
+		cardanofw.ChainIDPrime, cardanofw.ChainIDVector, sendAmount, cardanofw.AP3XTokenID, false)
 
 	require.Equal(t, uint64(2), getLastConfirmedBatchID(cardanofw.ChainIDVector))
 
@@ -2201,7 +2202,7 @@ func submitInvalidSendAmountTransaction(
 	require.NoError(t, err)
 
 	_, err = apex.SubmitTx(ctx, src, senderUser, srcTestChain.GetHotWalletAddresses()[0],
-		new(big.Int).Add(sendAmount, feeAmount), nil, bridgingRequestMetadata)
+		new(big.Int).Add(sendAmount, feeAmount), nil, bridgingRequestMetadata, nil)
 	require.NoError(t, err)
 }
 
@@ -2236,7 +2237,7 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 
 	_, err = apex.SubmitTx(
 		ctx, cardanofw.ChainIDPrime, user,
-		apex.PrimeInfo.MultisigAddr[0], new(big.Int).Add(sendAmount, minBridgingFee), nil, metadata)
+		apex.PrimeInfo.MultisigAddr[0], new(big.Int).Add(sendAmount, minBridgingFee), nil, metadata, nil)
 	require.Error(t, err)
 }
 
