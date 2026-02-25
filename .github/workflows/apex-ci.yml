@@ -232,7 +232,7 @@ jobs:
       apex_bridge_ref: main
       blade_apex_bridge_ref: develop
       e2e_apex_big_test: false
-      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+      e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_apex_with_nexus_test_push_develop:
@@ -244,7 +244,7 @@ jobs:
       apex_bridge_ref: main
       blade_apex_bridge_ref: develop
       e2e_apex_big_test: false
-      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+      e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_apex_test_push_skyline:
@@ -256,7 +256,7 @@ jobs:
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
       e2e_apex_big_test: false
-      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+      e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_apex_with_nexus_test_push_skyline:
@@ -268,7 +268,7 @@ jobs:
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
       e2e_apex_big_test: false
-      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+      e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_skyline_test:
@@ -292,7 +292,7 @@ jobs:
     with:
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
-      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+      e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_skyline_mba_test:
@@ -316,7 +316,7 @@ jobs:
     with:
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
-      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+      e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_skyline_cc_test:
@@ -340,7 +340,7 @@ jobs:
     with:
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
-      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+      e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_refund_test:
@@ -364,7 +364,7 @@ jobs:
     with:
       apex_bridge_ref: main
       blade_apex_bridge_ref: develop
-      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+      e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_refund_test_push_on_skyline:
@@ -375,7 +375,7 @@ jobs:
     with:
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
-      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+      e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   e2e_refund_skyline_bridge_test:
@@ -399,6 +399,6 @@ jobs:
     with:
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
-      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+      e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
