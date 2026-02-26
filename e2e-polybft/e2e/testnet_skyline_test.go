@@ -707,6 +707,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios_NexusSrc(t *testing.T) {
 
 	operationFee := apex.GetMinOperationFee(cardanofw.ChainIDNexus)
 
+	//nolint:dupl
 	t.Run("1. Invalid destination in bridging request", func(t *testing.T) {
 		t.Run("1. Destination is Nexus", func(t *testing.T) {
 			err := executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
