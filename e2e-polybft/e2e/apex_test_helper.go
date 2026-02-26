@@ -139,12 +139,12 @@ func submitMismatchAndWait(
 	beforeSendingAmount, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
 
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, config.srcChainID)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		lovelaceAmount, sentTokenAmount, metadata, operationFee)
-	require.NoError(t, err)
-
-	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, config.srcChainID)
 	require.NoError(t, err)
 
 	if waitOption == WaitTimeoutRefundDisabled {

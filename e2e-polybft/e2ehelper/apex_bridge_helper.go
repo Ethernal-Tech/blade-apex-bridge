@@ -469,11 +469,7 @@ func ExecuteBridging(
 
 		initialTreasuryBalances[pair.srcChain] = initialTreasuryBalance
 
-		if numberOfBridgingRequestsPerChain[pair.srcChain] == 0 {
-			numberOfBridgingRequestsPerChain[pair.srcChain] = uint64(txCountPerSender) * uint64(len(senderUsers))
-		} else {
-			numberOfBridgingRequestsPerChain[pair.srcChain] += uint64(txCountPerSender) * uint64(len(senderUsers))
-		}
+		numberOfBridgingRequestsPerChain[pair.srcChain] += uint64(txCountPerSender) * uint64(len(senderUsers))
 	}
 
 	// send transactions
@@ -714,11 +710,7 @@ func ExecuteBridgingExtended(
 
 		initialTreasuryBalances[d.SrcChain] = initialTreasuryBalance
 
-		if numberOfBridgingRequestsPerChain[d.SrcChain] == 0 {
-			numberOfBridgingRequestsPerChain[d.SrcChain] = uint64(txCountPerSender) * uint64(len(senderUsers))
-		} else {
-			numberOfBridgingRequestsPerChain[d.SrcChain] += uint64(txCountPerSender) * uint64(len(senderUsers))
-		}
+		numberOfBridgingRequestsPerChain[d.SrcChain] += uint64(txCountPerSender) * uint64(len(senderUsers))
 	}
 
 	combos := make([]comboKey, 0, len(combosMap))
