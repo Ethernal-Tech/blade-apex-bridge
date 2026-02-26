@@ -144,6 +144,9 @@ func submitMismatchAndWait(
 		lovelaceAmount, sentTokenAmount, metadata, operationFee)
 	require.NoError(t, err)
 
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, config.srcChainID)
+	require.NoError(t, err)
+
 	if waitOption == WaitTimeoutRefundDisabled {
 		_, err = cardanofw.WaitForRequestStates(ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, nil, maxWaitTimeSec)
 		require.Error(t, err)
@@ -155,6 +158,11 @@ func submitMismatchAndWait(
 	if waitOption != NoWait {
 		WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
 			waitOption == WaitRefundEnabled, maxWaitTimeSec, retryIntervalSec)
+	}
+
+	if initialTreasuryBalance != nil && operationFee.Cmp(big.NewInt(0)) > 0 {
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, config.srcChainID, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	}
 }
 
@@ -367,6 +375,9 @@ func executeInvalidMetadataType(
 	defaultAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee)
 
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, config.srcChainID)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		defaultAmount, sentTokenAmount, metadata, operationFee)
@@ -379,6 +390,11 @@ func executeInvalidMetadataType(
 		_, err = cardanofw.WaitForRequestStates(ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, nil, maxWaitTimeSec)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "timeout")
+	}
+
+	if initialTreasuryBalance != nil && operationFee.Cmp(big.NewInt(0)) > 0 {
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, config.srcChainID, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	}
 }
 
@@ -468,6 +484,9 @@ func executeInvalidDestination(
 	weiAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee)
 
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, config.srcChainID)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		weiAmount, sentTokenAmount, metadata, operationFee)
@@ -475,6 +494,11 @@ func executeInvalidDestination(
 
 	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
 		refundEnabled, maxWaitTimeSec, retryIntervalSec)
+
+	if initialTreasuryBalance != nil && operationFee.Cmp(big.NewInt(0)) > 0 {
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, config.srcChainID, initialTreasuryBalance, 1)
+		require.NoError(t, err)
+	}
 }
 
 func executeInvalidMetadataInvalidSender(
@@ -506,12 +530,20 @@ func executeInvalidMetadataInvalidSender(
 
 	defaultAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, operationFee)
 
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, config.srcChainID)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		defaultAmount, sentTokenAmount, metadata, operationFee)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)
+
+	if initialTreasuryBalance != nil && operationFee.Cmp(big.NewInt(0)) > 0 {
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, config.srcChainID, initialTreasuryBalance, 1)
+		require.NoError(t, err)
+	}
 }
 
 func executeInvalidEmptyReceivers(
@@ -550,6 +582,9 @@ func executeInvalidEmptyReceivers(
 	defaultAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee)
 
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, config.srcChainID)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
 		defaultAmount, sentTokenAmount, metadata, operationFee)
@@ -557,6 +592,11 @@ func executeInvalidEmptyReceivers(
 
 	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
 		refundEnabled, maxWaitTimeSec, retryIntervalSec)
+
+	if initialTreasuryBalance != nil && operationFee.Cmp(big.NewInt(0)) > 0 {
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, config.srcChainID, initialTreasuryBalance, 1)
+		require.NoError(t, err)
+	}
 }
 
 func executeInvalidTokenDirection(
