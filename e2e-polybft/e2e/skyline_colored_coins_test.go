@@ -431,8 +431,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 				receivers:  createReceivers(apex, 1, vectorNexusUSDTTestConfig.dstChainID, new(big.Int).Mul(minColCoinsAllowedToBridge, big.NewInt(10)), cardanofw.USDTTokenID),
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitRefundDisabled,
-			},
-		)
+			}, true)
 	})
 
 	t.Run("13. Vector -> Nexus - Mismatch submitted and multiple receiver amounts - USDT on source", func(t *testing.T) {
@@ -460,7 +459,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 				metadataModifier: func(metadata []byte) []byte {
 					return bytes.Replace(metadata, fmt.Appendf(nil, "\"%s\"", vectorNexusUSDTTestConfig.dstChainID), []byte("\"unknown\""), 1)
 				},
-			},
+			}, true,
 		)
 	})
 
@@ -477,7 +476,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 				metadataModifier: func(metadata []byte) []byte {
 					return bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
 				},
-			},
+			}, true,
 		)
 	})
 
@@ -493,6 +492,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 				amount:     invalidAmount,
 				waitOption: WaitRefundDisabled,
 			},
+			true,
 		)
 	})
 
@@ -513,6 +513,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_RefundDisabled(t *testing.T) {
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitRefundDisabled,
 			},
+			true,
 		)
 	})
 }
@@ -1350,6 +1351,7 @@ func Test_SkylineBridgeCC_WithRefund(t *testing.T) {
 					amount:     colCoinsAmount,
 					waitOption: NoWait,
 				},
+				true,
 			)
 		}
 	}

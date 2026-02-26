@@ -406,6 +406,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitRefundEnabled,
 			},
+			true,
 		)
 
 		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
@@ -447,6 +448,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 					return bytes.Replace(metadata, fmt.Appendf(nil, "\"%s\"", vectorNexusXADATestConfig.dstChainID), []byte("\"unknown\""), 1)
 				},
 			},
+			true,
 		)
 
 		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
@@ -470,6 +472,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 					return bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
 				},
 			},
+			true,
 		)
 
 		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
@@ -491,6 +494,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 				amount:     invalidAmount,
 				waitOption: WaitRefundEnabled,
 			},
+			true,
 		)
 
 		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)
@@ -517,6 +521,7 @@ func TestE2E_SkylineRefund_NexusDest_ValidScenarios(t *testing.T) {
 				amount:     minColCoinsAllowedToBridge,
 				waitOption: WaitRefundEnabled,
 			},
+			true,
 		)
 
 		err = apex.ValidateTreasuryAddressBalance(ctx, t, cardanofw.ChainIDVector, initialTreasuryBalance, 1)

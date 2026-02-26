@@ -132,7 +132,7 @@ func submitMismatchAndWait(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
 	metadata []byte, lovelaceAmount *big.Int, sentTokenAmount []cardanofw.GenericTokenAmount, waitForAmount *big.Int,
 	waitOption WaitOption, maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8,
-	operationFee *big.Int,
+	operationFee *big.Int, validateTreasury bool,
 ) {
 	t.Helper()
 
@@ -160,7 +160,7 @@ func submitMismatchAndWait(
 			waitOption == WaitRefundEnabled, maxWaitTimeSec, retryIntervalSec)
 	}
 
-	if initialTreasuryBalance != nil && operationFee.Cmp(big.NewInt(0)) > 0 {
+	if validateTreasury && initialTreasuryBalance != nil && operationFee.Cmp(big.NewInt(0)) > 0 {
 		err = apex.ValidateTreasuryAddressBalance(ctx, t, config.srcChainID, initialTreasuryBalance, 1)
 		require.NoError(t, err)
 	}
@@ -171,6 +171,7 @@ func submitColCoinsMismatchAndWait(
 	receivers []sendtx.BridgingTxReceiver, amount *big.Int,
 	maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8,
 	waitOption WaitOption, metadataModifier func([]byte) []byte,
+	validateTreasury bool,
 ) {
 	t.Helper()
 
@@ -193,7 +194,7 @@ func submitColCoinsMismatchAndWait(
 	sentTokenAmount := []cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(token, amount)}
 
 	submitMismatchAndWait(t, ctx, apex, config, user, metadata, weiAmount, sentTokenAmount, waitForAmount,
-		waitOption, maxWaitTimeSec, retryIntervalSec, addrIndex, operationFee)
+		waitOption, maxWaitTimeSec, retryIntervalSec, addrIndex, operationFee, validateTreasury)
 }
 
 func executeInvalidMismatchSendLovelaceAmount(
@@ -226,18 +227,18 @@ func executeInvalidMismatchSendLovelaceAmount(
 	}
 
 	submitMismatchAndWait(t, ctx, apex, config, user, metadata, defaultAmount, sentTokenAmount, waitForAmount,
-		waitOption, maxWaitTimeSec, retryIntervalSec, addrIndex, operationFee)
+		waitOption, maxWaitTimeSec, retryIntervalSec, addrIndex, operationFee, true)
 }
 
 func executeInvalidColCoin(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8, opts colCoinInvalidOpts,
+	maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8, opts colCoinInvalidOpts, validateTreasury bool,
 ) {
 	t.Helper()
 
 	submitColCoinsMismatchAndWait(
 		t, ctx, apex, config, user, opts.receivers, opts.amount,
-		maxWaitTimeSec, retryIntervalSec, addrIndex, opts.waitOption, opts.metadataModifier)
+		maxWaitTimeSec, retryIntervalSec, addrIndex, opts.waitOption, opts.metadataModifier, validateTreasury)
 }
 
 func executeInvalidMismatchSendColCoinsMultipleInstancesParalel(
@@ -264,7 +265,7 @@ func executeInvalidMismatchSendColCoinsMultipleInstancesParalel(
 			}
 
 			submitColCoinsMismatchAndWait(t, ctx, apex, config, apex.Users[idx], receivers, amount,
-				maxWaitTimeSec, retryIntervalSec, addrIndex, waitOption, nil)
+				maxWaitTimeSec, retryIntervalSec, addrIndex, waitOption, nil, false)
 		}(i)
 	}
 
