@@ -621,13 +621,13 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmount,
-			cardanofw.POLTokenID)
+			cardanofw.POLTokenID, true)
 
 		fmt.Printf("Starting bridging xPOL Nexus -> Polygon\n")
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, sendAmount,
-			cardanofw.XPOLTokenID)
+			cardanofw.XPOLTokenID, true)
 	})
 
 	t.Run("Nexus <-> Polygon AP3X <-> pAP3X", func(t *testing.T) {
@@ -637,13 +637,13 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, sendAmount,
-			cardanofw.AP3XTokenID)
+			cardanofw.AP3XTokenID, true)
 
 		fmt.Printf("Starting bridging pAP3X Polygon -> Nexus\n")
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmount,
-			cardanofw.PAP3XTokenID)
+			cardanofw.PAP3XTokenID, true)
 	})
 
 	t.Run("Nexus <-> Polygon xPOL <-> POL", func(t *testing.T) {
@@ -655,13 +655,13 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.XPOLTokenID)
+			cardanofw.XPOLTokenID, true)
 
 		fmt.Printf("Starting bridging POL Polygon -> Nexus\n")
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.POLTokenID)
+			cardanofw.POLTokenID, true)
 	})
 
 	t.Run("Polygon <-> Nexus pAP3X <-> AP3X", func(t *testing.T) {
@@ -673,12 +673,12 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.PAP3XTokenID)
+			cardanofw.PAP3XTokenID, true)
 
 		fmt.Printf("Starting bridging AP3X Nexus -> Polygon\n")
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.AP3XTokenID)
+			cardanofw.AP3XTokenID, true)
 	})
 }
 
