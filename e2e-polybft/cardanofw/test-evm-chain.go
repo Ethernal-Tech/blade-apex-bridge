@@ -135,12 +135,13 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 }
 
 func NewRemoteNexusChainConfig(
-	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int) *TestEVMChainConfig {
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string) *TestEVMChainConfig {
 	return &TestEVMChainConfig{
 		IsEnabled:       isEnabled,
 		ChainID:         ChainIDNexus,
 		MinBridgingFee:  minBridgingFeeAmount,
 		MinOperationFee: minOperationFee,
+		TreasuryAddress: treasuryAddress,
 		CurrencyID:      AP3XTokenID,
 		LockUnlockTokens: []EVMTokenInfo{
 			{

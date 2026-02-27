@@ -1323,6 +1323,10 @@ func (a *ApexSystem) GetTreasuryAddressBalance(ctx context.Context, t *testing.T
 
 	treasuryAddress := chain.GetTreasuryAddress()
 
+	if treasuryAddress == "" {
+		return nil, nil
+	}
+
 	balance, err = chain.GetAddressBalance(ctx, treasuryAddress)
 	if err != nil {
 		return nil, err
