@@ -319,11 +319,7 @@ func ExecuteBridgingWaitAfterSubmitsExtended(
 
 		initialTreasuryBalances[direction.SrcChain] = initialTreasuryBalance
 
-		if numberOfBridgingRequestsPerChain[direction.SrcChain] == 0 {
-			numberOfBridgingRequestsPerChain[direction.SrcChain] = uint64(txCountPerSender)
-		} else {
-			numberOfBridgingRequestsPerChain[direction.SrcChain] += uint64(txCountPerSender)
-		}
+		numberOfBridgingRequestsPerChain[direction.SrcChain] += uint64(txCountPerSender)
 	}
 
 	// Send all bridging requests in parallel per direction
