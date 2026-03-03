@@ -41,7 +41,12 @@ func Test_SkylineSolana(t *testing.T) {
 	fmt.Println("solana user addr: ", apex.Users[0].SolanaAddress)
 	balance, err := apex.GetBalance(ctx, apex.Users[0], cardanofw.ChainIDSolana)
 	require.NoError(t, err)
-	fmt.Println("solana user balance: ", balance)
+	fmt.Println("solana user SOL balance: ", balance)
+	time.Sleep(1 * time.Second)
+
+	balance, err = apex.GetBalanceWithTokenName(ctx, apex.Users[0], cardanofw.ChainIDSolana, cardanofw.WSOLMintAddress)
+	require.NoError(t, err)
+	fmt.Println("solana user wSOL balance: ", balance)
 
 	time.Sleep(60 * time.Second)
 }

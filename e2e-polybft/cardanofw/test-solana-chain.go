@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/solanafw"
 	carsendtx "github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	carwallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	solsendtx "github.com/Ethernal-Tech/solana-infrastructure/sendtx"
 	solanawallet "github.com/Ethernal-Tech/solana-infrastructure/wallet"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -25,10 +27,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// WSOL (Wrapped SOL) mint address on Solana. 9 decimals.
+var wsolMint = solana.MustPublicKeyFromBase58(WSOLMintAddress)
+
 const (
 	solanaProgramDir         = "skyline-solana-programs"
 	solanaProgramBuildPath   = "program_build/skyline_program.so"
 	solanaProgramKeypairPath = "program_build/skyline_program-keypair.json"
+
+	TreasuryAddress = "AXXWYCH6PNm6AGjaasPG1maarfQvRedSw18wj91Nem1F"
 )
 
 type TestSolanaChainConfig struct {
@@ -45,6 +52,9 @@ type TestSolanaChainConfig struct {
 	MinTokenBridgingAmount *big.Int
 	MinOperationFee        *big.Int
 	CurrencyID             uint16
+
+	TreasuryAddress    solana.PublicKey
+	BridgingFeeAddress solana.PublicKey
 }
 
 func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
@@ -53,12 +63,14 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 		IsEnabled:              enabled,
 		StartingPort:           8899,
 		InitialHotWalletAmount: big.NewInt(0),
-		FundAmount:             LamportToWei(SolanaToLamport(big.NewInt(1000))),
+		FundAmount:             LamportToWei(SolanaToLamport(big.NewInt(100000))),
 		MinBridgingFee:         big.NewInt(0),
 		MinBridgingAmount:      big.NewInt(0),
 		MinTokenBridgingAmount: big.NewInt(0),
 		MinOperationFee:        big.NewInt(0),
 		CurrencyID:             SOLTokenID,
+		TreasuryAddress:        solana.MustPublicKeyFromBase58(TreasuryAddress),
+		BridgingFeeAddress:     solana.MustPublicKeyFromBase58("7d5xBAeX92qPugMB5vixR1cy3wpRCxKE7ckShZaJbPPL"),
 	}
 }
 
@@ -100,6 +112,10 @@ func NewTestSolanaChain(config *TestSolanaChainConfig) (ITestApexChain, error) {
 
 func (sc *TestSolanaChain) GetTxProvider() (*solanawallet.Provider, error) {
 	return solanawallet.NewProvider(sc.jsonRPCAddr)
+}
+
+func (sc *TestSolanaChain) GetTreasuryAddress() string {
+	return sc.config.TreasuryAddress.String()
 }
 
 // wTODO: Implement this for sending bridging requests to the solana chain
@@ -154,8 +170,6 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 		"--commitment", "confirmed",
 	}
 
-	fmt.Println("params", params)
-
 	var b bytes.Buffer
 
 	err = RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
@@ -190,31 +204,145 @@ func (sc *TestSolanaChain) FundWallets(ctx context.Context) error {
 	}
 
 	solFundAmount := WeiToLamport(sc.config.FundAmount)
-	premineAddresses := make([]string, 0, len(sc.config.PreminesAddresses)+1)
-	premineAddresses = append(premineAddresses, sc.config.PreminesAddresses...)
-	premineAddresses = append(premineAddresses, sc.admin.PublicKey.String())
 
-	for _, addr := range premineAddresses {
-		fmt.Printf("airdropping to %s with amount %s\n", addr, solFundAmount.String())
-
-		pubKey, err := solanawallet.PublicKeyFromAddress(addr)
-		if err != nil {
-			return fmt.Errorf("parse public key: %w", err)
+	for _, addr := range sc.config.PreminesAddresses {
+		if err := sc.airdropSOL(ctx, provider, addr, solFundAmount); err != nil {
+			return fmt.Errorf("airdrop SOL to %s: %w", addr, err)
 		}
+	}
 
-		sig, err := provider.RequestSolAirdrop(
-			ctx,
-			pubKey,
-			solFundAmount.Uint64(),
-		)
-		if err != nil {
-			return fmt.Errorf("request airdrop: %w", err)
-		}
+	// Fund the admin wallet with SOL, wrap to wSOL, send to premine wallets
+	solFundAmount = solFundAmount.Mul(solFundAmount, big.NewInt(int64(len(sc.config.PreminesAddresses)+3)))
 
-		// Wait for airdrop to confirm
-		if err := sc.waitForConfirmation(ctx, provider, sig); err != nil {
-			return fmt.Errorf("wait for airdrop confirmation: %w", err)
+	if err := sc.airdropSOL(ctx, provider, sc.admin.PublicKey.String(), solFundAmount); err != nil {
+		return fmt.Errorf("airdrop SOL to admin: %w", err)
+	}
+
+	wrapSolAmount := solFundAmount.Mul(
+		WeiToLamport(sc.config.FundAmount),
+		big.NewInt(int64(len(sc.config.PreminesAddresses)+1)),
+	)
+
+	// wrap SOL to wSOL
+	if err := sc.wrapSOL(ctx, provider, sc.admin, wrapSolAmount); err != nil {
+		return fmt.Errorf("wrap SOL: %w", err)
+	}
+
+	// send wSOL to premine wallets
+	receivers := make([]GenericTxReceiver, len(sc.config.PreminesAddresses))
+	for i, addr := range sc.config.PreminesAddresses {
+		receivers[i] = GenericTxReceiver{
+			Addr:   addr,
+			Amount: big.NewInt(0),
+			NativeTokens: []GenericTokenAmount{
+				{
+					Token: carwallet.Token{
+						PolicyID: wsolMint.String(),
+					},
+					Amount: WeiToLamport(sc.config.FundAmount),
+				},
+			},
 		}
+	}
+
+	if _, err := sc.SendTx(ctx, sc.admin.PrivateKey.String(), nil,
+		receivers, sc.config.MinOperationFee.Uint64()); err != nil {
+		return fmt.Errorf("send wSOL to premine wallets: %w", err)
+	}
+
+	return nil
+}
+
+func (sc *TestSolanaChain) airdropSOL(
+	ctx context.Context, provider *solanawallet.Provider, addr string, amount *big.Int,
+) error {
+	fmt.Printf("airdropping to %s with amount %s\n", addr, amount.String())
+
+	pubKey, err := solanawallet.PublicKeyFromAddress(addr)
+	if err != nil {
+		return fmt.Errorf("parse public key: %w", err)
+	}
+
+	sig, err := provider.RequestSolAirdrop(
+		ctx,
+		pubKey,
+		amount.Uint64(),
+	)
+	if err != nil {
+		return fmt.Errorf("request airdrop: %w", err)
+	}
+
+	// Wait for airdrop to confirm
+	if err := sc.waitForConfirmation(ctx, provider, sig); err != nil {
+		return fmt.Errorf("wait for airdrop confirmation: %w", err)
+	}
+
+	return nil
+}
+
+// wrapSOL wraps native SOL into WSOL for the given owner using the spl-token wrap CLI.
+func (sc *TestSolanaChain) wrapSOL(
+	ctx context.Context, provider *solanawallet.Provider,
+	owner *solanawallet.Wallet,
+	amount *big.Int,
+) error {
+	if !amount.IsUint64() {
+		return fmt.Errorf("wrap amount too large: %s", amount)
+	}
+
+	solAmount := LamportToSolana(amount).Uint64()
+	if solAmount == 0 {
+		return nil
+	}
+
+	fmt.Printf("wrapping %s with amount %s\n", owner.PublicKey.String(), amount.String())
+
+	keypairFile, err := os.CreateTemp(os.TempDir(), "wrap-keypair-*.json")
+	if err != nil {
+		return fmt.Errorf("create keypair file: %w", err)
+	}
+
+	defer os.Remove(keypairFile.Name())
+	defer keypairFile.Close()
+
+	// Same format as InitContracts: JSON array of bytes [n1,n2,...] required by Solana/SPL CLI
+	pkString := fmt.Sprintf("%v", []byte(owner.PrivateKey))
+	pkString = strings.ReplaceAll(pkString, " ", ",")
+
+	if _, err := keypairFile.Write([]byte(pkString)); err != nil {
+		return fmt.Errorf("write keypair: %w", err)
+	}
+
+	if err := keypairFile.Sync(); err != nil {
+		return fmt.Errorf("sync keypair file: %w", err)
+	}
+
+	// spl-token wrap <AMOUNT> [KEYPAIR] --url <RPC>. Amount is in SOL.
+	args := []string{
+		"wrap",
+		strconv.FormatUint(solAmount, 10),
+		keypairFile.Name(),
+		"--url", sc.jsonRPCAddr,
+		"--fee-payer", keypairFile.Name(),
+	}
+
+	var b bytes.Buffer
+
+	if err := RunCommand(ResolveSPLTokenBinary(), args, io.MultiWriter(os.Stdout, &b)); err != nil {
+		return fmt.Errorf("spl-token wrap: %w", err)
+	}
+
+	output := b.String()
+
+	reWrapSignature := regexp.MustCompile(`Signature:\s*(\S+)`)
+
+	wrapSignatureMatch := reWrapSignature.FindStringSubmatch(output)
+	if wrapSignatureMatch == nil {
+		return fmt.Errorf("wrap signature not found in output")
+	}
+
+	if err := sc.waitForConfirmation(ctx, provider, solana.MustSignatureFromBase58(wrapSignatureMatch[1])); err != nil {
+		return fmt.Errorf("wait for wrap confirmation: %w", err)
 	}
 
 	return nil
@@ -224,8 +352,8 @@ func (sc *TestSolanaChain) waitForConfirmation(
 	ctx context.Context, provider *solanawallet.Provider, sig solana.Signature,
 ) error {
 	const (
-		maxWait      = 15 * time.Second
-		pollInterval = 500 * time.Millisecond
+		maxWait      = 30 * time.Second
+		pollInterval = 1 * time.Second
 	)
 
 	deadline := time.Now().UTC().Add(maxWait)
@@ -288,7 +416,36 @@ func (sc *TestSolanaChain) GetAddressBalance(ctx context.Context, addr string) (
 
 func (sc *TestSolanaChain) GetAddressBalanceWithTokenName(
 	ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
-	return nil, nil
+	mintPubKey, err := solanawallet.PublicKeyFromAddress(tokenName)
+	if err != nil {
+		return nil, fmt.Errorf("GetAddressBalanceWithTokenName parse mint: %w", err)
+	}
+
+	pubKey, err := solanawallet.PublicKeyFromAddress(addr)
+	if err != nil {
+		return nil, fmt.Errorf("GetAddressBalanceWithTokenName parse address: %w", err)
+	}
+
+	ata, _, err := solanawallet.FindAssociatedTokenAddress(pubKey, mintPubKey)
+	if err != nil {
+		return nil, fmt.Errorf("GetAddressBalanceWithTokenName find ATA: %w", err)
+	}
+
+	txProvider, err := sc.GetTxProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := txProvider.GetAccountInfo(ctx, ata)
+	if err != nil {
+		return map[string]*big.Int{tokenName: big.NewInt(0)}, err // return 0 so caller can still log "failed to query"
+	}
+
+	if res == nil || res.Value == nil {
+		return map[string]*big.Int{tokenName: big.NewInt(0)}, nil
+	}
+
+	return map[string]*big.Int{tokenName: LamportToWei(big.NewInt(int64(res.Value.Lamports)))}, nil
 }
 
 func (sc *TestSolanaChain) GetAddressToBridgeTo(ctx context.Context, hasTokens bool) (string, error) {
@@ -408,10 +565,178 @@ func (sc *TestSolanaChain) RunChain(t *testing.T) error {
 	return nil
 }
 
-// wTODO: Implement this for sending a transaction to the solana chain
-func (sc *TestSolanaChain) SendTx(ctx context.Context,
-	privateKey string, metadata []byte, receivers []GenericTxReceiver) (string, error) {
+func (sc *TestSolanaChain) SendTx(
+	ctx context.Context,
+	privateKey string,
+	metadata []byte,
+	receivers []GenericTxReceiver,
+	operationFee uint64,
+) (string, error) {
+	wallet, err := solanawallet.NewWalletFromPrivateKey(privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	txProvider, err := sc.GetTxProvider()
+	if err != nil {
+		return "", err
+	}
+
+	txSender, err := solsendtx.NewTxSender(txProvider, solsendtx.ChainConfig{
+		TreasuryAddress:    sc.config.TreasuryAddress,
+		BridgingFeeAddress: sc.config.BridgingFeeAddress,
+	}, *solsendtx.NewInstructionConfig(true))
+	if err != nil {
+		return "", err
+	}
+
+	for _, receiver := range receivers {
+		if receiver.NativeTokens != nil {
+			// Check sender's token balance before attempting wSOL/SPL transfer
+			if bal, err := sc.GetAddressBalanceWithTokenName(ctx, wallet.PublicKey.String(),
+				receiver.NativeTokens[0].PolicyID); err != nil {
+				fmt.Printf("sender %s token balance (mint %s): failed to query: %v\n",
+					wallet.PublicKey.String(),
+					receiver.NativeTokens[0].PolicyID,
+					err,
+				)
+			} else {
+				fmt.Printf("sender %s token balance (mint %s): %s (attempting to send %s)\n",
+					wallet.PublicKey.String(),
+					receiver.NativeTokens[0].PolicyID,
+					bal[receiver.NativeTokens[0].PolicyID].String(),
+					receiver.NativeTokens[0].Amount.String())
+			}
+
+			// Create receiver ATA in a separate confirmed transaction before transferring.
+			// Combining CreateATA + Transfer in one tx fails during simulation because the runtime
+			// preloads accounts before instructions run, so the destination ATA appears as "not found".
+			if err := sc.ensureReceiverTokenAccount(ctx, txProvider, txSender, wallet,
+				receiver.Addr, receiver.NativeTokens[0].PolicyID); err != nil {
+				return "", err
+			}
+
+			err = splTokenTransfer(ctx, txSender, wallet, receiver)
+			if err != nil {
+				return "", err
+			}
+		}
+
+		err := tokenTransfer(ctx, txSender, wallet, receiver)
+		if err != nil {
+			return "", err
+		}
+	}
+
 	return "", nil
+}
+
+// ensureReceiverTokenAccount creates the receiver's Associated Token Account for the given mint if it does not exist.
+// This fixes "AccountNotFound" when sending wSOL (or any SPL token) to a wallet that has never held that token.
+func (sc *TestSolanaChain) ensureReceiverTokenAccount(
+	ctx context.Context,
+	txProvider *solanawallet.Provider,
+	txSender *solsendtx.TxSender,
+	senderWallet *solanawallet.Wallet,
+	receiverAddr, mintAddress string,
+) error {
+	receiverPubKey, err := solanawallet.PublicKeyFromAddress(receiverAddr)
+	if err != nil {
+		return fmt.Errorf("receiver address: %w", err)
+	}
+
+	mintPubKey, err := solanawallet.PublicKeyFromAddress(mintAddress)
+	if err != nil {
+		return fmt.Errorf("mint address: %w", err)
+	}
+
+	receiverAta, _, err := solanawallet.FindAssociatedTokenAddress(receiverPubKey, mintPubKey)
+	if err != nil {
+		return fmt.Errorf("receiver ATA: %w", err)
+	}
+
+	// Check if account already exists: Solana returns {Value: null} with no error when account doesn't exist
+	info, err := txProvider.GetAccountInfo(ctx, receiverAta)
+	if err == nil && info != nil && info.Value != nil {
+		return nil // already exists
+	}
+
+	fmt.Printf("creating receiver ATA for %s with mint %s\n", receiverAddr, mintAddress)
+
+	txDto := solsendtx.CreateInstructionDto{
+		SenderPublicKey:   senderWallet.PublicKey.String(),
+		ReceiverPublicKey: receiverAddr,
+		MintTokenAddress:  mintAddress,
+	}
+
+	sig, err := txSender.CreateTx(ctx, *senderWallet, solsendtx.InstructionCreateInstruction, txDto)
+	if err != nil {
+		return fmt.Errorf("create instruction: %w", err)
+	}
+
+	fmt.Printf("created receiver ATA for %s with mint %s: %s\n", receiverAddr, mintAddress, sig.String())
+
+	if err := sc.waitForConfirmation(ctx, txProvider, solana.MustSignatureFromBase58(sig.String())); err != nil {
+		return fmt.Errorf("wait for create instruction confirmation: %w", err)
+	}
+
+	return nil
+}
+
+func splTokenTransfer(
+	ctx context.Context, txSender *solsendtx.TxSender, wallet *solanawallet.Wallet, receiver GenericTxReceiver,
+) error {
+	if receiver.NativeTokens == nil || len(receiver.NativeTokens) == 0 {
+		return nil
+	}
+
+	if receiver.NativeTokens[0].Amount.Cmp(big.NewInt(0)) == 0 {
+		return nil
+	}
+
+	// Amount must be in token base units (lamports for wSOL).
+	// NativeTokens[0].Amount is already in lamports (set via WeiToLamport).
+	txDto := solsendtx.SPLTransferDto{
+		SenderPublicKey:   wallet.PublicKey.String(),
+		ReceiverPublicKey: receiver.Addr,
+		Amount:            receiver.NativeTokens[0].Amount.Uint64(),
+		MintTokenAddress:  receiver.NativeTokens[0].PolicyID,
+		TokenDecimals:     solana.SolDecimals,
+	}
+
+	fmt.Println("token transfer txDto: ", txDto)
+
+	sig, err := txSender.CreateTx(ctx, *wallet, solsendtx.InstructionTypeSPLTransfer, txDto)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("token transfer signature: ", sig.String())
+
+	return nil
+}
+
+func tokenTransfer(
+	ctx context.Context, txSender *solsendtx.TxSender, wallet *solanawallet.Wallet, receiver GenericTxReceiver,
+) error {
+	if receiver.Amount.Cmp(big.NewInt(0)) == 0 {
+		return nil
+	}
+
+	txDto := solsendtx.SOLTransferDto{
+		SenderPublicKey:   wallet.PublicKey.String(),
+		ReceiverPublicKey: receiver.Addr,
+		Amount:            WeiToLamport(receiver.Amount).Uint64(),
+	}
+
+	sig, err := txSender.CreateTx(ctx, *wallet, solsendtx.InstructionTypeSOLTransfer, txDto)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("sol transfer signature: ", sig.String())
+
+	return nil
 }
 
 func (sc *TestSolanaChain) SetCustodialNFT(token carwallet.Token) {

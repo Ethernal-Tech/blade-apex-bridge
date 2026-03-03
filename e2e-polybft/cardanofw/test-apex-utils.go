@@ -91,6 +91,10 @@ func ResolveBladeBinary() string {
 	return tryResolveFromEnv("BLADE_BINARY", "blade")
 }
 
+func ResolveSPLTokenBinary() string {
+	return tryResolveFromEnv("SPL_TOKEN_BINARY", "spl-token")
+}
+
 func RunCommandContext(
 	ctx context.Context, binary string, args []string, stdout io.Writer, envVariables ...string,
 ) error {

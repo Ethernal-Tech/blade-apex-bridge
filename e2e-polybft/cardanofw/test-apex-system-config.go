@@ -46,14 +46,18 @@ const (
 
 // Human readable token names
 const (
-	AP3XTokenName   = "AP3X"
-	ADATokenName    = "ADA"
-	CAP3XTokenName  = "cAP3X"
-	XADATokenName   = "xADA"
-	USDTTokenName   = "USDT"
-	MATICTokenName  = "MATIC"
-	USDCTokenName   = "USDC"
-	XMATICTokenName = "xMATIC"
+	AP3XTokenName    = "AP3X"
+	ADATokenName     = "ADA"
+	CAP3XTokenName   = "cAP3X"
+	XADATokenName    = "xADA"
+	USDTTokenName    = "USDT"
+	MATICTokenName   = "MATIC"
+	USDCTokenName    = "USDC"
+	XMATICTokenName  = "xMATIC"
+	SOLANATokenName  = "SOL"
+	WSOLANATokenName = "wSOL"
+
+	WSOLMintAddress = "So11111111111111111111111111111111111111112"
 )
 
 type ApexSystemConfig struct {
