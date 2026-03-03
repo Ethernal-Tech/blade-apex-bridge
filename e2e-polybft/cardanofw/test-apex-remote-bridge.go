@@ -18,12 +18,14 @@ type RemoteCardanoChainConfig struct {
 	DefaultMinBridgingFee   uint64
 	MinBridgingFeeForTokens uint64
 	MinOperationFee         uint64
+	TreasuryAddress         string
 }
 
 type RemoteEVMChainConfig struct {
 	Info            EVMChainInfo
 	MinBridgingFee  *big.Int
 	MinOperationFee *big.Int
+	TreasuryAddress string
 }
 
 type RemoteApexBridgeConfig struct {
@@ -162,6 +164,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 				DefaultMinBridgingFee:   4_000_000,
 				MinBridgingFeeForTokens: 2_860_000,
 				MinOperationFee:         0,
+				TreasuryAddress:         "",
 			},
 			ChainIDVector: {
 				Info: CardanoChainInfo{
@@ -218,6 +221,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 				DefaultMinBridgingFee:   4_000_000,
 				MinBridgingFeeForTokens: 2_860_000,
 				MinOperationFee:         0,
+				TreasuryAddress:         "",
 			},
 			ChainIDCardano: {
 				Info: CardanoChainInfo{
@@ -267,6 +271,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 				DefaultMinBridgingFee:   4_000_000,
 				MinBridgingFeeForTokens: 2_860_000,
 				MinOperationFee:         0,
+				TreasuryAddress:         "",
 			},
 		},
 		EVMChains: map[string]RemoteEVMChainConfig{
@@ -319,6 +324,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 				},
 				MinBridgingFee:  ApexToWei(big.NewInt(4)),
 				MinOperationFee: big.NewInt(0),
+				TreasuryAddress: "",
 			},
 		},
 		BridgingAPIs: []string{
@@ -399,12 +405,12 @@ func SetupRemoteApexBridge(
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig: NewRemotePrimeChainConfig(
 			primeRemoteConfig.DefaultMinBridgingFee,
-			primeRemoteConfig.MinBridgingFeeForTokens, primeRemoteConfig.MinOperationFee),
+			primeRemoteConfig.MinBridgingFeeForTokens, primeRemoteConfig.MinOperationFee, ""),
 		VectorConfig: NewRemoteVectorChainConfig(
 			vectorRemoteConfig.DefaultMinBridgingFee,
-			vectorRemoteConfig.MinBridgingFeeForTokens, vectorRemoteConfig.MinOperationFee),
+			vectorRemoteConfig.MinBridgingFeeForTokens, vectorRemoteConfig.MinOperationFee, ""),
 		NexusConfig: NewRemoteNexusChainConfig(true,
-			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee),
+			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee, ""),
 		APIKey: remoteConfig.BridgingAPIKey,
 	}
 
@@ -493,15 +499,15 @@ func SetupSkylineRemoteBridge(
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig: NewRemotePrimeChainConfig(
 			primeRemoteConfig.DefaultMinBridgingFee, primeRemoteConfig.MinBridgingFeeForTokens,
-			primeRemoteConfig.MinOperationFee),
+			primeRemoteConfig.MinOperationFee, primeRemoteConfig.TreasuryAddress),
 		VectorConfig: NewRemoteVectorChainConfig(
 			vectorRemoteConfig.DefaultMinBridgingFee, vectorRemoteConfig.MinBridgingFeeForTokens,
-			vectorRemoteConfig.MinOperationFee),
+			vectorRemoteConfig.MinOperationFee, vectorRemoteConfig.TreasuryAddress),
 		CardanoConfig: NewRemoteCardanoChainConfig(
 			true, cardanoRemoteConfig.DefaultMinBridgingFee, cardanoRemoteConfig.MinBridgingFeeForTokens,
-			cardanoRemoteConfig.MinOperationFee),
+			cardanoRemoteConfig.MinOperationFee, cardanoRemoteConfig.TreasuryAddress),
 		NexusConfig: NewRemoteNexusChainConfig(true,
-			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee),
+			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee, nexusRemoteConfig.TreasuryAddress),
 		APIKey: remoteConfig.BridgingAPIKey,
 	}
 

@@ -817,6 +817,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinFeeForBridgingTokens:  a.Config.PrimeConfig.MinBridgingFeeForTokens,
 			MinOperationFeeAmount:    a.Config.PrimeConfig.MinOperationFee,
 			PotentialFee:             WeiToDfm(PotentialFee).Uint64(),
+			TreasuryAddress:          a.Config.PrimeConfig.TreasuryAddress,
 			Tokens:                   primeTokens,
 		},
 	}
@@ -839,6 +840,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			DefaultMinFeeForBridging: a.Config.VectorConfig.DefaultMinBridgingFee,
 			MinFeeForBridgingTokens:  a.Config.VectorConfig.MinBridgingFeeForTokens,
 			PotentialFee:             WeiToDfm(PotentialFee).Uint64(),
+			TreasuryAddress:          a.Config.VectorConfig.TreasuryAddress,
 			Tokens:                   vectorTokens,
 		}
 	}
@@ -862,6 +864,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 			MinFeeForBridgingTokens:  a.Config.CardanoConfig.MinBridgingFeeForTokens,
 			MinOperationFeeAmount:    a.Config.CardanoConfig.MinOperationFee,
 			Tokens:                   cardanoTokens,
+			TreasuryAddress:          a.Config.CardanoConfig.TreasuryAddress,
 			PotentialFee:             WeiToDfm(PotentialFee).Uint64(),
 		}
 	}
@@ -908,7 +911,7 @@ func (a *ApexSystem) FundChainHotWallet(ctx context.Context, chainID string, wei
 		},
 	}
 
-	_, err = chain.SendTx(ctx, pk, nil, receivers)
+	_, err = chain.SendTx(ctx, pk, nil, receivers, 0)
 
 	return err
 }
@@ -1313,6 +1316,59 @@ func (a *ApexSystem) GetBalance(
 	return balance, err
 }
 
+func (a *ApexSystem) GetTreasuryAddressBalance(ctx context.Context, t *testing.T, chainID ChainID) (*big.Int, error) {
+	t.Helper()
+
+	var (
+		balance map[string]*big.Int
+		err     error
+	)
+
+	if !a.IsSkyline {
+		return nil, nil
+	}
+
+	chain := a.GetChainMust(t, chainID)
+
+	treasuryAddress := chain.GetTreasuryAddress()
+
+	if treasuryAddress == "" {
+		return nil, nil
+	}
+
+	balance, err = chain.GetAddressBalance(ctx, treasuryAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	if balance[cardanowallet.AdaTokenName] == nil {
+		return big.NewInt(0), nil
+	}
+
+	return balance[cardanowallet.AdaTokenName], nil
+}
+
+func (a *ApexSystem) ValidateTreasuryAddressBalance(
+	ctx context.Context, t *testing.T, chainID ChainID, previousBalance *big.Int, numberOfBridgingRequests uint64,
+) error {
+	t.Helper()
+
+	treasuryBalance, err := a.GetTreasuryAddressBalance(ctx, t, chainID)
+	if err != nil {
+		return err
+	}
+
+	expectedBalance := new(big.Int).Add(previousBalance,
+		new(big.Int).Mul(new(big.Int).SetUint64(numberOfBridgingRequests),
+			a.GetMinOperationFee(chainID)))
+
+	if treasuryBalance.Cmp(expectedBalance) != 0 {
+		return fmt.Errorf("treasury address balance mismatch: expected %s, but received %s", expectedBalance, treasuryBalance)
+	}
+
+	return nil
+}
+
 func (a *ApexSystem) GetBalanceWithTokenName(
 	ctx context.Context, user *TestApexUser, chainID ChainID, tokenName string) (map[string]*big.Int, error) {
 	chain, err := a.getChain(chainID)
@@ -1631,7 +1687,7 @@ func (a *ApexSystem) RedistributeTokens(
 
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
-	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte,
+	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
 ) (string, error) {
 	const (
 		numRetries = 5
@@ -1648,6 +1704,14 @@ func (a *ApexSystem) SubmitTx(
 		return "", err
 	}
 
+	var operationFee uint64
+
+	if opFee == nil {
+		operationFee = 0
+	} else {
+		operationFee = WeiToDfm(opFee).Uint64()
+	}
+
 	receivers := []GenericTxReceiver{
 		{
 			Addr:         receiverAddr,
@@ -1657,7 +1721,7 @@ func (a *ApexSystem) SubmitTx(
 	}
 
 	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
-		txHash, err := chain.SendTx(ctx, privateKey, data, receivers)
+		txHash, err := chain.SendTx(ctx, privateKey, data, receivers, operationFee)
 		if err != nil {
 			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
 				return "", infracommon.ErrRetryTryAgain
@@ -1825,14 +1889,14 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		return "", fmt.Errorf("error while retrieving the private key: %w", err)
 	}
 
-	operationFee := big.NewInt(0)
-	if a.IsSkyline {
-		operationFee = DefaultMinOperationFee
-	}
-
 	srcChain, err := a.getChain(data.SourceChain)
 	if err != nil {
 		return "", err
+	}
+
+	operationFee := big.NewInt(0)
+	if a.IsSkyline {
+		operationFee = a.GetMinOperationFee(data.SourceChain)
 	}
 
 	srcCurrencyID, err := a.GetChainCurrencyID(data.SourceChain)

@@ -132,15 +132,19 @@ func submitMismatchAndWait(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
 	metadata []byte, lovelaceAmount *big.Int, sentTokenAmount []cardanofw.GenericTokenAmount, waitForAmount *big.Int,
 	waitOption WaitOption, maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8,
+	operationFee *big.Int, validateTreasury bool,
 ) {
 	t.Helper()
 
 	beforeSendingAmount, err := apex.GetBalance(ctx, user, config.srcChainID)
 	require.NoError(t, err)
 
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, config.srcChainID)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		lovelaceAmount, sentTokenAmount, metadata)
+		lovelaceAmount, sentTokenAmount, metadata, operationFee)
 	require.NoError(t, err)
 
 	if waitOption == WaitTimeoutRefundDisabled {
@@ -155,6 +159,11 @@ func submitMismatchAndWait(
 		WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
 			waitOption == WaitRefundEnabled, maxWaitTimeSec, retryIntervalSec)
 	}
+
+	if validateTreasury && initialTreasuryBalance != nil && operationFee.Cmp(big.NewInt(0)) > 0 {
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, config.srcChainID, initialTreasuryBalance, 1)
+		require.NoError(t, err)
+	}
 }
 
 func submitColCoinsMismatchAndWait(
@@ -162,6 +171,7 @@ func submitColCoinsMismatchAndWait(
 	receivers []sendtx.BridgingTxReceiver, amount *big.Int,
 	maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8,
 	waitOption WaitOption, metadataModifier func([]byte) []byte,
+	validateTreasury bool,
 ) {
 	t.Helper()
 
@@ -184,7 +194,7 @@ func submitColCoinsMismatchAndWait(
 	sentTokenAmount := []cardanofw.GenericTokenAmount{cardanofw.NewGenericTokenAmount(token, amount)}
 
 	submitMismatchAndWait(t, ctx, apex, config, user, metadata, weiAmount, sentTokenAmount, waitForAmount,
-		waitOption, maxWaitTimeSec, retryIntervalSec, addrIndex)
+		waitOption, maxWaitTimeSec, retryIntervalSec, addrIndex, operationFee, validateTreasury)
 }
 
 func executeInvalidMismatchSendLovelaceAmount(
@@ -217,18 +227,18 @@ func executeInvalidMismatchSendLovelaceAmount(
 	}
 
 	submitMismatchAndWait(t, ctx, apex, config, user, metadata, defaultAmount, sentTokenAmount, waitForAmount,
-		waitOption, maxWaitTimeSec, retryIntervalSec, addrIndex)
+		waitOption, maxWaitTimeSec, retryIntervalSec, addrIndex, operationFee, true)
 }
 
 func executeInvalidColCoin(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig, user *cardanofw.TestApexUser,
-	maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8, opts colCoinInvalidOpts,
+	maxWaitTimeSec, retryIntervalSec uint, addrIndex uint8, opts colCoinInvalidOpts, validateTreasury bool,
 ) {
 	t.Helper()
 
 	submitColCoinsMismatchAndWait(
 		t, ctx, apex, config, user, opts.receivers, opts.amount,
-		maxWaitTimeSec, retryIntervalSec, addrIndex, opts.waitOption, opts.metadataModifier)
+		maxWaitTimeSec, retryIntervalSec, addrIndex, opts.waitOption, opts.metadataModifier, validateTreasury)
 }
 
 func executeInvalidMismatchSendColCoinsMultipleInstancesParalel(
@@ -255,7 +265,7 @@ func executeInvalidMismatchSendColCoinsMultipleInstancesParalel(
 			}
 
 			submitColCoinsMismatchAndWait(t, ctx, apex, config, apex.Users[idx], receivers, amount,
-				maxWaitTimeSec, retryIntervalSec, addrIndex, waitOption, nil)
+				maxWaitTimeSec, retryIntervalSec, addrIndex, waitOption, nil, false)
 		}(i)
 	}
 
@@ -289,7 +299,8 @@ func executeInvalidMismatchSendAmountMultipleInstances(
 
 		txHash, err := apex.SubmitTx(
 			ctx, config.srcChainID, apex.Users[i],
-			apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex], defaultAmount, sentTokenAmount, metadata)
+			apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
+			defaultAmount, sentTokenAmount, metadata, operationFee)
 		require.NoError(t, err)
 
 		WaitForInvalidTestResult(t, ctx, apex, config, apex.Users[i], txHash, beforeSendingAmount, waitForAmount,
@@ -332,7 +343,8 @@ func executeInvalidMismatchSendAmountMultipleInstancesParalel(
 
 			txHashe, err := apex.SubmitTx(
 				ctx, config.srcChainID, apex.Users[idx],
-				apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex], defaultAmount, sentTokenAmount, metadata)
+				apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
+				defaultAmount, sentTokenAmount, metadata, operationFee)
 			require.NoError(t, err)
 
 			WaitForInvalidTestResult(t, ctx, apex, config, apex.Users[idx], txHashe, beforeSendingAmount, waitForAmount,
@@ -364,9 +376,12 @@ func executeInvalidMetadataType(
 	defaultAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee)
 
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, config.srcChainID)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		defaultAmount, sentTokenAmount, metadata)
+		defaultAmount, sentTokenAmount, metadata, operationFee)
 	require.NoError(t, err)
 
 	if refundEnabled {
@@ -376,6 +391,11 @@ func executeInvalidMetadataType(
 		_, err = cardanofw.WaitForRequestStates(ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, nil, maxWaitTimeSec)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "timeout")
+	}
+
+	if initialTreasuryBalance != nil && operationFee.Cmp(big.NewInt(0)) > 0 {
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, config.srcChainID, initialTreasuryBalance, 1)
+		require.NoError(t, err)
 	}
 }
 
@@ -387,7 +407,7 @@ func executeObsoleteMetadata(
 
 	receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount, config.tokenID)
 
-	operationFee := apex.GetMinOperationFee(config.srcChainID)
+	operationFee := new(big.Int).Add(apex.GetMinOperationFee(config.srcChainID), big.NewInt(500_000))
 
 	metadata, feeAmount := createObsoleteMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
 		apex.GetMinBridgingFee(config.srcChainID, !config.isCurrency),
@@ -403,7 +423,7 @@ func executeObsoleteMetadata(
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		lovelaceAmount, sentTokenAmount, metadata)
+		lovelaceAmount, sentTokenAmount, metadata, operationFee)
 	require.NoError(t, err)
 
 	require.NoError(t, err)
@@ -465,13 +485,21 @@ func executeInvalidDestination(
 	weiAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee)
 
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, config.srcChainID)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		weiAmount, sentTokenAmount, metadata)
+		weiAmount, sentTokenAmount, metadata, operationFee)
 	require.NoError(t, err)
 
 	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
 		refundEnabled, maxWaitTimeSec, retryIntervalSec)
+
+	if initialTreasuryBalance != nil && operationFee.Cmp(big.NewInt(0)) > 0 {
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, config.srcChainID, initialTreasuryBalance, 1)
+		require.NoError(t, err)
+	}
 }
 
 func executeInvalidMetadataInvalidSender(
@@ -503,12 +531,20 @@ func executeInvalidMetadataInvalidSender(
 
 	defaultAmount, sentTokenAmount, _ := getDefaultSendAmounts(t, config, feeAmount, operationFee)
 
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, config.srcChainID)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		defaultAmount, sentTokenAmount, metadata)
+		defaultAmount, sentTokenAmount, metadata, operationFee)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)
+
+	if initialTreasuryBalance != nil && operationFee.Cmp(big.NewInt(0)) > 0 {
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, config.srcChainID, initialTreasuryBalance, 1)
+		require.NoError(t, err)
+	}
 }
 
 func executeInvalidEmptyReceivers(
@@ -547,13 +583,21 @@ func executeInvalidEmptyReceivers(
 	defaultAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
 		t, config, feeAmount, operationFee)
 
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, config.srcChainID)
+	require.NoError(t, err)
+
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		defaultAmount, sentTokenAmount, metadata)
+		defaultAmount, sentTokenAmount, metadata, operationFee)
 	require.NoError(t, err)
 
 	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
 		refundEnabled, maxWaitTimeSec, retryIntervalSec)
+
+	if initialTreasuryBalance != nil && operationFee.Cmp(big.NewInt(0)) > 0 {
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, config.srcChainID, initialTreasuryBalance, 1)
+		require.NoError(t, err)
+	}
 }
 
 func executeInvalidTokenDirection(
@@ -579,7 +623,7 @@ func executeInvalidTokenDirection(
 
 	txHash, err := apex.SubmitTx(
 		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[addrIndex],
-		defaultAmount, sentTokenAmount, metadata)
+		defaultAmount, sentTokenAmount, metadata, operationFee)
 	require.NoError(t, err)
 
 	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
@@ -592,18 +636,17 @@ func getDefaultSendAmounts(
 ) (*big.Int, []cardanofw.GenericTokenAmount, *big.Int) {
 	t.Helper()
 
-	amount := new(big.Int).Add(feeAmount, operationFee)
+	amount := new(big.Int).Add(feeAmount, defaultSendAmount)
 
 	waitForAmount := new(big.Int)
 
 	var tokens []cardanofw.GenericTokenAmount
 
 	if config.isCurrency {
-		amount.Add(amount, defaultSendAmount)
-
-		waitForAmount.Set(amount)
+		waitForAmount.Set(new(big.Int).Add(amount, operationFee))
 	} else {
 		waitForAmount.Set(defaultSendAmount)
+		amount.Set(feeAmount)
 
 		token, err := wallet.NewTokenWithFullName(config.tokensInfo.SrcTokenName, true)
 		require.NoError(t, err)

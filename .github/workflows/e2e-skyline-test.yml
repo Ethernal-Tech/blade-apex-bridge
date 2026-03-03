@@ -37,6 +37,8 @@ jobs:
         uses: actions/checkout@v4.1.1
         with:
           ref: ${{ inputs.blade_apex_bridge_ref }}
+          submodules: recursive
+          fetch-depth: 0
       - name: Install Go
         uses: actions/setup-go@v5.0.0
         with:
@@ -58,6 +60,10 @@ jobs:
         uses: milos-ethernal/cardano-node-action@5a3bce7266cc1500d96e8fa63b3bb97135988482
       - name: Install ogmios
         uses: milos-ethernal/ogmios-action@13e2be0b00da80f26bb8583fa129bd7c08856a49
+      - name: Install node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
       - name: Checkout apex-bridge repo
         uses: actions/checkout@v4.1.1
         with:

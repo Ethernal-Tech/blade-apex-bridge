@@ -31,6 +31,10 @@ import (
 
 const (
 	cardanoSmartContractDir = "cardano-smart-contracts"
+
+	defaultCardanoTreasuryAddress = "addr_test1wrphkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtcl6szpr"
+	defaultPrimeTreasuryAddress   = "addr_test1vqeux7xwusdju9dvsj8h7mca9aup2k439kfmwy773xxc2hcu7zy99"
+	defaultVectorTreasuryAddress  = "addr_test1vq6xsx99frfepnsjuhzac48vl9s2lc9awkvfknkgs89srqqslj660"
 )
 
 var (
@@ -63,6 +67,7 @@ type TestCardanoChainConfig struct {
 	DefaultMinBridgingFee       uint64
 	MinBridgingFeeForTokens     uint64
 	MinOperationFee             uint64
+	TreasuryAddress             string
 	BridgeAddrHasStake          bool
 	BridgingAddressCnt          int
 	UseIndexer                  bool
@@ -100,6 +105,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		DefaultMinBridgingFee:       WeiToDfm(defaultMinBridgingFeeAmount).Uint64(),
 		MinBridgingFeeForTokens:     WeiToDfm(defaultMinBridgingFeeAmountForTokens).Uint64(),
 		MinOperationFee:             uint64(0),
+		TreasuryAddress:             defaultPrimeTreasuryAddress,
 		BridgeAddrHasStake:          true,
 		BridgingAddressCnt:          1,
 	}
@@ -125,6 +131,7 @@ func NewVectorChainConfig(mintableTokens ...map[uint16]string) *TestCardanoChain
 		DefaultMinBridgingFee:       WeiToDfm(defaultMinBridgingFeeAmount).Uint64(),
 		MinBridgingFeeForTokens:     WeiToDfm(defaultMinBridgingFeeAmountForTokens).Uint64(),
 		MinOperationFee:             uint64(0),
+		TreasuryAddress:             defaultVectorTreasuryAddress,
 		BridgingAddressCnt:          1,
 	}
 
@@ -155,12 +162,14 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		DefaultMinBridgingFee:       WeiToDfm(defaultMinBridgingFeeAmount).Uint64(),
 		MinBridgingFeeForTokens:     WeiToDfm(defaultMinBridgingFeeAmountForTokens).Uint64(),
 		MinOperationFee:             WeiToDfm(DefaultMinOperationFee).Uint64(),
+		TreasuryAddress:             defaultCardanoTreasuryAddress,
 		BridgingAddressCnt:          1,
 	}
 }
 
 func NewRemotePrimeChainConfig(
 	defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee uint64,
+	treasuryAddress string,
 ) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:               true,
@@ -171,11 +180,13 @@ func NewRemotePrimeChainConfig(
 		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
 		MinOperationFee:         minOperationFee,
+		TreasuryAddress:         treasuryAddress,
 	}
 }
 
 func NewRemoteVectorChainConfig(
 	defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee uint64,
+	treasuryAddress string,
 ) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:               true,
@@ -186,11 +197,13 @@ func NewRemoteVectorChainConfig(
 		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
 		MinOperationFee:         minOperationFee,
+		TreasuryAddress:         treasuryAddress,
 	}
 }
 
 func NewRemoteCardanoChainConfig(
 	isEnabled bool, defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee uint64,
+	treasuryAddress string,
 ) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:               isEnabled,
@@ -201,6 +214,7 @@ func NewRemoteCardanoChainConfig(
 		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
 		MinOperationFee:         minOperationFee,
+		TreasuryAddress:         treasuryAddress,
 	}
 }
 
@@ -281,6 +295,10 @@ func (ec *TestCardanoChain) GetTxProvider() (infrawallet.ITxProvider, error) {
 	}
 
 	return nil, errors.New("neither a blockfrost nor a ogmios is specified")
+}
+
+func (ec *TestCardanoChain) GetTreasuryAddress() string {
+	return ec.config.TreasuryAddress
 }
 
 var _ ITestApexChain = (*TestCardanoChain)(nil)
@@ -633,7 +651,7 @@ func (ec *TestCardanoChain) FundWallets(ctx context.Context) error {
 	}
 
 	txHash, err := ec.SendTx(
-		ctx, ToCardanoPrivateKeyString(minterWallet.SigningKey, minterWallet.StakeSigningKey), nil, receivers)
+		ctx, ToCardanoPrivateKeyString(minterWallet.SigningKey, minterWallet.StakeSigningKey), nil, receivers, 0)
 	if err != nil {
 		return err
 	}
@@ -704,6 +722,10 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 
 	if ec.config.MinBridgingFeeForTokens > 0 {
 		args = append(args, "--min-fee-for-bridging-tokens", fmt.Sprint(ec.config.MinBridgingFeeForTokens))
+	}
+
+	if ec.config.TreasuryAddress != "" {
+		args = append(args, "--treasury-address", ec.config.TreasuryAddress)
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
@@ -941,7 +963,7 @@ func (ec *TestCardanoChain) GetAddressToBridgeTo(
 }
 
 func (ec *TestCardanoChain) SendTx(
-	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
+	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver, operationFee uint64,
 ) (string, error) {
 	if len(receivers) == 0 {
 		return "", fmt.Errorf("cardano SendTx supports one or multiple receivers but got zero")
@@ -979,6 +1001,7 @@ func (ec *TestCardanoChain) SendTx(
 			SenderAddrPolicyScript: policyScript,
 			Metadata:               metadata,
 			Receivers:              receiversDto,
+			OperationFee:           operationFee,
 		},
 	)
 	if err != nil {

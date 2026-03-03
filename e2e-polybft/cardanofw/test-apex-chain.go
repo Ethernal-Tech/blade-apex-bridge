@@ -71,7 +71,7 @@ type ITestApexChain interface {
 	GetAddressBalanceWithTokenName(ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error)
 	BridgingRequest(params BridgingRequestParams) (string, error)
 	SendTx(
-		ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
+		ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver, operationFee uint64,
 	) (string, error)
 	GetHotWalletAddresses() []string
 	GetAdminPrivateKey() (string, error)
@@ -106,6 +106,7 @@ type ITestApexChain interface {
 	GetRelayerAddress() string
 	GetCustodialAddress() string
 	SetCustodialNFT(token infrawallet.Token)
+	GetTreasuryAddress() string
 }
 
 type TestApexChainDummy struct {
@@ -196,7 +197,7 @@ func (*TestApexChainDummy) RunChain(t *testing.T) error {
 }
 
 func (td *TestApexChainDummy) SendTx(
-	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver,
+	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver, operationFee uint64,
 ) (string, error) {
 	return "", nil
 }
@@ -278,6 +279,10 @@ func (td *TestApexChainDummy) GetCardanoScriptInfo() *CardanoScriptInfo {
 func (td *TestApexChainDummy) GetAddressBalanceWithTokenName(
 	ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
 	return nil, nil
+}
+
+func (td *TestApexChainDummy) GetTreasuryAddress() string {
+	return ""
 }
 
 var _ ITestApexChain = (*TestApexChainDummy)(nil)

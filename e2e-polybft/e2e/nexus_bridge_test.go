@@ -3,6 +3,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"os"
@@ -50,7 +51,7 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 		for _, dstChain := range directions[srcChain] {
 			fmt.Printf("Testing bridging from %s to %s\n", srcChain, dstChain)
 			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmount, cardanofw.AP3XTokenID)
+				t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmount, cardanofw.AP3XTokenID, true)
 		}
 	})
 
@@ -64,7 +65,7 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmount, cardanofw.AP3XTokenID)
+			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmount, cardanofw.AP3XTokenID, true)
 
 		relayerBalanceAfter, err := dstTestChain.GetAddressBalance(
 			ctx, apex.NexusInfo.RelayerAddress.String())
@@ -83,7 +84,7 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmount, cardanofw.AP3XTokenID)
+			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmount, cardanofw.AP3XTokenID, true)
 
 		relayerBalanceAfter, err := dstTestChain.GetAddressBalance(
 			ctx, apex.NexusInfo.RelayerAddress.String())
@@ -104,7 +105,7 @@ func TestE2E_ApexBridgeWithNexus_SingleBridging(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmount, cardanofw.AP3XTokenID)
+			t, ctx, apex, apex.Users[0], apex.Users[0], srcChain, dstChain, sendAmount, cardanofw.AP3XTokenID, true)
 
 		relayerBalanceAfter, err := dstTestChain.GetAddressBalance(
 			ctx, apex.NexusInfo.RelayerAddress.String())
@@ -263,53 +264,15 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 	srcChain := cardanofw.ChainIDNexus
 	dstChains := []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector}
 
-	user := apex.Users[userCnt-1]
-	fee := cardanofw.WeiToChainNativeTokenAmount(
-		srcChain, apex.GetMinBridgingFee(srcChain, false))
-
 	nexusAdminUser := &cardanofw.TestApexUser{
 		NexusWallet:    apex.NexusInfo.AdminKey,
 		NexusAddress:   apex.NexusInfo.AdminKey.Address(),
 		HasNexusWallet: true,
 	}
 
+	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+
 	for _, dstChain := range dstChains {
-		t.Run("Wrong Tx-Type", func(t *testing.T) {
-			sendAmount := cardanofw.ApexToWei(big.NewInt(1))
-
-			userPk, err := user.GetPrivateKey(srcChain)
-			require.NoError(t, err)
-
-			// call SendTx command
-			err = sendTxParamsNPInvalidScenarios("cardano", // "cardano" instead of "evm"
-				apex.NexusInfo.GatewayAddress.String(),
-				apex.NexusInfo.JSONRPCAddr,
-				userPk, dstChain,
-				user.GetAddress(dstChain),
-				apex.GetChainIDsConfig(),
-				sendAmount, fee,
-			)
-			require.ErrorContains(t, err, "failed to execute command")
-		})
-
-		t.Run("Wrong Nexus URL", func(t *testing.T) {
-			sendAmount := cardanofw.ApexToWei(big.NewInt(1))
-
-			userPk, err := user.GetPrivateKey(srcChain)
-			require.NoError(t, err)
-
-			// call SendTx command
-			err = sendTxParamsNPInvalidScenarios("evm",
-				apex.NexusInfo.GatewayAddress.String(),
-				"localhost:1234",
-				userPk, dstChain,
-				user.GetAddress(dstChain),
-				apex.GetChainIDsConfig(),
-				sendAmount, fee,
-			)
-			require.ErrorContains(t, err, "Error: invalid --rpc-url flag")
-		})
-
 		t.Run("Submitter not enough funds", func(t *testing.T) {
 			SrcNexusSubmitterNotEnoughFunds(t, ctx, apex, dstChain)
 		})
@@ -321,24 +284,151 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 			unfundedUserPk, err := unfundedUser.GetPrivateKey(srcChain)
 			require.NoError(t, err)
 
-			_, err = apex.SubmitTx(
-				ctx, srcChain, nexusAdminUser, unfundedUser.NexusAddress.String(), big.NewInt(10), nil, nil)
+			tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, dstChain, cardanofw.AP3XTokenID)
 			require.NoError(t, err)
+
+			_, err = apex.SubmitTx(
+				ctx, srcChain, nexusAdminUser, unfundedUser.NexusAddress.String(), cardanofw.ApexToWei(big.NewInt(10)), nil, nil, nil)
+			require.NoError(t, err) // fund unfundedUser with amount less than sending amount
+
+			feeAmount := cardanofw.WeiToChainNativeTokenAmount(
+				cardanofw.ChainIDNexus,
+				apex.GetMinBridgingFee(cardanofw.ChainIDNexus, true))
 
 			sendAmount := cardanofw.ApexToWei(big.NewInt(20)) // try to send 20 apexs with users without enough funds
 
-			// call SendTx command
-			err = sendTxParamsNPInvalidScenarios("evm",
-				apex.NexusInfo.GatewayAddress.String(),
-				apex.NexusInfo.JSONRPCAddr,
-				unfundedUserPk, dstChain,
-				unfundedUser.GetAddress(dstChain),
-				apex.GetChainIDsConfig(),
-				sendAmount, fee,
+			txHash, err := nexusChain.DirectBridgingRequest(
+				cardanofw.ChainIDToInt(dstChain),
+				unfundedUserPk,
+				map[string]cardanofw.ReceiverAmount{
+					unfundedUser.GetAddress(cardanofw.ChainIDVector): {
+						TokenID: cardanofw.AP3XTokenID,
+						Amount:  sendAmount,
+					},
+				},
+				feeAmount,
+				big.NewInt(0),
+				tokenInfo.SrcTokenName,
+				true,
 			)
-			require.ErrorContains(t, err, "insufficient funds for execution")
+
+			require.Equal(t, "", txHash)
+			require.Error(t, err)
 		})
 	}
+}
+
+func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios_MinValuesMisconfigured(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 1
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex := cardanofw.SetupAndRunReactorBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithNexusEnabled(true),
+		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+			mp["refundEnabled"] = false
+		}, nil, nil, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	adminPrivKey, err := apex.NexusInfo.AdminKey.MarshallPrivateKey()
+	require.NoError(t, err)
+
+	require.NoError(t, misconfiguredMinAmounts(
+		apex.NexusInfo.JSONRPCAddr,
+		hex.EncodeToString(adminPrivKey),
+		apex.NexusInfo.GatewayAddress.String(),
+		big.NewInt(1),
+		big.NewInt(1), nil, nil),
+	)
+
+	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+
+	dstChains := []string{cardanofw.ChainIDPrime, cardanofw.ChainIDVector}
+
+	t.Run("Bridging min fee on sc less than oracle", func(t *testing.T) {
+		user := apex.Users[userCnt-1]
+		privKey, err := user.NexusWallet.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		feeAmount := big.NewInt(1)
+
+		sendAmount := cardanofw.ApexToWei(big.NewInt(1))
+
+		for _, dstChain := range dstChains {
+			tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, dstChain, cardanofw.AP3XTokenID)
+			require.NoError(t, err)
+
+			txHash, err := nexusChain.DirectBridgingRequest(
+				cardanofw.ChainIDToInt(dstChain),
+				hex.EncodeToString(privKey),
+				map[string]cardanofw.ReceiverAmount{
+					user.GetAddress(cardanofw.ChainIDVector): {
+						TokenID: cardanofw.AP3XTokenID,
+						Amount:  sendAmount,
+					},
+				},
+				feeAmount,
+				big.NewInt(0),
+				tokenInfo.SrcTokenName,
+				true,
+			)
+
+			require.NotEqual(t, "", txHash)
+			require.NoError(t, err)
+
+			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDNexus, txHash, apiKey, 300)
+		}
+	})
+
+	t.Run("Bridging 1 wei to cardano chain", func(t *testing.T) {
+		user := apex.Users[userCnt-1]
+		privKey, err := user.NexusWallet.MarshallPrivateKey()
+		require.NoError(t, err)
+
+		feeAmount := cardanofw.WeiToChainNativeTokenAmount(
+			cardanofw.ChainIDNexus,
+			apex.GetMinBridgingFee(cardanofw.ChainIDNexus, true))
+
+		sendAmount := big.NewInt(1)
+
+		for _, dstChain := range dstChains {
+			tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, dstChain, cardanofw.AP3XTokenID)
+			require.NoError(t, err)
+
+			txHash, err := nexusChain.DirectBridgingRequest(
+				cardanofw.ChainIDToInt(dstChain),
+				hex.EncodeToString(privKey),
+				map[string]cardanofw.ReceiverAmount{
+					user.GetAddress(dstChain): {
+						TokenID: cardanofw.AP3XTokenID,
+						Amount:  sendAmount,
+					},
+				},
+				feeAmount,
+				big.NewInt(0),
+				tokenInfo.SrcTokenName,
+				true,
+			)
+
+			require.NotEqual(t, "", txHash)
+			require.NoError(t, err)
+
+			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDNexus, txHash, apiKey, 300)
+		}
+	})
 }
 
 func TestE2E_ApexBridgeWithNexus_DestNexusAndBoth_ValidScenarios(t *testing.T) {
@@ -1431,6 +1521,8 @@ func SrcNexusSubmitterNotEnoughFunds(
 ) {
 	t.Helper()
 
+	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+
 	fee := cardanofw.WeiToChainNativeTokenAmount(
 		cardanofw.ChainIDNexus, apex.GetMinBridgingFee(cardanofw.ChainIDNexus, false))
 	sendAmount := cardanofw.ApexToWei(big.NewInt(2))
@@ -1438,19 +1530,31 @@ func SrcNexusSubmitterNotEnoughFunds(
 	unfundedUser, err := cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypesFromSystem(apex))
 	require.NoError(t, err)
 
+	tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus,
+		dstChain,
+		cardanofw.AP3XTokenID)
+	require.NoError(t, err)
+
 	unfundedUserPk, err := unfundedUser.GetPrivateKey(cardanofw.ChainIDNexus)
 	require.NoError(t, err)
 
-	// call SendTx command
-	err = sendTxParamsNPInvalidScenarios("evm",
-		apex.NexusInfo.GatewayAddress.String(),
-		apex.NexusInfo.JSONRPCAddr,
-		unfundedUserPk, dstChain,
-		unfundedUser.GetAddress(dstChain),
-		apex.GetChainIDsConfig(),
-		sendAmount, fee,
+	txHash, err := nexusChain.DirectBridgingRequest(
+		cardanofw.ChainIDToInt(dstChain),
+		unfundedUserPk,
+		map[string]cardanofw.ReceiverAmount{
+			unfundedUser.GetAddress(dstChain): {
+				TokenID: cardanofw.AP3XTokenID,
+				Amount:  sendAmount,
+			},
+		},
+		fee,
+		big.NewInt(0),
+		tokenInfo.SrcTokenName,
+		true,
 	)
-	require.ErrorContains(t, err, "insufficient funds for execution")
+
+	require.Equal(t, "", txHash)
+	require.Error(t, err)
 }
 
 func DstNexusSequentialAndParallelWithMaxReceivers(
@@ -1534,7 +1638,7 @@ func DstNexusSubmitterNotEnoughFunds(
 	require.NoError(t, err)
 
 	_, err = apex.SubmitTx(
-		ctx, srcChain, user, receiverAddr, sendAmount, nil, metadata)
+		ctx, srcChain, user, receiverAddr, sendAmount, nil, metadata, nil)
 
 	require.Error(t, err)
 	require.ErrorContains(t, err, "couldn't select UTXOs")
@@ -1572,7 +1676,7 @@ func DstNexusInvalidMetadataSlicedOff(
 	metadata = metadata[0 : len(metadata)/2]
 
 	_, err = apex.SubmitTx(
-		ctx, srcChain, user, receiverAddr, sendAmount, nil, metadata)
+		ctx, srcChain, user, receiverAddr, sendAmount, nil, metadata, nil)
 	require.Error(t, err)
 }
 
@@ -1608,7 +1712,7 @@ func DstNexusInvalidMetadataWrongType(
 
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
-		new(big.Int).Add(sendAmount, minBridgingFee), nil, bridgingRequestMetadata)
+		new(big.Int).Add(sendAmount, minBridgingFee), nil, bridgingRequestMetadata, nil)
 	require.NoError(t, err)
 
 	lowerBoundary := new(big.Int).Sub(beforeSendingAmount[cardanowallet.AdaTokenName], new(big.Int).Add(sendAmount, minBridgingFee))
@@ -1658,7 +1762,7 @@ func DstNexusInvalidMetadataInvalidDestination(
 
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
-		new(big.Int).Add(sendAmount, minBridgingFee), nil, bridgingRequestMetadata)
+		new(big.Int).Add(sendAmount, minBridgingFee), nil, bridgingRequestMetadata, nil)
 	require.NoError(t, err)
 
 	lowerBoundary := new(big.Int).Sub(beforeSendingAmount[cardanowallet.AdaTokenName], new(big.Int).Add(sendAmount, minBridgingFee))
@@ -1706,7 +1810,7 @@ func DstNexusInvalidMetadataInvalidSender(
 
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
-		new(big.Int).Add(sendAmount, minBridgingFee), nil, bridgingRequestMetadata)
+		new(big.Int).Add(sendAmount, minBridgingFee), nil, bridgingRequestMetadata, nil)
 	require.NoError(t, err)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
@@ -1739,7 +1843,7 @@ func DstNexusInvalidMetadataInvalidTransactions(
 
 	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr,
-		new(big.Int).Add(sendAmount, minBridgingFee), nil, metadata)
+		new(big.Int).Add(sendAmount, minBridgingFee), nil, metadata, nil)
 	require.NoError(t, err)
 
 	lowerBoundary := new(big.Int).Sub(beforeSendingAmount[cardanowallet.AdaTokenName], new(big.Int).Add(sendAmount, minBridgingFee))
@@ -1754,19 +1858,36 @@ func DstNexusInvalidMetadataInvalidTransactions(
 	require.NoError(t, err)
 }
 
-func sendTxParamsNPInvalidScenarios(txType, gatewayAddr, nexusURL, privateKey, chainDst, receiver, chainIDsConfig string, amount, fee *big.Int) error {
-	return cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
-		"sendtx",
-		"--tx-type", txType,
-		"--chain-ids-config", chainIDsConfig,
-		"--gateway-addr", gatewayAddr,
-		"--rpc-url", nexusURL,
-		"--key", privateKey,
-		"--chain-src", cardanofw.ChainIDNexus,
-		"--chain-dst", chainDst,
-		"--receiver", fmt.Sprintf("%s:%s", receiver, amount.String()),
-		"--fee", fee.String(),
-	}, os.Stdout)
+func misconfiguredMinAmounts(url, key, contractAddr string, minBridgingFee, minBridgingAmount, minBridgingTokenAmount, minOperationFee *big.Int) error {
+	args := []string{
+		"bridge-admin",
+		"set-min-amounts",
+		"--url", url,
+		"--key", key,
+		"--contract-addr", contractAddr,
+	}
+
+	if minBridgingFee != nil {
+		args = append(args, "--min-fee", minBridgingFee.String())
+	}
+
+	if minBridgingAmount != nil {
+		args = append(args, "--min-bridging-amount", minBridgingAmount.String())
+	}
+
+	if minBridgingTokenAmount != nil {
+		args = append(args, "--min-token-bridging-amount", minBridgingTokenAmount.String())
+	}
+
+	if minOperationFee != nil {
+		args = append(args, "--min-operation-fee", minOperationFee.String())
+	}
+
+	return cardanofw.RunCommand(
+		cardanofw.ResolveApexBridgeBinary(),
+		args,
+		os.Stdout,
+	)
 }
 
 func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
