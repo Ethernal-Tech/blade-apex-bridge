@@ -461,10 +461,10 @@ func SetupRemoteApexBridge(
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig: NewRemotePrimeChainConfig(
 			primeRemoteConfig.DefaultMinBridgingFee,
-			primeRemoteConfig.MinBridgingFeeForTokens, primeRemoteConfig.MinOperationFee, ""),
+			primeRemoteConfig.MinBridgingFeeForTokens, primeRemoteConfig.MinOperationFee, primeRemoteConfig.TreasuryAddress),
 		VectorConfig: NewRemoteVectorChainConfig(
 			vectorRemoteConfig.DefaultMinBridgingFee,
-			vectorRemoteConfig.MinBridgingFeeForTokens, vectorRemoteConfig.MinOperationFee, ""),
+			vectorRemoteConfig.MinBridgingFeeForTokens, vectorRemoteConfig.MinOperationFee, vectorRemoteConfig.TreasuryAddress),
 		NexusConfig: NewRemoteNexusChainConfig(true,
 			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee, ""),
 		APIKey: remoteConfig.BridgingAPIKey,
