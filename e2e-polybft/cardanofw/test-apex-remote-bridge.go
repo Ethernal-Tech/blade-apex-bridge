@@ -566,7 +566,7 @@ func SetupSkylineRemoteBridge(
 		NexusConfig: NewRemoteNexusChainConfig(true,
 			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee, nexusRemoteConfig.TreasuryAddress),
 		PolygonConfig: NewRemotePolygonChainConfig(true,
-			polygonRemoteConfig.MinBridgingFee, polygonRemoteConfig.MinOperationFee),
+			polygonRemoteConfig.MinBridgingFee, polygonRemoteConfig.MinOperationFee, polygonRemoteConfig.TreasuryAddress),
 		APIKey: remoteConfig.BridgingAPIKey,
 	}
 

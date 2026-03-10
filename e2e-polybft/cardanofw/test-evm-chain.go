@@ -219,13 +219,14 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 }
 
 func NewRemotePolygonChainConfig(
-	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int) *TestEVMChainConfig {
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string) *TestEVMChainConfig {
 	return &TestEVMChainConfig{
 		IsEnabled:       isEnabled,
 		ChainID:         ChainIDPolygon,
 		MinBridgingFee:  minBridgingFeeAmount,
 		MinOperationFee: minOperationFee,
 		CurrencyID:      POLTokenID,
+		TreasuryAddress: treasuryAddress,
 		MintTokens: []EVMTokenInfo{
 			{
 				ID:     PAP3XTokenID,
