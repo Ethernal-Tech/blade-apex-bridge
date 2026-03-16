@@ -24,6 +24,11 @@
             "chainID": "polygon",
             "chainIDNum": 5,
             "chainType": "evm"
+        },
+        {
+            "chainID": "solana",
+            "chainIDNum": 6,
+            "chainType": "solana"
         }
     ]
 }

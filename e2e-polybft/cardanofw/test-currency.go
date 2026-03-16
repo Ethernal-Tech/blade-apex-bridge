@@ -84,6 +84,20 @@ func LamportToSolana(lamport *big.Int) *big.Int {
 	return out.Div(out, base.Exp(base, big.NewInt(LamportDecimals), nil))
 }
 
+func SolanaToWei(solana *big.Int) *big.Int {
+	out := new(big.Int).Set(solana)
+	base := big.NewInt(10)
+
+	return out.Mul(out, base.Exp(base, big.NewInt(WeiDecimals), nil))
+}
+
+func WeiToSolana(wei *big.Int) *big.Int {
+	out := new(big.Int).Set(wei)
+	base := big.NewInt(10)
+
+	return out.Div(out, base.Exp(base, big.NewInt(WeiDecimals-LamportDecimals), nil))
+}
+
 func WeiToDfm(wei *big.Int) *big.Int {
 	dfm := new(big.Int).Set(wei)
 	base := big.NewInt(10)

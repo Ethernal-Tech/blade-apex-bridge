@@ -36,6 +36,8 @@ const (
 	solanaProgramKeypairPath = "program_build/skyline_program-keypair.json"
 
 	TreasuryAddress = "AXXWYCH6PNm6AGjaasPG1maarfQvRedSw18wj91Nem1F"
+
+	MaxConfirmationWaitTime = 2 * time.Minute
 )
 
 type TestSolanaChainConfig struct {
@@ -55,6 +57,8 @@ type TestSolanaChainConfig struct {
 
 	TreasuryAddress    solana.PublicKey
 	BridgingFeeAddress solana.PublicKey
+
+	TokensMint map[uint16]string
 }
 
 func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
@@ -64,13 +68,16 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 		StartingPort:           8899,
 		InitialHotWalletAmount: big.NewInt(0),
 		FundAmount:             LamportToWei(SolanaToLamport(big.NewInt(100000))),
-		MinBridgingFee:         big.NewInt(0),
-		MinBridgingAmount:      big.NewInt(0),
-		MinTokenBridgingAmount: big.NewInt(0),
-		MinOperationFee:        big.NewInt(0),
-		CurrencyID:             SOLTokenID,
+		MinBridgingFee:         SolanaToLamport(big.NewInt(1)), // 1 SOL
+		MinBridgingAmount:      big.NewInt(1),                  // 1 Lamport
+		MinTokenBridgingAmount: big.NewInt(1),                  // 1 Lamport
+		MinOperationFee:        big.NewInt(500000000),          // 0.5 SOL
+		CurrencyID:             WSOLTokenID,
 		TreasuryAddress:        solana.MustPublicKeyFromBase58(TreasuryAddress),
 		BridgingFeeAddress:     solana.MustPublicKeyFromBase58("7d5xBAeX92qPugMB5vixR1cy3wpRCxKE7ckShZaJbPPL"),
+		TokensMint: map[uint16]string{
+			WSOLTokenID: WSOLMintAddress, // by default add wSOL to the tokens mint map
+		},
 	}
 }
 
@@ -120,7 +127,81 @@ func (sc *TestSolanaChain) GetTreasuryAddress() string {
 
 // wTODO: Implement this for sending bridging requests to the solana chain
 func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string, error) {
-	panic("unimplemented") //nolint:gocritic
+	fmt.Println("bridging request: ", params)
+
+	txProvider, err := sc.GetTxProvider()
+	if err != nil {
+		return "", err
+	}
+
+	instructionConfig, err := solsendtx.NewInstructionConfig()
+	if err != nil {
+		return "", err
+	}
+
+	txSender := solsendtx.NewTxSender(txProvider, solsendtx.ChainConfig{
+		TreasuryAddress:    sc.config.TreasuryAddress,
+		BridgingFeeAddress: sc.config.BridgingFeeAddress,
+	}, instructionConfig)
+
+	txReceivers := make([]solsendtx.BridgingTxReceiver, 0, len(params.Receivers))
+	for addr, amount := range params.Receivers {
+		txReceivers = append(txReceivers, solsendtx.BridgingTxReceiver{
+			Address: addr,
+			TokenAmount: solanawallet.TokenAmount{
+				TokenMint: sc.config.TokensMint[amount.TokenID],
+				Amount:    WeiToLamport(amount.Amount),
+			},
+		})
+	}
+
+	senderWallet, err := solanawallet.NewWalletFromPrivateKey(params.PrivateKey)
+	if err != nil {
+		return "", err
+	}
+
+	txDto := solsendtx.BridgeRequestDto{
+		DstChainID:   params.DestChainID,
+		SenderAddr:   senderWallet.PublicKey.String(),
+		Receivers:    txReceivers,
+		BridgingFee:  params.FeeAmount.Uint64(),
+		OperationFee: params.OperationFee.Uint64(),
+	}
+
+	fmt.Println("txDto: ", txDto)
+
+	recentBlockhash, err := txProvider.GetLatestBlockhash(params.Ctx)
+	if err != nil {
+		return "", err
+	}
+
+	tx, err := txSender.CreateTx(
+		params.Ctx, senderWallet.PublicKey,
+		solsendtx.InstructionTypeBridgingRequest,
+		recentBlockhash,
+		txDto,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+		return &senderWallet.PrivateKey
+	})
+	if err != nil {
+		return "", fmt.Errorf("sign instruction: %w", err)
+	}
+
+	sig, err := txSender.SendTx(params.Ctx, tx)
+	if err != nil {
+		return "", err
+	}
+
+	if err := txProvider.WaitForSignature(params.Ctx, *sig, rpc.CommitmentConfirmed, MaxConfirmationWaitTime); err != nil {
+		return "", fmt.Errorf("wait for bridging request confirmation: %w", err)
+	}
+
+	return sig.String(), nil
 }
 
 // ChainID implements ITestApexChain.
@@ -167,7 +248,7 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 		"--fee-payer", adminPkFile.Name(),
 		"--key", filepath.Join("..", "..", solanaProgramDir, solanaProgramKeypairPath),
 		"--build-path", filepath.Join("..", "..", solanaProgramDir, solanaProgramBuildPath),
-		"--commitment", "confirmed",
+		"--commitment", "finalized",
 	}
 
 	var b bytes.Buffer
@@ -189,6 +270,142 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 	programID := programIDMatch[1]
 
 	sc.programID = programID
+
+	if err := sc.initializeProgram(ctx); err != nil {
+		return fmt.Errorf("initialize program: %w", err)
+	}
+
+	if err := sc.registerTokens(ctx); err != nil {
+		return fmt.Errorf("register tokens: %w", err)
+	}
+
+	return nil
+}
+
+func (sc *TestSolanaChain) initializeProgram(ctx context.Context) error {
+	provider, err := sc.GetTxProvider()
+	if err != nil {
+		return fmt.Errorf("get tx provider: %w", err)
+	}
+
+	recentBlockhash, err := provider.GetLatestBlockhash(ctx)
+	if err != nil {
+		return fmt.Errorf("get latest blockhash: %w", err)
+	}
+
+	instructionConfig, err := solsendtx.NewInstructionConfig()
+	if err != nil {
+		return fmt.Errorf("new instruction config: %w", err)
+	}
+
+	txSender := solsendtx.NewTxSender(provider, solsendtx.ChainConfig{
+		MinOperationFeeAmount: sc.config.MinOperationFee.Uint64(),
+		MinFeeForBridging:     sc.config.MinBridgingFee.Uint64(),
+		MinAmountToBridge:     sc.config.MinTokenBridgingAmount.Uint64(),
+		TreasuryAddress:       sc.config.TreasuryAddress,
+		BridgingFeeAddress:    sc.config.BridgingFeeAddress,
+	}, instructionConfig)
+
+	// wTODO: add validator addresses
+	validators := []string{
+		"EMfgdwVMXfJn8uLYaTwFTaACZmNWLi5NUD4XHK1M24HV",
+		"cUR5xYHWzo4TSAL3vh2A7deVpu4tW1n4fit3mFB574Q",
+		"E3nY5Vnmnsvf8pG4Vubhjusei6aE8usX9CJUpdKvWTpE",
+		"EckTYvzw39pFMoh1xaraY5D3FbDKf1tnsXN5bjingXbh",
+	}
+
+	txDto := solsendtx.InitializeDto{
+		AuthorityAddr: sc.admin.PublicKey.String(),
+		Validators:    validators,
+		LastID:        0,
+	}
+
+	tx, err := txSender.CreateTx(
+		ctx, sc.admin.PublicKey,
+		solsendtx.InstructionTypeInitialize,
+		recentBlockhash,
+		txDto,
+	)
+	if err != nil {
+		return fmt.Errorf("create initialize tx: %w", err)
+	}
+
+	_, err = tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+		return &sc.admin.PrivateKey
+	})
+	if err != nil {
+		return fmt.Errorf("sign instruction: %w", err)
+	}
+
+	sig, err := txSender.SendTx(ctx, tx)
+	if err != nil {
+		return fmt.Errorf("send initialize tx: %w", err)
+	}
+
+	if err := provider.WaitForSignature(ctx, *sig, rpc.CommitmentFinalized, MaxConfirmationWaitTime); err != nil {
+		return fmt.Errorf("wait for initialize confirmation: %w", err)
+	}
+
+	return nil
+}
+
+func (sc *TestSolanaChain) registerTokens(ctx context.Context) error {
+	provider, err := sc.GetTxProvider()
+	if err != nil {
+		return fmt.Errorf("get tx provider: %w", err)
+	}
+
+	recentBlockhash, err := provider.GetLatestBlockhash(ctx)
+	if err != nil {
+		return fmt.Errorf("get latest blockhash: %w", err)
+	}
+
+	instructionConfig, err := solsendtx.NewInstructionConfig()
+	if err != nil {
+		return fmt.Errorf("new instruction config: %w", err)
+	}
+
+	txSender := solsendtx.NewTxSender(provider, solsendtx.ChainConfig{
+		TreasuryAddress:    sc.config.TreasuryAddress,
+		BridgingFeeAddress: sc.config.BridgingFeeAddress,
+	}, instructionConfig)
+
+	for tokenID, tokenMint := range sc.config.TokensMint {
+		txDto := solsendtx.RegisterTokenLockUnlockDto{
+			AuthorityAddr:     sc.admin.PublicKey.String(),
+			TokenMint:         tokenMint,
+			TokenID:           tokenID,
+			MinBridgingAmount: sc.config.MinTokenBridgingAmount.Uint64(),
+		}
+
+		tx, err := txSender.CreateTx(
+			ctx, sc.admin.PublicKey,
+			solsendtx.InstructionTypeRegisterTokensLockUnlock,
+			recentBlockhash,
+			txDto,
+		)
+		if err != nil {
+			return fmt.Errorf("create register token lock unlock tx: %w", err)
+		}
+
+		_, err = tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+			return &sc.admin.PrivateKey
+		})
+		if err != nil {
+			return fmt.Errorf("sign instruction: %w", err)
+		}
+
+		sig, err := txSender.SendTx(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("send register token lock unlock tx: %w", err)
+		}
+
+		if err := provider.WaitForSignature(ctx, *sig, rpc.CommitmentFinalized, MaxConfirmationWaitTime); err != nil {
+			return fmt.Errorf("wait for register token lock unlock confirmation: %w", err)
+		}
+
+		fmt.Printf("registered token %d with mint %s\n", tokenID, tokenMint)
+	}
 
 	return nil
 }
@@ -272,8 +489,7 @@ func (sc *TestSolanaChain) airdropSOL(
 		return fmt.Errorf("request airdrop: %w", err)
 	}
 
-	// Wait for airdrop to confirm
-	if err := sc.waitForConfirmation(ctx, provider, sig); err != nil {
+	if err := provider.WaitForSignature(ctx, sig, rpc.CommitmentFinalized, MaxConfirmationWaitTime); err != nil {
 		return fmt.Errorf("wait for airdrop confirmation: %w", err)
 	}
 
@@ -341,58 +557,32 @@ func (sc *TestSolanaChain) wrapSOL(
 		return fmt.Errorf("wrap signature not found in output")
 	}
 
-	if err := sc.waitForConfirmation(ctx, provider, solana.MustSignatureFromBase58(wrapSignatureMatch[1])); err != nil {
+	if err := provider.WaitForSignature(
+		ctx,
+		solana.MustSignatureFromBase58(wrapSignatureMatch[1]),
+		rpc.CommitmentConfirmed, MaxConfirmationWaitTime); err != nil {
 		return fmt.Errorf("wait for wrap confirmation: %w", err)
 	}
 
 	return nil
 }
 
-func (sc *TestSolanaChain) waitForConfirmation(
-	ctx context.Context, provider *solanawallet.Provider, sig solana.Signature,
-) error {
-	const (
-		maxWait      = 30 * time.Second
-		pollInterval = 1 * time.Second
-	)
+func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexValidator) error {
+	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
 
-	deadline := time.Now().UTC().Add(maxWait)
-
-	for time.Now().UTC().Before(deadline) {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		res, err := provider.GetSignatureStatus(ctx, sig)
-		if err != nil {
-			time.Sleep(pollInterval)
-
-			continue
-		}
-
-		if res != nil && len(res.Value) > 0 && res.Value[0] != nil {
-			if res.Value[0].Err != nil {
-				return fmt.Errorf("transaction failed: %v", res.Value[0].Err)
-			}
-
-			if res.Value[0].ConfirmationStatus == rpc.ConfirmationStatusFinalized ||
-				res.Value[0].ConfirmationStatus == rpc.ConfirmationStatusConfirmed {
-				return nil
-			}
-		}
-
-		time.Sleep(pollInterval)
+	args := []string{
+		"generate-configs", "solana-chain",
+		"--chain-id", sc.ChainID(),
+		"--sol-node-url", sc.jsonRPCAddr,
+		"--sol-tracked-program", sc.programID,
+		"--sol-min-fee-for-bridging", sc.config.MinBridgingFee.String(),
+		"--sol-min-operation-fee", sc.config.MinOperationFee.String(),
+		"--output-dir", validator.GetBridgingConfigsDir(),
+		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
+		"--dbs-path", dbsPath,
 	}
 
-	return fmt.Errorf("transaction %s not confirmed within %v", sig, maxWait)
-}
-
-// wTODO: Implement this for generating chain configs on the solana chain
-// generate-configs solana-chain cli command required
-func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexValidator) error {
-	return nil
+	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
 }
 
 func (sc *TestSolanaChain) GetAddressBalance(ctx context.Context, addr string) (map[string]*big.Int, error) {
@@ -540,9 +730,8 @@ func (*TestSolanaChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem)
 
 // wTODO: Implement this for registering the solana chain
 func (sc *TestSolanaChain) RegisterChain(validator *TestApexValidator) error {
-	// return validator.RegisterChain(
-	// 	sc.ChainID(), sc.config.InitialHotWalletAmount, big.NewInt(0), ChainTypeSolana)
-	return nil
+	return validator.RegisterChain(
+		sc.ChainID(), sc.config.InitialHotWalletAmount, big.NewInt(0), ChainTypeSolana)
 }
 
 // RunChain implements ITestApexChain.
@@ -582,13 +771,15 @@ func (sc *TestSolanaChain) SendTx(
 		return "", err
 	}
 
-	txSender, err := solsendtx.NewTxSender(txProvider, solsendtx.ChainConfig{
-		TreasuryAddress:    sc.config.TreasuryAddress,
-		BridgingFeeAddress: sc.config.BridgingFeeAddress,
-	}, *solsendtx.NewInstructionConfig(true))
+	instructionConfig, err := solsendtx.NewInstructionConfig()
 	if err != nil {
 		return "", err
 	}
+
+	txSender := solsendtx.NewTxSender(txProvider, solsendtx.ChainConfig{
+		TreasuryAddress:    sc.config.TreasuryAddress,
+		BridgingFeeAddress: sc.config.BridgingFeeAddress,
+	}, instructionConfig)
 
 	for _, receiver := range receivers {
 		if receiver.NativeTokens != nil {
@@ -616,13 +807,13 @@ func (sc *TestSolanaChain) SendTx(
 				return "", err
 			}
 
-			err = splTokenTransfer(ctx, txSender, wallet, receiver)
+			err = splTokenTransfer(ctx, txProvider, txSender, wallet, receiver)
 			if err != nil {
 				return "", err
 			}
 		}
 
-		err := tokenTransfer(ctx, txSender, wallet, receiver)
+		err := tokenTransfer(ctx, txProvider, txSender, wallet, receiver)
 		if err != nil {
 			return "", err
 		}
@@ -669,14 +860,37 @@ func (sc *TestSolanaChain) ensureReceiverTokenAccount(
 		MintTokenAddress:  mintAddress,
 	}
 
-	sig, err := txSender.CreateTx(ctx, *senderWallet, solsendtx.InstructionCreateInstruction, txDto)
+	recentBlockhash, err := txProvider.GetLatestBlockhash(ctx)
+	if err != nil {
+		return err
+	}
+
+	tx, err := txSender.CreateTx(
+		ctx,
+		senderWallet.PublicKey,
+		solsendtx.InstructionCreateInstruction,
+		recentBlockhash,
+		txDto,
+	)
 	if err != nil {
 		return fmt.Errorf("create instruction: %w", err)
 	}
 
+	_, err = tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+		return &senderWallet.PrivateKey
+	})
+	if err != nil {
+		return fmt.Errorf("sign instruction: %w", err)
+	}
+
+	sig, err := txSender.SendTx(ctx, tx)
+	if err != nil {
+		return fmt.Errorf("send create instruction: %w", err)
+	}
+
 	fmt.Printf("created receiver ATA for %s with mint %s: %s\n", receiverAddr, mintAddress, sig.String())
 
-	if err := sc.waitForConfirmation(ctx, txProvider, solana.MustSignatureFromBase58(sig.String())); err != nil {
+	if err := txProvider.WaitForSignature(ctx, *sig, rpc.CommitmentConfirmed, MaxConfirmationWaitTime); err != nil {
 		return fmt.Errorf("wait for create instruction confirmation: %w", err)
 	}
 
@@ -684,7 +898,11 @@ func (sc *TestSolanaChain) ensureReceiverTokenAccount(
 }
 
 func splTokenTransfer(
-	ctx context.Context, txSender *solsendtx.TxSender, wallet *solanawallet.Wallet, receiver GenericTxReceiver,
+	ctx context.Context,
+	txProvider *solanawallet.Provider,
+	txSender *solsendtx.TxSender,
+	wallet *solanawallet.Wallet,
+	receiver GenericTxReceiver,
 ) error {
 	if receiver.NativeTokens == nil || len(receiver.NativeTokens) == 0 {
 		return nil
@@ -704,20 +922,44 @@ func splTokenTransfer(
 		TokenDecimals:     solana.SolDecimals,
 	}
 
-	fmt.Println("token transfer txDto: ", txDto)
-
-	sig, err := txSender.CreateTx(ctx, *wallet, solsendtx.InstructionTypeSPLTransfer, txDto)
+	recentBlockhash, err := txProvider.GetLatestBlockhash(ctx)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("token transfer signature: ", sig.String())
+	tx, err := txSender.CreateTx(ctx, wallet.PublicKey, solsendtx.InstructionTypeSPLTransfer, recentBlockhash, txDto)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+		return &wallet.PrivateKey
+	})
+	if err != nil {
+		return fmt.Errorf("sign instruction: %w", err)
+	}
+
+	sig, err := txSender.SendTx(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	err = txProvider.WaitForSignature(ctx, *sig, rpc.CommitmentConfirmed, MaxConfirmationWaitTime)
+	if err != nil {
+		return fmt.Errorf("wait for token transfer confirmation: %w", err)
+	}
+
+	fmt.Println("token transfer confirmed: ", sig.String())
 
 	return nil
 }
 
 func tokenTransfer(
-	ctx context.Context, txSender *solsendtx.TxSender, wallet *solanawallet.Wallet, receiver GenericTxReceiver,
+	ctx context.Context,
+	txProvider *solanawallet.Provider,
+	txSender *solsendtx.TxSender,
+	wallet *solanawallet.Wallet,
+	receiver GenericTxReceiver,
 ) error {
 	if receiver.Amount.Cmp(big.NewInt(0)) == 0 {
 		return nil
@@ -729,12 +971,34 @@ func tokenTransfer(
 		Amount:            WeiToLamport(receiver.Amount).Uint64(),
 	}
 
-	sig, err := txSender.CreateTx(ctx, *wallet, solsendtx.InstructionTypeSOLTransfer, txDto)
+	recentBlockhash, err := txProvider.GetLatestBlockhash(ctx)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("sol transfer signature: ", sig.String())
+	tx, err := txSender.CreateTx(ctx, wallet.PublicKey, solsendtx.InstructionTypeSOLTransfer, recentBlockhash, txDto)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+		return &wallet.PrivateKey
+	})
+	if err != nil {
+		return fmt.Errorf("sign instruction: %w", err)
+	}
+
+	sig, err := txSender.SendTx(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	err = txProvider.WaitForSignature(ctx, *sig, rpc.CommitmentConfirmed, MaxConfirmationWaitTime)
+	if err != nil {
+		return fmt.Errorf("wait for sol transfer confirmation: %w", err)
+	}
+
+	fmt.Println("sol transfer confirmed: ", sig.String())
 
 	return nil
 }

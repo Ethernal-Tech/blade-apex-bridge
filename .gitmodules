@@ -17,3 +17,4 @@
 [submodule "skyline-solana-programs"]
 	path = skyline-solana-programs
 	url = https://github.com/Ethernal-Tech/skyline-solana-programs.git
+	branch = feat/multi-receiver

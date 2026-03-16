@@ -130,6 +130,11 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 				Name:   XMATICTokenName,
 				Symbol: XMATICTokenName,
 			},
+			{
+				ID:     ASOLTokenID,
+				Name:   ASOLTokenName,
+				Symbol: ASOLTokenName,
+			},
 		},
 	}
 }

@@ -108,6 +108,11 @@ type EVMChainInfo struct {
 	Tokens map[uint16]Token
 }
 
+type SolanaChainInfo struct {
+	DestChain map[ChainID][]Direction
+	Tokens    map[uint16]Token
+}
+
 type ApexSystem struct {
 	BridgeCluster   *framework.TestCluster
 	Config          *ApexSystemConfig
@@ -124,6 +129,7 @@ type ApexSystem struct {
 	CardanoInfo CardanoChainInfo
 	NexusInfo   EVMChainInfo
 	PolygonInfo EVMChainInfo
+	SolanaInfo  SolanaChainInfo
 
 	EcosystemTokens map[uint16]string
 
@@ -691,6 +697,79 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 				a.EcosystemTokens[XMATICTokenID] = XMATICTokenName
 			}
 		}
+
+		if a.Config.SolanaConfig != nil && a.Config.SolanaConfig.IsEnabled {
+			if a.Config.VectorConfig != nil && a.Config.VectorConfig.IsEnabled {
+				a.SolanaInfo.DestChain = map[ChainID][]Direction{
+					ChainIDVector: {
+						{
+							SourceTokenID:      WSOLTokenID,
+							DestinationTokenID: ASOLTokenID,
+							TrackSource:        true,
+							TrackDestination:   false,
+						},
+					},
+				}
+
+				a.SolanaInfo.Tokens = map[uint16]Token{
+					WSOLTokenID: {
+						ChainSpecific:     WSOLMintAddress,
+						LockUnlock:        true,
+						IsWrappedCurrency: true,
+					},
+					SOLTokenID: {
+						ChainSpecific:     cardanowallet.AdaTokenName,
+						LockUnlock:        true,
+						IsWrappedCurrency: false,
+					},
+				}
+
+				a.VectorInfo.DestChain[ChainIDSolana] = []Direction{
+					{
+						SourceTokenID:      ASOLTokenID,
+						DestinationTokenID: WSOLTokenID,
+						TrackSource:        false,
+						TrackDestination:   true,
+					},
+				}
+
+				a.VectorInfo.Tokens[ASOLTokenID] = Token{
+					ChainSpecific:     "",
+					LockUnlock:        false,
+					IsWrappedCurrency: false,
+				}
+
+				a.EcosystemTokens[WSOLTokenID] = WSOLANATokenName
+				a.EcosystemTokens[SOLTokenID] = cardanowallet.AdaTokenName
+				a.EcosystemTokens[ASOLTokenID] = ASOLTokenName
+			}
+
+			if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
+				a.SolanaInfo.DestChain[ChainIDNexus] = []Direction{
+					{
+						SourceTokenID:      WSOLTokenID,
+						DestinationTokenID: ASOLTokenID,
+						TrackSource:        true,
+						TrackDestination:   false,
+					},
+				}
+
+				a.NexusInfo.DestChain[ChainIDSolana] = []Direction{
+					{
+						SourceTokenID:      ASOLTokenID,
+						DestinationTokenID: WSOLTokenID,
+						TrackSource:        false,
+						TrackDestination:   true,
+					},
+				}
+
+				a.NexusInfo.Tokens[ASOLTokenID] = Token{
+					ChainSpecific:     "",
+					LockUnlock:        false,
+					IsWrappedCurrency: false,
+				}
+			}
+		}
 	} else {
 		require.NotNil(t, a.PrimeInfo.GenesisWallet)
 		require.NotNil(t, a.VectorInfo.GenesisWallet)
@@ -1033,6 +1112,7 @@ func (a *ApexSystem) loadChainIDsConfigFile() (*ChainIDsConfigFile, error) {
 		if ((a.Config.CardanoConfig != nil && a.Config.CardanoConfig.IsEnabled) && chainIDConfig.ChainID == ChainIDCardano) ||
 			((a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled) && chainIDConfig.ChainID == ChainIDNexus) ||
 			((a.Config.PolygonConfig != nil && a.Config.PolygonConfig.IsEnabled) && chainIDConfig.ChainID == ChainIDPolygon) ||
+			((a.Config.SolanaConfig != nil && a.Config.SolanaConfig.IsEnabled) && chainIDConfig.ChainID == ChainIDSolana) ||
 			(chainIDConfig.ChainID == ChainIDPrime) || (chainIDConfig.ChainID == ChainIDVector) {
 			chainConfigs = append(chainConfigs, chainIDConfig)
 		}
@@ -1086,6 +1166,14 @@ func (a *ApexSystem) generateDirectionsConfigFile() *DirectionConfigFile {
 			DestinationChain:                      a.PolygonInfo.DestChain,
 			Tokens:                                a.PolygonInfo.Tokens,
 			AlwaysTrackCurrencyAndWrappedCurrency: false,
+		}
+	}
+
+	if a.Config.SolanaConfig != nil && a.Config.SolanaConfig.IsEnabled {
+		directionConfigFile.Directions[ChainIDSolana] = DirectionConfig{
+			DestinationChain:                      a.SolanaInfo.DestChain,
+			Tokens:                                a.SolanaInfo.Tokens,
+			AlwaysTrackCurrencyAndWrappedCurrency: true,
 		}
 	}
 
@@ -1775,7 +1863,8 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		data.SourceChain == ChainIDVector ||
 		data.SourceChain == ChainIDNexus ||
 		data.SourceChain == ChainIDPolygon ||
-		data.SourceChain == ChainIDCardano
+		data.SourceChain == ChainIDCardano ||
+		data.SourceChain == ChainIDSolana
 
 	if !isSourceChainSupported {
 		return "", fmt.Errorf("source chain is not supported")
@@ -1816,6 +1905,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	isSourceChainCardanoType := data.SourceChain == ChainIDCardano ||
 		data.SourceChain == ChainIDPrime || data.SourceChain == ChainIDVector
 	isSourceChainEvmType := data.SourceChain == ChainIDNexus || data.SourceChain == ChainIDPolygon
+	isSourceChainSolanaType := data.SourceChain == ChainIDSolana
 
 	//nolint:gocritic
 	if isSourceChainCardanoType {
@@ -1829,6 +1919,11 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		srcChainInfo := a.GetEvmInfo(data.SourceChain)
 
 		_, ok := srcChainInfo.DestChain[data.DestinationChain]
+		if !ok {
+			return "", fmt.Errorf("invalid bridging direction")
+		}
+	} else if isSourceChainSolanaType {
+		_, ok := a.SolanaInfo.DestChain[data.DestinationChain]
 		if !ok {
 			return "", fmt.Errorf("invalid bridging direction")
 		}
@@ -1955,10 +2050,14 @@ func (a *ApexSystem) GetChainDirectionsAndTokens(chain ChainID) (map[ChainID][]D
 		info := a.GetEvmInfo(chain)
 
 		return info.DestChain, info.Tokens
-	default:
+	case ChainIDCardano, ChainIDPrime, ChainIDVector:
 		info := a.GetCardanoInfo(chain)
 
 		return info.DestChain, info.Tokens
+	case ChainIDSolana:
+		return a.SolanaInfo.DestChain, a.SolanaInfo.Tokens
+	default:
+		return nil, nil
 	}
 }
 
@@ -2259,6 +2358,8 @@ func (a *ApexSystem) GetMinBridgingFee(chainID ChainID, isNativeTokenBridging bo
 		return a.Config.NexusConfig.MinBridgingFee
 	case ChainIDPolygon:
 		return a.Config.PolygonConfig.MinBridgingFee
+	case ChainIDSolana:
+		return a.Config.SolanaConfig.MinBridgingFee
 	default:
 		config := a.getCardanoConfig(chainID)
 
@@ -2276,6 +2377,8 @@ func (a *ApexSystem) GetMinOperationFee(chainID ChainID) *big.Int {
 		return a.Config.NexusConfig.MinOperationFee
 	case ChainIDPolygon:
 		return a.Config.PolygonConfig.MinOperationFee
+	case ChainIDSolana:
+		return a.Config.SolanaConfig.MinOperationFee
 	default:
 		return DfmToWei(new(big.Int).SetUint64(a.getCardanoConfig(chainID).MinOperationFee))
 	}

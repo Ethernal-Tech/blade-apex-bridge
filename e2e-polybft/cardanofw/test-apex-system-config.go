@@ -41,7 +41,10 @@ const (
 	MATICTokenID  uint16 = 14
 	USDCTokenID   uint16 = 15
 	XMATICTokenID uint16 = 16
-	SOLTokenID    uint16 = 17
+
+	SOLTokenID  uint16 = 20
+	WSOLTokenID uint16 = 21
+	ASOLTokenID uint16 = 22
 )
 
 // Human readable token names
@@ -56,6 +59,7 @@ const (
 	XMATICTokenName  = "xMATIC"
 	SOLANATokenName  = "SOL"
 	WSOLANATokenName = "wSOL"
+	ASOLTokenName    = "aSOL"
 
 	WSOLMintAddress = "So11111111111111111111111111111111111111112"
 )

@@ -3,10 +3,12 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"testing"
 	"time"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +24,11 @@ func Test_SkylineSolana(t *testing.T) {
 	defer cncl()
 
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
-	vectorConfig := cardanofw.NewVectorChainConfig()
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{
+		cardanofw.ASOLTokenID: cardanofw.ASOLTokenName,
+		cardanofw.USDTTokenID: cardanofw.USDTTokenName,
+	})
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
 
 	solanaConfig := cardanofw.NewSolanaChainConfig(true)
 
@@ -33,6 +39,7 @@ func Test_SkylineSolana(t *testing.T) {
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithSolanaConfig(solanaConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
 		cardanofw.WithUserCnt(1),
 	)
 
@@ -48,5 +55,11 @@ func Test_SkylineSolana(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Println("solana user wSOL balance: ", balance)
 
-	time.Sleep(60 * time.Second)
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
+		cardanofw.WSOLTokenID, false)
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDNexus, cardanofw.SolanaToWei(big.NewInt(1)),
+		cardanofw.WSOLTokenID, false)
 }

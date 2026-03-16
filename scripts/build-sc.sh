@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BRANCH=feat/skyline
+BRANCH=feat/skyline-solana
 CARDANO_SC_BRANCH=main
 
 # build Apex-bridge smartcontracts
