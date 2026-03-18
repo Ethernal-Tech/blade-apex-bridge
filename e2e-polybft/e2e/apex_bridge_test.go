@@ -1632,14 +1632,13 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		ctx, cncl := context.WithCancel(context.Background())
 		defer cncl()
 
-		initialFundApex := big.NewInt(40)
-		initialFundInDfm := cardanofw.ApexToDfm(initialFundApex).Uint64()
+		initialFundInDfm := cardanofw.ApexToDfm(big.NewInt(100)).Uint64()
 
 		primeConfig, vectorConfig, nexusConfig := cardanofw.NewPrimeChainConfig(),
 			cardanofw.NewVectorChainConfig(), cardanofw.NewNexusChainConfig(true)
 		primeConfig.FundAmount = initialFundInDfm
 		vectorConfig.FundAmount = initialFundInDfm
-		nexusConfig.FundAmount = cardanofw.ApexToWei(initialFundApex)
+		nexusConfig.FundAmount = cardanofw.ApexToWei(big.NewInt(100))
 
 		apex := cardanofw.SetupAndRunReactorBridge(
 			t, ctx,
@@ -1660,10 +1659,9 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		}
 
 		var (
-			defundReceiver   = apex.Users[userCnt-2]
-			apexDefundAmount = big.NewInt(35)
-			apexFundAmount   = big.NewInt(70)
-			apexSendAmount   = big.NewInt(50)
+			defundReceiver          = apex.Users[userCnt-2]
+			apexDefundAndFundAmount = big.NewInt(70)
+			apexSendAmount          = big.NewInt(50)
 
 			bridgingRequests = []*bridingRequest{
 				{src: cardanofw.ChainIDPrime, dest: cardanofw.ChainIDVector, sender: apex.Users[0], amount: apexSendAmount, receiverIdx: 0},
@@ -1677,13 +1675,13 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 		)
 
 		chainPrevAmounts, chainExpectedAmounts, chainReceivers, _, _, _ :=
-			createBridgingData(ctx, apex, bridgingRequests, receivers, defundReceiver, apexDefundAmount)
+			createBridgingData(ctx, apex, bridgingRequests, receivers, defundReceiver, apexDefundAndFundAmount)
 
 		for _, request := range bridgingRequests {
 			bridgeTransactions(ctx, apex, []*bridingRequest{request}, receivers)
 
 			require.NoError(t, apex.DefundHotWallet(
-				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToWei(apexDefundAmount), big.NewInt(0)))
+				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToWei(apexDefundAndFundAmount), big.NewInt(0)))
 		}
 
 		fmt.Printf("Confirming that bridging requests will not be processed\n")
@@ -1694,7 +1692,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			fmt.Printf("As intended, %v TX on %v not yet arrived\n", chainExpectedAmounts[chainKey], chainKey.dstChain)
 		}
 
-		fundWallets(t, ctx, apex, chains, apexFundAmount)
+		fundWallets(t, ctx, apex, chains, apexDefundAndFundAmount)
 
 		errsPerChain = waitOnDestination(ctx, apex, chainPrevAmounts, chainExpectedAmounts, chainReceivers, 200, time.Second*10)
 		for chainKey, err := range errsPerChain {
