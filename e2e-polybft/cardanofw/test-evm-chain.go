@@ -26,6 +26,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
+	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/ethgo/abi"
@@ -790,7 +791,9 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (map
 		return nil, err
 	}
 
-	amount, err := rpc.GetBalance(types.StringToAddress(addr), jsonrpc.LatestBlockNumberOrHash)
+	amount, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*big.Int, error) {
+		return rpc.GetBalance(types.StringToAddress(addr), jsonrpc.LatestBlockNumberOrHash)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -821,15 +824,22 @@ func (ec *TestEVMChain) GetAddressBalanceWithTokenName(
 		return nil, err
 	}
 
-	outHex, err := rpc.Call(&jsonrpc.CallMsg{
-		To:   &tokenAddr,
-		Data: callData,
-	}, jsonrpc.LatestBlockNumber, nil)
-	if err != nil {
-		return nil, err
-	}
+	balance, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*big.Int, error) {
+		outHex, err := rpc.Call(&jsonrpc.CallMsg{
+			To:   &tokenAddr,
+			Data: callData,
+		}, jsonrpc.LatestBlockNumber, nil)
+		if err != nil {
+			return nil, err
+		}
 
-	balance, err := common.ParseUint256orHex(&outHex)
+		balance, err := common.ParseUint256orHex(&outHex)
+		if err != nil {
+			return nil, err
+		}
+
+		return balance, nil
+	})
 	if err != nil {
 		return nil, err
 	}
