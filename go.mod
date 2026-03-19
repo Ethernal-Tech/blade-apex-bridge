@@ -1,6 +1,6 @@
 module github.com/0xPolygon/polygon-edge
 
-go 1.23.6
+go 1.24.1
 
 require (
 	cloud.google.com/go/secretmanager v1.14.5
@@ -10,6 +10,7 @@ require (
 	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20260224131128-283944cfc50a
 	github.com/Ethernal-Tech/ethgo v0.0.0-20240801172627-47215d9e504c
 	github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04
+	github.com/Ethernal-Tech/solana-infrastructure v0.0.0-20260317154935-121ebac06c72
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.10
 	github.com/alibabacloud-go/oos-20190601/v4 v4.4.2
 	github.com/alibabacloud-go/tea v1.3.2
@@ -42,8 +43,8 @@ require (
 	github.com/multiformats/go-multiaddr v0.15.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/prometheus/client_golang v1.21.0
-	github.com/quasilyte/go-ruleguard v0.4.4
-	github.com/quasilyte/go-ruleguard/dsl v0.3.22
+	github.com/quasilyte/go-ruleguard v0.4.5
+	github.com/quasilyte/go-ruleguard/dsl v0.3.23
 	github.com/ryanuber/columnize v2.1.2+incompatible
 	github.com/schollz/progressbar/v3 v3.18.0
 	github.com/sethvargo/go-retry v0.3.0
@@ -54,7 +55,7 @@ require (
 	github.com/umbracle/fastrlp v0.1.1-0.20230504065717-58a1b8a9929d
 	github.com/umbracle/go-eth-bn256 v0.0.0-20230125114011-47cb310d9b0b
 	github.com/valyala/fastjson v1.6.4
-	go.etcd.io/bbolt v1.4.0
+	go.etcd.io/bbolt v1.4.3
 	golang.org/x/crypto v0.35.0
 	golang.org/x/sync v0.11.0
 	golang.org/x/tools v0.30.0
@@ -69,11 +70,22 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129 // indirect
+	github.com/blendle/zapdriver v1.3.1 // indirect
 	github.com/blinklabs-io/gouroboros v0.103.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
+	github.com/gagliardetto/binary v0.8.0 // indirect
+	github.com/gagliardetto/solana-go v1.14.0 // indirect
+	github.com/gagliardetto/treeout v0.1.4 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
+	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
+	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
+	github.com/mostynb/zstdpool-freelist v0.0.0-20201229113212-927304c0c3b1 // indirect
+	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091 // indirect
 	github.com/utxorpc/go-codegen v0.11.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	go.mongodb.org/mongo-driver v1.12.2 // indirect
+	go.uber.org/ratelimit v0.2.0 // indirect
 )
 
 require (
