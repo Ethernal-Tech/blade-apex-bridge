@@ -84,6 +84,9 @@ func (p *Precompiled) setupContracts() {
 	// CardanoVerifySignature precompile
 	p.register(contracts.CardanoVerifySignaturePrecompile.String(), &cardanoVerifySignaturePrecompile{})
 
+	// SolanaVerifySignature precompile
+	p.register(contracts.SolanaVerifySignaturePrecompile.String(), &solanaVerifySignaturePrecompile{})
+
 	// APEX BLS signatures verification precompile
 	p.register(contracts.ApexBLSSignaturesVerificationPrecompile.String(), &apexBLSSignatureVerification{
 		domain: signer.DomainApexBridgeEVM,
