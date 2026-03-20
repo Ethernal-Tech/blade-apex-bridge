@@ -37,6 +37,8 @@ var (
 	CardanoVerifySignaturePrecompile = types.StringToAddress("0x2050")
 	// CardanoVerifySignaturePrecompile is an address of precompile that allows verifying BLS signatures for Apex
 	ApexBLSSignaturesVerificationPrecompile = types.StringToAddress("0x2060")
+	// SolanaVerifySignaturePrecompile is an address of precompile that allows verifying Solana signatures
+	SolanaVerifySignaturePrecompile = types.StringToAddress("0x2070")
 )
 
 func GetApexProxyImplementationMapping() map[types.Address]types.Address {
