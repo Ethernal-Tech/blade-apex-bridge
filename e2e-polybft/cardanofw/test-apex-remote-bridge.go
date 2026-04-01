@@ -356,10 +356,10 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 							LockUnlock:        true,
 							IsWrappedCurrency: false,
 						},
-						XPOLTokenID: {
+						PAP3XTokenID: {
 							ChainSpecific:     "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f", // TODO: desired token address
 							LockUnlock:        false,
-							IsWrappedCurrency: false,
+							IsWrappedCurrency: true,
 						},
 					},
 					DestChain: map[ChainID][]Direction{
@@ -367,14 +367,14 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 							{
 								SourceTokenID:      POLTokenID,
 								DestinationTokenID: XPOLTokenID,
-								TrackSource:        true,
-								TrackDestination:   true,
+								TrackSource:        false,
+								TrackDestination:   false,
 							},
 							{
 								SourceTokenID:      PAP3XTokenID,
 								DestinationTokenID: AP3XTokenID,
-								TrackSource:        true,
-								TrackDestination:   true,
+								TrackSource:        false,
+								TrackDestination:   false,
 							},
 						},
 					},
