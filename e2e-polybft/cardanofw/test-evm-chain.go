@@ -123,11 +123,6 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 				Symbol: XADATokenName,
 			},
 			{
-				ID:     USDCTokenID,
-				Name:   USDCTokenName,
-				Symbol: USDCTokenName,
-			},
-			{
 				ID:     XPOLTokenID,
 				Name:   XPOLTokenName,
 				Symbol: XPOLTokenName,
@@ -196,13 +191,7 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 
 		TreasuryAddress: defaultPolygonTreasuryAddress,
 
-		LockUnlockTokens: []EVMTokenInfo{
-			{
-				ID:     USDCTokenID,
-				Name:   USDCTokenName,
-				Symbol: USDCTokenName,
-			},
-		},
+		LockUnlockTokens: []EVMTokenInfo{},
 		MintTokens: []EVMTokenInfo{
 			{
 				ID:     PAP3XTokenID,

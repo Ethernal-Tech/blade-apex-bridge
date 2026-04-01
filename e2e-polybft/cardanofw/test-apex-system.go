@@ -616,15 +616,11 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 
 			if a.Config.PolygonConfig != nil && a.Config.PolygonConfig.IsEnabled {
 				// In case Polygon is enabled, we need to add:
-				// - Polygon <-> Nexus = wUSDT/USDC/MATIC <-> USDT/wUSDC/xMATIC
+				// - Polygon <-> Nexus = wUSDT/MATIC <-> USDT/xMATIC
 				a.NexusInfo.DestChain[ChainIDPolygon] = []Direction{
 					{
 						SourceTokenID:      USDTTokenID,
 						DestinationTokenID: USDTTokenID,
-					},
-					{
-						SourceTokenID:      USDCTokenID,
-						DestinationTokenID: USDCTokenID,
 					},
 					{
 						SourceTokenID:      XPOLTokenID,
@@ -634,12 +630,6 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						SourceTokenID:      AP3XTokenID,
 						DestinationTokenID: PAP3XTokenID,
 					},
-				}
-
-				a.NexusInfo.Tokens[USDCTokenID] = Token{
-					ChainSpecific:     "",
-					LockUnlock:        false,
-					IsWrappedCurrency: false,
 				}
 
 				a.NexusInfo.Tokens[XPOLTokenID] = Token{
@@ -653,10 +643,6 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						{
 							SourceTokenID:      USDTTokenID,
 							DestinationTokenID: USDTTokenID,
-						},
-						{
-							SourceTokenID:      USDCTokenID,
-							DestinationTokenID: USDCTokenID,
 						},
 						{
 							SourceTokenID:      POLTokenID,
@@ -675,11 +661,6 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						LockUnlock:        false,
 						IsWrappedCurrency: false,
 					},
-					USDCTokenID: {
-						ChainSpecific:     "",
-						LockUnlock:        true,
-						IsWrappedCurrency: false,
-					},
 					POLTokenID: { // currency token on Polygon - required by validatorcomponents
 						ChainSpecific:     cardanowallet.AdaTokenName,
 						LockUnlock:        true,
@@ -692,7 +673,6 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					},
 				}
 
-				a.EcosystemTokens[USDCTokenID] = USDCTokenName
 				a.EcosystemTokens[POLTokenID] = POLTokenName
 				a.EcosystemTokens[XPOLTokenID] = XPOLTokenName
 				a.EcosystemTokens[PAP3XTokenID] = PAP3XTokenName

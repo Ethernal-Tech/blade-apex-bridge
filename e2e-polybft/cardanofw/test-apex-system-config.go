@@ -38,9 +38,8 @@ const (
 	XADATokenID  uint16 = 4
 	USDTTokenID  uint16 = 5
 	POLTokenID   uint16 = 14
-	USDCTokenID  uint16 = 15
-	XPOLTokenID  uint16 = 16
-	PAP3XTokenID uint16 = 17
+	XPOLTokenID  uint16 = 15
+	PAP3XTokenID uint16 = 16
 )
 
 // Human readable token names
@@ -51,7 +50,6 @@ const (
 	XADATokenName  = "xADA"
 	USDTTokenName  = "USDT"
 	POLTokenName   = "POL"
-	USDCTokenName  = "USDC"
 	XPOLTokenName  = "xPOL"
 	PAP3XTokenName = "pAP3X"
 )

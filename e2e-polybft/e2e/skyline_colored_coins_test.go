@@ -210,23 +210,6 @@ func Test_SkylineBridgeCC_General(t *testing.T) {
 			cardanofw.USDTTokenID, true)
 	})
 
-	t.Run("Polygon <-> Nexus USDC <-> wUSDC", func(t *testing.T) {
-		polygonChain := apex.GetChainMust(t, cardanofw.ChainIDPolygon).(*cardanofw.TestEVMChain)
-		err := polygonChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDPolygon), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.USDCTokenID)
-		require.NoError(t, err)
-
-		fmt.Printf("Starting bridging USDC Polygon -> Nexus\n")
-
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.USDCTokenID, true)
-
-		fmt.Printf("Starting bridging USDC Nexus -> Polygon\n")
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.DfmToWei(big.NewInt(1)),
-			cardanofw.USDCTokenID, true)
-	})
-
 	t.Run("Polygon <-> Nexus MATIC <-> xMATIC", func(t *testing.T) {
 		fmt.Printf("Starting bridging MATIC Polygon -> Nexus\n")
 
