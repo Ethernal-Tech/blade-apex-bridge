@@ -297,7 +297,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 							IsWrappedCurrency: false,
 						},
 						XPOLTokenID: {
-							ChainSpecific:     "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0", // TODO: put desired token address
+							ChainSpecific:     "0xD273f181d575aD1a3b9d1f555EA3982b3FBFd825",
 							LockUnlock:        false,
 							IsWrappedCurrency: true,
 						},
@@ -347,9 +347,9 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 			},
 			ChainIDPolygon: {
 				Info: EVMChainInfo{
-					GatewayAddress:           types.StringToAddress("0x53F9124643E3D15f8d753733C5d908CD6aA65178"), // TODO: put desired contract address
-					NativeTokenWalletAddress: types.StringToAddress("0x55f32E6DbDC141fd395555a4238bD15FDC386F8D"), // TODO: put desired contract address
-					JSONRPCAddr:              "https://polygon-amoy.drpc.org",                                     // TODO: maybe this address is not good enough
+					GatewayAddress:           types.StringToAddress("0xb21565df525a795e18C12d49d710766774dAEaDe"),
+					NativeTokenWalletAddress: types.StringToAddress("0x55A1A578fCc44A9E403E6F411CFb2B61A7eef5b2"),
+					JSONRPCAddr:              "https://polygon-amoy.drpc.org",
 					Tokens: map[uint16]Token{
 						POLTokenID: {
 							ChainSpecific:     cardanowallet.AdaTokenName,
@@ -357,7 +357,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 							IsWrappedCurrency: false,
 						},
 						PAP3XTokenID: {
-							ChainSpecific:     "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f", // TODO: desired token address
+							ChainSpecific:     "0x325E3AEf88F57d9DCA1744cEe740cD8104d1814a",
 							LockUnlock:        false,
 							IsWrappedCurrency: true,
 						},

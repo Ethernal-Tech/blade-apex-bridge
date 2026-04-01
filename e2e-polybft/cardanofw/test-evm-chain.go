@@ -162,7 +162,7 @@ func NewRemoteNexusChainConfig(
 		ConfigurableTokens: map[uint16]string{
 			USDTTokenID: "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0",
 			XADATokenID: "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f",
-			XPOLTokenID: "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f", // TODO: put real token address
+			XPOLTokenID: "0xD273f181d575aD1a3b9d1f555EA3982b3FBFd825",
 		},
 	}
 }
@@ -224,7 +224,7 @@ func NewRemotePolygonChainConfig(
 			},
 		},
 		ConfigurableTokens: map[uint16]string{
-			PAP3XTokenID: "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0", // TODO: update with real address
+			PAP3XTokenID: "0x325E3AEf88F57d9DCA1744cEe740cD8104d1814a",
 		},
 	}
 }
