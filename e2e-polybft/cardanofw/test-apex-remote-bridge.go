@@ -651,6 +651,9 @@ func SetupSkylineRemoteBridge(
 			AP3XTokenID:  cardanowallet.AdaTokenName,
 			ADATokenID:   cardanowallet.AdaTokenName,
 			CAP3XTokenID: CAP3XTokenName,
+			POLTokenID:   cardanowallet.AdaTokenName,
+			PAP3XTokenID: PAP3XTokenName,
+			XPOLTokenID:  XPOLTokenName,
 		},
 		chainIDConfigPath: chainIDConfigDir,
 	}
