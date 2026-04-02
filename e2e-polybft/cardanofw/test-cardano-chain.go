@@ -392,7 +392,7 @@ func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) error {
 	)
 
 	if RunRelayerOnValidatorID == validator.ID {
-		ec.relayerAddr, err = validator.RelayerCardanoWalletCreate(ec.ChainID())
+		ec.relayerAddr, err = validator.RelayerWalletCreate(ec.ChainID())
 		if err != nil {
 			return err
 		}

@@ -55,11 +55,27 @@ func Test_SkylineSolana(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Println("solana user wSOL balance: ", balance)
 
+	fmt.Println("Starting bridging SOL -> Vector")
+
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
 		cardanofw.WSOLTokenID, false)
 
+	fmt.Println("Starting bridging Vector -> SOL")
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
+		cardanofw.ASOLTokenID, false)
+
+	fmt.Println("Starting bridging SOL -> Nexus")
+
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDNexus, cardanofw.SolanaToWei(big.NewInt(1)),
 		cardanofw.WSOLTokenID, false)
+
+	fmt.Println("Starting bridging Nexus -> SOL")
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDNexus, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
+		cardanofw.ASOLTokenID, false)
 }

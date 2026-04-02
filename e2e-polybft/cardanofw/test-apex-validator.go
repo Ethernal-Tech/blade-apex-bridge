@@ -22,6 +22,7 @@ import (
 	secretsCardano "github.com/Ethernal-Tech/cardano-infrastructure/secrets"
 	secretsHelper "github.com/Ethernal-Tech/cardano-infrastructure/secrets/helper"
 	cardanoWallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	solanawallet "github.com/Ethernal-Tech/solana-infrastructure/wallet"
 )
 
 const (
@@ -105,13 +106,54 @@ func (cv *TestApexValidator) CardanoWalletCreate(chain ChainID, walletType strin
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
 }
 
-func (cv *TestApexValidator) RelayerCardanoWalletCreate(chain ChainID) (string, error) {
+func (cv *TestApexValidator) SolanaWalletCreate(chain ChainID) (string, error) {
+	args := []string{
+		"wallet-create",
+		"--chain", chain,
+		"--validator-data-dir", cv.server.DataDir(),
+		"--show-pk",
+		"--type", "batcher-solana",
+	}
+
+	var outb bytes.Buffer
+
+	err := RunCommand(ResolveApexBridgeBinary(), args, io.MultiWriter(os.Stdout, &outb))
+	if err != nil {
+		return "", err
+	}
+
+	output := outb.String()
+
+	// Regular expressions for parsing the output
+	pkey := regexp.MustCompile(`Signing Key|\s*=\s*([^\s]+)`)
+
+	pkeyMatches := pkey.FindAllStringSubmatch(output, -1)
+
+	if len(pkeyMatches) == 0 {
+		return "", fmt.Errorf("no pkey found in output")
+	}
+
+	wallet, err := solanawallet.NewWalletFromPrivateKey(pkeyMatches[0][1])
+	if err != nil {
+		return "", fmt.Errorf("failed to create solana wallet: %w", err)
+	}
+
+	return wallet.PublicKey.String(), nil
+}
+
+func (cv *TestApexValidator) RelayerWalletCreate(chain ChainID) (string, error) {
 	args := []string{
 		"wallet-create",
 		"--chain", chain,
 		"--validator-data-dir", cv.GetRelayerDataDir(),
 		"--show-pk",
-		"--type", "relayer-cardano",
+	}
+
+	switch chain {
+	case ChainIDCardano, ChainIDPrime, ChainIDVector:
+		args = append(args, "--type", "relayer-cardano")
+	case ChainIDSolana:
+		args = append(args, "--type", "relayer-solana")
 	}
 
 	var outb bytes.Buffer

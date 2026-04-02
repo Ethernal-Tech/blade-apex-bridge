@@ -95,7 +95,7 @@ func WeiToSolana(wei *big.Int) *big.Int {
 	out := new(big.Int).Set(wei)
 	base := big.NewInt(10)
 
-	return out.Div(out, base.Exp(base, big.NewInt(WeiDecimals-LamportDecimals), nil))
+	return out.Div(out, base.Exp(base, big.NewInt(WeiDecimals), nil))
 }
 
 func WeiToDfm(wei *big.Int) *big.Int {

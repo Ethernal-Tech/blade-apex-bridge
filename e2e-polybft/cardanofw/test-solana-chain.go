@@ -55,8 +55,7 @@ type TestSolanaChainConfig struct {
 	MinOperationFee        *big.Int
 	CurrencyID             uint16
 
-	TreasuryAddress    solana.PublicKey
-	BridgingFeeAddress solana.PublicKey
+	TreasuryAddress solana.PublicKey
 
 	TokensMint map[uint16]string
 }
@@ -66,15 +65,14 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 		ChainID:                ChainIDSolana,
 		IsEnabled:              enabled,
 		StartingPort:           8899,
-		InitialHotWalletAmount: big.NewInt(0),
+		InitialHotWalletAmount: SolanaToWei(big.NewInt(1000)),
 		FundAmount:             LamportToWei(SolanaToLamport(big.NewInt(100000))),
 		MinBridgingFee:         SolanaToLamport(big.NewInt(1)), // 1 SOL
-		MinBridgingAmount:      big.NewInt(1),                  // 1 Lamport
-		MinTokenBridgingAmount: big.NewInt(1),                  // 1 Lamport
+		MinBridgingAmount:      big.NewInt(1_000_000_000),      // 1.000000 SOL
+		MinTokenBridgingAmount: big.NewInt(1_000_000_000),      // 1.000000 SOL
 		MinOperationFee:        big.NewInt(500000000),          // 0.5 SOL
 		CurrencyID:             WSOLTokenID,
 		TreasuryAddress:        solana.MustPublicKeyFromBase58(TreasuryAddress),
-		BridgingFeeAddress:     solana.MustPublicKeyFromBase58("7d5xBAeX92qPugMB5vixR1cy3wpRCxKE7ckShZaJbPPL"),
 		TokensMint: map[uint16]string{
 			WSOLTokenID: WSOLMintAddress, // by default add wSOL to the tokens mint map
 		},
@@ -82,13 +80,15 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 }
 
 type TestSolanaChain struct {
-	config      *TestSolanaChainConfig
-	cluster     *solanafw.TestSolanaCluster
-	admin       *solanawallet.Wallet
-	jsonRPCAddr string
-	gatewayAddr string
-	indexer     e2eindexer.TxsExecutedComponent
-	programID   string
+	config           *TestSolanaChainConfig
+	relayerAddr      string
+	validatorPubKeys []string
+	cluster          *solanafw.TestSolanaCluster
+	admin            *solanawallet.Wallet
+	jsonRPCAddr      string
+	gatewayAddr      string
+	indexer          e2eindexer.TxsExecutedComponent
+	programID        string
 }
 
 var _ ITestApexChain = (*TestSolanaChain)(nil)
@@ -134,15 +134,15 @@ func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string
 		return "", err
 	}
 
-	instructionConfig, err := solsendtx.NewInstructionConfig()
+	relayerAddr, err := solanawallet.PublicKeyFromAddress(sc.relayerAddr)
 	if err != nil {
 		return "", err
 	}
 
-	txSender := solsendtx.NewTxSender(txProvider, solsendtx.ChainConfig{
+	txSender := solsendtx.NewTxSender(txProvider, &solsendtx.ChainConfig{
 		TreasuryAddress:    sc.config.TreasuryAddress,
-		BridgingFeeAddress: sc.config.BridgingFeeAddress,
-	}, instructionConfig)
+		BridgingFeeAddress: relayerAddr,
+	})
 
 	txReceivers := make([]solsendtx.BridgingTxReceiver, 0, len(params.Receivers))
 	for addr, amount := range params.Receivers {
@@ -219,8 +219,25 @@ func (sc *TestSolanaChain) CreateMetadata(senderAddr string,
 	return nil, nil
 }
 
-// wTODO: Implement this for creating wallets on the solana chain
 func (sc *TestSolanaChain) CreateWallets(validator *TestApexValidator) error {
+	var (
+		err error
+	)
+
+	if RunRelayerOnValidatorID == validator.ID {
+		sc.relayerAddr, err = validator.RelayerWalletCreate(sc.ChainID())
+		if err != nil {
+			return err
+		}
+	}
+
+	validatorPubKey, err := validator.SolanaWalletCreate(sc.ChainID())
+	if err != nil {
+		return err
+	}
+
+	sc.validatorPubKeys = append(sc.validatorPubKeys, validatorPubKey)
+
 	return nil
 }
 
@@ -293,30 +310,22 @@ func (sc *TestSolanaChain) initializeProgram(ctx context.Context) error {
 		return fmt.Errorf("get latest blockhash: %w", err)
 	}
 
-	instructionConfig, err := solsendtx.NewInstructionConfig()
+	relayerAddr, err := solanawallet.PublicKeyFromAddress(sc.relayerAddr)
 	if err != nil {
-		return fmt.Errorf("new instruction config: %w", err)
+		return fmt.Errorf("get relayer address: %w", err)
 	}
 
-	txSender := solsendtx.NewTxSender(provider, solsendtx.ChainConfig{
+	txSender := solsendtx.NewTxSender(provider, &solsendtx.ChainConfig{
 		MinOperationFeeAmount: sc.config.MinOperationFee.Uint64(),
 		MinFeeForBridging:     sc.config.MinBridgingFee.Uint64(),
 		MinAmountToBridge:     sc.config.MinTokenBridgingAmount.Uint64(),
 		TreasuryAddress:       sc.config.TreasuryAddress,
-		BridgingFeeAddress:    sc.config.BridgingFeeAddress,
-	}, instructionConfig)
-
-	// wTODO: add validator addresses
-	validators := []string{
-		"EMfgdwVMXfJn8uLYaTwFTaACZmNWLi5NUD4XHK1M24HV",
-		"cUR5xYHWzo4TSAL3vh2A7deVpu4tW1n4fit3mFB574Q",
-		"E3nY5Vnmnsvf8pG4Vubhjusei6aE8usX9CJUpdKvWTpE",
-		"EckTYvzw39pFMoh1xaraY5D3FbDKf1tnsXN5bjingXbh",
-	}
+		BridgingFeeAddress:    relayerAddr,
+	})
 
 	txDto := solsendtx.InitializeDto{
 		AuthorityAddr: sc.admin.PublicKey.String(),
-		Validators:    validators,
+		Validators:    sc.validatorPubKeys,
 		LastID:        0,
 	}
 
@@ -360,15 +369,15 @@ func (sc *TestSolanaChain) registerTokens(ctx context.Context) error {
 		return fmt.Errorf("get latest blockhash: %w", err)
 	}
 
-	instructionConfig, err := solsendtx.NewInstructionConfig()
+	relayerAddr, err := solanawallet.PublicKeyFromAddress(sc.relayerAddr)
 	if err != nil {
-		return fmt.Errorf("new instruction config: %w", err)
+		return fmt.Errorf("get relayer address: %w", err)
 	}
 
-	txSender := solsendtx.NewTxSender(provider, solsendtx.ChainConfig{
+	txSender := solsendtx.NewTxSender(provider, &solsendtx.ChainConfig{
 		TreasuryAddress:    sc.config.TreasuryAddress,
-		BridgingFeeAddress: sc.config.BridgingFeeAddress,
-	}, instructionConfig)
+		BridgingFeeAddress: relayerAddr,
+	})
 
 	for tokenID, tokenMint := range sc.config.TokensMint {
 		txDto := solsendtx.RegisterTokenLockUnlockDto{
@@ -422,7 +431,10 @@ func (sc *TestSolanaChain) FundWallets(ctx context.Context) error {
 
 	solFundAmount := WeiToLamport(sc.config.FundAmount)
 
-	for _, addr := range sc.config.PreminesAddresses {
+	premineAddresses := sc.config.PreminesAddresses
+	premineAddresses = append(premineAddresses, sc.relayerAddr)
+
+	for _, addr := range premineAddresses {
 		if err := sc.airdropSOL(ctx, provider, addr, solFundAmount); err != nil {
 			return fmt.Errorf("airdrop SOL to %s: %w", addr, err)
 		}
@@ -579,7 +591,11 @@ func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexVal
 		"--sol-min-operation-fee", sc.config.MinOperationFee.String(),
 		"--output-dir", validator.GetBridgingConfigsDir(),
 		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
+		"--output-relayer-file-name", RelayerConfigFileName,
+		"--relayer-data-dir", validator.GetRelayerDataDir(),
 		"--dbs-path", dbsPath,
+		"--treasury-address", sc.config.TreasuryAddress.String(),
+		"--fee-addr-bridging", sc.relayerAddr,
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
@@ -606,19 +622,19 @@ func (sc *TestSolanaChain) GetAddressBalance(ctx context.Context, addr string) (
 
 func (sc *TestSolanaChain) GetAddressBalanceWithTokenName(
 	ctx context.Context, addr string, tokenName string) (map[string]*big.Int, error) {
-	mintPubKey, err := solanawallet.PublicKeyFromAddress(tokenName)
-	if err != nil {
-		return nil, fmt.Errorf("GetAddressBalanceWithTokenName parse mint: %w", err)
-	}
-
 	pubKey, err := solanawallet.PublicKeyFromAddress(addr)
 	if err != nil {
 		return nil, fmt.Errorf("GetAddressBalanceWithTokenName parse address: %w", err)
 	}
 
+	mintPubKey, err := solanawallet.PublicKeyFromAddress(tokenName)
+	if err != nil {
+		return nil, fmt.Errorf("GetAddressBalanceWithTokenName parse mint address: %w", err)
+	}
+
 	ata, _, err := solanawallet.FindAssociatedTokenAddress(pubKey, mintPubKey)
 	if err != nil {
-		return nil, fmt.Errorf("GetAddressBalanceWithTokenName find ATA: %w", err)
+		return nil, fmt.Errorf("GetAddressBalanceWithTokenName find associated token address: %w", err)
 	}
 
 	txProvider, err := sc.GetTxProvider()
@@ -626,7 +642,7 @@ func (sc *TestSolanaChain) GetAddressBalanceWithTokenName(
 		return nil, err
 	}
 
-	res, err := txProvider.GetAccountInfo(ctx, ata)
+	res, err := txProvider.GetTokenAccountBalance(ctx, ata)
 	if err != nil {
 		return map[string]*big.Int{tokenName: big.NewInt(0)}, err // return 0 so caller can still log "failed to query"
 	}
@@ -635,7 +651,13 @@ func (sc *TestSolanaChain) GetAddressBalanceWithTokenName(
 		return map[string]*big.Int{tokenName: big.NewInt(0)}, nil
 	}
 
-	return map[string]*big.Int{tokenName: LamportToWei(big.NewInt(int64(res.Value.Lamports)))}, nil
+	amountBigInt, ok := new(big.Int).SetString(res.Value.Amount, 10)
+	if !ok {
+		return map[string]*big.Int{tokenName: big.NewInt(0)},
+			fmt.Errorf("GetAddressBalanceWithTokenName parse amount: %s", res.Value.Amount)
+	}
+
+	return map[string]*big.Int{tokenName: LamportToWei(amountBigInt)}, nil
 }
 
 func (sc *TestSolanaChain) GetAddressToBridgeTo(ctx context.Context, hasTokens bool) (string, error) {
@@ -771,15 +793,15 @@ func (sc *TestSolanaChain) SendTx(
 		return "", err
 	}
 
-	instructionConfig, err := solsendtx.NewInstructionConfig()
+	relayerAddr, err := solanawallet.PublicKeyFromAddress(sc.relayerAddr)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("get relayer address: %w", err)
 	}
 
-	txSender := solsendtx.NewTxSender(txProvider, solsendtx.ChainConfig{
+	txSender := solsendtx.NewTxSender(txProvider, &solsendtx.ChainConfig{
 		TreasuryAddress:    sc.config.TreasuryAddress,
-		BridgingFeeAddress: sc.config.BridgingFeeAddress,
-	}, instructionConfig)
+		BridgingFeeAddress: relayerAddr,
+	})
 
 	for _, receiver := range receivers {
 		if receiver.NativeTokens != nil {

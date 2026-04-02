@@ -705,7 +705,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						{
 							SourceTokenID:      WSOLTokenID,
 							DestinationTokenID: ASOLTokenID,
-							TrackSource:        true,
+							TrackSource:        false, // true
 							TrackDestination:   false,
 						},
 					},
@@ -715,7 +715,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					WSOLTokenID: {
 						ChainSpecific:     WSOLMintAddress,
 						LockUnlock:        true,
-						IsWrappedCurrency: true,
+						IsWrappedCurrency: false, // true
 					},
 					SOLTokenID: {
 						ChainSpecific:     cardanowallet.AdaTokenName,
@@ -729,7 +729,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						SourceTokenID:      ASOLTokenID,
 						DestinationTokenID: WSOLTokenID,
 						TrackSource:        false,
-						TrackDestination:   true,
+						TrackDestination:   false, // true
 					},
 				}
 
@@ -749,7 +749,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					{
 						SourceTokenID:      WSOLTokenID,
 						DestinationTokenID: ASOLTokenID,
-						TrackSource:        true,
+						TrackSource:        false, // true
 						TrackDestination:   false,
 					},
 				}
@@ -759,7 +759,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						SourceTokenID:      ASOLTokenID,
 						DestinationTokenID: WSOLTokenID,
 						TrackSource:        false,
-						TrackDestination:   true,
+						TrackDestination:   false, // true
 					},
 				}
 
@@ -957,6 +957,12 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 	if a.Config.PolygonConfig != nil && a.Config.PolygonConfig.IsEnabled {
 		txSenderChainConfigs[ChainIDPolygon] = sendtx.ChainConfig{
 			DefaultMinFeeForBridging: WeiToDfm(a.Config.PolygonConfig.MinBridgingFee).Uint64(),
+		}
+	}
+
+	if a.Config.SolanaConfig != nil && a.Config.SolanaConfig.IsEnabled {
+		txSenderChainConfigs[ChainIDSolana] = sendtx.ChainConfig{
+			DefaultMinFeeForBridging: WeiToDfm(a.Config.SolanaConfig.MinBridgingFee).Uint64(),
 		}
 	}
 
@@ -1173,7 +1179,7 @@ func (a *ApexSystem) generateDirectionsConfigFile() *DirectionConfigFile {
 		directionConfigFile.Directions[ChainIDSolana] = DirectionConfig{
 			DestinationChain:                      a.SolanaInfo.DestChain,
 			Tokens:                                a.SolanaInfo.Tokens,
-			AlwaysTrackCurrencyAndWrappedCurrency: true,
+			AlwaysTrackCurrencyAndWrappedCurrency: false, // true
 		}
 	}
 
@@ -1874,7 +1880,8 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		data.DestinationChain == ChainIDVector ||
 		data.DestinationChain == ChainIDNexus ||
 		data.DestinationChain == ChainIDPolygon ||
-		data.DestinationChain == ChainIDCardano
+		data.DestinationChain == ChainIDCardano ||
+		data.DestinationChain == ChainIDSolana
 
 	if !isDestinationChainSupported {
 		return "", fmt.Errorf("destination chain is not supported")
