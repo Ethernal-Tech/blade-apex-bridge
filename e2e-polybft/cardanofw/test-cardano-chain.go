@@ -169,6 +169,7 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 
 func NewRemotePrimeChainConfig(
 	defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee uint64,
+	treasuryAddress string,
 ) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:               true,
@@ -179,11 +180,13 @@ func NewRemotePrimeChainConfig(
 		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
 		MinOperationFee:         minOperationFee,
+		TreasuryAddress:         treasuryAddress,
 	}
 }
 
 func NewRemoteVectorChainConfig(
 	defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee uint64,
+	treasuryAddress string,
 ) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:               true,
@@ -194,11 +197,13 @@ func NewRemoteVectorChainConfig(
 		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
 		MinOperationFee:         minOperationFee,
+		TreasuryAddress:         treasuryAddress,
 	}
 }
 
 func NewRemoteCardanoChainConfig(
 	isEnabled bool, defaultMinBridgingFeeAmount, minBridgingFeeAmountForTokens, minOperationFee uint64,
+	treasuryAddress string,
 ) *TestCardanoChainConfig {
 	return &TestCardanoChainConfig{
 		IsEnabled:               isEnabled,
@@ -209,6 +214,7 @@ func NewRemoteCardanoChainConfig(
 		DefaultMinBridgingFee:   defaultMinBridgingFeeAmount,
 		MinBridgingFeeForTokens: minBridgingFeeAmountForTokens,
 		MinOperationFee:         minOperationFee,
+		TreasuryAddress:         treasuryAddress,
 	}
 }
 
@@ -386,7 +392,7 @@ func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) error {
 	)
 
 	if RunRelayerOnValidatorID == validator.ID {
-		ec.relayerAddr, err = validator.RelayerCardanoWalletCreate(ec.ChainID())
+		ec.relayerAddr, err = validator.RelayerWalletCreate(ec.ChainID())
 		if err != nil {
 			return err
 		}

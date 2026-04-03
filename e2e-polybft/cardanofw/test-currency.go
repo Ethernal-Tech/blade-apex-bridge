@@ -3,8 +3,9 @@ package cardanofw
 import "math/big"
 
 const (
-	DfmDecimals = 6
-	WeiDecimals = 18
+	DfmDecimals     = 6
+	WeiDecimals     = 18
+	LamportDecimals = 9
 )
 
 func WeiToChainNativeTokenAmount(chainID string, weiAmount *big.Int) *big.Int {
@@ -49,6 +50,52 @@ func DfmToWei(dfm *big.Int) *big.Int {
 	base := big.NewInt(10)
 
 	return wei.Mul(wei, base.Exp(base, big.NewInt(WeiDecimals-DfmDecimals), nil))
+}
+
+// LamportToWei converts lamports (9 decimals) to wei (18 decimals): 1 SOL = 10^9 lamports = 10^18 wei.
+func LamportToWei(lamport *big.Int) *big.Int {
+	wei := new(big.Int).Set(lamport)
+	base := big.NewInt(10)
+
+	return wei.Mul(wei, base.Exp(base, big.NewInt(WeiDecimals-LamportDecimals), nil))
+}
+
+// WeiToLamport converts wei (18 decimals) to lamports (9 decimals).
+func WeiToLamport(wei *big.Int) *big.Int {
+	lamport := new(big.Int).Set(wei)
+	base := big.NewInt(10)
+
+	return lamport.Div(lamport, base.Exp(base, big.NewInt(WeiDecimals-LamportDecimals), nil))
+}
+
+// SolanaToLamport converts SOL (human unit) to lamports: 1 SOL = 10^9 lamports.
+func SolanaToLamport(solana *big.Int) *big.Int {
+	out := new(big.Int).Set(solana)
+	base := big.NewInt(10)
+
+	return out.Mul(out, base.Exp(base, big.NewInt(LamportDecimals), nil))
+}
+
+// LamportToSolana converts lamports to SOL: 10^9 lamports = 1 SOL.
+func LamportToSolana(lamport *big.Int) *big.Int {
+	out := new(big.Int).Set(lamport)
+	base := big.NewInt(10)
+
+	return out.Div(out, base.Exp(base, big.NewInt(LamportDecimals), nil))
+}
+
+func SolanaToWei(solana *big.Int) *big.Int {
+	out := new(big.Int).Set(solana)
+	base := big.NewInt(10)
+
+	return out.Mul(out, base.Exp(base, big.NewInt(WeiDecimals), nil))
+}
+
+func WeiToSolana(wei *big.Int) *big.Int {
+	out := new(big.Int).Set(wei)
+	base := big.NewInt(10)
+
+	return out.Div(out, base.Exp(base, big.NewInt(WeiDecimals), nil))
 }
 
 func WeiToDfm(wei *big.Int) *big.Int {

@@ -154,6 +154,9 @@ func ExecuteBridgingWaitAfterSubmits(
 	balance, err := apex.GetBalanceWithTokenName(ctx, receiverUser, dstChain, tokensInfo.DstTokenName)
 	require.NoError(t, err)
 
+	initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, srcChain)
+	require.NoError(t, err)
+
 	prevAmount := cardanofw.SetOrDefault(balance[tokensInfo.DstTokenName], big.NewInt(0))
 
 	expectedAmount := prevAmount
@@ -179,6 +182,12 @@ func ExecuteBridgingWaitAfterSubmits(
 
 	err = apex.WaitForExactAmount(ctx, receiverUser, dstChain, expectedAmount,
 		config.timeoutConfig.bridgingNumRetries, config.timeoutConfig.bridgingRetryWaitTime, tokensInfo.DstTokenName)
+
+	if initialTreasuryBalance != nil {
+		err = apex.ValidateTreasuryAddressBalance(ctx, t, srcChain, initialTreasuryBalance, uint64(txCountPerSender))
+		require.NoError(t, err)
+		fmt.Printf("Treasury address balance validated\n")
+	}
 
 	require.NoError(t, err)
 }
@@ -301,6 +310,18 @@ func ExecuteBridgingWaitAfterSubmitsExtended(
 		)
 	}
 
+	initialTreasuryBalances := make(map[string]*big.Int)
+	numberOfBridgingRequestsPerChain := make(map[string]uint64)
+
+	for _, direction := range directions {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, direction.SrcChain)
+		require.NoError(t, err)
+
+		initialTreasuryBalances[direction.SrcChain] = initialTreasuryBalance
+
+		numberOfBridgingRequestsPerChain[direction.SrcChain] += uint64(txCountPerSender)
+	}
+
 	// Send all bridging requests in parallel per direction
 	var wgSend sync.WaitGroup
 
@@ -386,6 +407,16 @@ func ExecuteBridgingWaitAfterSubmitsExtended(
 	}
 
 	wgWait.Wait()
+
+	for _, direction := range directions {
+		if initialTreasuryBalances[direction.SrcChain] != nil {
+			err := apex.ValidateTreasuryAddressBalance(
+				ctx, t, direction.SrcChain,
+				initialTreasuryBalances[direction.SrcChain], numberOfBridgingRequestsPerChain[direction.SrcChain])
+			require.NoError(t, err)
+			fmt.Printf("Treasury address balance validated for %s\n", direction.SrcChain)
+		}
+	}
 }
 
 func ExecuteBridging(
@@ -423,6 +454,18 @@ func ExecuteBridging(
 				big.NewInt(0),
 			)
 		}
+	}
+
+	initialTreasuryBalances := make(map[string]*big.Int)
+	numberOfBridgingRequestsPerChain := make(map[string]uint64)
+
+	for _, pair := range chainPairs {
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, pair.srcChain)
+		require.NoError(t, err)
+
+		initialTreasuryBalances[pair.srcChain] = initialTreasuryBalance
+
+		numberOfBridgingRequestsPerChain[pair.srcChain] += uint64(txCountPerSender) * uint64(len(senderUsers))
 	}
 
 	// send transactions
@@ -596,6 +639,15 @@ func ExecuteBridging(
 	close(closeCh)
 
 	require.NoError(t, errors.Join(errs...))
+
+	for _, pair := range chainPairs {
+		if initialTreasuryBalances[pair.srcChain] != nil {
+			err := apex.ValidateTreasuryAddressBalance(
+				ctx, t, pair.srcChain, initialTreasuryBalances[pair.srcChain], numberOfBridgingRequestsPerChain[pair.srcChain])
+			require.NoError(t, err)
+			fmt.Printf("Treasury address balance validated for %s\n", pair.srcChain)
+		}
+	}
 }
 
 // This allows defining multiple directions between the same src / dst pair
@@ -631,6 +683,8 @@ func ExecuteBridgingExtended(
 
 	dirsRuntime := make([]directionRuntime, len(directions))
 	combosMap := make(map[comboKey]struct{})
+	initialTreasuryBalances := make(map[string]*big.Int)
+	numberOfBridgingRequestsPerChain := make(map[string]uint64)
 
 	for i, d := range directions {
 		tokensInfo, err := apex.GetBridgingTokensInfo(d.SrcChain, d.DstChain, d.SrcTokenID)
@@ -646,6 +700,13 @@ func ExecuteBridgingExtended(
 			dstChain:     d.DstChain,
 			dstTokenName: tokensInfo.DstTokenName,
 		}] = struct{}{}
+
+		initialTreasuryBalance, err := apex.GetTreasuryAddressBalance(ctx, t, d.SrcChain)
+		require.NoError(t, err)
+
+		initialTreasuryBalances[d.SrcChain] = initialTreasuryBalance
+
+		numberOfBridgingRequestsPerChain[d.SrcChain] += uint64(txCountPerSender) * uint64(len(senderUsers))
 	}
 
 	combos := make([]comboKey, 0, len(combosMap))
@@ -916,4 +977,14 @@ func ExecuteBridgingExtended(
 	close(closeCh)
 
 	require.NoError(t, errors.Join(errs...))
+
+	for _, direction := range directions {
+		if initialTreasuryBalances[direction.SrcChain] != nil {
+			err := apex.ValidateTreasuryAddressBalance(
+				ctx, t, direction.SrcChain, initialTreasuryBalances[direction.SrcChain],
+				numberOfBridgingRequestsPerChain[direction.SrcChain])
+			require.NoError(t, err)
+			fmt.Printf("Treasury address balance validated for %s\n", direction.SrcChain)
+		}
+	}
 }

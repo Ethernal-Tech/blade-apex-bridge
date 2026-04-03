@@ -34,7 +34,23 @@ func (c *solanaVerifySignaturePrecompile) run(input []byte, caller types.Address
 		return nil, runtime.ErrInvalidInputData
 	}
 
-	isValid := solana.PublicKey(verifyingKey).Verify(rawTxOrMessage, solana.SignatureFromBytes(signatureBytes))
+	tx, err := solana.TransactionFromBytes(rawTxOrMessage)
+	if err != nil {
+		// check for a raw message
+		isValid := solana.PublicKey(verifyingKey).Verify(rawTxOrMessage, solana.SignatureFromBytes(signatureBytes))
+		if !isValid {
+			return abiBoolFalse, nil
+		}
+
+		return abiBoolTrue, nil
+	}
+
+	message, err := tx.Message.MarshalBinary()
+	if err != nil {
+		return nil, errors.Join(runtime.ErrInvalidInputData, err)
+	}
+
+	isValid := solana.PublicKey(verifyingKey).Verify(message, solana.SignatureFromBytes(signatureBytes))
 	if !isValid {
 		return abiBoolFalse, nil
 	}

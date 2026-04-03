@@ -112,6 +112,12 @@ test-e2e-skyline-bridge-cc: check-go check-npm
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
 	go test -v -timeout=7h ./e2e-polybft/e2e/... -run 'SkylineBridgeCC_'
 
+.PHONY: test-e2e-skyline-solana
+test-e2e-skyline-solana: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=7h ./e2e-polybft/e2e/... -run 'SkylineSolana_'
+
 .PHONY: test-e2e-refund-apex-bridge
 test-e2e-refund-apex-bridge: check-go
 	go build -o artifacts/blade .

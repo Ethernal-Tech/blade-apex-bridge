@@ -9,6 +9,8 @@ on: # yamllint disable-line rule:truthy
       - develop
       - feat/skyline
   pull_request:
+    branches-ignore:
+      - feat/skyline-solana
   workflow_dispatch:
     inputs:
       e2e_apex_test:

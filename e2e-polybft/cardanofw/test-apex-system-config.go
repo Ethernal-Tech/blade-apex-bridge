@@ -16,6 +16,7 @@ const (
 	ChainIDVector  ChainID = "vector"
 	ChainIDNexus   ChainID = "nexus"
 	ChainIDPolygon ChainID = "polygon"
+	ChainIDSolana  ChainID = "solana"
 
 	ChainIDCardano ChainID = "cardano"
 
@@ -40,18 +41,27 @@ const (
 	MATICTokenID  uint16 = 14
 	USDCTokenID   uint16 = 15
 	XMATICTokenID uint16 = 16
+
+	SOLTokenID  uint16 = 20
+	WSOLTokenID uint16 = 21
+	ASOLTokenID uint16 = 22
 )
 
 // Human readable token names
 const (
-	AP3XTokenName   = "AP3X"
-	ADATokenName    = "ADA"
-	CAP3XTokenName  = "cAP3X"
-	XADATokenName   = "xADA"
-	USDTTokenName   = "USDT"
-	MATICTokenName  = "MATIC"
-	USDCTokenName   = "USDC"
-	XMATICTokenName = "xMATIC"
+	AP3XTokenName    = "AP3X"
+	ADATokenName     = "ADA"
+	CAP3XTokenName   = "cAP3X"
+	XADATokenName    = "xADA"
+	USDTTokenName    = "USDT"
+	MATICTokenName   = "MATIC"
+	USDCTokenName    = "USDC"
+	XMATICTokenName  = "xMATIC"
+	SOLANATokenName  = "SOL"
+	WSOLANATokenName = "wSOL"
+	ASOLTokenName    = "aSOL"
+
+	WSOLMintAddress = "So11111111111111111111111111111111111111112"
 )
 
 type ApexSystemConfig struct {
@@ -70,6 +80,8 @@ type ApexSystemConfig struct {
 
 	NexusConfig   *TestEVMChainConfig
 	PolygonConfig *TestEVMChainConfig
+
+	SolanaConfig *TestSolanaChainConfig
 
 	CustomOracleConfigHandler     CustomConfigHandler
 	CustomRelayerConfigHandler    CustomConfigHandler
@@ -160,6 +172,12 @@ func WithPolygonConfig(config *TestEVMChainConfig) ApexSystemOptions {
 	}
 }
 
+func WithSolanaConfig(config *TestSolanaChainConfig) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.SolanaConfig = config
+	}
+}
+
 func WithCustomConfigHandlers(
 	callbackOracle, callbackRelayer, callbackDirections, callbackChainIDs CustomConfigHandler) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
@@ -204,6 +222,7 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 		CardanoConfig: NewCardanoChainConfig(false),
 		NexusConfig:   NewNexusChainConfig(false),
 		PolygonConfig: NewPolygonChainConfig(false),
+		SolanaConfig:  NewSolanaChainConfig(false),
 
 		UserCnt: 10,
 	}
@@ -222,6 +241,7 @@ func getDefaultSkylineSystemConfig() *ApexSystemConfig {
 		CardanoConfig: NewCardanoChainConfig(true),
 		NexusConfig:   NewNexusChainConfig(false),
 		PolygonConfig: NewPolygonChainConfig(false),
+		SolanaConfig:  NewSolanaChainConfig(false),
 
 		UserCnt: 10,
 	}
@@ -244,6 +264,10 @@ func (asc *ApexSystemConfig) ServiceCount() int {
 	}
 
 	if asc.PolygonConfig.IsEnabled {
+		count++
+	}
+
+	if asc.SolanaConfig.IsEnabled {
 		count++
 	}
 
@@ -271,6 +295,10 @@ func (asc *ApexSystemConfig) applyPremineFundingOptions(users []*TestApexUser) {
 		asc.PolygonConfig.PreminesAddresses = make([]types.Address, 0, len(users))
 	}
 
+	if len(asc.SolanaConfig.PreminesAddresses) == 0 {
+		asc.SolanaConfig.PreminesAddresses = make([]string, 0, len(users))
+	}
+
 	for _, user := range users {
 		asc.PrimeConfig.PreminesAddresses = append(asc.PrimeConfig.PreminesAddresses,
 			hex.EncodeToString(user.PrimeAddress.GetBytes()))
@@ -291,6 +319,10 @@ func (asc *ApexSystemConfig) applyPremineFundingOptions(users []*TestApexUser) {
 
 		if user.HasPolygonWallet {
 			asc.PolygonConfig.PreminesAddresses = append(asc.PolygonConfig.PreminesAddresses, user.PolygonAddress)
+		}
+
+		if user.HasSolanaWallet {
+			asc.SolanaConfig.PreminesAddresses = append(asc.SolanaConfig.PreminesAddresses, user.SolanaAddress)
 		}
 	}
 }

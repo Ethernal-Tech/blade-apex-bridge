@@ -28,6 +28,7 @@ import (
 const (
 	ChainTypeCardano = iota
 	ChainTypeEVM
+	ChainTypeSolana
 
 	BatchStateFailedToExecute           = "FailedToExecuteOnDestination"
 	BatchStateIncludedInBatch           = "IncludedInBatch"
@@ -88,6 +89,10 @@ func ResolveApexBridgeBinary() string {
 
 func ResolveBladeBinary() string {
 	return tryResolveFromEnv("BLADE_BINARY", "blade")
+}
+
+func ResolveSPLTokenBinary() string {
+	return tryResolveFromEnv("SPL_TOKEN_BINARY", "spl-token")
 }
 
 func RunCommandContext(

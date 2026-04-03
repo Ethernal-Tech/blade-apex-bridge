@@ -1,0 +1,94 @@
+package e2e
+
+import (
+	"context"
+	"fmt"
+	"math/big"
+	"testing"
+	"time"
+
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
+	"github.com/stretchr/testify/require"
+)
+
+// To run solana tests be sure to have necessary tools installed:
+// https://solana.com/docs/intro/installation
+
+func Test_SkylineSolana(t *testing.T) {
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{
+		cardanofw.ASOLTokenID: cardanofw.ASOLTokenName,
+		cardanofw.USDTTokenID: cardanofw.USDTTokenName,
+	})
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
+
+	solanaConfig := cardanofw.NewSolanaChainConfig(true)
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithSolanaConfig(solanaConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithUserCnt(1),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	fmt.Println("solana user addr: ", apex.Users[0].SolanaAddress)
+	balance, err := apex.GetBalance(ctx, apex.Users[0], cardanofw.ChainIDSolana)
+	require.NoError(t, err)
+	fmt.Println("solana user SOL balance: ", balance)
+	time.Sleep(1 * time.Second)
+
+	balance, err = apex.GetBalanceWithTokenName(ctx, apex.Users[0], cardanofw.ChainIDSolana, cardanofw.WSOLMintAddress)
+	require.NoError(t, err)
+	fmt.Println("solana user wSOL balance: ", balance)
+
+	fmt.Println("Starting bridging SOL -> Vector")
+
+	relayerUser := &cardanofw.TestApexUser{
+		HasSolanaWallet: true,
+		SolanaAddress:   apex.SolanaInfo.RelayerAddress,
+	}
+	relayerBalance, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
+	require.NoError(t, err)
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
+		cardanofw.WSOLTokenID, true)
+
+	relayerBalanceAfter, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
+	require.NoError(t, err)
+
+	diff := new(big.Int).Sub(relayerBalanceAfter["lovelace"], relayerBalance["lovelace"])
+	require.True(t, diff.Cmp(cardanofw.LamportToWei(solanaConfig.MinBridgingFee)) == 0)
+
+	fmt.Println("Starting bridging Vector -> SOL")
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
+		cardanofw.ASOLTokenID, true)
+
+	fmt.Println("Starting bridging SOL -> Nexus")
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDNexus, cardanofw.SolanaToWei(big.NewInt(1)),
+		cardanofw.WSOLTokenID, true)
+
+	fmt.Println("Starting bridging Nexus -> SOL")
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDNexus, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
+		cardanofw.ASOLTokenID, true)
+}
