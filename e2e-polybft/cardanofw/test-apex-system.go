@@ -616,29 +616,23 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 
 			if a.Config.PolygonConfig != nil && a.Config.PolygonConfig.IsEnabled {
 				// In case Polygon is enabled, we need to add:
-				// - Polygon <-> Nexus = wUSDT/USDC/MATIC <-> USDT/wUSDC/xMATIC
+				// - Polygon <-> Nexus = wUSDT/MATIC <-> USDT/xMATIC
 				a.NexusInfo.DestChain[ChainIDPolygon] = []Direction{
 					{
 						SourceTokenID:      USDTTokenID,
 						DestinationTokenID: USDTTokenID,
 					},
 					{
-						SourceTokenID:      USDCTokenID,
-						DestinationTokenID: USDCTokenID,
+						SourceTokenID:      XPOLTokenID,
+						DestinationTokenID: POLTokenID,
 					},
 					{
-						SourceTokenID:      XMATICTokenID,
-						DestinationTokenID: MATICTokenID,
+						SourceTokenID:      AP3XTokenID,
+						DestinationTokenID: PAP3XTokenID,
 					},
 				}
 
-				a.NexusInfo.Tokens[USDCTokenID] = Token{
-					ChainSpecific:     "",
-					LockUnlock:        false,
-					IsWrappedCurrency: false,
-				}
-
-				a.NexusInfo.Tokens[XMATICTokenID] = Token{
+				a.NexusInfo.Tokens[XPOLTokenID] = Token{
 					ChainSpecific:     "",
 					LockUnlock:        false,
 					IsWrappedCurrency: true,
@@ -651,12 +645,12 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 							DestinationTokenID: USDTTokenID,
 						},
 						{
-							SourceTokenID:      USDCTokenID,
-							DestinationTokenID: USDCTokenID,
+							SourceTokenID:      POLTokenID,
+							DestinationTokenID: XPOLTokenID,
 						},
 						{
-							SourceTokenID:      MATICTokenID,
-							DestinationTokenID: XMATICTokenID,
+							SourceTokenID:      PAP3XTokenID,
+							DestinationTokenID: AP3XTokenID,
 						},
 					},
 				}
@@ -667,21 +661,21 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						LockUnlock:        false,
 						IsWrappedCurrency: false,
 					},
-					USDCTokenID: {
-						ChainSpecific:     "",
-						LockUnlock:        true,
-						IsWrappedCurrency: false,
-					},
-					MATICTokenID: { // currency token on Polygon - required by validatorcomponents
+					POLTokenID: { // currency token on Polygon - required by validatorcomponents
 						ChainSpecific:     cardanowallet.AdaTokenName,
 						LockUnlock:        true,
 						IsWrappedCurrency: false,
 					},
+					PAP3XTokenID: {
+						ChainSpecific:     "",
+						LockUnlock:        false,
+						IsWrappedCurrency: true,
+					},
 				}
 
-				a.EcosystemTokens[USDCTokenID] = USDCTokenName
-				a.EcosystemTokens[MATICTokenID] = MATICTokenName
-				a.EcosystemTokens[XMATICTokenID] = XMATICTokenName
+				a.EcosystemTokens[POLTokenID] = POLTokenName
+				a.EcosystemTokens[XPOLTokenID] = XPOLTokenName
+				a.EcosystemTokens[PAP3XTokenID] = PAP3XTokenName
 			}
 		}
 	} else {

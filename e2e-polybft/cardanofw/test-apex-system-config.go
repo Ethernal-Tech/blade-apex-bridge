@@ -32,26 +32,26 @@ const (
 // Token IDs
 // 6-13 token IDs are registered tokens used only on web
 const (
-	AP3XTokenID   uint16 = 1
-	ADATokenID    uint16 = 2
-	CAP3XTokenID  uint16 = 3
-	XADATokenID   uint16 = 4
-	USDTTokenID   uint16 = 5
-	MATICTokenID  uint16 = 14
-	USDCTokenID   uint16 = 15
-	XMATICTokenID uint16 = 16
+	AP3XTokenID  uint16 = 1
+	ADATokenID   uint16 = 2
+	CAP3XTokenID uint16 = 3
+	XADATokenID  uint16 = 4
+	USDTTokenID  uint16 = 5
+	POLTokenID   uint16 = 14
+	XPOLTokenID  uint16 = 15
+	PAP3XTokenID uint16 = 16
 )
 
 // Human readable token names
 const (
-	AP3XTokenName   = "AP3X"
-	ADATokenName    = "ADA"
-	CAP3XTokenName  = "cAP3X"
-	XADATokenName   = "xADA"
-	USDTTokenName   = "USDT"
-	MATICTokenName  = "MATIC"
-	USDCTokenName   = "USDC"
-	XMATICTokenName = "xMATIC"
+	AP3XTokenName  = "AP3X"
+	ADATokenName   = "ADA"
+	CAP3XTokenName = "cAP3X"
+	XADATokenName  = "xADA"
+	USDTTokenName  = "USDT"
+	POLTokenName   = "POL"
+	XPOLTokenName  = "xPOL"
+	PAP3XTokenName = "pAP3X"
 )
 
 type ApexSystemConfig struct {

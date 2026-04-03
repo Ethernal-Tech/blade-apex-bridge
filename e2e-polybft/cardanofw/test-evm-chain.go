@@ -71,6 +71,7 @@ type TestEVMChainConfig struct {
 	MinBridgingAmount      *big.Int
 	MinTokenBridgingAmount *big.Int
 	MinOperationFee        *big.Int
+	FeeAddrBridging        *big.Int
 	CurrencyID             uint16
 
 	TreasuryAddress string
@@ -122,14 +123,9 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 				Symbol: XADATokenName,
 			},
 			{
-				ID:     USDCTokenID,
-				Name:   USDCTokenName,
-				Symbol: USDCTokenName,
-			},
-			{
-				ID:     XMATICTokenID,
-				Name:   XMATICTokenName,
-				Symbol: XMATICTokenName,
+				ID:     XPOLTokenID,
+				Name:   XPOLTokenName,
+				Symbol: XPOLTokenName,
 			},
 		},
 	}
@@ -157,10 +153,16 @@ func NewRemoteNexusChainConfig(
 				Name:   XADATokenName,
 				Symbol: XADATokenName,
 			},
+			{
+				ID:     XPOLTokenID,
+				Name:   XPOLTokenName,
+				Symbol: XPOLTokenName,
+			},
 		},
 		ConfigurableTokens: map[uint16]string{
 			USDTTokenID: "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0",
 			XADATokenID: "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f",
+			XPOLTokenID: "0xD273f181d575aD1a3b9d1f555EA3982b3FBFd825",
 		},
 	}
 }
@@ -180,27 +182,49 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
 		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
 		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
-		MinBridgingFee:         defaultMinBridgingFeeAmount,
+		MinBridgingFee:         defaultMinBridgingFeeAmountPolygon,
 		MinBridgingAmount:      MinUTxODefaultValue,
 		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
 		MinOperationFee:        DfmToWei(DefaultMinOperationFee),
-		CurrencyID:             MATICTokenID,
+		CurrencyID:             POLTokenID,
+		FeeAddrBridging:        defaultFeeAddrBridgingAmount,
 
 		TreasuryAddress: defaultPolygonTreasuryAddress,
 
-		LockUnlockTokens: []EVMTokenInfo{
-			{
-				ID:     USDCTokenID,
-				Name:   USDCTokenName,
-				Symbol: USDCTokenName,
-			},
-		},
+		LockUnlockTokens: []EVMTokenInfo{},
 		MintTokens: []EVMTokenInfo{
+			{
+				ID:     PAP3XTokenID,
+				Name:   PAP3XTokenName,
+				Symbol: PAP3XTokenName,
+			},
 			{
 				ID:     USDTTokenID,
 				Name:   USDTTokenName,
 				Symbol: USDTTokenName,
 			},
+		},
+	}
+}
+
+func NewRemotePolygonChainConfig(
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string) *TestEVMChainConfig {
+	return &TestEVMChainConfig{
+		IsEnabled:       isEnabled,
+		ChainID:         ChainIDPolygon,
+		MinBridgingFee:  minBridgingFeeAmount,
+		MinOperationFee: minOperationFee,
+		CurrencyID:      POLTokenID,
+		TreasuryAddress: treasuryAddress,
+		MintTokens: []EVMTokenInfo{
+			{
+				ID:     PAP3XTokenID,
+				Name:   PAP3XTokenName,
+				Symbol: PAP3XTokenName,
+			},
+		},
+		ConfigurableTokens: map[uint16]string{
+			PAP3XTokenID: "0x325E3AEf88F57d9DCA1744cEe740cD8104d1814a",
 		},
 	}
 }
@@ -760,6 +784,13 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 		"--relayer-data-dir", validator.server.DataDir(),
 		"--evm-min-fee-for-bridging", ec.config.MinBridgingFee.String(),
 		"--min-operation-fee", ec.config.MinOperationFee.String(),
+	}
+
+	if ec.config.FeeAddrBridging != nil {
+		args = append(args,
+			"--evm-fee-addr-bridging",
+			ec.config.FeeAddrBridging.String(),
+		)
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
