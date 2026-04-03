@@ -57,25 +57,38 @@ func Test_SkylineSolana(t *testing.T) {
 
 	fmt.Println("Starting bridging SOL -> Vector")
 
+	relayerUser := &cardanofw.TestApexUser{
+		HasSolanaWallet: true,
+		SolanaAddress:   apex.SolanaInfo.RelayerAddress,
+	}
+	relayerBalance, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
+	require.NoError(t, err)
+
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
-		cardanofw.WSOLTokenID, false)
+		cardanofw.WSOLTokenID, true)
+
+	relayerBalanceAfter, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
+	require.NoError(t, err)
+
+	diff := new(big.Int).Sub(relayerBalanceAfter["lovelace"], relayerBalance["lovelace"])
+	require.True(t, diff.Cmp(cardanofw.LamportToWei(solanaConfig.MinBridgingFee)) == 0)
 
 	fmt.Println("Starting bridging Vector -> SOL")
 
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
-		cardanofw.ASOLTokenID, false)
+		cardanofw.ASOLTokenID, true)
 
 	fmt.Println("Starting bridging SOL -> Nexus")
 
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDNexus, cardanofw.SolanaToWei(big.NewInt(1)),
-		cardanofw.WSOLTokenID, false)
+		cardanofw.WSOLTokenID, true)
 
 	fmt.Println("Starting bridging Nexus -> SOL")
 
 	e2ehelper.ExecuteSingleBridging(
 		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDNexus, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
-		cardanofw.ASOLTokenID, false)
+		cardanofw.ASOLTokenID, true)
 }

@@ -109,8 +109,9 @@ type EVMChainInfo struct {
 }
 
 type SolanaChainInfo struct {
-	DestChain map[ChainID][]Direction
-	Tokens    map[uint16]Token
+	DestChain      map[ChainID][]Direction
+	Tokens         map[uint16]Token
+	RelayerAddress string
 }
 
 type ApexSystem struct {
@@ -1447,20 +1448,40 @@ func (a *ApexSystem) ValidateTreasuryAddressBalance(
 ) error {
 	t.Helper()
 
-	treasuryBalance, err := a.GetTreasuryAddressBalance(ctx, t, chainID)
-	if err != nil {
-		return err
+	opFee := a.GetMinOperationFee(chainID)
+	if chainID == ChainIDSolana {
+		opFee = LamportToWei(opFee)
 	}
 
 	expectedBalance := new(big.Int).Add(previousBalance,
 		new(big.Int).Mul(new(big.Int).SetUint64(numberOfBridgingRequests),
-			a.GetMinOperationFee(chainID)))
+			opFee))
 
-	if treasuryBalance.Cmp(expectedBalance) != 0 {
-		return fmt.Errorf("treasury address balance mismatch: expected %s, but received %s", expectedBalance, treasuryBalance)
+	timeout := time.NewTimer(1 * time.Minute)
+	defer timeout.Stop()
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		treasuryBalance, err := a.GetTreasuryAddressBalance(ctx, t, chainID)
+		if err != nil {
+			return err
+		}
+
+		if treasuryBalance.Cmp(expectedBalance) == 0 {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timeout.C:
+			return fmt.Errorf("treasury address balance mismatch: expected %s, but received %s",
+				expectedBalance, treasuryBalance)
+		case <-ticker.C:
+		}
 	}
-
-	return nil
 }
 
 func (a *ApexSystem) GetBalanceWithTokenName(

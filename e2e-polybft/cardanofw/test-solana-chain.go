@@ -125,7 +125,6 @@ func (sc *TestSolanaChain) GetTreasuryAddress() string {
 	return sc.config.TreasuryAddress.String()
 }
 
-// wTODO: Implement this for sending bridging requests to the solana chain
 func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string, error) {
 	fmt.Println("bridging request: ", params)
 
@@ -617,7 +616,7 @@ func (sc *TestSolanaChain) GetAddressBalance(ctx context.Context, addr string) (
 		return nil, err
 	}
 
-	return map[string]*big.Int{addr: LamportToWei(big.NewInt(int64(balance)))}, nil
+	return map[string]*big.Int{carwallet.AdaTokenName: LamportToWei(big.NewInt(int64(balance)))}, nil
 }
 
 func (sc *TestSolanaChain) GetAddressBalanceWithTokenName(
@@ -664,7 +663,6 @@ func (sc *TestSolanaChain) GetAddressToBridgeTo(ctx context.Context, hasTokens b
 	return sc.gatewayAddr, nil
 }
 
-// wTODO: Implement this for getting the admin private key on the solana chain
 func (sc *TestSolanaChain) GetAdminPrivateKey() (string, error) {
 	if sc.admin == nil {
 		return "", fmt.Errorf("admin private key is not set")
@@ -737,20 +735,19 @@ func (sc *TestSolanaChain) GetServerMust(t *testing.T, indx int) ITestApexChainS
 	return sc.cluster.Servers[indx]
 }
 
-// wTODO: Implement this for initializing solana contract
 func (sc *TestSolanaChain) InitContracts(
 	ctx context.Context, bridgeAdmin *crypto.ECDSAKey, bridgeURL string, chainIDsConfig string) error {
 	return nil
 }
 
-// wTODO: Implement this when SolanaInfo is added to the ApexSystem
-func (*TestSolanaChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error {
+func (sc *TestSolanaChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error {
 	t.Helper()
+
+	apexSystem.SolanaInfo.RelayerAddress = sc.relayerAddr
 
 	return nil
 }
 
-// wTODO: Implement this for registering the solana chain
 func (sc *TestSolanaChain) RegisterChain(validator *TestApexValidator) error {
 	return validator.RegisterChain(
 		sc.ChainID(), sc.config.InitialHotWalletAmount, big.NewInt(0), ChainTypeSolana)
@@ -833,11 +830,11 @@ func (sc *TestSolanaChain) SendTx(
 			if err != nil {
 				return "", err
 			}
-		}
-
-		err := tokenTransfer(ctx, txProvider, txSender, wallet, receiver)
-		if err != nil {
-			return "", err
+		} else {
+			err := tokenTransfer(ctx, txProvider, txSender, wallet, receiver)
+			if err != nil {
+				return "", err
+			}
 		}
 	}
 
