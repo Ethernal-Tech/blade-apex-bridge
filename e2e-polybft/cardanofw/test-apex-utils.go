@@ -587,6 +587,43 @@ func ChainIDToInt(chainID string) uint8 {
 	}
 }
 
+func populateEvmTokenBalances(
+	ctx context.Context,
+	apex *ApexSystem,
+	user *TestApexUser,
+	chain ChainID,
+	addr string,
+	balance map[string]*big.Int,
+) (map[string]*big.Int, []error) {
+	if balance == nil {
+		balance = make(map[string]*big.Int)
+	}
+
+	var errs []error
+
+	for _, token := range apex.GetEvmInfo(chain).Tokens {
+		name := token.ChainSpecific
+		if name == wallet.AdaTokenName {
+			continue
+		}
+
+		byToken, err := apex.GetBalanceWithTokenName(ctx, user, chain, name)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to get balance for (%s, %s): %w", chain, addr, err))
+
+			continue
+		}
+
+		if byToken != nil {
+			if v := byToken[name]; v != nil {
+				balance[name] = v
+			}
+		}
+	}
+
+	return balance, errs
+}
+
 func GetUsersBalances(
 	ctx context.Context, apex *ApexSystem, chains []ChainID, users []*TestApexUser,
 ) (map[string]map[string]*big.Int, error) {
@@ -615,20 +652,9 @@ func GetUsersBalances(
 					},
 				)
 
-				if chain == ChainIDNexus || chain == ChainIDPolygon {
-					chainInfo := apex.GetEvmInfo(chain)
-					for _, token := range chainInfo.Tokens {
-						if token.ChainSpecific == wallet.AdaTokenName {
-							continue
-						}
-
-						tokenBalance, err := apex.GetBalanceWithTokenName(ctx, user, chain, token.ChainSpecific)
-						if err != nil {
-							errs = append(errs, fmt.Errorf("failed to get balance for (%s, %s): %w", chain, addr, err))
-						}
-
-						balance[token.ChainSpecific] = tokenBalance[token.ChainSpecific]
-					}
+				var tokenErrs []error
+				if err == nil && (chain == ChainIDNexus || chain == ChainIDPolygon) {
+					balance, tokenErrs = populateEvmTokenBalances(ctx, apex, user, chain, addr, balance)
 				}
 
 				mu.Lock()
@@ -637,6 +663,7 @@ func GetUsersBalances(
 				if err != nil {
 					errs = append(errs, fmt.Errorf("failed to get balance for (%s, %s): %w", chain, addr, err))
 				} else {
+					errs = append(errs, tokenErrs...)
 					balances[addr] = balance
 				}
 			}(user, chain, user.GetAddress(chain))

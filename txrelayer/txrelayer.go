@@ -25,6 +25,9 @@ const (
 	feeIncreasePercentage      = 30
 	DefaultTimeoutTransactions = 50 * time.Second
 	DefaultPollFreq            = 1 * time.Second
+
+	gasPriceRPCMaxRetries     = 6
+	gasPriceRPCRetryBaseDelay = 400 * time.Millisecond
 )
 
 var (
@@ -35,6 +38,53 @@ var (
 	// from sending dynamic fee tx to legacy tx
 	dynamicFeeTxFallbackErrs = []error{types.ErrTxTypeNotSupported, errMethodNotFound}
 )
+
+func isRetryableGasPriceRPCError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := err.Error()
+
+	return strings.Contains(msg, "status code is 500") ||
+		strings.Contains(strings.ToLower(msg), "temporary internal error") ||
+		strings.Contains(msg, `"code":19`) ||
+		strings.Contains(msg, `"code": 19`)
+}
+
+func (t *TxRelayerImpl) gasPriceWithRetry() (uint64, error) {
+	var lastErr error
+
+	for attempt := 0; attempt < gasPriceRPCMaxRetries; attempt++ {
+		gp, err := t.Client().GasPrice()
+		if err == nil {
+			return gp, nil
+		}
+
+		lastErr = err
+
+		if !isRetryableGasPriceRPCError(err) {
+			return 0, err
+		}
+
+		if attempt == gasPriceRPCMaxRetries-1 {
+			break
+		}
+
+		if t.writer != nil {
+			_, _ = fmt.Fprintf(t.writer,
+				"[TxRelayer] eth_gasPrice retry %d/%d after transient RPC error: %v\n",
+				attempt+1, gasPriceRPCMaxRetries, err)
+		}
+
+		// Exponential backoff: wait base × 1, then × 2, × 4, … before the next eth_gasPrice attempt.
+		select {
+		case <-time.After(gasPriceRPCRetryBaseDelay * time.Duration(1<<attempt)):
+		}
+	}
+
+	return 0, fmt.Errorf("eth_gasPrice failed after %d attempts: %w", gasPriceRPCMaxRetries, lastErr)
+}
 
 type TxRelayer interface {
 	// Call executes a message call immediately without creating a transaction on the blockchain
@@ -224,7 +274,7 @@ func (t *TxRelayerImpl) sendTransactionLocked(txn *types.Transaction, key crypto
 			txn.SetGasFeeCap(new(big.Int).Add(maxFeePerGas, compMaxFeePerGas))
 		}
 	} else if txn.GasPrice() == nil || txn.GasPrice().Uint64() == 0 {
-		gasPrice, err := t.Client().GasPrice()
+		gasPrice, err := t.gasPriceWithRetry()
 		if err != nil {
 			return types.ZeroHash, fmt.Errorf("failed to get gas price: %w", err)
 		}
