@@ -119,7 +119,7 @@ func (tc blsVerifyTestCase) ToSCData() (*blsVerifySCData, error) {
 	}, nil
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_Hardcoded_Valid(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_Hardcoded_Valid(t *testing.T) {
 	hardcodedTestCase, err := getHardcodedTestCase()
 	require.NoError(t, err)
 
@@ -131,7 +131,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_Hardcoded_Valid(t *testing.T) {
 	require.True(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_Hardcoded_Invalid(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_Hardcoded_Invalid(t *testing.T) {
 	hardcodedTestCase, err := getHardcodedTestCase()
 	require.NoError(t, err)
 
@@ -149,7 +149,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_Hardcoded_Invalid(t *testing.T) 
 	require.False(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_Valid(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_Valid(t *testing.T) {
 	testCase, err := generateTestCase(randomValCnt())
 	require.NoError(t, err)
 
@@ -164,7 +164,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_Valid(t *testing.T) {
 	require.True(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_WrongSig(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_WrongSig(t *testing.T) {
 	testCase, err := generateTestCase(randomValCnt())
 	require.NoError(t, err)
 
@@ -196,7 +196,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_WrongSig(t *testing.T) {
 	require.False(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_WrongDomain(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_WrongDomain(t *testing.T) {
 	testCase, err := generateTestCase(randomValCnt())
 	require.NoError(t, err)
 
@@ -224,7 +224,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_WrongDomain(t *testing.T) {
 	require.False(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_WrongMsg(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_WrongMsg(t *testing.T) {
 	testCase, err := generateTestCase(randomValCnt())
 	require.NoError(t, err)
 
@@ -253,7 +253,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_WrongMsg(t *testing.T) {
 	require.False(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_WrongBitmap(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_WrongBitmap(t *testing.T) {
 	valCnt := randomValCnt()
 	testCase, err := generateTestCase(valCnt)
 	require.NoError(t, err)
@@ -296,7 +296,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_WrongBitmap(t *testing.T) {
 	require.False(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_ReplaceWithWrongValidator(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_ReplaceWithWrongValidator(t *testing.T) {
 	testCase, err := generateTestCase(randomValCnt())
 	require.NoError(t, err)
 
@@ -327,7 +327,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_ReplaceWithWrongValidator(t *tes
 	require.False(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_WrongValidatorAddedToStart(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_WrongValidatorAddedToStart(t *testing.T) {
 	testCase, err := generateTestCase(randomValCnt())
 	require.NoError(t, err)
 
@@ -358,7 +358,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_WrongValidatorAddedToStart(t *te
 	require.False(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_SomeValidatorsRemoved(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_SomeValidatorsRemoved(t *testing.T) {
 	testCase, err := generateTestCase(randomValCnt())
 	require.NoError(t, err)
 
@@ -386,7 +386,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_SomeValidatorsRemoved(t *testing
 	require.False(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_ReplaceWithWrongSignature(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_ReplaceWithWrongSignature(t *testing.T) {
 	testCase, err := generateTestCase(randomValCnt())
 	require.NoError(t, err)
 
@@ -424,7 +424,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_ReplaceWithWrongSignature(t *tes
 	require.False(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_WrongSignatureAddedToStart(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_WrongSignatureAddedToStart(t *testing.T) {
 	testCase, err := generateTestCase(randomValCnt())
 	require.NoError(t, err)
 
@@ -462,7 +462,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_WrongSignatureAddedToStart(t *te
 	require.False(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_SomeSignaturesRemoved(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_SomeSignaturesRemoved(t *testing.T) {
 	testCase, err := generateTestCase(randomValCnt())
 	require.NoError(t, err)
 
@@ -491,7 +491,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_SomeSignaturesRemoved(t *testing
 	require.False(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_QuorumCheck_1(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_QuorumCheck_1(t *testing.T) {
 	testCase, err := generateTestCase(randomValCnt())
 	require.NoError(t, err)
 
@@ -521,7 +521,7 @@ func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_QuorumCheck_1(t *testing.T) {
 	require.False(t, isValid)
 }
 
-func TestE2E_SkylineTestnetBridge_SC_BLS_Verify_QuorumCheck_2(t *testing.T) {
+func TestE2E_Testnet_SC_BLS_Verify_QuorumCheck_2(t *testing.T) {
 	testCase, err := generateTestCase(randomValCnt())
 	require.NoError(t, err)
 
