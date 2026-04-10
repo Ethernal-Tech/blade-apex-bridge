@@ -558,6 +558,7 @@ func generateTestCase(totalValCnt uint32) (*blsVerifyTestCase, error) {
 	}
 
 	domainStr := randomString(10)
+
 	domain, err := Keccak256([]byte(domainStr))
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate domain: %w", err)
@@ -579,6 +580,7 @@ func generateTestCase(totalValCnt uint32) (*blsVerifyTestCase, error) {
 	quorumCnt := totalValCnt*2/3 + 1
 
 	signatures := make(bn256.Signatures, quorumCnt)
+
 	for i := range quorumCnt {
 		sig, err := validatorPKs[i].Sign(msg, domain)
 		if err != nil {
@@ -733,7 +735,7 @@ func Keccak256(v ...[]byte) ([]byte, error) {
 const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 func randomString(length int) string {
-	rand.New(rand.NewSource(time.Now().UnixNano()))
+	rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
 	b := make([]byte, length)
 
