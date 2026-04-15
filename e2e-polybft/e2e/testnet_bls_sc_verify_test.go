@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo/abi"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/sha3"
 )
 
 // contract: https://github.com/Ethernal-Tech/apex-evm-gateway/blob/feat/bls_checker/contracts/BLSChecker.sol
@@ -403,8 +403,7 @@ func TestE2E_Testnet_SC_BLS_Verify_ReplaceWithWrongSignature(t *testing.T) {
 	key, err := bn256.GeneratePrivateKey()
 	require.NoError(t, err)
 
-	domain, err := Keccak256([]byte(testCase.domain))
-	require.NoError(t, err)
+	domain := crypto.Keccak256([]byte(testCase.domain))
 
 	sig, err := key.Sign(testCase.message, domain)
 	require.NoError(t, err)
@@ -441,8 +440,7 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongSignatureAddedToStart(t *testing.T) {
 	key, err := bn256.GeneratePrivateKey()
 	require.NoError(t, err)
 
-	domain, err := Keccak256([]byte(testCase.domain))
-	require.NoError(t, err)
+	domain := crypto.Keccak256([]byte(testCase.domain))
 
 	sig, err := key.Sign(testCase.message, domain)
 	require.NoError(t, err)
@@ -552,17 +550,11 @@ func TestE2E_Testnet_SC_BLS_Verify_QuorumCheck_2(t *testing.T) {
 }
 
 func generateTestCase(totalValCnt uint32) (*blsVerifyTestCase, error) {
-	msg, err := Keccak256([]byte(randomString(20)))
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate msg: %w", err)
-	}
+	msg := crypto.Keccak256([]byte(randomString(20)))
 
 	domainStr := randomString(10)
 
-	domain, err := Keccak256([]byte(domainStr))
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate domain: %w", err)
-	}
+	domain := crypto.Keccak256([]byte(domainStr))
 
 	validatorPKs := make([]*bn256.PrivateKey, totalValCnt)
 	validatorPubKeys := make([]validatorChainData, totalValCnt)
@@ -717,19 +709,6 @@ func callBLSVerifySC(rpcURL string, contractAddrStr string, data *blsVerifySCDat
 	}
 
 	return res.BitLen() > 0, nil
-}
-
-func Keccak256(v ...[]byte) ([]byte, error) {
-	h := sha3.NewLegacyKeccak256()
-
-	for _, i := range v {
-		_, err := h.Write(i)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return h.Sum(nil), nil
 }
 
 const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
