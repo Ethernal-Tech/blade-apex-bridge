@@ -42,9 +42,12 @@ const (
 	USDCTokenID   uint16 = 15
 	XMATICTokenID uint16 = 16
 
-	SOLTokenID  uint16 = 20
-	WSOLTokenID uint16 = 21
-	ASOLTokenID uint16 = 22
+	SOLTokenID   uint16 = 20
+	WSOLTokenID  uint16 = 21
+	ASOLTokenID  uint16 = 22
+	SAP3XTokenID uint16 = 23
+	VSTokenID    uint16 = 24
+	NSTokenID    uint16 = 25
 )
 
 // Human readable token names
@@ -60,8 +63,10 @@ const (
 	SOLANATokenName  = "SOL"
 	WSOLANATokenName = "wSOL"
 	ASOLTokenName    = "aSOL"
-
-	WSOLMintAddress = "So11111111111111111111111111111111111111112"
+	SAP3XTokenName   = "sAP3X"
+	VSTokenName      = "VS"
+	NSTokenName      = "NS"
+	WSOLMintAddress  = "So11111111111111111111111111111111111111112"
 )
 
 type ApexSystemConfig struct {

@@ -38,6 +38,8 @@ const (
 	TreasuryAddress = "AXXWYCH6PNm6AGjaasPG1maarfQvRedSw18wj91Nem1F"
 
 	MaxConfirmationWaitTime = 2 * time.Minute
+
+	solanaFixedSupplyMintAmount = "1000000000000000"
 )
 
 type TestSolanaChainConfig struct {
@@ -58,6 +60,10 @@ type TestSolanaChainConfig struct {
 	TreasuryAddress solana.PublicKey
 
 	TokensMint map[uint16]string
+
+	// Human readable names of tokens that should be mintable on this chain
+	MintableTokens   map[uint16]string
+	LockUnlockTokens map[uint16]string
 }
 
 func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
@@ -75,6 +81,16 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 		TreasuryAddress:        solana.MustPublicKeyFromBase58(TreasuryAddress),
 		TokensMint: map[uint16]string{
 			WSOLTokenID: WSOLMintAddress, // by default add wSOL to the tokens mint map
+		},
+
+		LockUnlockTokens: map[uint16]string{
+			WSOLTokenID: WSOLANATokenName,
+		},
+
+		MintableTokens: map[uint16]string{
+			SAP3XTokenID: SAP3XTokenName,
+			VSTokenID:    VSTokenName,
+			NSTokenID:    NSTokenName,
 		},
 	}
 }
@@ -196,7 +212,7 @@ func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string
 		return "", err
 	}
 
-	if err := txProvider.WaitForSignature(params.Ctx, *sig, rpc.CommitmentConfirmed, MaxConfirmationWaitTime); err != nil {
+	if err := txProvider.WaitForSignature(params.Ctx, *sig, rpc.CommitmentFinalized, MaxConfirmationWaitTime); err != nil {
 		return "", fmt.Errorf("wait for bridging request confirmation: %w", err)
 	}
 
@@ -291,6 +307,10 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 		return fmt.Errorf("initialize program: %w", err)
 	}
 
+	if err := sc.deployLockUnlockTokens(ctx); err != nil {
+		return fmt.Errorf("deploy mintable tokens: %w", err)
+	}
+
 	if err := sc.registerTokens(ctx); err != nil {
 		return fmt.Errorf("register tokens: %w", err)
 	}
@@ -357,6 +377,145 @@ func (sc *TestSolanaChain) initializeProgram(ctx context.Context) error {
 	return nil
 }
 
+func (sc *TestSolanaChain) deployLockUnlockTokens(ctx context.Context) error {
+	provider, err := sc.GetTxProvider()
+	if err != nil {
+		return fmt.Errorf("get tx provider: %w", err)
+	}
+
+	for tokenID, tokenName := range sc.config.LockUnlockTokens {
+		if tokenName == WSOLANATokenName {
+			// wSOL already exists on chain, so we don't need to deploy it again
+			continue
+		}
+
+		fmt.Printf("deploying lock/unlock token %d with name %s on Solana\n", tokenID, tokenName)
+
+		tokenMint, err := sc.createSPLToken(ctx, provider)
+		if err != nil {
+			return fmt.Errorf("create lock/unlock token %d (%s): %w", tokenID, tokenName, err)
+		}
+
+		fmt.Printf("deployed lock/unlock token %d with name %s on Solana with mint %s\n", tokenID, tokenName, tokenMint)
+
+		sc.config.TokensMint[tokenID] = tokenMint
+	}
+
+	return nil
+}
+
+func (sc *TestSolanaChain) createSPLToken(
+	ctx context.Context,
+	provider *solanawallet.Provider,
+) (string, error) {
+	adminPkFile, err := os.CreateTemp(os.TempDir(), "solana-admin-pk-*.json")
+	if err != nil {
+		return "", fmt.Errorf("create temp keypair file: %w", err)
+	}
+
+	defer os.Remove(adminPkFile.Name())
+	defer adminPkFile.Close()
+
+	pkString := fmt.Sprintf("%v", []byte(sc.admin.PrivateKey))
+	pkString = strings.ReplaceAll(pkString, " ", ",")
+
+	if _, err := adminPkFile.Write([]byte(pkString)); err != nil {
+		return "", fmt.Errorf("write keypair file: %w", err)
+	}
+
+	if err := adminPkFile.Sync(); err != nil {
+		return "", fmt.Errorf("sync keypair file: %w", err)
+	}
+
+	createTokenArgs := []string{
+		"create-token",
+		"--url", sc.jsonRPCAddr,
+		"--fee-payer", adminPkFile.Name(),
+		"--owner", adminPkFile.Name(),
+		"--decimals", strconv.Itoa(int(solana.SolDecimals)),
+	}
+
+	createTokenOutput, err := sc.runSPLTokenCommandAndWait(ctx, provider, createTokenArgs...)
+	if err != nil {
+		return "", fmt.Errorf("create token: %w", err)
+	}
+
+	mintAddress, err := parseSPLTokenMintAddress(createTokenOutput)
+	if err != nil {
+		return "", fmt.Errorf("parse mint address: %w", err)
+	}
+
+	mintArgs := []string{
+		"mint", mintAddress, solanaFixedSupplyMintAmount, sc.admin.PublicKey.String(),
+		"--url", sc.jsonRPCAddr,
+		"--fee-payer", adminPkFile.Name(),
+		"--owner", adminPkFile.Name(),
+	}
+	if _, err := sc.runSPLTokenCommandAndWait(ctx, provider, mintArgs...); err != nil {
+		return "", fmt.Errorf("mint fixed supply: %w", err)
+	}
+
+	disableMintAuthorityArgs := []string{
+		"authorize", mintAddress, "mint", "--disable",
+		"--url", sc.jsonRPCAddr,
+		"--fee-payer", adminPkFile.Name(),
+		"--owner", adminPkFile.Name(),
+	}
+	if _, err := sc.runSPLTokenCommandAndWait(ctx, provider, disableMintAuthorityArgs...); err != nil {
+		return "", fmt.Errorf("disable mint authority: %w", err)
+	}
+
+	return mintAddress, nil
+}
+
+func (sc *TestSolanaChain) runSPLTokenCommandAndWait(
+	ctx context.Context,
+	provider *solanawallet.Provider,
+	args ...string,
+) (string, error) {
+	var b bytes.Buffer
+
+	if err := RunCommand(ResolveSPLTokenBinary(), args, io.MultiWriter(os.Stdout, &b)); err != nil {
+		return "", err
+	}
+
+	output := b.String()
+
+	reSignature := regexp.MustCompile(`Signature:\s*(\S+)`)
+
+	signatureMatch := reSignature.FindStringSubmatch(output)
+	if signatureMatch != nil {
+		if err := provider.WaitForSignature(
+			ctx,
+			solana.MustSignatureFromBase58(signatureMatch[1]),
+			rpc.CommitmentConfirmed,
+			MaxConfirmationWaitTime,
+		); err != nil {
+			return output, fmt.Errorf("wait for signature confirmation: %w", err)
+		}
+	}
+
+	return output, nil
+}
+
+func parseSPLTokenMintAddress(output string) (string, error) {
+	reAddress := regexp.MustCompile(`Address:\s*(\S+)`)
+
+	addressMatch := reAddress.FindStringSubmatch(output)
+	if addressMatch != nil {
+		return addressMatch[1], nil
+	}
+
+	reCreatingToken := regexp.MustCompile(`Creating token\s+(\S+)`)
+
+	creatingTokenMatch := reCreatingToken.FindStringSubmatch(output)
+	if creatingTokenMatch != nil {
+		return creatingTokenMatch[1], nil
+	}
+
+	return "", fmt.Errorf("mint address not found in spl-token output")
+}
+
 func (sc *TestSolanaChain) registerTokens(ctx context.Context) error {
 	provider, err := sc.GetTxProvider()
 	if err != nil {
@@ -378,7 +537,46 @@ func (sc *TestSolanaChain) registerTokens(ctx context.Context) error {
 		BridgingFeeAddress: relayerAddr,
 	})
 
-	for tokenID, tokenMint := range sc.config.TokensMint {
+	sendTx := func(tx *solana.Transaction, signers ...*solanawallet.Wallet) error {
+		signerKeys := make(map[solana.PublicKey]*solana.PrivateKey, len(signers))
+
+		for _, signer := range signers {
+			if signer == nil {
+				continue
+			}
+
+			signerKeys[signer.PublicKey] = &signer.PrivateKey
+		}
+
+		_, err = tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+			if pk, ok := signerKeys[key]; ok {
+				return pk
+			}
+
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("sign instruction: %w", err)
+		}
+
+		sig, err := txSender.SendTx(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("send tx: %w", err)
+		}
+
+		if err := provider.WaitForSignature(ctx, *sig, rpc.CommitmentFinalized, MaxConfirmationWaitTime); err != nil {
+			return fmt.Errorf("wait for confirmation: %w", err)
+		}
+
+		return nil
+	}
+
+	for tokenID, tokenName := range sc.config.LockUnlockTokens {
+		tokenMint, ok := sc.config.TokensMint[tokenID]
+		if !ok {
+			return fmt.Errorf("token %d not found in configured mints", tokenID)
+		}
+
 		txDto := solsendtx.RegisterTokenLockUnlockDto{
 			AuthorityAddr:     sc.admin.PublicKey.String(),
 			TokenMint:         tokenMint,
@@ -396,23 +594,50 @@ func (sc *TestSolanaChain) registerTokens(ctx context.Context) error {
 			return fmt.Errorf("create register token lock unlock tx: %w", err)
 		}
 
-		_, err = tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
-			return &sc.admin.PrivateKey
-		})
-		if err != nil {
-			return fmt.Errorf("sign instruction: %w", err)
-		}
-
-		sig, err := txSender.SendTx(ctx, tx)
+		err = sendTx(tx, sc.admin)
 		if err != nil {
 			return fmt.Errorf("send register token lock unlock tx: %w", err)
 		}
 
-		if err := provider.WaitForSignature(ctx, *sig, rpc.CommitmentFinalized, MaxConfirmationWaitTime); err != nil {
-			return fmt.Errorf("wait for register token lock unlock confirmation: %w", err)
+		fmt.Printf("registered token id %d (%s) with mint %s (lock/unlock)\n", tokenID, tokenName, tokenMint)
+	}
+
+	for tokenID, tokenName := range sc.config.MintableTokens {
+		tokenKeyPair, err := solanawallet.NewWallet()
+		if err != nil {
+			return fmt.Errorf("create token keypair: %w", err)
 		}
 
-		fmt.Printf("registered token %d with mint %s\n", tokenID, tokenMint)
+		txDto := solsendtx.RegisterTokenMintBurnDto{
+			AuthorityAddr:     sc.admin.PublicKey.String(),
+			TokenMint:         tokenKeyPair.PublicKey.String(),
+			TokenID:           tokenID,
+			MinBridgingAmount: sc.config.MinTokenBridgingAmount.Uint64(),
+			Name:              tokenName,
+			Symbol:            tokenName,
+			URI:               "",
+			Decimals:          solana.SolDecimals,
+		}
+
+		tx, err := txSender.CreateTx(
+			ctx, sc.admin.PublicKey,
+			solsendtx.InstructionTypeRegisterTokensMintBurn,
+			recentBlockhash,
+			txDto,
+		)
+		if err != nil {
+			return fmt.Errorf("create register token mint tx: %w", err)
+		}
+
+		err = sendTx(tx, sc.admin, tokenKeyPair)
+		if err != nil {
+			return fmt.Errorf("send register token mint tx: %w", err)
+		}
+
+		sc.config.TokensMint[tokenID] = tokenKeyPair.PublicKey.String()
+
+		fmt.Printf("registered token id %d (%s) with mint %s (mint/burn)\n",
+			tokenID, tokenName, tokenKeyPair.PublicKey.String())
 	}
 
 	return nil
@@ -643,6 +868,11 @@ func (sc *TestSolanaChain) GetAddressBalanceWithTokenName(
 
 	res, err := txProvider.GetTokenAccountBalance(ctx, ata)
 	if err != nil {
+		// Missing ATA means this wallet does not hold this token yet.
+		if strings.Contains(err.Error(), "could not find account") {
+			return map[string]*big.Int{tokenName: big.NewInt(0)}, nil
+		}
+
 		return map[string]*big.Int{tokenName: big.NewInt(0)}, err // return 0 so caller can still log "failed to query"
 	}
 
@@ -717,8 +947,7 @@ func (sc *TestSolanaChain) GetIndexer() e2eindexer.TxsExecutedComponent {
 }
 
 func (sc *TestSolanaChain) GetMintableTokens() map[uint16]string {
-	// Unnecessary until we need a coloredcoin support
-	return make(map[uint16]string)
+	return sc.config.TokensMint
 }
 
 // GetRelayerAddress implements ITestApexChain.
@@ -839,6 +1068,133 @@ func (sc *TestSolanaChain) SendTx(
 	}
 
 	return "", nil
+}
+
+// FundUserWithToken funds a user with an SPL token by token mode:
+//   - MintableTokens: mint new supply directly to user.
+//   - LockUnlockTokens: transfer from admin's pre-minted fixed supply.
+func (sc *TestSolanaChain) FundUserWithToken(
+	ctx context.Context,
+	address string,
+	amount *big.Int,
+	tokenID uint16,
+) error {
+	if amount == nil || amount.Sign() <= 0 {
+		return fmt.Errorf("amount must be greater than zero")
+	}
+
+	tokenMint, ok := sc.config.TokensMint[tokenID]
+	if !ok || tokenMint == "" {
+		return fmt.Errorf("token with ID %d not found in configured mints", tokenID)
+	}
+
+	lamportAmount := WeiToLamport(amount)
+	if !lamportAmount.IsUint64() {
+		return fmt.Errorf("amount too large to fit uint64: %s", lamportAmount.String())
+	}
+
+	if _, isMintable := sc.config.MintableTokens[tokenID]; isMintable {
+		provider, err := sc.GetTxProvider()
+		if err != nil {
+			return fmt.Errorf("get tx provider: %w", err)
+		}
+
+		relayerAddr, err := solanawallet.PublicKeyFromAddress(sc.relayerAddr)
+		if err != nil {
+			return fmt.Errorf("get relayer address: %w", err)
+		}
+
+		txSender := solsendtx.NewTxSender(provider, &solsendtx.ChainConfig{
+			TreasuryAddress:    sc.config.TreasuryAddress,
+			BridgingFeeAddress: relayerAddr,
+		})
+
+		// Ensure receiver ATA exists before minting to avoid AccountNotFound/AccountNotInitialized errors.
+		if err := sc.ensureReceiverTokenAccount(ctx, provider, txSender, sc.admin, address, tokenMint); err != nil {
+			return fmt.Errorf("ensure receiver ATA for mintable token %d: %w", tokenID, err)
+		}
+
+		receiverPubKey, err := solanawallet.PublicKeyFromAddress(address)
+		if err != nil {
+			return fmt.Errorf("parse receiver address: %w", err)
+		}
+
+		mintPubKey, err := solanawallet.PublicKeyFromAddress(tokenMint)
+		if err != nil {
+			return fmt.Errorf("parse token mint address: %w", err)
+		}
+
+		receiverATA, _, err := solanawallet.FindAssociatedTokenAddress(receiverPubKey, mintPubKey)
+		if err != nil {
+			return fmt.Errorf("find receiver ATA: %w", err)
+		}
+
+		adminPkFile, err := os.CreateTemp(os.TempDir(), "solana-admin-pk-*.json")
+		if err != nil {
+			return fmt.Errorf("create temp keypair file: %w", err)
+		}
+
+		defer os.Remove(adminPkFile.Name())
+		defer adminPkFile.Close()
+
+		pkString := fmt.Sprintf("%v", []byte(sc.admin.PrivateKey))
+		pkString = strings.ReplaceAll(pkString, " ", ",")
+
+		if _, err := adminPkFile.Write([]byte(pkString)); err != nil {
+			return fmt.Errorf("write keypair file: %w", err)
+		}
+
+		if err := adminPkFile.Sync(); err != nil {
+			return fmt.Errorf("sync keypair file: %w", err)
+		}
+
+		args := []string{
+			"mint", tokenMint, lamportAmount.String(), receiverATA.String(),
+			"--url", sc.jsonRPCAddr,
+			"--fee-payer", adminPkFile.Name(),
+			"--owner", adminPkFile.Name(),
+		}
+		if _, err := sc.runSPLTokenCommandAndWait(ctx, provider, args...); err != nil {
+			return fmt.Errorf("mint token %d to %s: %w", tokenID, address, err)
+		}
+
+		fmt.Printf("minted token %d (mint %s) amount %s to %s\n", tokenID, tokenMint, lamportAmount.String(), address)
+
+		return nil
+	}
+
+	if _, isLockUnlock := sc.config.LockUnlockTokens[tokenID]; isLockUnlock {
+		_, err := sc.SendTx(
+			ctx,
+			sc.admin.PrivateKey.String(),
+			nil,
+			[]GenericTxReceiver{
+				{
+					Addr:   address,
+					Amount: big.NewInt(0),
+					NativeTokens: []GenericTokenAmount{
+						{
+							Token: carwallet.Token{
+								PolicyID: tokenMint,
+							},
+							Amount: lamportAmount,
+						},
+					},
+				},
+			},
+			0,
+		)
+		if err != nil {
+			return fmt.Errorf("transfer lock/unlock token %d to %s: %w", tokenID, address, err)
+		}
+
+		fmt.Printf("transferred lock/unlock token %d (mint %s) amount %s to %s\n",
+			tokenID, tokenMint, lamportAmount.String(), address)
+
+		return nil
+	}
+
+	return fmt.Errorf("token with ID %d is neither mintable nor lock/unlock", tokenID)
 }
 
 // ensureReceiverTokenAccount creates the receiver's Associated Token Account for the given mint if it does not exist.

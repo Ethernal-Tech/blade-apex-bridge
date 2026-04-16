@@ -17,7 +17,7 @@ import (
 const (
 	DefaultPort     = 8899
 	DefaultWSPort   = 8900
-	DefaultSlotTime = 400
+	DefaultSlotTime = 64
 )
 
 type TestSolanaClusterConfig struct {
