@@ -190,6 +190,12 @@ test-testnet-e2e-skyline-bridge: check-go
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
 	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "SkylineTestnetBridge"
 
+.PHONY: test-testnet-e2e-skyline-bridge-colored-coins
+test-testnet-e2e-skyline-bridge-colored-coins: check-go
+	go build -o artifacts/blade .
+	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
+	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins"
+
 .PHONY: full-test-testnet-e2e-skyline-bridge
 full-test-testnet-e2e-skyline-bridge: check-go
 	go build -o artifacts/blade .
@@ -265,6 +271,7 @@ help:
 	@printf "  %-35s - %s\n" "defund-testnet-e2e-apex-bridge" "Defund wallets for end-to-end tests for Apex Bridge Testnet"
 	@printf "  %-35s - %s\n" "testnet-e2e-apex-bridge-print-balances" "Print balances of wallets for end-to-end tests for Apex Bridge Testnet"
 	@printf "  %-35s - %s\n" "test-testnet-e2e-apex-bridge" "Run end-to-end tests for Apex Bridge Testnet"
+	@printf "  %-35s - %s\n" "test-testnet-e2e-skyline-bridge-colored-coins" "Run end-to-end testnet tests for Skyline Bridge Colored coins"
 	@printf "  %-35s - %s\n" "full-test-testnet-e2e-apex-bridge" "Run fund wallets, end-to-end tests and defund wallets for Apex Bridge Testnet"
 	@printf "  %-35s - %s\n" "update-apex-contracts" "Update Apex Bridge smart contracts and bindings"
 	@printf "  %-35s - %s\n" "update-cardano-contracts" "Update Cardano smart contracts"

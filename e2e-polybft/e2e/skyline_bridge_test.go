@@ -212,7 +212,7 @@ func TestE2E_SkylineBridge_OperationFeeNotSet(t *testing.T) {
 
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, sendAmountDfm,
-			cardanofw.MATICTokenID, false)
+			cardanofw.POLTokenID, false)
 	})
 }
 

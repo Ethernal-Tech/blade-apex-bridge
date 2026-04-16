@@ -296,6 +296,11 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 							LockUnlock:        true,
 							IsWrappedCurrency: false,
 						},
+						XPOLTokenID: {
+							ChainSpecific:     "0xD273f181d575aD1a3b9d1f555EA3982b3FBFd825",
+							LockUnlock:        false,
+							IsWrappedCurrency: true,
+						},
 					},
 					DestChain: map[ChainID][]Direction{
 						ChainIDCardano: {
@@ -320,11 +325,62 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 								TrackDestination:   false,
 							},
 						},
+						ChainIDPolygon: {
+							{
+								SourceTokenID:      AP3XTokenID,
+								DestinationTokenID: PAP3XTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+							{
+								SourceTokenID:      XPOLTokenID,
+								DestinationTokenID: POLTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
 					},
 				},
 				MinBridgingFee:  ApexToWei(big.NewInt(4)),
 				MinOperationFee: big.NewInt(0),
 				TreasuryAddress: "",
+			},
+			ChainIDPolygon: {
+				Info: EVMChainInfo{
+					GatewayAddress:           types.StringToAddress("0xb21565df525a795e18C12d49d710766774dAEaDe"),
+					NativeTokenWalletAddress: types.StringToAddress("0x55A1A578fCc44A9E403E6F411CFb2B61A7eef5b2"),
+					JSONRPCAddr:              "https://rpc-amoy.polygon.technology",
+					Tokens: map[uint16]Token{
+						POLTokenID: {
+							ChainSpecific:     cardanowallet.AdaTokenName,
+							LockUnlock:        true,
+							IsWrappedCurrency: false,
+						},
+						PAP3XTokenID: {
+							ChainSpecific:     "0x325E3AEf88F57d9DCA1744cEe740cD8104d1814a",
+							LockUnlock:        false,
+							IsWrappedCurrency: true,
+						},
+					},
+					DestChain: map[ChainID][]Direction{
+						ChainIDNexus: {
+							{
+								SourceTokenID:      POLTokenID,
+								DestinationTokenID: XPOLTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+							{
+								SourceTokenID:      PAP3XTokenID,
+								DestinationTokenID: AP3XTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+					},
+				},
+				MinBridgingFee:  defaultMinBridgingFeeAmountPolygon,
+				MinOperationFee: big.NewInt(0),
 			},
 		},
 		BridgingAPIs: []string{
@@ -405,10 +461,10 @@ func SetupRemoteApexBridge(
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig: NewRemotePrimeChainConfig(
 			primeRemoteConfig.DefaultMinBridgingFee,
-			primeRemoteConfig.MinBridgingFeeForTokens, primeRemoteConfig.MinOperationFee, ""),
+			primeRemoteConfig.MinBridgingFeeForTokens, primeRemoteConfig.MinOperationFee, primeRemoteConfig.TreasuryAddress),
 		VectorConfig: NewRemoteVectorChainConfig(
 			vectorRemoteConfig.DefaultMinBridgingFee,
-			vectorRemoteConfig.MinBridgingFeeForTokens, vectorRemoteConfig.MinOperationFee, ""),
+			vectorRemoteConfig.MinBridgingFeeForTokens, vectorRemoteConfig.MinOperationFee, vectorRemoteConfig.TreasuryAddress),
 		NexusConfig: NewRemoteNexusChainConfig(true,
 			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee, ""),
 		APIKey: remoteConfig.BridgingAPIKey,
@@ -496,6 +552,7 @@ func SetupSkylineRemoteBridge(
 	vectorRemoteConfig := remoteConfig.CardanoChains[ChainIDVector]
 	cardanoRemoteConfig := remoteConfig.CardanoChains[ChainIDCardano]
 	nexusRemoteConfig := remoteConfig.EVMChains[ChainIDNexus]
+	polygonRemoteConfig := remoteConfig.EVMChains[ChainIDPolygon]
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig: NewRemotePrimeChainConfig(
 			primeRemoteConfig.DefaultMinBridgingFee, primeRemoteConfig.MinBridgingFeeForTokens,
@@ -508,6 +565,8 @@ func SetupSkylineRemoteBridge(
 			cardanoRemoteConfig.MinOperationFee, cardanoRemoteConfig.TreasuryAddress),
 		NexusConfig: NewRemoteNexusChainConfig(true,
 			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee, nexusRemoteConfig.TreasuryAddress),
+		PolygonConfig: NewRemotePolygonChainConfig(true,
+			polygonRemoteConfig.MinBridgingFee, polygonRemoteConfig.MinOperationFee, polygonRemoteConfig.TreasuryAddress),
 		APIKey: remoteConfig.BridgingAPIKey,
 	}
 
@@ -553,6 +612,14 @@ func SetupSkylineRemoteBridge(
 		indexer:               e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 
+	polygonChain := &TestEVMChain{
+		config:                apexConfig.PolygonConfig,
+		gatewayAddr:           polygonRemoteConfig.Info.GatewayAddress,
+		nativeTokenWalletAddr: polygonRemoteConfig.Info.NativeTokenWalletAddress,
+		jsonRPCAddr:           polygonRemoteConfig.Info.JSONRPCAddr,
+		indexer:               e2eindexer.NewTxsExecutedComponentDummy(),
+	}
+
 	usersData, err := GetTestnetApexUsers(
 		NewApexNetworkTypes(ApexNetworkTypesParams{
 			PrimeConfig:   apexConfig.PrimeConfig,
@@ -571,18 +638,22 @@ func SetupSkylineRemoteBridge(
 		FunderUser:   usersData.Funder,
 		Users:        usersData.Users,
 		IsSkyline:    true,
-		chains:       []ITestApexChain{primeChain, vectorChain, cardanoChain, nexusChain},
+		chains:       []ITestApexChain{primeChain, vectorChain, cardanoChain, nexusChain, polygonChain},
 		bridgingAPIs: remoteConfig.BridgingAPIs,
 		PrimeInfo:    primeRemoteConfig.Info,
 		VectorInfo:   vectorRemoteConfig.Info,
 		CardanoInfo:  cardanoRemoteConfig.Info,
 		NexusInfo:    nexusRemoteConfig.Info,
+		PolygonInfo:  polygonRemoteConfig.Info,
 		EcosystemTokens: map[uint16]string{
 			USDTTokenID:  USDTTokenName,
 			XADATokenID:  XADATokenName,
 			AP3XTokenID:  cardanowallet.AdaTokenName,
 			ADATokenID:   cardanowallet.AdaTokenName,
 			CAP3XTokenID: CAP3XTokenName,
+			POLTokenID:   cardanowallet.AdaTokenName,
+			PAP3XTokenID: PAP3XTokenName,
+			XPOLTokenID:  XPOLTokenName,
 		},
 		chainIDConfigPath: chainIDConfigDir,
 	}

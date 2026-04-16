@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -19,12 +20,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus}
+func isUnknownBlockRPCError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "Unknown block")
+}
+
+var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon}
 var fundableTokensPerChain = map[cardanofw.ChainID][]uint16{
 	cardanofw.ChainIDPrime:   {},
 	cardanofw.ChainIDVector:  {cardanofw.XADATokenID},
 	cardanofw.ChainIDCardano: {cardanofw.CAP3XTokenID},
 	cardanofw.ChainIDNexus:   {cardanofw.USDTTokenID},
+	cardanofw.ChainIDPolygon: {},
 }
 
 func Test_E2E_SkylineTestnetFund(t *testing.T) {
@@ -33,6 +39,9 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 
 	tokensToFundApex := big.NewInt(100)
 	tokensToFund := cardanofw.ApexToWei(tokensToFundApex)
+
+	tokensToFundPolygon := big.NewInt(5)
+	tokensToFundPol := cardanofw.ApexToWei(tokensToFundPolygon)
 
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
@@ -57,7 +66,7 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 			defer wg.Done()
 
 			tokens := func() []cardanofw.GenericTokenAmount {
-				if chain == cardanofw.ChainIDNexus {
+				if chain == cardanofw.ChainIDNexus || chain == cardanofw.ChainIDPolygon {
 					chainInfo := apex.GetEvmInfo(chain)
 					tokens := make([]cardanofw.GenericTokenAmount, len(fundableTokensPerChain[chain]))
 
@@ -87,10 +96,15 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 
 				fmt.Printf("Funding %s address: %s\n", chain, receiverAddr)
 
+				amountToFund := tokensToFund
+				if chain == cardanofw.ChainIDPolygon {
+					amountToFund = tokensToFundPol
+				}
+
 				// resubmit the transaction in case of error because of a possible rollback
-				_, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
+				txHash, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
 					txHash, err := apex.SubmitTx(ctx, chain, apex.FunderUser, receiverAddr,
-						tokensToFund, tokens, nil, nil)
+						amountToFund, tokens, nil, nil)
 					if errors.Is(err, common.ErrRetryTimeout) {
 						return "", common.ErrRetryTryAgain
 					}
@@ -98,6 +112,12 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 					return txHash, err
 				})
 				if err != nil {
+					if isUnknownBlockRPCError(err) {
+						fmt.Printf("funding non-fatal error for chain %s, address: %s, txHash: %s: %v\n", chain, receiverAddr, txHash, err)
+
+						continue
+					}
+
 					mu.Lock()
 					addrErrs = append(addrErrs, fmt.Errorf("error while funding %s addr %s: %w", chain, receiverAddr, err))
 					mu.Unlock()
@@ -137,15 +157,27 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 	fmt.Printf("defunding the wallets\n")
 
 	for _, chain := range skylineChains {
-		if chain == cardanofw.ChainIDNexus {
-			info := apex.NexusInfo
+		if chain == cardanofw.ChainIDNexus || chain == cardanofw.ChainIDPolygon {
+			var info cardanofw.EVMChainInfo
+
+			switch chain {
+			case cardanofw.ChainIDNexus:
+				info = apex.NexusInfo
+			case cardanofw.ChainIDPolygon:
+				info = apex.PolygonInfo
+			}
 
 			for _, user := range apex.Users {
-				balance, err := apex.GetBalance(ctx, user, chain)
+				balance, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (map[string]*big.Int, error) {
+					return apex.GetBalance(ctx, user, chain)
+				})
 				require.NoError(t, err)
 
 				for _, token := range info.Tokens {
-					tokenBalance, err := apex.GetBalanceWithTokenName(ctx, user, chain, token.ChainSpecific)
+					tokenBalance, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (map[string]*big.Int, error) {
+						return apex.GetBalanceWithTokenName(ctx, user, chain, token.ChainSpecific)
+					})
+
 					require.NoError(t, err)
 
 					if tokenBalance[token.ChainSpecific].Cmp(big.NewInt(0)) > 0 {
@@ -180,14 +212,28 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 				go func(user *cardanofw.TestApexUser, chain string) {
 					defer wg.Done()
 
-					fmt.Printf("Defunding %s address: %s\n", chain, user.GetAddress(chain))
+					addr := user.GetAddress(chain)
+					fmt.Printf("Defunding %s address: %s\n", chain, addr)
 
-					_, err := apex.SubmitTx(ctx, chain, user, apex.FunderUser.GetAddress(chain),
-						refundAmount, tokens, nil, nil)
+					txHash, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
+						txHash, err := apex.SubmitTx(ctx, chain, user, apex.FunderUser.GetAddress(chain),
+							refundAmount, tokens, nil, nil)
+						if err != nil && errors.Is(err, common.ErrRetryTimeout) {
+							return txHash, common.ErrRetryTryAgain
+						}
 
+						return txHash, err
+					})
 					if err != nil {
+						if isUnknownBlockRPCError(err) {
+							fmt.Printf("defunding non-fatal error for chain %s, address: %s, txHash: %s: %v\n",
+								chain, addr, txHash, err)
+
+							return
+						}
+
 						mu.Lock()
-						addrErrs = append(addrErrs, fmt.Errorf("error while defunding addr %s: %w", user.GetAddress(chain), err))
+						addrErrs = append(addrErrs, fmt.Errorf("error while defunding addr %s: %w", addr, err))
 						mu.Unlock()
 					}
 				}(user, chain)
@@ -265,10 +311,23 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 
 				fmt.Printf("Defunding %s address: %s\n", chain, senderAddr)
 
-				_, err := apex.SubmitTx(ctx, chain, user, funderReceiverAddr,
-					refundAmountLovelace, genericTokens, nil, nil)
+				txHash, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
+					txHash, err := apex.SubmitTx(ctx, chain, user, funderReceiverAddr,
+						refundAmountLovelace, genericTokens, nil, nil)
+					if err != nil && errors.Is(err, common.ErrRetryTimeout) {
+						return txHash, common.ErrRetryTryAgain
+					}
 
+					return txHash, err
+				})
 				if err != nil {
+					if isUnknownBlockRPCError(err) {
+						fmt.Printf("defunding non-fatal error for chain %s, address: %s, txHash: %s: %v\n",
+							chain, senderAddr, txHash, err)
+
+						return
+					}
+
 					mu.Lock()
 					addrErrs = append(addrErrs, fmt.Errorf("error while defunding addr %s: %w", senderAddr, err))
 					mu.Unlock()
@@ -535,23 +594,27 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 	})
 
 	const (
-		sequentialInstances = 2
-		parallelInstances   = 3
-		receiversCnt        = 2
+		sequentialInstances        = 2
+		parallelInstances          = 3
+		receiversCnt               = 2
+		polygonSequentialInstances = 1
 	)
 
 	senders := apex.Users[len(apex.Users)-parallelInstances:]
 
-	executeAllDirectionsMulReceiversTest := func(t *testing.T, bridgingDirections []e2ehelper.BridgingDirectionConfig) {
+	executeAllDirectionsMulReceiversTest := func(
+		t *testing.T, bridgingDirections []e2ehelper.BridgingDirectionConfig, parallelSendAmount *big.Int,
+		txCountPerSender int,
+	) {
 		t.Helper()
 
 		options := append(slices.Clone(bridgingOpts), e2ehelper.WithWaitForUnexpectedBridges(true))
 		receivers := apex.Users[:receiversCnt]
 
 		e2ehelper.ExecuteBridgingExtended(
-			t, ctx, apex, sequentialInstances, senders, receivers,
+			t, ctx, apex, txCountPerSender, senders, receivers,
 			bridgingDirections,
-			sendAmount, options...)
+			parallelSendAmount, options...)
 	}
 
 	t.Run("10. Nexus <-> Vector USDT both directions parallel", func(t *testing.T) {
@@ -568,7 +631,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 			{SrcChain: cardanofw.ChainIDVector, DstChain: cardanofw.ChainIDNexus, SrcTokenID: cardanofw.USDTTokenID},
 		}
 
-		executeAllDirectionsMulReceiversTest(t, bridgingDirections)
+		executeAllDirectionsMulReceiversTest(t, bridgingDirections, sendAmount, sequentialInstances)
 	})
 
 	t.Run("11. Nexus <-> Vector xADA both directions parallel", func(t *testing.T) {
@@ -585,7 +648,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 			{SrcChain: cardanofw.ChainIDVector, DstChain: cardanofw.ChainIDNexus, SrcTokenID: cardanofw.XADATokenID},
 		}
 
-		executeAllDirectionsMulReceiversTest(t, bridgingDirections)
+		executeAllDirectionsMulReceiversTest(t, bridgingDirections, sendAmount, sequentialInstances)
 	})
 
 	t.Run("12. Nexus <-> Cardano xADA both directions parallel", func(t *testing.T) {
@@ -602,7 +665,64 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 			{SrcChain: cardanofw.ChainIDCardano, DstChain: cardanofw.ChainIDNexus, SrcTokenID: cardanofw.ADATokenID},
 		}
 
-		executeAllDirectionsMulReceiversTest(t, bridgingDirections)
+		executeAllDirectionsMulReceiversTest(t, bridgingDirections, sendAmount, sequentialInstances)
+	})
+
+	oneApexWei := cardanofw.ApexToWei(big.NewInt(1))
+	tenthApexWei := new(big.Int).Div(oneApexWei, big.NewInt(10))
+
+	polygonParallelSendPOL := tenthApexWei
+
+	polPerChainNeed := new(big.Int).Mul(
+		polygonParallelSendPOL, big.NewInt(int64(polygonSequentialInstances*receiversCnt)))
+
+	polygonSeedFundPOL := new(big.Int).Mul(polPerChainNeed, big.NewInt(2))
+	if polygonSeedFundPOL.Cmp(oneApexWei) < 0 {
+		polygonSeedFundPOL = new(big.Int).Set(oneApexWei)
+	}
+
+	t.Run("13. Seed xPOL on Nexus (Polygon -> Nexus xPOL per sender)", func(t *testing.T) {
+		for _, u := range senders {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, u, u, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, polygonSeedFundPOL,
+				cardanofw.POLTokenID, true, bridgingOpts...)
+		}
+	})
+
+	t.Run("14. Polygon <-> Nexus POL and xPOL both directions parallel", func(t *testing.T) {
+		bridgingDirections := []e2ehelper.BridgingDirectionConfig{
+			{SrcChain: cardanofw.ChainIDPolygon, DstChain: cardanofw.ChainIDNexus, SrcTokenID: cardanofw.POLTokenID},
+			{SrcChain: cardanofw.ChainIDNexus, DstChain: cardanofw.ChainIDPolygon, SrcTokenID: cardanofw.XPOLTokenID},
+		}
+
+		executeAllDirectionsMulReceiversTest(t, bridgingDirections, polygonParallelSendPOL, polygonSequentialInstances)
+	})
+
+	polygonParallelSendAP3X := new(big.Int).Set(oneApexWei)
+
+	ap3xPerChainNeed := new(big.Int).Mul(
+		polygonParallelSendAP3X, big.NewInt(int64(polygonSequentialInstances*receiversCnt)))
+
+	polygonSeedFundAP3X := new(big.Int).Mul(ap3xPerChainNeed, big.NewInt(2))
+	if polygonSeedFundAP3X.Cmp(oneApexWei) < 0 {
+		polygonSeedFundAP3X = new(big.Int).Set(oneApexWei)
+	}
+
+	t.Run("15. Seed pAP3X on Polygon (Nexus -> Polygon AP3X per sender)", func(t *testing.T) {
+		for _, u := range senders {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, u, u, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, polygonSeedFundAP3X,
+				cardanofw.AP3XTokenID, true, bridgingOpts...)
+		}
+	})
+
+	t.Run("16. Nexus <-> Polygon AP3X and pAP3X both directions parallel", func(t *testing.T) {
+		bridgingDirections := []e2ehelper.BridgingDirectionConfig{
+			{SrcChain: cardanofw.ChainIDNexus, DstChain: cardanofw.ChainIDPolygon, SrcTokenID: cardanofw.AP3XTokenID},
+			{SrcChain: cardanofw.ChainIDPolygon, DstChain: cardanofw.ChainIDNexus, SrcTokenID: cardanofw.PAP3XTokenID},
+		}
+
+		executeAllDirectionsMulReceiversTest(t, bridgingDirections, polygonParallelSendAP3X, polygonSequentialInstances)
 	})
 }
 
@@ -910,6 +1030,27 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios_NexusSrc(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
 	})
+
+	t.Run("13. Invalid eth receiver address", func(t *testing.T) {
+		polygonXPOLInfo, err := apex.GetBridgingTokensInfo(
+			cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.XPOLTokenID)
+		require.NoError(t, err)
+
+		err = executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDPolygon),
+			sender:     user,
+			receivers: map[string]cardanofw.ReceiverAmount{
+				"addr_test1invalidaddress": {
+					TokenID: cardanofw.XPOLTokenID,
+					Amount:  sendAmount,
+				},
+			},
+			operationFee: big.NewInt(0),
+			tokenInfo:    polygonXPOLInfo,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
+	})
 }
 
 func Test_E2E_SkylineTestnetPrintBalances(t *testing.T) {
@@ -1022,12 +1163,18 @@ func printSkylineUserBalances(
 			} else {
 				fmt.Printf("%s addr: %s\n", chain, addr)
 
-				if chain == cardanofw.ChainIDNexus {
+				switch chain {
+				case cardanofw.ChainIDNexus:
 					info := apex.NexusInfo
 					for tokenID, token := range info.Tokens {
 						balanceToString(tokenID, balance[token.ChainSpecific])
 					}
-				} else {
+				case cardanofw.ChainIDPolygon:
+					info := apex.PolygonInfo
+					for tokenID, token := range info.Tokens {
+						balanceToString(tokenID, balance[token.ChainSpecific])
+					}
+				default:
 					info := apex.GetCardanoInfo(chain)
 					for tokenID, token := range info.Tokens {
 						balanceToString(tokenID, balance[token.ChainSpecific])

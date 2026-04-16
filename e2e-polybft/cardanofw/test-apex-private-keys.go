@@ -16,6 +16,7 @@ type ApexPrivateKeys struct {
 	NexusPrivateKey                 string `json:"nexusPK"`
 	CardanoPaymentSigningKeyCborHex string `json:"cardanoPaymentSKCborHex"`
 	CardanoStakeSigningKeyCborHex   string `json:"cardanoStakeSKCborHex"`
+	PolygonPrivateKey               string `json:"polygonPK"`
 }
 
 func (keys *ApexPrivateKeys) Wallets() (*apexUserWallets, error) {
@@ -27,7 +28,7 @@ func (keys *ApexPrivateKeys) Wallets() (*apexUserWallets, error) {
 
 	var (
 		vector, cardano *wallet.Wallet
-		nexus           *crypto.ECDSAKey
+		nexus, polygon  *crypto.ECDSAKey
 	)
 
 	if len(keys.VectorPaymentSigningKeyCborHex) > 0 {
@@ -38,7 +39,7 @@ func (keys *ApexPrivateKeys) Wallets() (*apexUserWallets, error) {
 	}
 
 	if len(keys.NexusPrivateKey) > 0 {
-		nexus, err = newNexusWallet(keys.NexusPrivateKey)
+		nexus, err = newEvmWallet(keys.NexusPrivateKey)
 		if err != nil {
 			return nil, err
 		}
@@ -52,11 +53,19 @@ func (keys *ApexPrivateKeys) Wallets() (*apexUserWallets, error) {
 		}
 	}
 
+	if len(keys.PolygonPrivateKey) > 0 {
+		polygon, err = newEvmWallet(keys.PolygonPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &apexUserWallets{
 		Prime:   prime,
 		Vector:  vector,
 		Nexus:   nexus,
 		Cardano: cardano,
+		Polygon: polygon,
 	}, nil
 }
 
@@ -71,7 +80,7 @@ func (keys *ApexPrivateKeys) User(
 	return NewExistingTestApexUser(wallets, networks)
 }
 
-func newNexusWallet(privateKey string) (*crypto.ECDSAKey, error) {
+func newEvmWallet(privateKey string) (*crypto.ECDSAKey, error) {
 	if len(privateKey) == 0 {
 		return nil, fmt.Errorf("empty private key")
 	}
