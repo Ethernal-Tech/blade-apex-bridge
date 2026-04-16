@@ -75,10 +75,15 @@ func (t *TestSolanaServer) Start() error {
 
 	fmt.Println("Starting Solana test validator with ledger directory: ", ledgerDir)
 
+	metaplexProgramID := "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+	metadataProgramSoPath := filepath.Join("..", "..", "skyline-solana-programs", "program_build", "mpl_token_metadata.so")
+
 	args := []string{
 		"--ledger", ledgerDir,
 		"--rpc-port", strconv.Itoa(t.config.Port),
 		"--bind-address", hostIP,
+		"--bpf-program", metaplexProgramID, metadataProgramSoPath,
+		"--limit-ledger-size", "200000000", // ensure no cleanup is done on ledger
 		"--log", // stream validator log to stdout (we redirect to file when LogsDir is set)
 	}
 

@@ -113,6 +113,11 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 				Name:   USDTTokenName,
 				Symbol: USDTTokenName,
 			},
+			{
+				ID:     NSTokenID,
+				Name:   NSTokenName,
+				Symbol: NSTokenName,
+			},
 		},
 		MintTokens: []EVMTokenInfo{
 			{
@@ -134,6 +139,11 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 				ID:     ASOLTokenID,
 				Name:   ASOLTokenName,
 				Symbol: ASOLTokenName,
+			},
+			{
+				ID:     SAP3XTokenID,
+				Name:   SAP3XTokenName,
+				Symbol: SAP3XTokenName,
 			},
 		},
 	}

@@ -701,12 +701,29 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 
 		if a.Config.SolanaConfig != nil && a.Config.SolanaConfig.IsEnabled {
 			if a.Config.VectorConfig != nil && a.Config.VectorConfig.IsEnabled {
+				vsToken, _, err := GetTokenAndPolicyForVerificationKey(
+					a.Config.VectorConfig.ChainType, a.Config.VectorConfig.NetworkType,
+					a.VectorInfo.GenesisWallet.VerificationKey, VSTokenName)
+				require.NoError(t, err)
+
 				a.SolanaInfo.DestChain = map[ChainID][]Direction{
 					ChainIDVector: {
 						{
 							SourceTokenID:      WSOLTokenID,
 							DestinationTokenID: ASOLTokenID,
 							TrackSource:        false, // true
+							TrackDestination:   false,
+						},
+						{
+							SourceTokenID:      SAP3XTokenID,
+							DestinationTokenID: AP3XTokenID,
+							TrackSource:        false,
+							TrackDestination:   true,
+						},
+						{
+							SourceTokenID:      VSTokenID,
+							DestinationTokenID: VSTokenID,
+							TrackSource:        false,
 							TrackDestination:   false,
 						},
 					},
@@ -723,6 +740,16 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						LockUnlock:        true,
 						IsWrappedCurrency: false,
 					},
+					SAP3XTokenID: {
+						ChainSpecific:     "",
+						LockUnlock:        false,
+						IsWrappedCurrency: true,
+					},
+					VSTokenID: {
+						ChainSpecific:     "",
+						LockUnlock:        false,
+						IsWrappedCurrency: false,
+					},
 				}
 
 				a.VectorInfo.DestChain[ChainIDSolana] = []Direction{
@@ -732,6 +759,18 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						TrackSource:        false,
 						TrackDestination:   false, // true
 					},
+					{
+						SourceTokenID:      AP3XTokenID,
+						DestinationTokenID: SAP3XTokenID,
+						TrackSource:        true,
+						TrackDestination:   false,
+					},
+					{
+						SourceTokenID:      VSTokenID,
+						DestinationTokenID: VSTokenID,
+						TrackSource:        false,
+						TrackDestination:   false,
+					},
 				}
 
 				a.VectorInfo.Tokens[ASOLTokenID] = Token{
@@ -740,9 +779,17 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					IsWrappedCurrency: false,
 				}
 
+				a.VectorInfo.Tokens[VSTokenID] = Token{
+					ChainSpecific:     vsToken.String(),
+					LockUnlock:        true,
+					IsWrappedCurrency: false,
+				}
+
 				a.EcosystemTokens[WSOLTokenID] = WSOLANATokenName
 				a.EcosystemTokens[SOLTokenID] = cardanowallet.AdaTokenName
 				a.EcosystemTokens[ASOLTokenID] = ASOLTokenName
+				a.EcosystemTokens[SAP3XTokenID] = SAP3XTokenName
+				a.EcosystemTokens[VSTokenID] = VSTokenName
 			}
 
 			if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
@@ -751,6 +798,18 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						SourceTokenID:      WSOLTokenID,
 						DestinationTokenID: ASOLTokenID,
 						TrackSource:        false, // true
+						TrackDestination:   false,
+					},
+					{
+						SourceTokenID:      SAP3XTokenID,
+						DestinationTokenID: AP3XTokenID,
+						TrackSource:        false,
+						TrackDestination:   true,
+					},
+					{
+						SourceTokenID:      NSTokenID,
+						DestinationTokenID: NSTokenID,
+						TrackSource:        false,
 						TrackDestination:   false,
 					},
 				}
@@ -762,6 +821,18 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						TrackSource:        false,
 						TrackDestination:   false, // true
 					},
+					{
+						SourceTokenID:      AP3XTokenID,
+						DestinationTokenID: SAP3XTokenID,
+						TrackSource:        true,
+						TrackDestination:   false,
+					},
+					{
+						SourceTokenID:      NSTokenID,
+						DestinationTokenID: NSTokenID,
+						TrackSource:        false,
+						TrackDestination:   false,
+					},
 				}
 
 				a.NexusInfo.Tokens[ASOLTokenID] = Token{
@@ -769,6 +840,20 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					LockUnlock:        false,
 					IsWrappedCurrency: false,
 				}
+
+				a.NexusInfo.Tokens[NSTokenID] = Token{
+					ChainSpecific:     "",
+					LockUnlock:        false,
+					IsWrappedCurrency: false,
+				}
+
+				a.SolanaInfo.Tokens[NSTokenID] = Token{
+					ChainSpecific:     "",
+					LockUnlock:        false,
+					IsWrappedCurrency: false,
+				}
+
+				a.EcosystemTokens[NSTokenID] = NSTokenName
 			}
 		}
 	} else {
@@ -1044,7 +1129,13 @@ func (a *ApexSystem) DeployMintingContracts(ctx context.Context) error {
 						}
 					}
 				case ChainIDSolana:
-					// wTODO: Implement solana minting contract setup
+					chainInfo := a.SolanaInfo
+					for tokenID, tokenName := range mintableTokens {
+						if token, ok := chainInfo.Tokens[tokenID]; ok {
+							token.ChainSpecific = tokenName
+							chainInfo.Tokens[tokenID] = token
+						}
+					}
 				default:
 					return fmt.Errorf("unimplemented cardano contract setup for chain %s", chain.ChainID())
 				}
