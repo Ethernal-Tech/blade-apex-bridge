@@ -182,6 +182,7 @@ test-testnet-e2e-skyline-bridge: check-go
 	go build -o artifacts/blade .
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
 	go test -v -timeout=7h ./e2e-polybft/e2e/... -run "SkylineTestnetBridge"
+	go test ./e2e-polybft/e2e/... -run "TestE2E_Testnet_SC_BLS_Verify"
 
 .PHONY: test-testnet-e2e-skyline-bridge-colored-coins
 test-testnet-e2e-skyline-bridge-colored-coins: check-go
