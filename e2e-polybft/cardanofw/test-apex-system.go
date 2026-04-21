@@ -953,6 +953,13 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 
 	a.InitTxSendChainConfiguration()
 
+	if a.Config.SolanaConfig != nil && a.Config.SolanaConfig.IsEnabled {
+		err := a.UpdateChainMaxNumberOfTransactions(ChainIDSolana, 2)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -1719,6 +1726,27 @@ func (a *ApexSystem) UpdateChainTokenQuantity(
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
+}
+
+func (a *ApexSystem) UpdateChainMaxNumberOfTransactions(
+	chain ChainID,
+	maxNumberOfTransactions int,
+) error {
+	pkBytes, err := a.GetBridgeAdmin().MarshallPrivateKey()
+	if err != nil {
+		return err
+	}
+
+	pk := hex.EncodeToString(pkBytes)
+
+	return RunCommand(ResolveApexBridgeBinary(), []string{
+		"bridge-admin", "update-chain-max-number-of-transactions",
+		"--chain", chain,
+		"--max-number-of-transactions", fmt.Sprint(maxNumberOfTransactions),
+		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
+		"--key", pk,
+		"--chain-ids-config", a.GetChainIDsConfig(),
+	}, os.Stdout)
 }
 
 func (a *ApexSystem) DefundHotWallet(

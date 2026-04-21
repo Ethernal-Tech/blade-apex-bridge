@@ -37,7 +37,7 @@ const (
 
 	TreasuryAddress = "AXXWYCH6PNm6AGjaasPG1maarfQvRedSw18wj91Nem1F"
 
-	MaxConfirmationWaitTime = 2 * time.Minute
+	MaxConfirmationWaitTime = 3 * time.Minute
 
 	solanaFixedSupplyMintAmount = "1000000000000000"
 )
@@ -105,6 +105,7 @@ type TestSolanaChain struct {
 	gatewayAddr      string
 	indexer          e2eindexer.TxsExecutedComponent
 	programID        string
+	altPublicKey     string
 }
 
 var _ ITestApexChain = (*TestSolanaChain)(nil)
@@ -313,6 +314,10 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 
 	if err := sc.registerTokens(ctx); err != nil {
 		return fmt.Errorf("register tokens: %w", err)
+	}
+
+	if err := sc.initializeALT(ctx); err != nil {
+		return fmt.Errorf("initialize ALT: %w", err)
 	}
 
 	return nil
@@ -643,6 +648,121 @@ func (sc *TestSolanaChain) registerTokens(ctx context.Context) error {
 	return nil
 }
 
+func (sc *TestSolanaChain) initializeALT(ctx context.Context) error {
+	provider, err := sc.GetTxProvider()
+	if err != nil {
+		return fmt.Errorf("get tx provider: %w", err)
+	}
+
+	relayerAddr, err := solanawallet.PublicKeyFromAddress(sc.relayerAddr)
+	if err != nil {
+		return fmt.Errorf("get relayer address: %w", err)
+	}
+
+	txSender := solsendtx.NewTxSender(provider, &solsendtx.ChainConfig{
+		TreasuryAddress:    sc.config.TreasuryAddress,
+		BridgingFeeAddress: relayerAddr,
+	})
+
+	sendTxHelper := func(ixs []solana.Instruction) error {
+		recentBlockhash, err := provider.GetLatestBlockhash(ctx)
+		if err != nil {
+			return fmt.Errorf("get latest blockhash: %w", err)
+		}
+
+		builder := solana.NewTransactionBuilder().SetRecentBlockHash(recentBlockhash).SetFeePayer(sc.admin.PublicKey)
+
+		for _, ix := range ixs {
+			builder = builder.AddInstruction(ix)
+		}
+
+		tx, err := builder.Build()
+		if err != nil {
+			return fmt.Errorf("build transaction: %w", err)
+		}
+
+		_, err = tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+			return &sc.admin.PrivateKey
+		})
+		if err != nil {
+			return fmt.Errorf("sign transaction: %w", err)
+		}
+
+		sig, err := txSender.SendTx(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("send create ALT tx: %w", err)
+		}
+
+		if err := provider.WaitForSignature(ctx, *sig, rpc.CommitmentFinalized, MaxConfirmationWaitTime); err != nil {
+			return fmt.Errorf("wait for create ALT confirmation: %w", err)
+		}
+
+		return nil
+	}
+
+	// 1. Create ALT
+
+	altAdmin := solanawallet.NewALTAdmin(provider)
+
+	slot, err := provider.GetFinalizedSlot(ctx)
+	if err != nil {
+		return fmt.Errorf("get slot: %w", err)
+	}
+
+	ix, altPubKey, err := altAdmin.NewCreateInstruction(sc.admin.PublicKey, sc.admin.PublicKey, slot)
+	if err != nil {
+		return fmt.Errorf("new create instruction: %w", err)
+	}
+
+	err = sendTxHelper([]solana.Instruction{ix})
+	if err != nil {
+		return fmt.Errorf("send create ALT tx: %w", err)
+	}
+
+	sc.altPublicKey = altPubKey.String()
+	fmt.Printf("created ALT with public key: %s\n", altPubKey.String())
+
+	// 2. Extend ALT
+
+	tokenMints := make([]solana.PublicKey, 0, len(sc.config.TokensMint))
+
+	for _, tokenMint := range sc.config.TokensMint {
+		tokenMints = append(tokenMints, solana.MustPublicKeyFromBase58(tokenMint))
+	}
+
+	altPubKeys, err := txSender.BridgeTransactionALTAddresses(tokenMints)
+	if err != nil {
+		return fmt.Errorf("get bridge transaction ALT addresses: %w", err)
+	}
+
+	for _, altPubKey := range altPubKeys {
+		fmt.Printf("ALT public key: %s\n", altPubKey.String())
+	}
+
+	ixs, err := altAdmin.NewExtendInstructions(ctx, altPubKey, sc.admin.PublicKey, sc.admin.PublicKey, altPubKeys)
+	if err != nil {
+		return fmt.Errorf("new extend instructions: %w", err)
+	}
+
+	err = sendTxHelper(ixs)
+	if err != nil {
+		return fmt.Errorf("send extend ALT tx: %w", err)
+	}
+
+	fmt.Printf("extended ALT with public key: %s\n", altPubKey.String())
+
+	time.Sleep(10 * time.Second)
+
+	state, err := provider.GetAddressLookupTable(ctx, altPubKey)
+	if err != nil {
+		return fmt.Errorf("get address lookup table: %w", err)
+	}
+
+	fmt.Printf("address lookup table: %+v\n", state)
+
+	return nil
+}
+
 func (sc *TestSolanaChain) FundWallets(ctx context.Context) error {
 	if sc.jsonRPCAddr == "" {
 		return nil
@@ -820,6 +940,7 @@ func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexVal
 		"--dbs-path", dbsPath,
 		"--treasury-address", sc.config.TreasuryAddress.String(),
 		"--fee-addr-bridging", sc.relayerAddr,
+		"--alt-public-key", sc.altPublicKey,
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
@@ -952,7 +1073,7 @@ func (sc *TestSolanaChain) GetMintableTokens() map[uint16]string {
 
 // GetRelayerAddress implements ITestApexChain.
 func (sc *TestSolanaChain) GetRelayerAddress() string {
-	return ""
+	return sc.relayerAddr
 }
 
 // GetServerMust implements ITestApexChain.
@@ -998,6 +1119,27 @@ func (sc *TestSolanaChain) RunChain(t *testing.T) error {
 
 	sc.cluster = cluster
 	sc.jsonRPCAddr = sc.cluster.Servers[0].NetworkAddress()
+
+	return nil
+}
+
+func (sc *TestSolanaChain) CheckTxFee(ctx context.Context, txHash string) error {
+	txProvider, err := sc.GetTxProvider()
+	if err != nil {
+		return fmt.Errorf("get tx provider: %w", err)
+	}
+
+	signature, err := solana.SignatureFromBase58(txHash)
+	if err != nil {
+		return fmt.Errorf("parse signature: %w", err)
+	}
+
+	tx, err := txProvider.GetTransaction(ctx, signature)
+	if err != nil {
+		return fmt.Errorf("get transaction: %w", err)
+	}
+
+	fmt.Println("SOLANA TX FEE: ", tx.Meta.Fee)
 
 	return nil
 }
@@ -1081,6 +1223,34 @@ func (sc *TestSolanaChain) FundUserWithToken(
 ) error {
 	if amount == nil || amount.Sign() <= 0 {
 		return fmt.Errorf("amount must be greater than zero")
+	}
+
+	if tokenID == SOLTokenID {
+		provider, err := sc.GetTxProvider()
+		if err != nil {
+			return fmt.Errorf("get tx provider: %w", err)
+		}
+
+		return sc.airdropSOL(ctx, provider, address, amount)
+	}
+
+	if tokenID == WSOLTokenID {
+		provider, err := sc.GetTxProvider()
+		if err != nil {
+			return fmt.Errorf("get tx provider: %w", err)
+		}
+
+		err = sc.airdropSOL(ctx, provider, address, amount)
+		if err != nil {
+			return fmt.Errorf("airdrop SOL: %w", err)
+		}
+
+		wallet, err := solanawallet.NewWalletFromPrivateKey(address)
+		if err != nil {
+			return fmt.Errorf("new wallet from private key: %w", err)
+		}
+
+		return sc.wrapSOL(ctx, provider, wallet, amount)
 	}
 
 	tokenMint, ok := sc.config.TokensMint[tokenID]
