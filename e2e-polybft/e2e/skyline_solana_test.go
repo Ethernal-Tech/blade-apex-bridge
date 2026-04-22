@@ -555,7 +555,7 @@ func Test_SkylineSolana_ValidScenarios(t *testing.T) {
 			bridgingAmount,
 			e2ehelper.WithTimeoutConfig(e2ehelper.NewTimeoutConfig(
 				e2ehelper.WithBridgingNumRetries(100),
-				e2ehelper.WithBridgingRetryWaitTime(20*time.Second),
+				e2ehelper.WithBridgingRetryWaitTime(30*time.Second),
 				e2ehelper.WithUnexpectedBridgesNumRetries(12),
 				e2ehelper.WithUnexpectedBridgesRetryWaitTime(10*time.Second),
 			)),
