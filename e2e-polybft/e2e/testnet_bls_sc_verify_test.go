@@ -183,9 +183,9 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongSig(t *testing.T) {
 	bytes, err := hex.DecodeString(data.signature)
 	require.NoError(t, err)
 
-	t.Logf("Setting first byte of the aggregated signature to ' '\n")
+	t.Logf("Changing first byte of the aggregated signature\n")
 
-	bytes[0] = ' '
+	bytes[0]++
 	data.signature = hex.EncodeToString(bytes)
 
 	t.Logf("\n\nAltered: \n%s\n\n", data)
@@ -238,10 +238,9 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongMsg(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, isValid)
 
-	t.Logf("Setting first byte of the message to ' '\n")
+	t.Logf("Changing first byte of the message\n")
 
-	testCase.message[0] = ' '
-
+	testCase.message[0]++
 	t.Logf("\n\nAltered: \n%s\n\n", testCase)
 
 	data, err = testCase.ToSCData()
@@ -590,6 +589,140 @@ func generateTestCase(totalValCnt uint32) (*blsVerifyTestCase, error) {
 		signatures: signatures,
 		message:    msg,
 		domain:     domainStr,
+	}, nil
+}
+
+func getFailingHardcodedTestCase() (*blsVerifyTestCase, error) {
+	validatorsDataStr := [][4]string{
+		{
+			"2c55e1b7fc65245c5af1940a3f0a588f1fbd5d1899a4e73330d1b054629688f5",
+			"10342d974b69b0d9f733827f239e98daa411ba0d5d41d4680ac78b4cc9c59211",
+			"1fce76d0a1d97aab820e3df8982b28dca5be71646e77a625fc80ced7161dd2ce",
+			"1659cca493b14b4ff6b6b69f814035af6c81f5894fce01cc71fd5632260a129a",
+		},
+		{
+			"136cc857784c24268d8c3e349ec9d2366efb75c8f2253d711ff472957cf1165a",
+			"042c054e19ab129f3b3af23c00cc4fc8a2d4b2d06ee6d63820f1c0ead063273f",
+			"12a8545d735b225248736115c7587e9f9a3d4bbc3f039ddea208550accb5613f",
+			"2673401045eae9715455347790175f005ac828c8e52c376f7995bfe4536793c9",
+		},
+		{
+			"1075b5afd9648b7bf96c39ce8aa15f685885e4b4a86b9532cd3b5a8fc76a6ce3",
+			"229ade784cae23a5ef7a79fd0b89a3fc98b42e4ced505e286795ec64a73343a7",
+			"053ebdf33d776b27da2de5ae3b131ea308ed707e66212355fc4da19ba7c48385",
+			"0627801c47d60cab028c882010298fe75cac1f50a23412535c2e149982a89b0d",
+		},
+		{
+			"15d833657328fd3077e50e8eebcc4f5d1e533f8504241ef0d645139dc989577b",
+			"16f56046425c14bb72b9089f533aaff05239c33849c7856dff2352503aaef21f",
+			"29254a1416113ffe8390f2c7e32287fe784671c3ca2df7511fe17735a326d5e2",
+			"0dd703ec60994981b80926baf2bca772c3027f9c6b3267236957434685ce359b",
+		},
+		{
+			"042f51a816fcfa9abd2036ddf453277d2bfe89dfee39b22aa17cd651fd7ff7cc",
+			"2972af2ac13c840155ff807307db4d8af6bcd26d3fbdabd016108f93a4f535ef",
+			"2ed7d6d02f58ba76491fe15f78908f6caba1e6800cfcc2b7d2886f93b2418fea",
+			"1561a15084a687531c7675a6d89c89063af3a48c17ee017b42b8414348a2f60b",
+		},
+
+		{
+			"1b28a05fa5d8cc5042d1db5f87947730097e616f3f3c32fff181d3b0f36ad21f",
+			"0fc7c10dac68f9f1b1a62f9379fc16d8ea4f10d83eee1a4f3e1e899da947ccc1",
+			"1de02eb48412886dbe5d5f1c7bcaf70630aeeb92a73e6a01792a77342f9c4c4f",
+			"100188f180d852741cb4e206f247e880c1e5fbb1707ed3e4dc4f0330a8a22ce0",
+		},
+		{
+			"05d9f2ea347b26b850883e6766d7876dc712acbc49b4e94e2e2418d2c39aa386",
+			"08617f12750467286e06c7122cf33228a9e9a71a12ec9d6d566d7a971ecc2ea8",
+			"19d0e3f65876b0855c930e53642dc93f2dc2ea4bb0ff082148c8abbac1405f8d",
+			"192bb44bb92ebcb3058e7dda24fb8b6dba8293cbe4c34a76ba0549e69afd4fb4",
+		},
+		{
+			"2fd0886750c96db3d3fa0d3a40708dcfe7aecb34127c3372ac888f336324e8e4",
+			"0f8c7982557c9e9c067ec620b64cb02464e207da1bf577b41d0f1ecacd02210d",
+			"06d4a613d9e075a10b9120c82d2ee7d797c58bd090cb3b8d9b93734714606913",
+			"09f60d5f59f8f4e7759b1436978abc8ccca993682082f5cc857f86b288dbea79",
+		},
+		{
+			"02f8397de3797e5470ce4d1faff4d48483f464f8282f8cdb3dbd7f757353e92f",
+			"0b1ccecc88c5732c43bf682ba3a1de831cc7f076df859baff94409334732822f",
+			"1fce7d4a1abc75799dde0ea506571c9f5658ab0e89d17f260b2f57c27568278a",
+			"2bb053f7ca35be54bc19e3171285e14ef86bcfbee63be34af38290d4e7928d8f",
+		},
+		{
+			"14868262a32fa793bb6f14fef650d00e9dd9cfee4d30bb37e1ea0de41edaab46",
+			"25b0aba963410d0aa2434d0308483125e0b44dbaa823c8c879eb675904e675eb",
+			"2845cb97b7d6b62d98bf8610d165ad322da016b06b332bd1ba059cba7a0729bb",
+			"057f2557b47e543b1815786aa29e4c3e8005b361828c90600cc5f148d538ce4f",
+		},
+	}
+
+	msgStr := "7ce70b5a7f3f94983cb95bd90533b8e699993a128576638839099adca766c4f9"
+
+	msg, err := hex.DecodeString(msgStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode msg str: %s %w", msgStr, err)
+	}
+
+	bitmap := big.NewInt(127)
+	domain := "LUcNqv9zvl"
+
+	validatorsData := make([]validatorChainData, 0, len(validatorsDataStr))
+
+	for _, vDataStr := range validatorsDataStr {
+		validatorData := make([]*big.Int, 0, len(vDataStr))
+
+		for _, keyStr := range vDataStr {
+			keyBytes, err := hex.DecodeString(keyStr)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't hex decode validator: %s %w", keyStr, err)
+			}
+
+			validatorData = append(validatorData, new(big.Int).SetBytes(keyBytes))
+		}
+
+		vDataReal := [4]*big.Int{
+			new(big.Int).Set(validatorData[0]),
+			new(big.Int).Set(validatorData[1]),
+			new(big.Int).Set(validatorData[2]),
+			new(big.Int).Set(validatorData[3]),
+		}
+
+		validatorsData = append(validatorsData, validatorChainData{Key: vDataReal})
+	}
+
+	signaturesStr := []string{
+		"2d1c1522886c061141949de7961ed33a183c6e6b7e3600d6b16f913b72092cbb0440a6b2af7f183b59c640af0aae03366c565b76d82d2303111fc26ab8a426ca",
+		"229bab940cccaba87803fd6e950a1439f925da913169affba7b3d039cd579b8909d13868819a9abdb4bbb65da47399390ddb19fcea2ddf2b303843a29d8784ef",
+		"175e8cce8bfb38466554290a9fd9839cd74fe3baa9963320b953e0b31fec668b2a83b93a79637bf8d1d0a195d2765b22b20dbd6cfd69de39fdd8e9080cdee33e",
+		"2bd85dd6553b2cbc01131ad5d635751e4278caff25cc84193b63bf66c9ccd16f0c02c8461848662f18a038a38baab09a074934fe2a2208cdd1433a981fe6b80a",
+		"1a045e1b3a6e80ac6dc9044f2c313cb2feff21034f69eba93da2f60a3513953027f836ea136fe10772fd614a090590f0df3d186fe5605f76a90196ee5fed3854",
+		"243681d14f90ac27dab538c1d12093c565180b58b80fe2c16057b0831b9e2b7814f54dc71849df4ddfbac95c7c157ca39da245bac591b89f30b496ee160be232",
+		"1dee7d1620a75e3259ea3b25d56f2be4a88605562b4fa6cc5a22fadf2212c29112701009de8e876eb415064d43fc056e98359eef24f7cc2897a2b1636b758238",
+	}
+
+	signatures := make(bn256.Signatures, len(signaturesStr))
+
+	for i, sigStr := range signaturesStr {
+		sigBytes, err := hex.DecodeString(sigStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to hex decode sig str: %s %w", sigStr, err)
+		}
+
+		sig, err := bn256.UnmarshalSignature(sigBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal sig str: %s %w", sigStr, err)
+		}
+
+		signatures[i] = sig
+	}
+
+	return &blsVerifyTestCase{
+		validators: validatorsData,
+		message:    msg,
+		signatures: signatures,
+		bitmap:     bitmap,
+		domain:     domain,
 	}, nil
 }
 
