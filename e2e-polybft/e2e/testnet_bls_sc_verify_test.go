@@ -186,9 +186,9 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongSig(t *testing.T) {
 	t.Logf("Changing first byte of the aggregated signature\n")
 
 	if bytes[0] > 0 {
-		bytes[0]++
-	} else {
 		bytes[0]--
+	} else {
+		bytes[0]++
 	}
 
 	data.signature = hex.EncodeToString(bytes)
@@ -246,9 +246,9 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongMsg(t *testing.T) {
 	t.Logf("Changing first byte of the message\n")
 
 	if testCase.message[0] > 0 {
-		testCase.message[0]++
-	} else {
 		testCase.message[0]--
+	} else {
+		testCase.message[0]++
 	}
 
 	t.Logf("\n\nAltered: \n%s\n\n", testCase)
