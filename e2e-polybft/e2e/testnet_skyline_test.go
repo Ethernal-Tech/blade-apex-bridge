@@ -264,10 +264,12 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 		txBuilder, err := cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary(networkType))
 		require.NoError(t, err)
 
+		chainBalances := balances[chain]
+
 		for _, user := range apex.Users {
 			_, senderAddr := user.GetCardanoWallet(chain)
 
-			balance, exists := balances[senderAddr.String()]
+			balance, exists := chainBalances[senderAddr.String()]
 			if !exists {
 				continue
 			}
@@ -1132,7 +1134,8 @@ func TestE2E_SkylineTestnetBridge_NexusSrcGasPrice_NonDecreasing(t *testing.T) {
 }
 
 func printSkylineUserBalances(
-	t *testing.T, apex *cardanofw.ApexSystem, users []*cardanofw.TestApexUser, balances map[string]map[string]*big.Int,
+	t *testing.T, apex *cardanofw.ApexSystem, users []*cardanofw.TestApexUser,
+	balances map[cardanofw.ChainID]map[string]map[string]*big.Int,
 ) {
 	t.Helper()
 
@@ -1158,27 +1161,37 @@ func printSkylineUserBalances(
 		for _, chain := range skylineChains {
 			addr := user.GetAddress(chain)
 
-			if balance, exists := balances[addr]; !exists {
+			chainBalances, chainExists := balances[chain]
+			if !chainExists {
 				fmt.Printf("%s addr: %s, balance: No data\n", chain, addr)
-			} else {
-				fmt.Printf("%s addr: %s\n", chain, addr)
 
-				switch chain {
-				case cardanofw.ChainIDNexus:
-					info := apex.NexusInfo
-					for tokenID, token := range info.Tokens {
-						balanceToString(tokenID, balance[token.ChainSpecific])
-					}
-				case cardanofw.ChainIDPolygon:
-					info := apex.PolygonInfo
-					for tokenID, token := range info.Tokens {
-						balanceToString(tokenID, balance[token.ChainSpecific])
-					}
-				default:
-					info := apex.GetCardanoInfo(chain)
-					for tokenID, token := range info.Tokens {
-						balanceToString(tokenID, balance[token.ChainSpecific])
-					}
+				continue
+			}
+
+			balance, exists := chainBalances[addr]
+			if !exists {
+				fmt.Printf("%s addr: %s, balance: No data\n", chain, addr)
+
+				continue
+			}
+
+			fmt.Printf("%s addr: %s\n", chain, addr)
+
+			switch chain {
+			case cardanofw.ChainIDNexus:
+				info := apex.NexusInfo
+				for tokenID, token := range info.Tokens {
+					balanceToString(tokenID, balance[token.ChainSpecific])
+				}
+			case cardanofw.ChainIDPolygon:
+				info := apex.PolygonInfo
+				for tokenID, token := range info.Tokens {
+					balanceToString(tokenID, balance[token.ChainSpecific])
+				}
+			default:
+				info := apex.GetCardanoInfo(chain)
+				for tokenID, token := range info.Tokens {
+					balanceToString(tokenID, balance[token.ChainSpecific])
 				}
 			}
 		}

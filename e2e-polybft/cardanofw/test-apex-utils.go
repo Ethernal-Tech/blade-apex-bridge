@@ -624,15 +624,21 @@ func populateEvmTokenBalances(
 	return balance, errs
 }
 
+// GetUsersBalances returns a map keyed by chain and then by address.
+// Keying by chain first is required because EVM chains share the same address for a given user
 func GetUsersBalances(
 	ctx context.Context, apex *ApexSystem, chains []ChainID, users []*TestApexUser,
-) (map[string]map[string]*big.Int, error) {
+) (map[ChainID]map[string]map[string]*big.Int, error) {
 	var (
-		balances = make(map[string]map[string]*big.Int, len(users)*len(chains))
+		balances = make(map[ChainID]map[string]map[string]*big.Int, len(chains))
 		wg       sync.WaitGroup
 		mu       sync.Mutex
 		errs     []error
 	)
+
+	for _, chain := range chains {
+		balances[chain] = make(map[string]map[string]*big.Int, len(users)+1)
+	}
 
 	baseUsers := []*TestApexUser(nil)
 	if apex.FunderUser != nil {
@@ -664,7 +670,7 @@ func GetUsersBalances(
 					errs = append(errs, fmt.Errorf("failed to get balance for (%s, %s): %w", chain, addr, err))
 				} else {
 					errs = append(errs, tokenErrs...)
-					balances[addr] = balance
+					balances[chain][addr] = balance
 				}
 			}(user, chain, user.GetAddress(chain))
 		}
