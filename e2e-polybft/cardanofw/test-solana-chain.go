@@ -316,6 +316,66 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 		return fmt.Errorf("initialize ALT: %w", err)
 	}
 
+	if err := sc.hotWalletIncrementFunding(ctx); err != nil {
+		return fmt.Errorf("increment hot wallet funding: %w", err)
+	}
+
+	return nil
+}
+
+func (sc *TestSolanaChain) hotWalletIncrementFunding(ctx context.Context) error {
+	adminBalance, err := sc.GetAddressBalanceWithTokenName(ctx, sc.admin.PublicKey.String(), WSOLMintAddress)
+	if err != nil {
+		return fmt.Errorf("get admin balance: %w", err)
+	}
+
+	fmt.Printf("admin balance: %s\n", adminBalance)
+
+	if adminBalance[WSOLMintAddress].Cmp(sc.config.InitialHotWalletAmount) < 0 {
+		return fmt.Errorf("admin balance is less than initial hot wallet amount")
+	}
+
+	fmt.Printf("initial hot wallet amount: %s\n", sc.config.InitialHotWalletAmount.String())
+
+	adminPkFile, err := os.CreateTemp(os.TempDir(), "admin-pk-*.json")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+
+	defer adminPkFile.Close()
+
+	pkString := fmt.Sprintf("%v", []byte(sc.admin.PrivateKey))
+	pkString = strings.ReplaceAll(pkString, " ", ",")
+
+	if _, err := adminPkFile.Write([]byte(pkString)); err != nil {
+		return fmt.Errorf("write admin private key: %w", err)
+	}
+
+	for tokenID, tokenName := range sc.config.LockUnlockTokens {
+		if tokenName != WSOLANATokenName {
+			continue
+		}
+
+		hotWalletIncrementParams := []string{
+			"deploy-solana",
+			"hot-wallet-increment",
+			"--url", sc.jsonRPCAddr,
+			"--key", adminPkFile.Name(),
+			"--mint", sc.config.TokensMint[tokenID],
+			"--program", sc.programID,
+			"--amount", strconv.Itoa(int(WeiToLamport(sc.config.InitialHotWalletAmount).Uint64())),
+		}
+
+		var b bytes.Buffer
+
+		err = RunCommand(ResolveApexBridgeBinary(), hotWalletIncrementParams, io.MultiWriter(os.Stdout, &b))
+		if err != nil {
+			return fmt.Errorf("increment hot wallet funding: %w", err)
+		}
+
+		fmt.Printf("incremented hot wallet funding for token %d with name %s on Solana\n", tokenID, tokenName)
+	}
+
 	return nil
 }
 
@@ -773,6 +833,7 @@ func (sc *TestSolanaChain) FundWallets(ctx context.Context) error {
 
 	// Fund the admin wallet with SOL, wrap to wSOL, send to premine wallets
 	solFundAmount = solFundAmount.Mul(solFundAmount, big.NewInt(int64(len(sc.config.PreminesAddresses)+3)))
+	solFundAmount = solFundAmount.Add(solFundAmount, WeiToLamport(sc.config.InitialHotWalletAmount))
 
 	if err := sc.airdropSOL(ctx, provider, sc.admin.PublicKey.String(), solFundAmount); err != nil {
 		return fmt.Errorf("airdrop SOL to admin: %w", err)
@@ -782,6 +843,7 @@ func (sc *TestSolanaChain) FundWallets(ctx context.Context) error {
 		WeiToLamport(sc.config.FundAmount),
 		big.NewInt(int64(len(sc.config.PreminesAddresses)+1)),
 	)
+	wrapSolAmount = wrapSolAmount.Add(wrapSolAmount, WeiToLamport(sc.config.InitialHotWalletAmount))
 
 	// wrap SOL to wSOL
 	if err := sc.wrapSOL(ctx, provider, sc.admin, wrapSolAmount); err != nil {
@@ -1087,7 +1149,7 @@ func (sc *TestSolanaChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSyst
 
 func (sc *TestSolanaChain) RegisterChain(validator *TestApexValidator) error {
 	return validator.RegisterChain(
-		sc.ChainID(), sc.config.InitialHotWalletAmount, big.NewInt(0), ChainTypeSolana)
+		sc.ChainID(), big.NewInt(0), big.NewInt(0), ChainTypeSolana)
 }
 
 // RunChain implements ITestApexChain.
