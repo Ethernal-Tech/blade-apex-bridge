@@ -104,7 +104,7 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 		MinBridgingFee:         defaultMinBridgingFeeAmount,
 		MinBridgingAmount:      MinUTxODefaultValue,
 		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
-		MinOperationFee:        big.NewInt(0),
+		MinOperationFee:        DefaultMinOperationFee,
 		CurrencyID:             AP3XTokenID,
 
 		TreasuryAddress: defaultNexusTreasuryAddress,

@@ -174,6 +174,10 @@ func NewApexSystem(
 		opt(config)
 	}
 
+	config.PrimeConfig.MinOperationFee = 0
+	config.VectorConfig.MinOperationFee = 0
+	config.NexusConfig.MinOperationFee = big.NewInt(0)
+
 	nexus, err := NewTestEVMChain(config.NexusConfig)
 	if err != nil {
 		return nil, err
@@ -217,11 +221,6 @@ func NewSkylineSystem(
 	for _, opt := range opts {
 		opt(config)
 	}
-
-	config.PrimeConfig.MinOperationFee = WeiToDfm(DefaultMinOperationFee).Uint64()
-	config.VectorConfig.MinOperationFee = WeiToDfm(DefaultMinOperationFee).Uint64()
-	config.NexusConfig.MinOperationFee = DefaultMinOperationFee
-	config.PolygonConfig.MinOperationFee = DefaultMinOperationFee
 
 	users := make([]*TestApexUser, config.UserCnt)
 
