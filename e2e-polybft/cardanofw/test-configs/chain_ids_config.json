@@ -27,7 +27,7 @@
         },
         {
             "chainID": "solana",
-            "chainIDNum": 6,
+            "chainIDNum": 12,
             "chainType": "solana"
         }
     ]
