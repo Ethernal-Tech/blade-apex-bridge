@@ -39,12 +39,12 @@ on: # yamllint disable-line rule:truthy
         description: E2E Skyline CC Tests
         type: boolean
         default: true
-      e2e_apex_skip_redundant_tests:
-        description: E2E ApexBridge Skip Redundant Tests
-        type: boolean
-        default: true
       e2e_skyline_solana_test:
         description: E2E Skyline Solana Tests
+        type: boolean
+        default: true
+      e2e_apex_skip_redundant_tests:
+        description: E2E ApexBridge Skip Redundant Tests
         type: boolean
         default: true
       apex_bridge_ref:
@@ -166,7 +166,7 @@ jobs:
           if [[ "${{ inputs.apex_bridge_ref }}" == "" ]]; then
             if [[ "${{ github.event_name }}" == "pull_request" ]]; then
               if [[ "${{ github.base_ref }}" == "feat/skyline" ]]; then
-                echo "apex_bridge_ref=feat/AD-1022-implement-oracle" >> $GITHUB_OUTPUT
+                echo "apex_bridge_ref=feat/skyline-solana" >> $GITHUB_OUTPUT
               else
                 echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
               fi
