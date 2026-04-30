@@ -101,6 +101,7 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 	for _, user := range apex.Users {
 		for _, chain := range chains {
 			addr := user.GetAddress(chain)
+			chainBalances := balances[chain]
 
 			var (
 				change         *big.Int
@@ -159,7 +160,7 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 				balanceAtleast = big.NewInt(0).Add(cardanofw.MinUTxODefaultValue, change)
 			}
 
-			balance, exists := balances[addr]
+			balance, exists := chainBalances[addr]
 			if !exists || balance.Cmp(balanceAtleast) != 1 {
 				continue
 			}
@@ -236,7 +237,7 @@ func Test_E2E_TestnetFund(t *testing.T) {
 					}
 
 					return txHash, err
-				})
+				}, infracommon.WithIsRetryableError(cardanofw.IsRetryableSubmitTx))
 				if err != nil {
 					fmt.Printf("error while funding %s address: %s, err: %v\n", chain, addr, err)
 
@@ -463,7 +464,10 @@ func Test_E2E_TestnetPrintBalances(t *testing.T) {
 	printUserBalances(apex, apex.Users, balances)
 }
 
-func printUserBalances(apex *cardanofw.ApexSystem, users []*cardanofw.TestApexUser, balances map[string]*big.Int) {
+func printUserBalances(
+	apex *cardanofw.ApexSystem, users []*cardanofw.TestApexUser,
+	balances map[cardanofw.ChainID]map[string]*big.Int,
+) {
 	allUsers := append([]*cardanofw.TestApexUser{apex.FunderUser}, users...)
 
 	for i, user := range allUsers {
@@ -478,8 +482,10 @@ func printUserBalances(apex *cardanofw.ApexSystem, users []*cardanofw.TestApexUs
 				balanceStr = "No data"
 			)
 
-			if balance, exists := balances[addr]; exists {
-				balanceStr = balance.String()
+			if chainBalances, chainExists := balances[chain]; chainExists {
+				if balance, exists := chainBalances[addr]; exists {
+					balanceStr = balance.String()
+				}
 			}
 
 			fmt.Printf("%s addr: %s, balance: %s\n", chain, addr, balanceStr)
@@ -492,13 +498,18 @@ func printUserBalances(apex *cardanofw.ApexSystem, users []*cardanofw.TestApexUs
 func getUserLovelaceBalances(
 	ctx context.Context, apex *cardanofw.ApexSystem,
 	users []*cardanofw.TestApexUser,
-) map[string]*big.Int {
+) map[cardanofw.ChainID]map[string]*big.Int {
 	chains := getEnabledChains(apex)
 	balances, _ := cardanofw.GetUsersBalances(ctx, apex, chains, users)
-	result := make(map[string]*big.Int, len(balances))
+	result := make(map[cardanofw.ChainID]map[string]*big.Int, len(balances))
 
-	for addr, balances := range balances {
-		result[addr] = balances[cardanowallet.AdaTokenName]
+	for chain, chainBalances := range balances {
+		inner := make(map[string]*big.Int, len(chainBalances))
+		for addr, tokens := range chainBalances {
+			inner[addr] = tokens[cardanowallet.AdaTokenName]
+		}
+
+		result[chain] = inner
 	}
 
 	return result
