@@ -234,6 +234,7 @@ func (t *TxRelayerImpl) SendTransaction(txn *types.Transaction, key crypto.Key) 
 		if isRetryableRPCError(err) {
 			return nil, err
 		}
+
 		if txn.Type() != types.LegacyTxType {
 			for _, fallbackErr := range dynamicFeeTxFallbackErrs {
 				if strings.Contains(
