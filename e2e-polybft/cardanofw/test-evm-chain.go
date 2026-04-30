@@ -200,7 +200,7 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 		MinBridgingFee:         defaultMinBridgingFeeAmountPolygon,
 		MinBridgingAmount:      MinUTxODefaultValue,
 		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
-		MinOperationFee:        DfmToWei(DefaultMinOperationFee),
+		MinOperationFee:        DefaultMinOperationFee,
 		CurrencyID:             POLTokenID,
 		FeeAddrBridging:        defaultFeeAddrBridgingAmount,
 
