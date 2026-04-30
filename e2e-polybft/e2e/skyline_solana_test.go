@@ -162,6 +162,51 @@ func Test_SkylineSolana_AllDirections(t *testing.T) {
 	})
 }
 
+func Test_SkylineSolana_OpFeeNotSet(t *testing.T) {
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{
+		cardanofw.ASOLTokenID:  cardanofw.ASOLTokenName,
+		cardanofw.USDTTokenID:  cardanofw.USDTTokenName,
+		cardanofw.SAP3XTokenID: cardanofw.SAP3XTokenName,
+	})
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
+
+	solanaConfig := cardanofw.NewSolanaChainConfig(true)
+	solanaConfig.MinOperationFee = big.NewInt(0)
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithSolanaConfig(solanaConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithUserCnt(1),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	t.Run("SOL -> Vector", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
+			cardanofw.WSOLTokenID, false)
+	})
+
+	t.Run("SOL -> Nexus", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDNexus, cardanofw.SolanaToWei(big.NewInt(1)),
+			cardanofw.WSOLTokenID, false)
+	})
+}
+
 func Test_SkylineSolana_LockUnlockTokenFlow(t *testing.T) {
 	const (
 		apiKey = "test_api_key"
