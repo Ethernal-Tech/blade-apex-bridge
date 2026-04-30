@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
+	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/Ethernal-Tech/cardano-infrastructure/common"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
@@ -22,6 +23,10 @@ import (
 
 func isUnknownBlockRPCError(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "Unknown block")
+}
+
+func isEVMReceiptUnavailableError(err error) bool {
+	return err != nil && errors.Is(err, txrelayer.ErrFailedToRetrieveTxReceipt)
 }
 
 var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon}
@@ -110,7 +115,7 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 					}
 
 					return txHash, err
-				})
+				}, common.WithIsRetryableError(cardanofw.IsRetryableSubmitTx))
 				if err != nil {
 					if isUnknownBlockRPCError(err) {
 						fmt.Printf("funding non-fatal error for chain %s, address: %s, txHash: %s: %v\n", chain, receiverAddr, txHash, err)
@@ -223,9 +228,9 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 						}
 
 						return txHash, err
-					})
+					}, common.WithIsRetryableError(cardanofw.IsRetryableSubmitTx))
 					if err != nil {
-						if isUnknownBlockRPCError(err) {
+						if isUnknownBlockRPCError(err) || isEVMReceiptUnavailableError(err) {
 							fmt.Printf("defunding non-fatal error for chain %s, address: %s, txHash: %s: %v\n",
 								chain, addr, txHash, err)
 
@@ -321,9 +326,9 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 					}
 
 					return txHash, err
-				})
+				}, common.WithIsRetryableError(cardanofw.IsRetryableSubmitTx))
 				if err != nil {
-					if isUnknownBlockRPCError(err) {
+					if isUnknownBlockRPCError(err) || isEVMReceiptUnavailableError(err) {
 						fmt.Printf("defunding non-fatal error for chain %s, address: %s, txHash: %s: %v\n",
 							chain, senderAddr, txHash, err)
 
