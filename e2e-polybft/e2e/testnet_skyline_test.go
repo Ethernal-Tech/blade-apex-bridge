@@ -26,7 +26,7 @@ func isUnknownBlockRPCError(err error) bool {
 }
 
 func isEVMReceiptUnavailableError(err error) bool {
-	return err != nil && errors.Is(err, txrelayer.ErrFailedToRetrieveTxReceipt)
+	return err != nil && strings.Contains(err.Error(), txrelayer.ErrFailedToRetrieveTxReceipt.Error())
 }
 
 var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon}
