@@ -35,7 +35,7 @@ var fundableTokensPerChain = map[cardanofw.ChainID][]uint16{
 	cardanofw.ChainIDVector:  {cardanofw.XADATokenID},
 	cardanofw.ChainIDCardano: {cardanofw.CAP3XTokenID},
 	cardanofw.ChainIDNexus:   {cardanofw.USDTTokenID},
-	cardanofw.ChainIDPolygon: {},
+	cardanofw.ChainIDPolygon: {cardanofw.PAP3XTokenID},
 }
 
 func Test_E2E_SkylineTestnetFund(t *testing.T) {
@@ -212,11 +212,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 					tokens = append(tokens, cardanofw.NewGenericTokenAmount(cardanowallet.Token{PolicyID: token}, amount))
 				}
 
-				wg.Add(1)
-
-				go func(user *cardanofw.TestApexUser, chain string) {
-					defer wg.Done()
-
+				runDefund := func() {
 					addr := user.GetAddress(chain)
 					fmt.Printf("Defunding %s address: %s\n", chain, addr)
 
@@ -241,7 +237,19 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 						addrErrs = append(addrErrs, fmt.Errorf("error while defunding addr %s: %w", addr, err))
 						mu.Unlock()
 					}
-				}(user, chain)
+				}
+
+				if chain == cardanofw.ChainIDPolygon {
+					// run defund sequentially for polygon because of the rpc limitations
+					runDefund()
+				} else {
+					wg.Add(1)
+
+					go func() {
+						defer wg.Done()
+						runDefund()
+					}()
+				}
 			}
 
 			continue
@@ -707,23 +715,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 
 	polygonParallelSendAP3X := new(big.Int).Set(oneApexWei)
 
-	ap3xPerChainNeed := new(big.Int).Mul(
-		polygonParallelSendAP3X, big.NewInt(int64(polygonSequentialInstances*receiversCnt)))
-
-	polygonSeedFundAP3X := new(big.Int).Mul(ap3xPerChainNeed, big.NewInt(2))
-	if polygonSeedFundAP3X.Cmp(oneApexWei) < 0 {
-		polygonSeedFundAP3X = new(big.Int).Set(oneApexWei)
-	}
-
-	t.Run("15. Seed pAP3X on Polygon (Nexus -> Polygon AP3X per sender)", func(t *testing.T) {
-		for _, u := range senders {
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, u, u, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, polygonSeedFundAP3X,
-				cardanofw.AP3XTokenID, true, bridgingOpts...)
-		}
-	})
-
-	t.Run("16. Nexus <-> Polygon AP3X and pAP3X both directions parallel", func(t *testing.T) {
+	t.Run("15. Nexus <-> Polygon AP3X and pAP3X both directions parallel", func(t *testing.T) {
 		bridgingDirections := []e2ehelper.BridgingDirectionConfig{
 			{SrcChain: cardanofw.ChainIDNexus, DstChain: cardanofw.ChainIDPolygon, SrcTokenID: cardanofw.AP3XTokenID},
 			{SrcChain: cardanofw.ChainIDPolygon, DstChain: cardanofw.ChainIDNexus, SrcTokenID: cardanofw.PAP3XTokenID},
