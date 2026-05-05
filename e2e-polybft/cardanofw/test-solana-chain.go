@@ -175,6 +175,7 @@ func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string
 	}
 
 	txDto := solsendtx.BridgeRequestDto{
+		ProgramID:    solana.MustPublicKeyFromBase58(sc.programID),
 		DstChainID:   params.DestChainID,
 		SenderAddr:   senderWallet.PublicKey.String(),
 		Receivers:    txReceivers,
@@ -362,7 +363,7 @@ func (sc *TestSolanaChain) hotWalletIncrementFunding(ctx context.Context) error 
 			"--url", sc.jsonRPCAddr,
 			"--key", adminPkFile.Name(),
 			"--mint", sc.config.TokensMint[tokenID],
-			"--program", sc.programID,
+			"--program-id", sc.programID,
 			"--amount", strconv.Itoa(int(WeiToLamport(sc.config.InitialHotWalletAmount).Uint64())),
 		}
 
@@ -398,6 +399,7 @@ func (sc *TestSolanaChain) initializeProgram() error {
 		"deploy-solana",
 		"initialize-program",
 		"--url", sc.jsonRPCAddr,
+		"--program-id", sc.programID,
 		"--admin-key", adminPkFile.Name(),
 		"--last-id", "0",
 		"--min-operation-fee", strconv.Itoa(int(sc.config.MinOperationFee.Uint64())),
@@ -673,6 +675,7 @@ func (sc *TestSolanaChain) registerTokens() error {
 			"deploy-solana",
 			"register-lock-unlock-token",
 			"--url", sc.jsonRPCAddr,
+			"--program-id", sc.programID,
 			"--admin-key", adminPkFile.Name(),
 			"--treasury-address", sc.config.TreasuryAddress.String(),
 			"--relayer-address", sc.relayerAddr,
@@ -696,6 +699,7 @@ func (sc *TestSolanaChain) registerTokens() error {
 			"deploy-solana",
 			"register-mint-burn-token",
 			"--url", sc.jsonRPCAddr,
+			"--program-id", sc.programID,
 			"--admin-key", adminPkFile.Name(),
 			"--treasury-address", sc.config.TreasuryAddress.String(),
 			"--relayer-address", sc.relayerAddr,
@@ -754,6 +758,7 @@ func (sc *TestSolanaChain) initializeALT() error {
 		"deploy-solana",
 		"create-alt",
 		"--url", sc.jsonRPCAddr,
+		"--program-id", sc.programID,
 		"--admin-key", adminPkFile.Name(),
 		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 	}
@@ -789,6 +794,7 @@ func (sc *TestSolanaChain) initializeALT() error {
 		"deploy-solana",
 		"extend-alt",
 		"--url", sc.jsonRPCAddr,
+		"--program-id", sc.programID,
 		"--admin-key", adminPkFile.Name(),
 		"--alt-address", sc.altPublicKey,
 		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
