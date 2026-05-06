@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
+	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/Ethernal-Tech/cardano-infrastructure/common"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
@@ -24,13 +25,17 @@ func isUnknownBlockRPCError(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "Unknown block")
 }
 
+func isEVMReceiptUnavailableError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), txrelayer.ErrFailedToRetrieveTxReceipt.Error())
+}
+
 var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon}
 var fundableTokensPerChain = map[cardanofw.ChainID][]uint16{
 	cardanofw.ChainIDPrime:   {},
 	cardanofw.ChainIDVector:  {cardanofw.XADATokenID},
 	cardanofw.ChainIDCardano: {cardanofw.CAP3XTokenID},
 	cardanofw.ChainIDNexus:   {cardanofw.USDTTokenID},
-	cardanofw.ChainIDPolygon: {},
+	cardanofw.ChainIDPolygon: {cardanofw.PAP3XTokenID},
 }
 
 func Test_E2E_SkylineTestnetFund(t *testing.T) {
@@ -110,7 +115,7 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 					}
 
 					return txHash, err
-				})
+				}, common.WithIsRetryableError(cardanofw.IsRetryableSubmitTx))
 				if err != nil {
 					if isUnknownBlockRPCError(err) {
 						fmt.Printf("funding non-fatal error for chain %s, address: %s, txHash: %s: %v\n", chain, receiverAddr, txHash, err)
@@ -207,11 +212,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 					tokens = append(tokens, cardanofw.NewGenericTokenAmount(cardanowallet.Token{PolicyID: token}, amount))
 				}
 
-				wg.Add(1)
-
-				go func(user *cardanofw.TestApexUser, chain string) {
-					defer wg.Done()
-
+				runDefund := func() {
 					addr := user.GetAddress(chain)
 					fmt.Printf("Defunding %s address: %s\n", chain, addr)
 
@@ -223,9 +224,9 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 						}
 
 						return txHash, err
-					})
+					}, common.WithIsRetryableError(cardanofw.IsRetryableSubmitTx))
 					if err != nil {
-						if isUnknownBlockRPCError(err) {
+						if isUnknownBlockRPCError(err) || isEVMReceiptUnavailableError(err) {
 							fmt.Printf("defunding non-fatal error for chain %s, address: %s, txHash: %s: %v\n",
 								chain, addr, txHash, err)
 
@@ -236,7 +237,19 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 						addrErrs = append(addrErrs, fmt.Errorf("error while defunding addr %s: %w", addr, err))
 						mu.Unlock()
 					}
-				}(user, chain)
+				}
+
+				if chain == cardanofw.ChainIDPolygon {
+					// run defund sequentially for polygon because of the rpc limitations
+					runDefund()
+				} else {
+					wg.Add(1)
+
+					go func() {
+						defer wg.Done()
+						runDefund()
+					}()
+				}
 			}
 
 			continue
@@ -264,10 +277,12 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 		txBuilder, err := cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary(networkType))
 		require.NoError(t, err)
 
+		chainBalances := balances[chain]
+
 		for _, user := range apex.Users {
 			_, senderAddr := user.GetCardanoWallet(chain)
 
-			balance, exists := balances[senderAddr.String()]
+			balance, exists := chainBalances[senderAddr.String()]
 			if !exists {
 				continue
 			}
@@ -319,9 +334,9 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 					}
 
 					return txHash, err
-				})
+				}, common.WithIsRetryableError(cardanofw.IsRetryableSubmitTx))
 				if err != nil {
-					if isUnknownBlockRPCError(err) {
+					if isUnknownBlockRPCError(err) || isEVMReceiptUnavailableError(err) {
 						fmt.Printf("defunding non-fatal error for chain %s, address: %s, txHash: %s: %v\n",
 							chain, senderAddr, txHash, err)
 
@@ -700,23 +715,7 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 
 	polygonParallelSendAP3X := new(big.Int).Set(oneApexWei)
 
-	ap3xPerChainNeed := new(big.Int).Mul(
-		polygonParallelSendAP3X, big.NewInt(int64(polygonSequentialInstances*receiversCnt)))
-
-	polygonSeedFundAP3X := new(big.Int).Mul(ap3xPerChainNeed, big.NewInt(2))
-	if polygonSeedFundAP3X.Cmp(oneApexWei) < 0 {
-		polygonSeedFundAP3X = new(big.Int).Set(oneApexWei)
-	}
-
-	t.Run("15. Seed pAP3X on Polygon (Nexus -> Polygon AP3X per sender)", func(t *testing.T) {
-		for _, u := range senders {
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, u, u, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, polygonSeedFundAP3X,
-				cardanofw.AP3XTokenID, true, bridgingOpts...)
-		}
-	})
-
-	t.Run("16. Nexus <-> Polygon AP3X and pAP3X both directions parallel", func(t *testing.T) {
+	t.Run("15. Nexus <-> Polygon AP3X and pAP3X both directions parallel", func(t *testing.T) {
 		bridgingDirections := []e2ehelper.BridgingDirectionConfig{
 			{SrcChain: cardanofw.ChainIDNexus, DstChain: cardanofw.ChainIDPolygon, SrcTokenID: cardanofw.AP3XTokenID},
 			{SrcChain: cardanofw.ChainIDPolygon, DstChain: cardanofw.ChainIDNexus, SrcTokenID: cardanofw.PAP3XTokenID},
@@ -1132,7 +1131,8 @@ func TestE2E_SkylineTestnetBridge_NexusSrcGasPrice_NonDecreasing(t *testing.T) {
 }
 
 func printSkylineUserBalances(
-	t *testing.T, apex *cardanofw.ApexSystem, users []*cardanofw.TestApexUser, balances map[string]map[string]*big.Int,
+	t *testing.T, apex *cardanofw.ApexSystem, users []*cardanofw.TestApexUser,
+	balances map[cardanofw.ChainID]map[string]map[string]*big.Int,
 ) {
 	t.Helper()
 
@@ -1158,27 +1158,37 @@ func printSkylineUserBalances(
 		for _, chain := range skylineChains {
 			addr := user.GetAddress(chain)
 
-			if balance, exists := balances[addr]; !exists {
+			chainBalances, chainExists := balances[chain]
+			if !chainExists {
 				fmt.Printf("%s addr: %s, balance: No data\n", chain, addr)
-			} else {
-				fmt.Printf("%s addr: %s\n", chain, addr)
 
-				switch chain {
-				case cardanofw.ChainIDNexus:
-					info := apex.NexusInfo
-					for tokenID, token := range info.Tokens {
-						balanceToString(tokenID, balance[token.ChainSpecific])
-					}
-				case cardanofw.ChainIDPolygon:
-					info := apex.PolygonInfo
-					for tokenID, token := range info.Tokens {
-						balanceToString(tokenID, balance[token.ChainSpecific])
-					}
-				default:
-					info := apex.GetCardanoInfo(chain)
-					for tokenID, token := range info.Tokens {
-						balanceToString(tokenID, balance[token.ChainSpecific])
-					}
+				continue
+			}
+
+			balance, exists := chainBalances[addr]
+			if !exists {
+				fmt.Printf("%s addr: %s, balance: No data\n", chain, addr)
+
+				continue
+			}
+
+			fmt.Printf("%s addr: %s\n", chain, addr)
+
+			switch chain {
+			case cardanofw.ChainIDNexus:
+				info := apex.NexusInfo
+				for tokenID, token := range info.Tokens {
+					balanceToString(tokenID, balance[token.ChainSpecific])
+				}
+			case cardanofw.ChainIDPolygon:
+				info := apex.PolygonInfo
+				for tokenID, token := range info.Tokens {
+					balanceToString(tokenID, balance[token.ChainSpecific])
+				}
+			default:
+				info := apex.GetCardanoInfo(chain)
+				for tokenID, token := range info.Tokens {
+					balanceToString(tokenID, balance[token.ChainSpecific])
 				}
 			}
 		}

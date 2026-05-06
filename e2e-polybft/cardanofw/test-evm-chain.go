@@ -1265,7 +1265,7 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 	}
 
 	if operationFee.Cmp(big.NewInt(0)) == 1 {
-		_, err = txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
+		opFeeReceipt, err := txRelayer.SendTransaction(types.NewTx(types.NewLegacyTx(
 			types.WithFrom(key.Address()),
 			types.WithValue(operationFee),
 			types.WithInput(data),
@@ -1273,8 +1273,11 @@ func (ec *TestEVMChain) sendTxWithNativeTokens(
 		)), key)
 		if err != nil {
 			return nil, err
-		} else if receipt.Status != uint64(types.ReceiptSuccess) {
-			return nil, fmt.Errorf("operation fee transfer for chain %s failed: %d", ec.config.ChainID, receipt.Status)
+		}
+
+		if opFeeReceipt.Status != uint64(types.ReceiptSuccess) {
+			return nil, fmt.Errorf("operation fee transfer for chain %s failed: %d (tx: %s)", ec.config.ChainID,
+				opFeeReceipt.Status, opFeeReceipt.TransactionHash.String())
 		}
 	}
 

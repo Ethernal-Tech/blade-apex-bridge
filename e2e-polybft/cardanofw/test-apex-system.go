@@ -19,6 +19,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/crypto"
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
+	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
@@ -1912,6 +1913,15 @@ func (a *ApexSystem) RedistributeTokens(
 	}, os.Stdout)
 }
 
+func IsRetryableSubmitTx(err error) bool {
+	// receipt polling failures must not trigger a full resubmit (tx may already be on-chain)
+	if errors.Is(err, txrelayer.ErrFailedToRetrieveTxReceipt) {
+		return false
+	}
+
+	return infracommon.IsRetryableError(err)
+}
+
 func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
 	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
@@ -1958,7 +1968,8 @@ func (a *ApexSystem) SubmitTx(
 		}
 
 		return txHash, nil
-	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
+	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime),
+		infracommon.WithIsRetryableError(IsRetryableSubmitTx))
 
 	return txHash, err
 }
@@ -2169,7 +2180,8 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		}
 
 		return txHash, nil
-	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
+	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime),
+		infracommon.WithIsRetryableError(IsRetryableSubmitTx))
 	if err != nil {
 		return "", fmt.Errorf("error while submitting bridging request: %w", err)
 	}

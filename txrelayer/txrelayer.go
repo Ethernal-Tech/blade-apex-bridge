@@ -28,6 +28,9 @@ const (
 
 	gasPriceRPCMaxRetries     = 6
 	gasPriceRPCRetryBaseDelay = 400 * time.Millisecond
+
+	nonceRPCMaxRetries     = 10
+	nonceRPCRetryBaseDelay = 800 * time.Millisecond
 )
 
 var (
@@ -38,6 +41,10 @@ var (
 	// from sending dynamic fee tx to legacy tx
 	dynamicFeeTxFallbackErrs = []error{types.ErrTxTypeNotSupported, errMethodNotFound}
 )
+
+// ErrFailedToRetrieveTxReceipt is returned when the transaction was broadcast but
+// receipt polling failed or timed out.
+var ErrFailedToRetrieveTxReceipt = errors.New("failed to retrieve tx receipt")
 
 func isRetryableGasPriceRPCError(err error) bool {
 	if err == nil {
@@ -50,6 +57,25 @@ func isRetryableGasPriceRPCError(err error) bool {
 		strings.Contains(strings.ToLower(msg), "temporary internal error") ||
 		strings.Contains(msg, `"code":19`) ||
 		strings.Contains(msg, `"code": 19`)
+}
+
+// isRetryableRPCError covers transient public-RPC failures
+func isRetryableRPCError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if isRetryableGasPriceRPCError(err) {
+		return true
+	}
+
+	msg := strings.ToLower(err.Error())
+
+	return strings.Contains(msg, "status code 429") ||
+		strings.Contains(msg, "status code is 429") ||
+		strings.Contains(msg, "error code: 1015") ||
+		strings.Contains(msg, "i/o timeout") ||
+		strings.Contains(msg, "connection reset")
 }
 
 func (t *TxRelayerImpl) gasPriceWithRetry() (uint64, error) {
@@ -84,6 +110,36 @@ func (t *TxRelayerImpl) gasPriceWithRetry() (uint64, error) {
 	}
 
 	return 0, fmt.Errorf("eth_gasPrice failed after %d attempts: %w", gasPriceRPCMaxRetries, lastErr)
+}
+
+func (t *TxRelayerImpl) getNonceWithRetry(addr types.Address) (uint64, error) {
+	var lastErr error
+
+	for attempt := 0; attempt < nonceRPCMaxRetries; attempt++ {
+		n, err := t.client.GetNonce(addr, jsonrpc.PendingBlockNumberOrHash)
+		if err == nil {
+			return n, nil
+		}
+
+		lastErr = err
+
+		if !isRetryableRPCError(err) {
+			return 0, err
+		}
+
+		if attempt == nonceRPCMaxRetries-1 {
+			break
+		}
+
+		fmt.Printf("[TxRelayer] eth_getTransactionCount retry %d/%d after RPC error: %v\n",
+			attempt+1, nonceRPCMaxRetries, err)
+
+		select {
+		case <-time.After(nonceRPCRetryBaseDelay * time.Duration(1<<attempt)):
+		}
+	}
+
+	return 0, fmt.Errorf("failed to get nonce after %d attempts: %w", nonceRPCMaxRetries, lastErr)
 }
 
 type TxRelayer interface {
@@ -174,6 +230,11 @@ func (t *TxRelayerImpl) Call(from types.Address, to types.Address, input []byte)
 func (t *TxRelayerImpl) SendTransaction(txn *types.Transaction, key crypto.Key) (*ethgo.Receipt, error) {
 	txnHash, err := t.sendTransactionLocked(txn, key)
 	if err != nil {
+		// if transaction failed due to RPC errors, return the error. Transaction will be retried by the caller.
+		if isRetryableRPCError(err) {
+			return nil, err
+		}
+
 		if txn.Type() != types.LegacyTxType {
 			for _, fallbackErr := range dynamicFeeTxFallbackErrs {
 				if strings.Contains(
@@ -216,7 +277,7 @@ func (t *TxRelayerImpl) sendTransactionLocked(txn *types.Transaction, key crypto
 	var err error
 
 	if t.nonceGet {
-		nonce, err := t.client.GetNonce(key.Address(), jsonrpc.PendingBlockNumberOrHash)
+		nonce, err := t.getNonceWithRetry(key.Address())
 		if err != nil {
 			return types.ZeroHash, fmt.Errorf("failed to get nonce: %w", err)
 		}
@@ -387,7 +448,7 @@ func (t *TxRelayerImpl) sendTransactionLocalLocked(txn *types.Transaction) (type
 	sender := accounts[0]
 	txn.SetFrom(sender)
 
-	nonce, err := t.client.GetNonce(sender, jsonrpc.PendingBlockNumberOrHash)
+	nonce, err := t.getNonceWithRetry(sender)
 	if err != nil {
 		return types.ZeroHash, fmt.Errorf("failed to get nonce: %w", err)
 	}
@@ -426,7 +487,7 @@ func (t *TxRelayerImpl) waitForReceipt(hash types.Hash) (*ethgo.Receipt, error) 
 			receipt, err := t.client.GetTransactionReceipt(hash)
 			if err != nil {
 				if err.Error() != "not found" {
-					return nil, err
+					return nil, fmt.Errorf("%w: %w", ErrFailedToRetrieveTxReceipt, err)
 				}
 			}
 
@@ -434,7 +495,8 @@ func (t *TxRelayerImpl) waitForReceipt(hash types.Hash) (*ethgo.Receipt, error) 
 				return receipt, nil
 			}
 		case <-timer.C:
-			return nil, fmt.Errorf("timeout while waiting for transaction %s to be processed", hash)
+			return nil, fmt.Errorf("%w: timeout while waiting for transaction %s to be processed",
+				ErrFailedToRetrieveTxReceipt, hash)
 		}
 	}
 }
