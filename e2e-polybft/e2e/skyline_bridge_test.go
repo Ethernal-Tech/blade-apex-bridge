@@ -1901,6 +1901,11 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			cardanofw.WithCardanoConfig(cardanoConfig),
 			cardanofw.WithVectorConfig(vectorConfig),
 			cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
+			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				// increase confirmation block count for cardano chain to avoid race conditions with defunding in smart contract
+				setting := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", "cardano")
+				setting["confirmationBlockCount"] = 20
+			}, nil, nil, nil),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -2224,6 +2229,13 @@ func TestE2E_SkylineBridge_Fund_Defund(t *testing.T) {
 			cardanofw.WithCardanoConfig(cardanoConfig),
 			cardanofw.WithVectorConfig(vectorConfig),
 			cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
+			// increase confirmation block count for prime and cardano chains to avoid race conditions with defunding in smart contract
+			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				primeSetting := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", "prime")
+				cardanoSetting := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", "cardano")
+				primeSetting["confirmationBlockCount"] = 20
+				cardanoSetting["confirmationBlockCount"] = 20
+			}, nil, nil, nil),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
