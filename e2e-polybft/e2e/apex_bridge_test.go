@@ -1647,6 +1647,11 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			cardanofw.WithPrimeConfig(primeConfig),
 			cardanofw.WithVectorConfig(vectorConfig),
 			cardanofw.WithNexusConfig(nexusConfig),
+			// increase confirmation block count for prime chain to avoid race conditions with defunding in smart contract
+			cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				setting := cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains", "prime")
+				setting["confirmationBlockCount"] = 20
+			}, nil, nil, nil),
 		)
 
 		defer require.True(t, apex.ApexBridgeProcessesRunning())
