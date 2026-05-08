@@ -122,3 +122,58 @@ func (pks PublicKeys) Aggregate() *PublicKey {
 
 	return &PublicKey{g2: newp}
 }
+
+// AggregateAffine aggregates all public keys using affine Fp2 addition by
+// calling the Solidity-style `_addG2Points` implementation (translated to Go).
+func (pks PublicKeys) AggregateAffine() *PublicKey {
+	acc := [4]*big.Int{new(big.Int), new(big.Int), new(big.Int), new(big.Int)}
+	hasSome := false
+
+	for _, pk := range pks {
+		if pk == nil || pk.g2 == nil {
+			continue
+		}
+
+		buf := pk.g2.Marshal()
+		cur := [4]*big.Int{}
+
+		if len(buf) == 128 {
+			cur[0] = new(big.Int).SetBytes(buf[32:64])
+			cur[1] = new(big.Int).SetBytes(buf[0:32])
+			cur[2] = new(big.Int).SetBytes(buf[96:128])
+			cur[3] = new(big.Int).SetBytes(buf[64:96])
+		} else {
+			// if the point is at infinity, all coordinates are zero
+			cur[0] = new(big.Int)
+			cur[1] = new(big.Int)
+			cur[2] = new(big.Int)
+			cur[3] = new(big.Int)
+		}
+
+		acc = _addG2Points(acc, cur)
+		hasSome = true
+	}
+
+	if !hasSome {
+		return &PublicKey{g2: new(bn256.G2)}
+	}
+
+	// if accumulator is point at infinity (all zeros), return zero G2
+	if acc[0].Sign() == 0 && acc[1].Sign() == 0 && acc[2].Sign() == 0 && acc[3].Sign() == 0 {
+		return &PublicKey{g2: new(bn256.G2)}
+	}
+
+	// build bytes in expected order: x.real, x.imag, y.real, y.imag
+	out := make([]byte, 0, PublicKeySize)
+	out = append(out, common.PadLeftOrTrim(maskToUint256(acc[0]).Bytes(), 32)...)
+	out = append(out, common.PadLeftOrTrim(maskToUint256(acc[1]).Bytes(), 32)...)
+	out = append(out, common.PadLeftOrTrim(maskToUint256(acc[2]).Bytes(), 32)...)
+	out = append(out, common.PadLeftOrTrim(maskToUint256(acc[3]).Bytes(), 32)...)
+
+	pub, err := UnmarshalPublicKey(out)
+	if err != nil {
+		return &PublicKey{g2: new(bn256.G2)}
+	}
+
+	return pub
+}
