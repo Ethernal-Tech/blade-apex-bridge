@@ -42,27 +42,25 @@ func fp2AddInts(a0, a1, b0, b1 *big.Int) (c0, c1 *big.Int) {
 }
 
 func fp2MulInts(a0, a1, b0, b1 *big.Int) (c0, c1 *big.Int) {
-	// Cloudflare's gfP2 represents elements as x*i + y.
-	// For a = x1*i + y1 and b = x2*i + y2,
-	// (a*b).x = x1*y2 + y1*x2
-	// (a*b).y = y1*y2 - x1*x2
-	t1 := new(big.Int).Mul(a0, b1)
-	t2 := new(big.Int).Mul(a1, b0)
-	c0 = new(big.Int).Add(t1, t2)
+	// (a0 + a1*u)(b0 + b1*u) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)*u
+	t1 := new(big.Int).Mul(a0, b0) // a0*b0
+	t2 := new(big.Int).Mul(a1, b1) // a1*b1
+	c0 = new(big.Int).Sub(t1, t2)  // a0*b0 - a1*b1
 	c0.Mod(c0, pPrime)
 
-	t3 := new(big.Int).Mul(a1, b1)
-	t4 := new(big.Int).Mul(a0, b0)
-	c1 = new(big.Int).Sub(t3, t4)
+	t3 := new(big.Int).Mul(a0, b1) // a0*b1
+	t4 := new(big.Int).Mul(a1, b0) // a1*b0
+	c1 = new(big.Int).Add(t3, t4)  // a0*b1 + a1*b0
 	c1.Mod(c1, pPrime)
+
 	return maskToUint256(c0), maskToUint256(c1)
 }
 
 func fp2InvInts(a0, a1 *big.Int) (c0, c1 *big.Int) {
-	// For element x*i + y, inverse is (-x/(y^2 + x^2)) * i + (y/(y^2 + x^2))
+	// (a0 + a1*u)^{-1} = (a0 - a1*u) / (a0² + a1²)
 	t1 := new(big.Int).Mul(a0, a0)
 	t2 := new(big.Int).Mul(a1, a1)
-	denom := new(big.Int).Add(t2, t1)
+	denom := new(big.Int).Add(t1, t2) // a0² + a1²
 	denom.Mod(denom, pPrime)
 
 	inv := new(big.Int).ModInverse(denom, pPrime)
@@ -70,12 +68,13 @@ func fp2InvInts(a0, a1 *big.Int) (c0, c1 *big.Int) {
 		return nil, nil
 	}
 
-	negA0 := new(big.Int).Neg(a0)
-	c0 = new(big.Int).Mul(negA0, inv)
+	c0 = new(big.Int).Mul(a0, inv) // a0 / (a0² + a1²)
 	c0.Mod(c0, pPrime)
 
-	c1 = new(big.Int).Mul(a1, inv)
+	negA1 := new(big.Int).Neg(a1)     // -a1
+	c1 = new(big.Int).Mul(negA1, inv) // -a1 / (a0² + a1²)
 	c1.Mod(c1, pPrime)
+
 	return maskToUint256(c0), maskToUint256(c1)
 }
 
