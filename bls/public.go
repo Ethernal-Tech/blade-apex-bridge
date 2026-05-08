@@ -114,10 +114,19 @@ type PublicKeys []*PublicKey
 
 // Aggregate aggregates all public keys into one
 func (pks PublicKeys) Aggregate() *PublicKey {
+	// Use a fresh receiver on every Add call to avoid the aliasing bug in
+	// twistPoint.Double: when the receiver and first argument share the same
+	// pointer, c.y is overwritten before c.z is computed, producing a wrong
+	// Jacobian Z-coordinate for 2P.  This manifests when duplicate keys are
+	// present.  Initialising via Marshal ensures the internal twistPoint is
+	// allocated (non-nil) so the first Add can safely detect the infinity.
 	newp := new(bn256.G2)
+	newp.Marshal() // allocates newp.p = &twistPoint{} (identity / point at infinity)
 
 	for _, x := range pks {
-		newp.Add(newp, x.g2)
+		next := new(bn256.G2)
+		next.Add(newp, x.g2) // next.p ≠ newp.p → no aliasing in Double
+		newp = next
 	}
 
 	return &PublicKey{g2: newp}
@@ -165,10 +174,10 @@ func (pks PublicKeys) AggregateAffine() *PublicKey {
 
 	// build bytes in expected order: x.real, x.imag, y.real, y.imag
 	out := make([]byte, 0, PublicKeySize)
-	out = append(out, common.PadLeftOrTrim(maskToUint256(acc[0]).Bytes(), 32)...)
 	out = append(out, common.PadLeftOrTrim(maskToUint256(acc[1]).Bytes(), 32)...)
-	out = append(out, common.PadLeftOrTrim(maskToUint256(acc[2]).Bytes(), 32)...)
+	out = append(out, common.PadLeftOrTrim(maskToUint256(acc[0]).Bytes(), 32)...)
 	out = append(out, common.PadLeftOrTrim(maskToUint256(acc[3]).Bytes(), 32)...)
+	out = append(out, common.PadLeftOrTrim(maskToUint256(acc[2]).Bytes(), 32)...)
 
 	pub, err := UnmarshalPublicKey(out)
 	if err != nil {
