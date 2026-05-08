@@ -207,6 +207,213 @@ func Test_SkylineSolana_OpFeeNotSet(t *testing.T) {
 	})
 }
 
+func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{
+		cardanofw.ASOLTokenID:  cardanofw.ASOLTokenName,
+		cardanofw.USDTTokenID:  cardanofw.USDTTokenName,
+		cardanofw.SAP3XTokenID: cardanofw.SAP3XTokenName,
+	})
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
+
+	solanaConfig := cardanofw.NewSolanaChainConfig(true)
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithSolanaConfig(solanaConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithUserCnt(1),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+	err := nexusChain.FundUsersWithToken(apex.Users[0].GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(400_000_000)), cardanofw.NSTokenID)
+	require.NoError(t, err)
+
+	solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
+	version, err := solanaChain.GetProgramVersion(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "0.1.0", version)
+
+	testFunc := func() {
+		t.Run("Bridging after changes", func(t *testing.T) {
+			t.Run("SOL -> Vector", func(t *testing.T) {
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
+					cardanofw.WSOLTokenID, true)
+			})
+
+			t.Run("Vector -> SOL", func(t *testing.T) {
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
+					cardanofw.ASOLTokenID, true)
+			})
+
+			t.Run("Nexus NS -> Solana NS", func(t *testing.T) {
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDNexus, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
+					cardanofw.NSTokenID, true)
+			})
+
+			t.Run("Solana NS -> Nexus NS", func(t *testing.T) {
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDNexus, cardanofw.ApexToWei(big.NewInt(1)),
+					cardanofw.NSTokenID, true)
+			})
+		})
+	}
+
+	testFunc()
+
+	t.Run("Upgrade program", func(t *testing.T) {
+		solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
+		err := solanaChain.UpgradeProgram(ctx)
+		require.NoError(t, err)
+
+		version, err := solanaChain.GetProgramVersion(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "0.2.0", version)
+	})
+
+	testFunc()
+
+	newOpFee := big.NewInt(0).Add(big.NewInt(50000000), solanaConfig.MinOperationFee)
+
+	t.Run("Update fee config - min operation fee", func(t *testing.T) {
+		solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
+		err := solanaChain.UpdateFeeConfig(ctx, cardanofw.UpdateFeeConfigDto{
+			MinOperationFee: newOpFee,
+			BridgeFee:       solanaConfig.MinBridgingFee,
+		})
+		require.NoError(t, err)
+
+		treasuryUser := &cardanofw.TestApexUser{
+			HasSolanaWallet: true,
+			SolanaAddress:   solanaChain.GetTreasuryAddress(),
+		}
+		treasuryBalance, err := apex.GetBalance(ctx, treasuryUser, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
+			cardanofw.WSOLTokenID, true)
+
+		treasuryBalanceAfter, err := apex.GetBalance(ctx, treasuryUser, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+
+		diff := new(big.Int).Sub(treasuryBalanceAfter["lovelace"], treasuryBalance["lovelace"])
+		require.True(t, diff.Cmp(cardanofw.LamportToWei(newOpFee)) == 0)
+	})
+
+	newBridgeFee := big.NewInt(0).Add(big.NewInt(50000000), solanaConfig.MinBridgingFee)
+
+	t.Run("Update fee config - update bridging fee", func(t *testing.T) {
+		solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
+		err := solanaChain.UpdateFeeConfig(ctx, cardanofw.UpdateFeeConfigDto{
+			BridgeFee:       newBridgeFee,
+			MinOperationFee: newOpFee,
+		})
+		require.NoError(t, err)
+
+		relayerUser := &cardanofw.TestApexUser{
+			HasSolanaWallet: true,
+			SolanaAddress:   apex.SolanaInfo.RelayerAddress,
+		}
+		relayerBalance, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
+			cardanofw.WSOLTokenID, true)
+
+		relayerBalanceAfter, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+
+		diff := new(big.Int).Sub(relayerBalanceAfter["lovelace"], relayerBalance["lovelace"])
+		require.True(t, diff.Cmp(cardanofw.LamportToWei(newBridgeFee)) == 0)
+	})
+
+	//nolint:dupl
+	t.Run("Update fee config - update treasury address", func(t *testing.T) {
+		newTreasuryWallet, err := solanawallet.NewWallet()
+		require.NoError(t, err)
+
+		solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
+		err = solanaChain.UpdateFeeConfig(ctx, cardanofw.UpdateFeeConfigDto{
+			MinOperationFee: newOpFee,
+			BridgeFee:       newBridgeFee,
+			UpdateTreasury:  true,
+			TreasuryAddress: newTreasuryWallet.PublicKey.String(),
+		})
+		require.NoError(t, err)
+
+		treasuryUser := &cardanofw.TestApexUser{
+			HasSolanaWallet: true,
+			SolanaAddress:   newTreasuryWallet.PublicKey.String(),
+		}
+		treasuryBalance, err := apex.GetBalance(ctx, treasuryUser, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+
+		require.True(t, treasuryBalance["lovelace"].Cmp(big.NewInt(0)) == 0)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
+			cardanofw.WSOLTokenID, true)
+
+		treasuryBalanceAfter, err := apex.GetBalance(ctx, treasuryUser, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+		require.True(t, treasuryBalanceAfter["lovelace"].Cmp(cardanofw.LamportToWei(newOpFee)) == 0)
+	})
+
+	//nolint:dupl
+	t.Run("Update fee config - update relayer address", func(t *testing.T) {
+		newRelayerWallet, err := solanawallet.NewWallet()
+		require.NoError(t, err)
+
+		solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
+		err = solanaChain.UpdateFeeConfig(ctx, cardanofw.UpdateFeeConfigDto{
+			MinOperationFee: newOpFee,
+			BridgeFee:       newBridgeFee,
+			UpdateRelayer:   true,
+			RelayerAddress:  newRelayerWallet.PublicKey.String(),
+		})
+		require.NoError(t, err)
+
+		relayerUser := &cardanofw.TestApexUser{
+			HasSolanaWallet: true,
+			SolanaAddress:   newRelayerWallet.PublicKey.String(),
+		}
+		relayerBalance, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+
+		require.True(t, relayerBalance["lovelace"].Cmp(big.NewInt(0)) == 0)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
+			cardanofw.WSOLTokenID, true)
+
+		relayerBalanceAfter, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+		require.True(t, relayerBalanceAfter["lovelace"].Cmp(cardanofw.LamportToWei(newBridgeFee)) == 0)
+	})
+}
+
 func Test_SkylineSolana_LockUnlockTokenFlow(t *testing.T) {
 	const (
 		apiKey = "test_api_key"

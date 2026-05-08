@@ -34,6 +34,7 @@ const (
 	solanaProgramDir         = "skyline-solana-programs"
 	solanaProgramBuildPath   = "program_build/skyline_program.so"
 	solanaProgramKeypairPath = "program_build/skyline_program-keypair.json"
+	solanaProgramUpgradePath = "program_build/skyline_program_v2.so"
 
 	TreasuryAddress = "AXXWYCH6PNm6AGjaasPG1maarfQvRedSw18wj91Nem1F"
 
@@ -1599,6 +1600,132 @@ func tokenTransfer(
 	}
 
 	fmt.Println("sol transfer confirmed: ", sig.String())
+
+	return nil
+}
+
+func (sc *TestSolanaChain) GetProgramVersion(ctx context.Context) (string, error) {
+	txProvider, err := sc.GetTxProvider()
+	if err != nil {
+		return "", fmt.Errorf("get tx provider: %w", err)
+	}
+
+	txSender := solsendtx.NewTxSender(txProvider, &solsendtx.ChainConfig{
+		TreasuryAddress:    sc.config.TreasuryAddress,
+		BridgingFeeAddress: solana.MustPublicKeyFromBase58(sc.relayerAddr),
+	})
+
+	programConfig, err := txSender.GetProgramConfig(ctx, solana.MustPublicKeyFromBase58(sc.programID))
+	if err != nil {
+		return "", fmt.Errorf("get program config: %w", err)
+	}
+
+	fmt.Println("program config: ", programConfig)
+
+	return programConfig.VersionString, nil
+}
+
+func (sc *TestSolanaChain) UpgradeProgram(ctx context.Context) error {
+	adminPkFile, err := os.CreateTemp(os.TempDir(), "admin-pk-*.json")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+
+	defer adminPkFile.Close()
+
+	pkString := fmt.Sprintf("%v", []byte(sc.admin.PrivateKey))
+	pkString = strings.ReplaceAll(pkString, " ", ",")
+
+	if _, err := adminPkFile.Write([]byte(pkString)); err != nil {
+		return fmt.Errorf("write admin private key: %w", err)
+	}
+
+	params := []string{
+		"deploy-solana",
+		"upgrade-program",
+		"--url", sc.jsonRPCAddr,
+		"--fee-payer", adminPkFile.Name(),
+		"--key", filepath.Join("..", "..", solanaProgramDir, solanaProgramKeypairPath),
+		"--build-path", filepath.Join("..", "..", solanaProgramDir, solanaProgramBuildPath),
+		"--program-id", sc.programID,
+		"--upgrade-program-version", "0.2.0",
+		"--admin-key", adminPkFile.Name(),
+		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
+		"--commitment", "finalized",
+	}
+
+	var b bytes.Buffer
+
+	err = RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type UpdateFeeConfigDto struct {
+	MinOperationFee *big.Int
+	BridgeFee       *big.Int
+	UpdateTreasury  bool
+	UpdateRelayer   bool
+	TreasuryAddress string
+	RelayerAddress  string
+}
+
+func (sc *TestSolanaChain) UpdateFeeConfig(ctx context.Context, feeConfig UpdateFeeConfigDto) error {
+	adminPkFile, err := os.CreateTemp(os.TempDir(), "admin-pk-*.json")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+
+	defer adminPkFile.Close()
+
+	pkString := fmt.Sprintf("%v", []byte(sc.admin.PrivateKey))
+	pkString = strings.ReplaceAll(pkString, " ", ",")
+
+	if _, err := adminPkFile.Write([]byte(pkString)); err != nil {
+		return fmt.Errorf("write admin private key: %w", err)
+	}
+
+	params := []string{
+		"deploy-solana",
+		"update-fee-config",
+		"--url", sc.jsonRPCAddr,
+		"--admin-key", adminPkFile.Name(),
+		"--program-id", sc.programID,
+		"--min-operation-fee", strconv.Itoa(int(feeConfig.MinOperationFee.Uint64())),
+		"--min-fee-for-bridging", strconv.Itoa(int(feeConfig.BridgeFee.Uint64())),
+		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
+	}
+
+	if feeConfig.UpdateTreasury {
+		params = append(params, "--update-treasury", "true")
+		params = append(params, "--new-treasury-address", feeConfig.TreasuryAddress)
+	}
+
+	if feeConfig.UpdateRelayer {
+		params = append(params, "--update-relayer", "true")
+		params = append(params, "--new-relayer-address", feeConfig.RelayerAddress)
+	}
+
+	var b bytes.Buffer
+
+	err = RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
+	if err != nil {
+		return err
+	}
+
+	sc.config.MinBridgingFee = feeConfig.BridgeFee
+	sc.config.MinOperationFee = feeConfig.MinOperationFee
+
+	if feeConfig.UpdateRelayer {
+		sc.relayerAddr = feeConfig.RelayerAddress
+	}
+
+	if feeConfig.UpdateTreasury {
+		sc.config.TreasuryAddress = solana.MustPublicKeyFromBase58(feeConfig.TreasuryAddress)
+	}
 
 	return nil
 }
