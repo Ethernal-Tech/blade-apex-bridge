@@ -5,16 +5,16 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/secrets"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 )
 
 // Account is an account for key signatures
 type Account struct {
 	Ecdsa *crypto.ECDSAKey
-	Bls   *bls.PrivateKey
+	Bls   *bn256.PrivateKey
 }
 
 // GenerateAccount generates a new random account
@@ -24,7 +24,7 @@ func GenerateAccount() (*Account, error) {
 		return nil, fmt.Errorf("cannot generate key. error: %w", err)
 	}
 
-	blsKey, err := bls.GenerateBlsKey()
+	blsKey, err := bn256.GeneratePrivateKey()
 	if err != nil {
 		return nil, fmt.Errorf("cannot generate bls key. error: %w", err)
 	}
@@ -71,13 +71,13 @@ func GetEcdsaFromSecret(secretsManager secrets.SecretsManager) (*crypto.ECDSAKey
 }
 
 // GetBlsFromSecret retrieves BLS key by using provided secretsManager
-func GetBlsFromSecret(secretsManager secrets.SecretsManager) (*bls.PrivateKey, error) {
+func GetBlsFromSecret(secretsManager secrets.SecretsManager) (*bn256.PrivateKey, error) {
 	encodedKey, err := secretsManager.GetSecret(secrets.ValidatorBLSKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve bls key: %w", err)
 	}
 
-	blsKey, err := bls.UnmarshalPrivateKey(encodedKey)
+	blsKey, err := bn256.UnmarshalPrivateKey(encodedKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve bls key: %w", err)
 	}

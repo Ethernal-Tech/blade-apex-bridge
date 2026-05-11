@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/chain"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
 	"github.com/0xPolygon/polygon-edge/state/runtime"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo/abi"
 )
 
@@ -89,23 +89,23 @@ func (c *apexBLSSignatureVerification) run(input []byte, caller types.Address, h
 		}
 	}
 
-	signature, err := bls.UnmarshalSignature(signatureBytes)
+	signature, err := bn256.UnmarshalSignature(signatureBytes)
 	if err != nil {
 		return nil, fmt.Errorf("%w: signature - %w", errApexBLSSignatureVerificationInvalidInput, err)
 	}
 
-	blsPubKeys := make([]*bls.PublicKey, len(publicKeysSerialized))
+	pubKeys := make([]*bn256.PublicKey, len(publicKeysSerialized))
 
 	for i, pk := range publicKeysSerialized {
-		blsPubKey, err := bls.UnmarshalPublicKeyFromBigInt(pk)
+		blsPubKey, err := bn256.UnmarshalPublicKeyFromBigInt(pk)
 		if err != nil {
 			return nil, fmt.Errorf("%w: public key - %w", errApexBLSSignatureVerificationInvalidInput, err)
 		}
 
-		blsPubKeys[i] = blsPubKey
+		pubKeys[i] = blsPubKey
 	}
 
-	if signature.VerifyAggregated(blsPubKeys, msg[:], c.domain) {
+	if signature.VerifyAggregated(pubKeys, msg[:], c.domain) {
 		return abiBoolTrue, nil
 	}
 

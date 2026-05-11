@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygon/polygon-edge/bls"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/stretchr/testify/require"
 	"github.com/umbracle/fastrlp"
 )
@@ -18,7 +18,7 @@ func TestExtra_CreateValidatorSetDelta_BlsDiffer(t *testing.T) {
 
 	// change the public bls key of 'B'
 	newValidatorSet := vals.GetPublicIdentities("B", "E", "F")
-	privateKey, err := bls.GenerateBlsKey()
+	privateKey, err := bn256.GeneratePrivateKey()
 	require.NoError(t, err)
 
 	newValidatorSet[0].BlsKey = privateKey.PublicKey()

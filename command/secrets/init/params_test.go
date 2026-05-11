@@ -6,10 +6,10 @@ import (
 	"path"
 	"testing"
 
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/secrets/helper"
 )
@@ -118,7 +118,7 @@ func Test_getResult(t *testing.T) {
 	assert.Equal(t, sir.Address.String(), pubKey)
 
 	// Test BLS public key serialization
-	blsPrivKey, err := bls.UnmarshalPrivateKey([]byte(sir.BLSPrivateKey))
+	blsPrivKey, err := bn256.UnmarshalPrivateKey([]byte(sir.BLSPrivateKey))
 	require.NoError(t, err)
 
 	blsPubKey := hex.EncodeToString(blsPrivKey.PublicKey().Marshal())
