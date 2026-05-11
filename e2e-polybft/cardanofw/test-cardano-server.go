@@ -82,6 +82,10 @@ func (t *TestCardanoServer) Start() error {
 	}
 	binary := ResolveCardanoNodeBinary(t.config.NetworkID)
 
+	if t.config.NetworkMagic == cardanowallet.TestNetProtocolMagic {
+		binary = ResolveCardanoNode11Binary(t.config.NetworkID)
+	}
+
 	node, err := framework.NewNode(binary, args, t.config.StdOut)
 	if err != nil {
 		return err
@@ -129,8 +133,13 @@ func (t *TestCardanoServer) NetworkAddress() string {
 
 func (t *TestCardanoServer) getTxProvider() (cardanowallet.ITxProvider, error) {
 	if t.txProvider == nil {
+		binary := ResolveCardanoCliBinary(t.config.NetworkID)
+		if t.config.NetworkMagic == cardanowallet.TestNetProtocolMagic {
+			binary = ResolveCardanoCli11Binary(t.config.NetworkID)
+		}
+
 		txProvider, err := cardanowallet.NewTxProviderCli(
-			t.config.NetworkMagic, t.SocketPath(), ResolveCardanoCliBinary(t.config.NetworkID))
+			t.config.NetworkMagic, t.SocketPath(), binary)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create tx provider: %w", err)
 		}

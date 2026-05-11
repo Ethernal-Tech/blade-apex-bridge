@@ -74,14 +74,32 @@ func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
 	return tryResolveFromEnv(env, name)
 }
 
+func ResolveCardanoCli11Binary(networkID wallet.CardanoNetworkType) string {
+	env, name := "CARDANO_CLI_11_BINARY", "cardano-cli-11"
+
+	return tryResolveFromEnv(env, name)
+}
+
 func ResolveOgmiosBinary(networkID wallet.CardanoNetworkType) string {
 	env, name := "OGMIOS", "ogmios"
 
 	return tryResolveFromEnv(env, name)
 }
 
+func ResolveOgmios11Binary(networkID wallet.CardanoNetworkType) string {
+	env, name := "OGMIOS_11_BINARY", "ogmios-11"
+
+	return tryResolveFromEnv(env, name)
+}
+
 func ResolveCardanoNodeBinary(networkID wallet.CardanoNetworkType) string {
 	env, name := "CARDANO_NODE_BINARY", "cardano-node"
+
+	return tryResolveFromEnv(env, name)
+}
+
+func ResolveCardanoNode11Binary(networkID wallet.CardanoNetworkType) string {
+	env, name := "CARDANO_NODE_11_BINARY", "cardano-node-11"
 
 	return tryResolveFromEnv(env, name)
 }
