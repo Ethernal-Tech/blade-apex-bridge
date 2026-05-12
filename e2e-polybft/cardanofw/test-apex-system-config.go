@@ -305,3 +305,7 @@ func (asc *ApexSystemConfig) GetTelemetryForValidatorIdx(idx int) string {
 		return ""
 	}
 }
+
+func IsCardanoTypeChain(chainID ChainID) bool {
+	return chainID == ChainIDCardano || chainID == ChainIDPrime || chainID == ChainIDVector
+}

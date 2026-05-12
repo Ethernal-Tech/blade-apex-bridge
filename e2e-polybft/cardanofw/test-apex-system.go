@@ -796,7 +796,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 
 	txSenderChainConfigs := map[string]sendtx.ChainConfig{
 		ChainIDPrime: {
-			CardanoCliBinary:         ResolveCardanoCliBinary(a.Config.PrimeConfig.NetworkType),
+			CardanoCliBinary:         ResolveCardanoCliBinary(a.Config.PrimeConfig.ChainType),
 			TxProvider:               cardanowallet.NewTxProviderOgmios(a.PrimeInfo.OgmiosURL),
 			TestNetMagic:             a.Config.PrimeConfig.NetworkMagic,
 			TTLSlotNumberInc:         ttlSlotNumberInc,
@@ -820,7 +820,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 		}
 
 		txSenderChainConfigs[ChainIDVector] = sendtx.ChainConfig{
-			CardanoCliBinary:         ResolveCardanoCliBinary(a.Config.VectorConfig.NetworkType),
+			CardanoCliBinary:         ResolveCardanoCliBinary(a.Config.VectorConfig.ChainType),
 			TxProvider:               cardanowallet.NewTxProviderOgmios(a.VectorInfo.OgmiosURL),
 			TestNetMagic:             a.Config.VectorConfig.NetworkMagic,
 			TTLSlotNumberInc:         ttlSlotNumberInc,
@@ -843,7 +843,7 @@ func (a *ApexSystem) InitTxSendChainConfiguration() {
 		}
 
 		txSenderChainConfigs[ChainIDCardano] = sendtx.ChainConfig{
-			CardanoCliBinary:         ResolveCardanoCliBinary(a.Config.CardanoConfig.NetworkType),
+			CardanoCliBinary:         ResolveCardanoCliBinary(a.Config.CardanoConfig.ChainType),
 			TxProvider:               cardanowallet.NewTxProviderOgmios(a.CardanoInfo.OgmiosURL),
 			TestNetMagic:             a.Config.CardanoConfig.NetworkMagic,
 			TTLSlotNumberInc:         ttlSlotNumberInc,

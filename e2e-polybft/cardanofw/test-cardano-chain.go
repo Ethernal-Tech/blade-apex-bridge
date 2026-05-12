@@ -418,10 +418,7 @@ func (ec *TestCardanoChain) DeployMintingContract(_ context.Context, _ string) e
 		return err
 	}
 
-	binary := ResolveCardanoCliBinary(ec.config.NetworkType)
-	if ec.config.ChainType == ChainIDCardano {
-		binary = ResolveCardanoCli11Binary(ec.config.NetworkType)
-	}
+	binary := ResolveCardanoCliBinary(ec.ChainID())
 
 	args := []string{
 		"bridge-admin", "deploy-cardano-script",
@@ -496,10 +493,7 @@ func (ec *TestCardanoChain) CreateAddresses(
 		return err
 	}
 
-	binary := ResolveCardanoCliBinary(ec.config.NetworkType)
-	if ec.config.ChainType == ChainIDCardano {
-		binary = ResolveCardanoCli11Binary(ec.config.NetworkType)
-	}
+	binary := ResolveCardanoCliBinary(ec.ChainID())
 
 	args := []string{
 		"create-addresses",
@@ -689,10 +683,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
 
-	binary := ResolveCardanoCliBinary(ec.config.NetworkType)
-	if ec.config.ChainType == ChainIDCardano {
-		binary = ResolveCardanoCli11Binary(ec.config.NetworkType)
-	}
+	binary := ResolveCardanoCliBinary(ec.ChainID())
 
 	args := []string{
 		"generate-configs", "cardano-chain",
@@ -1120,7 +1111,7 @@ func (ec *TestCardanoChain) submitTx(
 		retryWaitTime = time.Second * 5
 	)
 
-	txBuilder, err := infrawallet.NewTxBuilder(ResolveCardanoCliBinary(ec.config.NetworkType))
+	txBuilder, err := infrawallet.NewTxBuilder(ResolveCardanoCliBinary(ec.ChainID()))
 	if err != nil {
 		return "", err
 	}

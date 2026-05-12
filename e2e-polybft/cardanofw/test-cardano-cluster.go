@@ -478,10 +478,7 @@ func (c *TestCardanoCluster) InitGenesis(startTime int64, genesisDir string) err
 		"--genesis-output-dir", c.Config.Dir("byron-gen-command"),
 	}
 
-	binary := ResolveCardanoCliBinary(c.Config.NetworkType)
-	if c.Config.ChainType == ChainIDCardano {
-		binary = ResolveCardanoCli11Binary(c.Config.NetworkType)
-	}
+	binary := ResolveCardanoCliBinary(c.Config.ChainType)
 
 	return RunCommand(binary, args, os.Stdout)
 }
@@ -696,10 +693,7 @@ func (c *TestCardanoCluster) GenesisCreateStaked(startTime time.Time) error {
 		"--gen-utxo-keys", strconv.Itoa(c.Config.NodesCount),
 	}, GetTestNetMagicArgs(c.Config.NetworkMagic)...)
 
-	binary := ResolveCardanoCliBinary(c.Config.NetworkType)
-	if c.Config.ChainType == ChainIDCardano {
-		binary = ResolveCardanoCli11Binary(c.Config.NetworkType)
-	}
+	binary := ResolveCardanoCliBinary(c.Config.ChainType)
 
 	err := RunCommand(binary, args, os.Stdout)
 	if err != nil && strings.Contains(err.Error(), exprectedErr) {

@@ -68,38 +68,38 @@ const (
 	BatchTypeValidatorSetFinal
 )
 
-func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
+func ResolveCardanoCliBinary(chainID ChainID) string {
+	if chainID == ChainIDCardano {
+		env, name := "CARDANO_CLI_11_BINARY", "cardano-cli-11"
+
+		return tryResolveFromEnv(env, name)
+	}
+
 	env, name := "CARDANO_CLI_BINARY", "cardano-cli"
 
 	return tryResolveFromEnv(env, name)
 }
 
-func ResolveCardanoCli11Binary(networkID wallet.CardanoNetworkType) string {
-	env, name := "CARDANO_CLI_11_BINARY", "cardano-cli-11"
+func ResolveOgmiosBinary(chainID ChainID) string {
+	if chainID == ChainIDCardano {
+		env, name := "OGMIOS_11_BINARY", "ogmios-11"
 
-	return tryResolveFromEnv(env, name)
-}
+		return tryResolveFromEnv(env, name)
+	}
 
-func ResolveOgmiosBinary(networkID wallet.CardanoNetworkType) string {
 	env, name := "OGMIOS", "ogmios"
 
 	return tryResolveFromEnv(env, name)
 }
 
-func ResolveOgmios11Binary(networkID wallet.CardanoNetworkType) string {
-	env, name := "OGMIOS_11_BINARY", "ogmios-11"
+func ResolveCardanoNodeBinary(chainID ChainID) string {
+	if chainID == ChainIDCardano {
+		env, name := "CARDANO_NODE_11_BINARY", "cardano-node-11"
 
-	return tryResolveFromEnv(env, name)
-}
+		return tryResolveFromEnv(env, name)
+	}
 
-func ResolveCardanoNodeBinary(networkID wallet.CardanoNetworkType) string {
 	env, name := "CARDANO_NODE_BINARY", "cardano-node"
-
-	return tryResolveFromEnv(env, name)
-}
-
-func ResolveCardanoNode11Binary(networkID wallet.CardanoNetworkType) string {
-	env, name := "CARDANO_NODE_11_BINARY", "cardano-node-11"
 
 	return tryResolveFromEnv(env, name)
 }
@@ -245,7 +245,7 @@ func FromCardanoPrivateKeyString(
 		wallets[i] = wallet.NewWallet(paymentKey, nil)
 	}
 
-	cliUtils := wallet.NewCliUtils(ResolveCardanoCliBinary(networkID))
+	cliUtils := wallet.NewCliUtils(ResolveCardanoCliBinary(ChainIDCardano))
 
 	walletAddress, err := cliUtils.GetPolicyScriptEnterpriseAddress(networkMagic, policyScript)
 	if err != nil {
@@ -712,7 +712,7 @@ func GetTokenAndPolicyForVerificationKey(
 		KeyHash: keyHash,
 	}
 
-	pid, err := wallet.NewCliUtils(wallet.ResolveCardanoCliBinary(networkType)).GetPolicyID(policyScript)
+	pid, err := wallet.NewCliUtils(ResolveCardanoCliBinary(chainID)).GetPolicyID(policyScript)
 	if err != nil {
 		return wallet.Token{}, nil, err
 	}
@@ -781,10 +781,7 @@ func FundAddressWithToken(
 func MintToken(
 	chain *TestCardanoChain, minterWallet *wallet.Wallet, tokenName string, mintDfmAmount *big.Int,
 ) error {
-	binary := ResolveCardanoCliBinary(chain.config.NetworkType)
-	if chain.config.ChainType == ChainIDCardano {
-		binary = ResolveCardanoCli11Binary(chain.config.NetworkType)
-	}
+	binary := ResolveCardanoCliBinary(chain.ChainID())
 
 	args := []string{
 		"bridge-admin", "mint-native-token",

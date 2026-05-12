@@ -905,9 +905,9 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 	//nolint:prealloc
 	var params []string
 
-	binary := ResolveCardanoCliBinary(infrawallet.TestNetNetwork)
-	if brParams.DestChainID == ChainIDCardano {
-		binary = ResolveCardanoCli11Binary(infrawallet.TestNetNetwork)
+	binary := ""
+	if IsCardanoTypeChain(brParams.DestChainID) {
+		binary = ResolveCardanoCliBinary(brParams.DestChainID)
 	}
 
 	if brParams.IsCurrencySrc && brParams.IsCurrencyDest {
@@ -922,7 +922,10 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 			"--chain-dst", brParams.DestChainID,
 			"--fee", brParams.FeeAmount.String(),
 			"--operation-fee", brParams.OperationFee.String(),
-			"--cardano-cli-binary-name", binary,
+		}
+
+		if binary != "" {
+			params = append(params, "--cardano-cli-binary-name", binary)
 		}
 	} else {
 		receiverTokenID := uint16(0)
@@ -942,11 +945,6 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 			}
 		}
 
-		binary := ResolveCardanoCliBinary(infrawallet.TestNetNetwork)
-		if brParams.DestChainID == ChainIDCardano {
-			binary = ResolveCardanoCli11Binary(infrawallet.TestNetNetwork)
-		}
-
 		params = []string{
 			"sendtx",
 			"skyline",
@@ -960,7 +958,10 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 			"--fee", brParams.FeeAmount.String(),
 			"--operation-fee", brParams.OperationFee.String(),
 			"--src-token-id", fmt.Sprint(receiverTokenID),
-			"--cardano-cli-binary-name", binary,
+		}
+
+		if binary != "" {
+			params = append(params, "--cardano-cli-binary-name", binary)
 		}
 
 		if brParams.IsCurrencySrc {

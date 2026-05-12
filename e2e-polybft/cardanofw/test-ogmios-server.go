@@ -54,10 +54,7 @@ func (t *TestOgmiosServer) Start() error {
 		"--node-config", t.config.ConfigFile,
 	}
 
-	binary := ResolveOgmiosBinary(t.config.NetworkID)
-	if t.config.ChainID == ChainIDCardano {
-		binary = ResolveOgmios11Binary(t.config.NetworkID)
-	}
+	binary := ResolveOgmiosBinary(t.config.ChainID)
 
 	node, err := framework.NewNode(binary, args, t.config.StdOut)
 	if err != nil {

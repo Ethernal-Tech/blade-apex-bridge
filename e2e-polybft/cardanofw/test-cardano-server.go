@@ -81,11 +81,8 @@ func (t *TestCardanoServer) Start() error {
 		"--shelley-operational-certificate", fmt.Sprintf("%s/opcert.cert", t.config.NodeDir),
 		"--port", strconv.Itoa(t.config.Port),
 	}
-	binary := ResolveCardanoNodeBinary(t.config.NetworkID)
 
-	if t.config.ChainID == ChainIDCardano {
-		binary = ResolveCardanoNode11Binary(t.config.NetworkID)
-	}
+	binary := ResolveCardanoNodeBinary(t.config.ChainID)
 
 	node, err := framework.NewNode(binary, args, t.config.StdOut)
 	if err != nil {
@@ -134,10 +131,7 @@ func (t *TestCardanoServer) NetworkAddress() string {
 
 func (t *TestCardanoServer) getTxProvider() (cardanowallet.ITxProvider, error) {
 	if t.txProvider == nil {
-		binary := ResolveCardanoCliBinary(t.config.NetworkID)
-		if t.config.ChainID == ChainIDCardano {
-			binary = ResolveCardanoCli11Binary(t.config.NetworkID)
-		}
+		binary := ResolveCardanoCliBinary(t.config.ChainID)
 
 		txProvider, err := cardanowallet.NewTxProviderCli(
 			t.config.NetworkMagic, t.SocketPath(), binary)

@@ -373,7 +373,7 @@ func TestE2E_ApexBridge_SingleBridgingWithMultisig(t *testing.T) {
 	quorumCount := (len(keyHashes)*2)/3 + 1
 	policyScript := infrawallet.NewPolicyScript(keyHashes, quorumCount)
 
-	multisigAddr, err := infrawallet.NewCliUtils(cardanofw.ResolveCardanoCliBinary(primeConfig.NetworkType)).
+	multisigAddr, err := infrawallet.NewCliUtils(cardanofw.ResolveCardanoCliBinary(cardanofw.ChainIDCardano)).
 		GetPolicyScriptEnterpriseAddress(primeConfig.NetworkMagic, policyScript)
 	require.NoError(t, err)
 
