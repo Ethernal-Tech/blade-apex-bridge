@@ -191,7 +191,7 @@ func ToCardanoPrivateKeyString(paymentKey, stakeKey []byte) string {
 }
 
 func FromCardanoPrivateKeyString(
-	str string, networkID wallet.CardanoNetworkType, networkMagic uint,
+	str string, chainID ChainID, networkID wallet.CardanoNetworkType, networkMagic uint,
 ) (wallets []*wallet.Wallet, policyScript *wallet.PolicyScript, addr string, err error) {
 	if !strings.HasPrefix(str, "ps") {
 		parts := strings.Split(str, "_")
@@ -245,7 +245,7 @@ func FromCardanoPrivateKeyString(
 		wallets[i] = wallet.NewWallet(paymentKey, nil)
 	}
 
-	cliUtils := wallet.NewCliUtils(ResolveCardanoCliBinary(ChainIDCardano))
+	cliUtils := wallet.NewCliUtils(ResolveCardanoCliBinary(chainID))
 
 	walletAddress, err := cliUtils.GetPolicyScriptEnterpriseAddress(networkMagic, policyScript)
 	if err != nil {
@@ -781,8 +781,6 @@ func FundAddressWithToken(
 func MintToken(
 	chain *TestCardanoChain, minterWallet *wallet.Wallet, tokenName string, mintDfmAmount *big.Int,
 ) error {
-	binary := ResolveCardanoCliBinary(chain.ChainID())
-
 	args := []string{
 		"bridge-admin", "mint-native-token",
 		"--key", hex.EncodeToString(minterWallet.SigningKey),
@@ -791,7 +789,7 @@ func MintToken(
 		"--testnet-magic", fmt.Sprintf("%v", chain.config.NetworkMagic),
 		"--token-name", tokenName,
 		"--amount", mintDfmAmount.String(),
-		"--cardano-cli-binary-name", binary,
+		"--cardano-cli-binary-name", ResolveCardanoCliBinary(chain.ChainID()),
 	}
 
 	if len(minterWallet.StakeSigningKey) > 0 {

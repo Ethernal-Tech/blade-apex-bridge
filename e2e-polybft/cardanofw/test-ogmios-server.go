@@ -54,9 +54,7 @@ func (t *TestOgmiosServer) Start() error {
 		"--node-config", t.config.ConfigFile,
 	}
 
-	binary := ResolveOgmiosBinary(t.config.ChainID)
-
-	node, err := framework.NewNode(binary, args, t.config.StdOut)
+	node, err := framework.NewNode(ResolveOgmiosBinary(t.config.ChainID), args, t.config.StdOut)
 	if err != nil {
 		return err
 	}

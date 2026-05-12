@@ -418,8 +418,6 @@ func (ec *TestCardanoChain) DeployMintingContract(_ context.Context, _ string) e
 		return err
 	}
 
-	binary := ResolveCardanoCliBinary(ec.ChainID())
-
 	args := []string{
 		"bridge-admin", "deploy-cardano-script",
 		"--key", hex.EncodeToString(minterWallet.SigningKey),
@@ -429,7 +427,7 @@ func (ec *TestCardanoChain) DeployMintingContract(_ context.Context, _ string) e
 		"--nft-policy-id", custodialNFT.PolicyID,
 		"--nft-name-hex", hex.EncodeToString([]byte(custodialNFT.Name)),
 		"--plutus-script-dir", filepath.Join("..", "..", cardanoSmartContractDir),
-		"--cardano-cli-binary-name", binary,
+		"--cardano-cli-binary-name", ResolveCardanoCliBinary(ec.ChainID()),
 	}
 
 	var outb bytes.Buffer
@@ -493,8 +491,6 @@ func (ec *TestCardanoChain) CreateAddresses(
 		return err
 	}
 
-	binary := ResolveCardanoCliBinary(ec.ChainID())
-
 	args := []string{
 		"create-addresses",
 		"--chain-ids-config", chainIDsConfig,
@@ -504,7 +500,7 @@ func (ec *TestCardanoChain) CreateAddresses(
 		"--bridge-addr", contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
 		"--chain", ec.ChainID(),
-		"--cardano-cli-binary-name", binary,
+		"--cardano-cli-binary-name", ResolveCardanoCliBinary(ec.ChainID()),
 	}
 
 	if custodialAddressGeneration {
@@ -683,8 +679,6 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
 
-	binary := ResolveCardanoCliBinary(ec.ChainID())
-
 	args := []string{
 		"generate-configs", "cardano-chain",
 		"--chain-id", ec.ChainID(),
@@ -699,7 +693,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		"--dbs-path", dbsPath,
 		"--min-fee-for-bridging", fmt.Sprint(ec.config.DefaultMinBridgingFee),
 		"--min-operation-fee", fmt.Sprint(ec.config.MinOperationFee),
-		"--cardano-cli-binary-name", binary,
+		"--cardano-cli-binary-name", ResolveCardanoCliBinary(ec.ChainID()),
 	}
 
 	if ec.config.CustodialNFT != nil {
@@ -878,7 +872,7 @@ func (ec *TestCardanoChain) CreateMetadata(
 
 func (ec *TestCardanoChain) BridgingRequest(params BridgingRequestParams) (string, error) {
 	wallets, policyScript, senderAddr, err := FromCardanoPrivateKeyString(
-		params.PrivateKey, ec.config.NetworkType, ec.config.NetworkMagic)
+		params.PrivateKey, ec.ChainID(), ec.config.NetworkType, ec.config.NetworkMagic)
 	if err != nil {
 		return "", err
 	}
@@ -979,7 +973,7 @@ func (ec *TestCardanoChain) SendTx(
 	}
 
 	wallets, policyScript, senderAddr, err := FromCardanoPrivateKeyString(
-		privateKey, ec.config.NetworkType, ec.config.NetworkMagic)
+		privateKey, ec.ChainID(), ec.config.NetworkType, ec.config.NetworkMagic)
 	if err != nil {
 		return "", err
 	}
