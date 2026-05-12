@@ -14,6 +14,7 @@ import (
 
 type TestCardanoServerConfig struct {
 	ID           int
+	ChainID      ChainID
 	NodeDir      string
 	ConfigFile   string
 	Port         int
@@ -82,7 +83,7 @@ func (t *TestCardanoServer) Start() error {
 	}
 	binary := ResolveCardanoNodeBinary(t.config.NetworkID)
 
-	if t.config.NetworkMagic == cardanowallet.TestNetProtocolMagic {
+	if t.config.ChainID == ChainIDCardano {
 		binary = ResolveCardanoNode11Binary(t.config.NetworkID)
 	}
 
@@ -134,7 +135,7 @@ func (t *TestCardanoServer) NetworkAddress() string {
 func (t *TestCardanoServer) getTxProvider() (cardanowallet.ITxProvider, error) {
 	if t.txProvider == nil {
 		binary := ResolveCardanoCliBinary(t.config.NetworkID)
-		if t.config.NetworkMagic == cardanowallet.TestNetProtocolMagic {
+		if t.config.ChainID == ChainIDCardano {
 			binary = ResolveCardanoCli11Binary(t.config.NetworkID)
 		}
 

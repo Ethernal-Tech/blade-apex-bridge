@@ -199,8 +199,9 @@ func NewCardanoTestCluster(opts ...CardanoClusterOption) (cluster *TestCardanoCl
 
 func (c *TestCardanoCluster) NewTestServer(id int, port int) error {
 	srv, err := NewCardanoTestServer(&TestCardanoServerConfig{
-		ID:   id,
-		Port: port,
+		ID:      id,
+		ChainID: c.Config.ChainType,
+		Port:    port,
 		//StdOut:       c.Config.GetStdout(fmt.Sprintf("node-%d", id)),
 		ConfigFile:   c.Config.Dir("configuration.yaml"),
 		NodeDir:      c.Config.Dir(fmt.Sprintf("node-spo%d", id)),
@@ -424,6 +425,7 @@ func (c *TestCardanoCluster) WaitForBlockWithState(
 func (c *TestCardanoCluster) StartOgmios(id int, stdOut io.Writer) error {
 	srv, err := NewOgmiosTestServer(&TestOgmiosServerConfig{
 		ID:           id,
+		ChainID:      c.Config.ChainType,
 		ConfigFile:   c.Servers[0].config.ConfigFile,
 		NetworkID:    c.Config.NetworkType,
 		NetworkMagic: c.Config.NetworkMagic,
@@ -477,7 +479,7 @@ func (c *TestCardanoCluster) InitGenesis(startTime int64, genesisDir string) err
 	}
 
 	binary := ResolveCardanoCliBinary(c.Config.NetworkType)
-	if c.Config.NetworkMagic == wallet.TestNetProtocolMagic {
+	if c.Config.ChainType == ChainIDCardano {
 		binary = ResolveCardanoCli11Binary(c.Config.NetworkType)
 	}
 
@@ -601,7 +603,7 @@ func (c *TestCardanoCluster) CopyConfigFilesAndInitDirectoriesStep2(networkType 
 				"Producers": producers,
 			}
 
-			if c.Config.NetworkMagic == wallet.TestNetProtocolMagic {
+			if c.Config.ChainType == ChainIDCardano {
 				accessPoints := make([]map[string]interface{}, 0, len(producers))
 				for _, producer := range producers {
 					accessPoints = append(accessPoints, map[string]interface{}{
@@ -695,7 +697,7 @@ func (c *TestCardanoCluster) GenesisCreateStaked(startTime time.Time) error {
 	}, GetTestNetMagicArgs(c.Config.NetworkMagic)...)
 
 	binary := ResolveCardanoCliBinary(c.Config.NetworkType)
-	if c.Config.NetworkMagic == wallet.TestNetProtocolMagic {
+	if c.Config.ChainType == ChainIDCardano {
 		binary = ResolveCardanoCli11Binary(c.Config.NetworkType)
 	}
 

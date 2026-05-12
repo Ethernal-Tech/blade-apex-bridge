@@ -781,6 +781,11 @@ func FundAddressWithToken(
 func MintToken(
 	chain *TestCardanoChain, minterWallet *wallet.Wallet, tokenName string, mintDfmAmount *big.Int,
 ) error {
+	binary := ResolveCardanoCliBinary(chain.config.NetworkType)
+	if chain.config.ChainType == ChainIDCardano {
+		binary = ResolveCardanoCli11Binary(chain.config.NetworkType)
+	}
+
 	args := []string{
 		"bridge-admin", "mint-native-token",
 		"--key", hex.EncodeToString(minterWallet.SigningKey),
@@ -789,6 +794,7 @@ func MintToken(
 		"--testnet-magic", fmt.Sprintf("%v", chain.config.NetworkMagic),
 		"--token-name", tokenName,
 		"--amount", mintDfmAmount.String(),
+		"--cardano-cli-binary-name", binary,
 	}
 
 	if len(minterWallet.StakeSigningKey) > 0 {

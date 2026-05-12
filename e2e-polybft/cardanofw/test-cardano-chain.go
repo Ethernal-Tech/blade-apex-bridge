@@ -418,6 +418,11 @@ func (ec *TestCardanoChain) DeployMintingContract(_ context.Context, _ string) e
 		return err
 	}
 
+	binary := ResolveCardanoCliBinary(ec.config.NetworkType)
+	if ec.config.ChainType == ChainIDCardano {
+		binary = ResolveCardanoCli11Binary(ec.config.NetworkType)
+	}
+
 	args := []string{
 		"bridge-admin", "deploy-cardano-script",
 		"--key", hex.EncodeToString(minterWallet.SigningKey),
@@ -427,6 +432,7 @@ func (ec *TestCardanoChain) DeployMintingContract(_ context.Context, _ string) e
 		"--nft-policy-id", custodialNFT.PolicyID,
 		"--nft-name-hex", hex.EncodeToString([]byte(custodialNFT.Name)),
 		"--plutus-script-dir", filepath.Join("..", "..", cardanoSmartContractDir),
+		"--cardano-cli-binary-name", binary,
 	}
 
 	var outb bytes.Buffer
@@ -490,6 +496,11 @@ func (ec *TestCardanoChain) CreateAddresses(
 		return err
 	}
 
+	binary := ResolveCardanoCliBinary(ec.config.NetworkType)
+	if ec.config.ChainType == ChainIDCardano {
+		binary = ResolveCardanoCli11Binary(ec.config.NetworkType)
+	}
+
 	args := []string{
 		"create-addresses",
 		"--chain-ids-config", chainIDsConfig,
@@ -499,6 +510,7 @@ func (ec *TestCardanoChain) CreateAddresses(
 		"--bridge-addr", contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
 		"--chain", ec.ChainID(),
+		"--cardano-cli-binary-name", binary,
 	}
 
 	if custodialAddressGeneration {
@@ -677,6 +689,11 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
 
+	binary := ResolveCardanoCliBinary(ec.config.NetworkType)
+	if ec.config.ChainType == ChainIDCardano {
+		binary = ResolveCardanoCli11Binary(ec.config.NetworkType)
+	}
+
 	args := []string{
 		"generate-configs", "cardano-chain",
 		"--chain-id", ec.ChainID(),
@@ -691,6 +708,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		"--dbs-path", dbsPath,
 		"--min-fee-for-bridging", fmt.Sprint(ec.config.DefaultMinBridgingFee),
 		"--min-operation-fee", fmt.Sprint(ec.config.MinOperationFee),
+		"--cardano-cli-binary-name", binary,
 	}
 
 	if ec.config.CustodialNFT != nil {
