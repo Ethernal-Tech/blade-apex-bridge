@@ -40,8 +40,10 @@ func fp2SubAddmod(a0, a1, b0, b1 *big.Int) (c0, c1 *big.Int) {
 func fp2AddInts(a0, a1, b0, b1 *big.Int) (c0, c1 *big.Int) {
 	c0 = new(big.Int).Add(a0, b0)
 	c0.Mod(c0, pPrime)
+
 	c1 = new(big.Int).Add(a1, b1)
 	c1.Mod(c1, pPrime)
+
 	return maskToUint256(c0), maskToUint256(c1)
 }
 
