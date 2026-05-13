@@ -69,13 +69,10 @@ const (
 )
 
 func ResolveCardanoCliBinary(chainID ChainID) string {
-	if chainID == ChainIDCardano {
-		env, name := "CARDANO_CLI_11_BINARY", "cardano-cli-11"
-
-		return tryResolveFromEnv(env, name)
-	}
-
 	env, name := "CARDANO_CLI_BINARY", "cardano-cli"
+	if chainID == ChainIDCardano {
+		env, name = "CARDANO_CLI_11_BINARY", "cardano-cli-11"
+	}
 
 	return tryResolveFromEnv(env, name)
 }

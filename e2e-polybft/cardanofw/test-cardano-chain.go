@@ -249,12 +249,19 @@ func (ec *TestCardanoChain) GetBridgingStakeAddressInfo(
 	t.Helper()
 	require.True(t, ec.config.BridgeAddrHasStake)
 
-	txProvider, err := ec.GetTxProvider()
-	require.NoError(t, err)
+	// Use CLI to get stake address info instead of Ogmios since
+	// the check is not working on node v11.0.1
+	txProviderCLI, err := infrawallet.NewTxProviderCli(
+		ec.config.NetworkMagic, ec.cluster.OgmiosServer.SocketPath(), ResolveCardanoCliBinary(ec.ChainID()))
+	if err != nil {
+		return infrawallet.QueryStakeAddressInfo{}, fmt.Errorf("failed to create tx provider cli: %w", err)
+	}
+
+	fmt.Printf("Cardano chain %s multisig stake address: %v\n", ec.ChainID(), ec.multisigStakeAddr)
 
 	stakeBridgingAddrInfo, err := infracommon.ExecuteWithRetry(ctx,
 		func(ctx context.Context) (infrawallet.QueryStakeAddressInfo, error) {
-			addrInfo, err := txProvider.GetStakeAddressInfo(ctx, ec.multisigStakeAddr[indx])
+			addrInfo, err := txProviderCLI.GetStakeAddressInfo(ctx, ec.multisigStakeAddr[indx])
 			if err != nil && !expectError {
 				return infrawallet.QueryStakeAddressInfo{}, infracommon.ErrRetryTryAgain
 			}
