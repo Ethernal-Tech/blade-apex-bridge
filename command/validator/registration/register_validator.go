@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/command"
 	bridgeHelper "github.com/0xPolygon/polygon-edge/command/bridge/helper"
 	"github.com/0xPolygon/polygon-edge/command/helper"
@@ -18,6 +17,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/spf13/cobra"
 )
@@ -166,8 +166,9 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func registerValidator(sender txrelayer.TxRelayer, account *wallet.Account,
-	signature *bls.Signature) (*ethgo.Receipt, error) {
+func registerValidator(
+	sender txrelayer.TxRelayer, account *wallet.Account, signature *bn256.Signature,
+) (*ethgo.Receipt, error) {
 	sigMarshal, err := signature.ToBigInt()
 	if err != nil {
 		return nil, fmt.Errorf("register validator failed: %w", err)

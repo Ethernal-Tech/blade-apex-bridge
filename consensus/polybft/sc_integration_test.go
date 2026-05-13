@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/Ethernal-Tech/ethgo/abi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/chain"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
@@ -205,7 +205,7 @@ func TestIntegration_PerformExit(t *testing.T) {
 
 	i := uint64(0)
 	bmp := bitmap.Bitmap{}
-	signatures := bls.Signatures(nil)
+	signatures := bn256.Signatures(nil)
 
 	currentValidators.IterAcct(nil, func(v *validator.TestValidator) {
 		signatures = append(signatures, v.MustSign(checkpointHash[:], signer.DomainCheckpointManager))

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/validator"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo/abi"
 	"github.com/hashicorp/go-hclog"
 	"github.com/umbracle/fastrlp"
@@ -269,12 +269,12 @@ func (s *Signature) Verify(blockNumber uint64, validators validator.AccountSet,
 		return fmt.Errorf("quorum not reached")
 	}
 
-	blsPublicKeys := make([]*bls.PublicKey, len(signers))
+	blsPublicKeys := make([]*bn256.PublicKey, len(signers))
 	for i, validator := range signers {
 		blsPublicKeys[i] = validator.BlsKey
 	}
 
-	aggs, err := bls.UnmarshalSignature(s.AggregatedSignature)
+	aggs, err := bn256.UnmarshalSignature(s.AggregatedSignature)
 	if err != nil {
 		return err
 	}

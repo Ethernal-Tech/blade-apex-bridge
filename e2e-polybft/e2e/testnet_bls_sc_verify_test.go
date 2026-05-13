@@ -13,7 +13,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	"github.com/0xPolygon/polygon-edge/types"
-	"github.com/Ethernal-Tech/bn256"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo/abi"
 	"github.com/stretchr/testify/require"
 )

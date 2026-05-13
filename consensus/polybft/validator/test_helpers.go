@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
@@ -175,7 +175,7 @@ func (v *TestValidator) ValidatorMetadata() *ValidatorMetadata {
 	}
 }
 
-func (v *TestValidator) MustSign(hash, domain []byte) *bls.Signature {
+func (v *TestValidator) MustSign(hash, domain []byte) *bn256.Signature {
 	signature, err := v.Account.Bls.Sign(hash, domain)
 	if err != nil {
 		panic(fmt.Sprintf("BUG: failed to sign: %v", err)) //nolint:gocritic

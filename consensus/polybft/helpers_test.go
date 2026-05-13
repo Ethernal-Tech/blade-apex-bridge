@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/validator"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,7 +39,7 @@ func createRandomTestKeys(t *testing.T, numberOfKeys int) []*wallet.Key {
 func createSignature(t *testing.T, accounts []*wallet.Account, hash types.Hash, domain []byte) *Signature {
 	t.Helper()
 
-	var signatures bls.Signatures
+	var signatures bn256.Signatures
 
 	var bmp bitmap.Bitmap
 	for i, x := range accounts {

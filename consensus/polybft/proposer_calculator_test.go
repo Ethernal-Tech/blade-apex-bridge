@@ -5,9 +5,9 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/validator"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,7 +77,7 @@ func TestProposerCalculator_RegularFlow(t *testing.T) {
 func TestProposerCalculator_SamePriority(t *testing.T) {
 	t.Parallel()
 
-	keys, err := bls.CreateRandomBlsKeys(5)
+	keys, err := bn256.GeneratePrivateKeys(5)
 	require.NoError(t, err)
 
 	// at some point priorities will be the same and bytes address will be compared
@@ -123,7 +123,7 @@ func TestProposerCalculator_InversePriorityOrderWithExpectedListOfSelection(t *t
 
 	const numberOfIteration = 99
 
-	keys, err := bls.CreateRandomBlsKeys(3)
+	keys, err := bn256.GeneratePrivateKeys(3)
 	require.NoError(t, err)
 
 	// priorities are from high to low vp in validator set
@@ -173,7 +173,7 @@ func TestProposerCalculator_InversePriorityOrderWithExpectedListOfSelection(t *t
 func TestProposerCalculator_IncrementProposerPrioritySameVotingPower(t *testing.T) {
 	t.Parallel()
 
-	keys, err := bls.CreateRandomBlsKeys(3)
+	keys, err := bn256.GeneratePrivateKeys(3)
 	require.NoError(t, err)
 
 	vs := validator.NewValidatorSet([]*validator.ValidatorMetadata{
@@ -221,7 +221,7 @@ func TestProposerCalculator_IncrementProposerPrioritySameVotingPower(t *testing.
 func TestProposerCalculator_AveragingInIncrementProposerPriorityWithVotingPower(t *testing.T) {
 	t.Parallel()
 
-	keys, err := bls.CreateRandomBlsKeys(3)
+	keys, err := bn256.GeneratePrivateKeys(3)
 	require.NoError(t, err)
 
 	// Other than TestAveragingInIncrementProposerPriority this is a more complete test showing
@@ -373,7 +373,7 @@ func TestProposerCalculator_AveragingInIncrementProposerPriorityWithVotingPower(
 func TestProposerCalculator_UpdatesForNewValidatorSet(t *testing.T) {
 	t.Parallel()
 
-	keys, err := bls.CreateRandomBlsKeys(2)
+	keys, err := bn256.GeneratePrivateKeys(2)
 	require.NoError(t, err)
 
 	v1 := &validator.ValidatorMetadata{Address: types.Address{0x1}, BlsKey: keys[0].PublicKey(), VotingPower: big.NewInt(100)}
@@ -446,7 +446,7 @@ func TestProposerCalculator_GetLatestProposer(t *testing.T) {
 func TestProposerCalculator_UpdateValidatorsSameVpUpdatedAndNewAdded(t *testing.T) {
 	t.Parallel()
 
-	keys, err := bls.CreateRandomBlsKeys(8)
+	keys, err := bn256.GeneratePrivateKeys(8)
 	require.NoError(t, err)
 
 	v1 := &validator.ValidatorMetadata{Address: types.Address{0x1}, BlsKey: keys[0].PublicKey(), VotingPower: big.NewInt(100)}
@@ -511,7 +511,7 @@ func TestProposerCalculator_UpdateValidatorsSameVpUpdatedAndNewAdded(t *testing.
 func TestProposerCalculator_UpdateValidators(t *testing.T) {
 	t.Parallel()
 
-	keys, err := bls.CreateRandomBlsKeys(4)
+	keys, err := bn256.GeneratePrivateKeys(4)
 	require.NoError(t, err)
 
 	v1 := &validator.ValidatorMetadata{Address: types.Address{0x1}, BlsKey: keys[0].PublicKey(), VotingPower: big.NewInt(10)}
@@ -559,7 +559,7 @@ func TestProposerCalculator_UpdateValidators(t *testing.T) {
 func TestProposerCalculator_ScaleAfterDelete(t *testing.T) {
 	t.Parallel()
 
-	keys, err := bls.CreateRandomBlsKeys(3)
+	keys, err := bn256.GeneratePrivateKeys(3)
 	require.NoError(t, err)
 
 	v1 := &validator.ValidatorMetadata{Address: types.Address{0x1}, BlsKey: keys[0].PublicKey(), VotingPower: big.NewInt(10)}
@@ -606,7 +606,7 @@ func TestProposerCalculator_ScaleAfterDelete(t *testing.T) {
 func TestProposerCalculator_ShiftAfterUpdate(t *testing.T) {
 	t.Parallel()
 
-	keys, err := bls.CreateRandomBlsKeys(3)
+	keys, err := bn256.GeneratePrivateKeys(3)
 	require.NoError(t, err)
 
 	v1 := &validator.ValidatorMetadata{Address: types.Address{0x1}, BlsKey: keys[0].PublicKey(), VotingPower: big.NewInt(50)}
@@ -640,7 +640,7 @@ func TestProposerCalculator_ShiftAfterUpdate(t *testing.T) {
 func TestProposerCalculator_UpdateValidatorSet(t *testing.T) {
 	t.Parallel()
 
-	keys, err := bls.CreateRandomBlsKeys(3)
+	keys, err := bn256.GeneratePrivateKeys(3)
 	require.NoError(t, err)
 
 	v1 := &validator.ValidatorMetadata{Address: types.Address{0x1}, BlsKey: keys[0].PublicKey(), VotingPower: big.NewInt(1)}
@@ -676,7 +676,7 @@ func TestProposerCalculator_UpdateValidatorSet(t *testing.T) {
 func TestProposerCalculator_AddValidator(t *testing.T) {
 	t.Parallel()
 
-	keys, err := bls.CreateRandomBlsKeys(3)
+	keys, err := bn256.GeneratePrivateKeys(3)
 	require.NoError(t, err)
 
 	v1 := &validator.ValidatorMetadata{Address: types.Address{0x1}, BlsKey: keys[0].PublicKey(), VotingPower: big.NewInt(3)}
