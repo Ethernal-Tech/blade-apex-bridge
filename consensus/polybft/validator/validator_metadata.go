@@ -9,12 +9,12 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/crypto"
 
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo/abi"
 	"github.com/umbracle/fastrlp"
 )
@@ -24,7 +24,7 @@ var accountSetABIType = abi.MustNewType(`tuple(tuple(address _address, uint256[4
 // ValidatorMetadata represents a validator metadata (its public identity)
 type ValidatorMetadata struct {
 	Address     types.Address
-	BlsKey      *bls.PublicKey
+	BlsKey      *bn256.PublicKey
 	VotingPower *big.Int
 	IsActive    bool
 }
@@ -50,7 +50,7 @@ func (v *ValidatorMetadata) EqualAddressAndBlsKey(b *ValidatorMetadata) bool {
 // Copy returns a deep copy of ValidatorMetadata
 func (v *ValidatorMetadata) Copy() *ValidatorMetadata {
 	copiedBlsKey := v.BlsKey.Marshal()
-	blsKey, _ := bls.UnmarshalPublicKey(copiedBlsKey)
+	blsKey, _ := bn256.UnmarshalPublicKey(copiedBlsKey)
 
 	return &ValidatorMetadata{
 		Address:     types.BytesToAddress(v.Address[:]),
@@ -100,7 +100,7 @@ func (v *ValidatorMetadata) UnmarshalRLPWith(val *fastrlp.Value) error {
 		return fmt.Errorf("expected 'BlsKey' encoded as bytes: %w", err)
 	}
 
-	blsKey, err := bls.UnmarshalPublicKey(blsKeyRaw)
+	blsKey, err := bn256.UnmarshalPublicKey(blsKeyRaw)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal BLS public key: %w", err)
 	}
@@ -181,8 +181,8 @@ func (as AccountSet) GetAddressesAsSet() map[types.Address]struct{} {
 }
 
 // GetBlsKeys aggregates public BLS keys for given AccountSet
-func (as AccountSet) GetBlsKeys() []*bls.PublicKey {
-	res := make([]*bls.PublicKey, 0, len(as))
+func (as AccountSet) GetBlsKeys() []*bn256.PublicKey {
+	res := make([]*bn256.PublicKey, 0, len(as))
 	for _, account := range as {
 		res = append(res, account.BlsKey)
 	}

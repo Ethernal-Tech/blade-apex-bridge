@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/command/proposal/common"
 	"github.com/0xPolygon/polygon-edge/command/proposal/schema"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/spf13/cobra"
 )
 
@@ -148,7 +148,7 @@ func runCommand(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("invalid key hex format for blade network, %w", err)
 	}
 
-	pubKey, err := bls.UnmarshalPublicKey(keyBytes)
+	pubKey, err := bn256.UnmarshalPublicKey(keyBytes)
 	if err != nil {
 		return fmt.Errorf("cannot unmarshal blade public key, %w", err)
 	}

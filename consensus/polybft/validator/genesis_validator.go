@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 )
 
 // GenesisValidator represents public information about validator accounts which are the part of genesis
@@ -50,13 +50,13 @@ func (v *GenesisValidator) UnmarshalJSON(data []byte) (err error) {
 }
 
 // UnmarshalBLSPublicKey unmarshals the hex encoded BLS public key
-func (v *GenesisValidator) UnmarshalBLSPublicKey() (*bls.PublicKey, error) {
+func (v *GenesisValidator) UnmarshalBLSPublicKey() (*bn256.PublicKey, error) {
 	decoded, err := hex.DecodeString(v.BlsKey)
 	if err != nil {
 		return nil, err
 	}
 
-	return bls.UnmarshalPublicKey(decoded)
+	return bn256.UnmarshalPublicKey(decoded)
 }
 
 // ToValidatorMetadata creates ValidatorMetadata instance

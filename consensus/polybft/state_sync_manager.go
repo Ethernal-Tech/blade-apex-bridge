@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"sync"
 
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p/core/peer"
 	bolt "go.etcd.io/bbolt"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	polybftProto "github.com/0xPolygon/polygon-edge/consensus/polybft/proto"
@@ -202,7 +202,7 @@ func (s *stateSyncManager) verifyVoteSignature(valSet validator.ValidatorSet, si
 		return fmt.Errorf("unable to resolve validator %s", signerAddr)
 	}
 
-	unmarshaledSignature, err := bls.UnmarshalSignature(signature)
+	unmarshaledSignature, err := bn256.UnmarshalSignature(signature)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal signature from signer %s, %w", signerAddr.String(), err)
 	}
@@ -312,7 +312,7 @@ func (s *stateSyncManager) getAggSignatureForCommitmentMessage(blockNumber uint6
 		return Signature{}, nil, err
 	}
 
-	var signatures bls.Signatures
+	var signatures bn256.Signatures
 
 	publicKeys := make([][]byte, 0)
 	bmap := bitmap.Bitmap{}
@@ -324,7 +324,7 @@ func (s *stateSyncManager) getAggSignatureForCommitmentMessage(blockNumber uint6
 			continue // don't count this vote, because it does not belong to validator
 		}
 
-		signature, err := bls.UnmarshalSignature(vote.Signature)
+		signature, err := bn256.UnmarshalSignature(vote.Signature)
 		if err != nil {
 			return Signature{}, nil, err
 		}

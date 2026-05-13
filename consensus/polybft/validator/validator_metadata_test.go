@@ -5,9 +5,9 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -72,7 +72,7 @@ func TestAccountSet_GetAddresses(t *testing.T) {
 func TestAccountSet_GetBlsKeys(t *testing.T) {
 	t.Parallel()
 
-	keys, err := bls.CreateRandomBlsKeys(3)
+	keys, err := bn256.GeneratePrivateKeys(3)
 	assert.NoError(t, err)
 
 	key1, key2, key3 := keys[0], keys[1], keys[2]

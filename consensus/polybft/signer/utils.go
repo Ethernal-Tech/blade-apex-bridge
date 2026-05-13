@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"math/big"
 
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo/abi"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/types"
 )
@@ -37,8 +37,10 @@ var (
 )
 
 // MakeKOSKSignature creates KOSK signature which prevents rogue attack
-func MakeKOSKSignature(privateKey *bls.PrivateKey, address types.Address,
-	chainID int64, domain []byte, stakeManagerAddr types.Address) (*bls.Signature, error) {
+func MakeKOSKSignature(
+	privateKey *bn256.PrivateKey, address types.Address,
+	chainID int64, domain []byte, stakeManagerAddr types.Address,
+) (*bn256.Signature, error) {
 	spenderABI, err := addressABIType.Encode(address)
 	if err != nil {
 		return nil, err

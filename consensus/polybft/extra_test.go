@@ -8,7 +8,6 @@ import (
 	mrand "math/rand"
 	"testing"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/chain"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/signer"
@@ -16,6 +15,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -376,7 +376,7 @@ func TestSignature_Verify(t *testing.T) {
 		validatorsMetadata := vals.GetPublicIdentities()
 		validatorSet := vals.ToValidatorSet()
 
-		var signatures bls.Signatures
+		var signatures bn256.Signatures
 
 		bitmap := bitmap.Bitmap{}
 		signers := make(map[types.Address]struct{}, len(validatorsMetadata))
@@ -461,7 +461,7 @@ func TestSignature_VerifyRandom(t *testing.T) {
 	vals := validator.NewTestValidators(t, numValidators)
 	msgHash := types.Hash{0x1}
 
-	var signature bls.Signatures
+	var signature bn256.Signatures
 
 	bitmap := bitmap.Bitmap{}
 	valIndxsRnd := mrand.Perm(numValidators)[:numValidators*2/3+1]

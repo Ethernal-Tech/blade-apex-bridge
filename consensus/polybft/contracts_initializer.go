@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/signer"
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/helper/hex"
 	"github.com/0xPolygon/polygon-edge/state"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo/abi"
 )
 
@@ -27,7 +27,7 @@ func initStakeManager(polyBFTConfig PolyBFTConfig, transition *state.Transition)
 			return err
 		}
 
-		key, err := bls.UnmarshalPublicKey(blsRaw)
+		key, err := bn256.UnmarshalPublicKey(blsRaw)
 		if err != nil {
 			return err
 		}

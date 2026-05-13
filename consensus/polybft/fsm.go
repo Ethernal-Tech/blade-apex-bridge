@@ -9,10 +9,10 @@ import (
 
 	"github.com/0xPolygon/go-ibft/messages"
 	"github.com/0xPolygon/go-ibft/messages/proto"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-metrics"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/chain"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
@@ -402,7 +402,7 @@ func (f *fsm) ValidateCommit(signerAddr []byte, seal []byte, proposalHash []byte
 		return fmt.Errorf("unable to resolve validator %s", from)
 	}
 
-	signature, err := bls.UnmarshalSignature(seal)
+	signature, err := bn256.UnmarshalSignature(seal)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshall signature: %w", err)
 	}
@@ -744,7 +744,7 @@ func (f *fsm) Insert(proposal []byte, committedSeals []*messages.CommittedSeal) 
 	// populated bitmap according to nodeId from validator set and committed seals
 	// also populate slice of signatures
 	bitmap := bitmap.Bitmap{}
-	signatures := make(bls.Signatures, 0, len(committedSeals))
+	signatures := make(bn256.Signatures, 0, len(committedSeals))
 
 	for _, commSeal := range committedSeals {
 		signerAddr := types.BytesToAddress(commSeal.Signer)
@@ -754,7 +754,7 @@ func (f *fsm) Insert(proposal []byte, committedSeals []*messages.CommittedSeal) 
 			return nil, fmt.Errorf("invalid node id = %s", signerAddr.String())
 		}
 
-		s, err := bls.UnmarshalSignature(commSeal.Signature)
+		s, err := bn256.UnmarshalSignature(commSeal.Signature)
 		if err != nil {
 			return nil, fmt.Errorf("invalid signature = %s", commSeal.Signature)
 		}
@@ -860,7 +860,7 @@ func verifyBridgeCommitmentTx(blockNumber uint64, txHash types.Hash,
 		return err
 	}
 
-	signature, err := bls.UnmarshalSignature(commitment.AggSignature.AggregatedSignature)
+	signature, err := bn256.UnmarshalSignature(commitment.AggSignature.AggregatedSignature)
 	if err != nil {
 		return fmt.Errorf("error for state tx (%s) while unmarshaling signature: %w", txHash, err)
 	}

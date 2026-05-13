@@ -5,10 +5,10 @@ import (
 	"sync"
 	"testing"
 
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/validator"
 	"github.com/0xPolygon/polygon-edge/types"
 )
@@ -22,7 +22,7 @@ func TestState_insertAndGetValidatorSnapshot(t *testing.T) {
 	)
 
 	state := newTestState(t)
-	keys, err := bls.CreateRandomBlsKeys(3)
+	keys, err := bn256.GeneratePrivateKeys(3)
 
 	require.NoError(t, err)
 
@@ -53,7 +53,7 @@ func TestState_cleanValidatorSnapshotsFromDb(t *testing.T) {
 
 	fixedEpochSize := uint64(10)
 	state := newTestState(t)
-	keys, err := bls.CreateRandomBlsKeys(3)
+	keys, err := bn256.GeneratePrivateKeys(3)
 	require.NoError(t, err)
 
 	snapshot := validator.AccountSet{

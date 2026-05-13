@@ -10,7 +10,6 @@ import (
 
 	"github.com/0xPolygon/go-ibft/messages"
 	"github.com/0xPolygon/go-ibft/messages/proto"
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/chain"
 	"github.com/0xPolygon/polygon-edge/consensus"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
@@ -20,6 +19,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
 	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -916,7 +916,7 @@ func TestFSM_VerifyStateTransaction_Commitments(t *testing.T) {
 		validators := validator.NewTestValidators(t, 5)
 		commitment := createTestCommitment(t, validators.GetPrivateIdentities())
 		nonValidators := validator.NewTestValidators(t, 3)
-		aggregatedSigs := bls.Signatures{}
+		aggregatedSigs := bn256.Signatures{}
 
 		nonValidators.IterAcct(nil, func(t *validator.TestValidator) {
 			aggregatedSigs = append(aggregatedSigs, t.MustSign([]byte("dummyHash"), signer.DomainStateReceiver))
@@ -1261,7 +1261,7 @@ func TestFSM_Validate_EpochEndingBlock_MismatchInDeltas(t *testing.T) {
 		Maybe()
 
 	// a new validator is added to delta which proposers block does not have
-	privateKey, err := bls.GenerateBlsKey()
+	privateKey, err := bn256.GeneratePrivateKey()
 	require.NoError(t, err)
 
 	newValidatorDelta := &validator.ValidatorSetDelta{
@@ -1316,7 +1316,7 @@ func TestFSM_Validate_EpochEndingBlock_UpdatingValidatorSetInNonEpochEndingBlock
 	polybftBackendMock.On("GetValidators", mock.Anything, mock.Anything).Return(validators.GetPublicIdentities(), nil).Once()
 
 	// a new validator is added to delta which proposers block does not have
-	privateKey, err := bls.GenerateBlsKey()
+	privateKey, err := bn256.GeneratePrivateKey()
 	require.NoError(t, err)
 
 	newValidatorDelta := &validator.ValidatorSetDelta{
@@ -1862,7 +1862,7 @@ func createTestCommitment(t *testing.T, accounts []*wallet.Account) *CommitmentM
 	hash, err := commitment.Hash()
 	require.NoError(t, err)
 
-	var signatures bls.Signatures
+	var signatures bn256.Signatures
 
 	for _, a := range accounts {
 		signature, err := a.Bls.Sign(hash.Bytes(), signer.DomainStateReceiver)
@@ -1979,7 +1979,7 @@ func TestFSM_VerifyStateTransaction_ValidatorSetUpdated(t *testing.T) {
 	})
 
 	t.Run("double transactions", func(t *testing.T) {
-		blsKey, err := bls.GenerateBlsKey()
+		blsKey, err := bn256.GeneratePrivateKey()
 		require.NoError(t, err)
 
 		require.NoError(t, state.StakeStore.insertLastDelta(&validator.ValidatorSetDelta{
