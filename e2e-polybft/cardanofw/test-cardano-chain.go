@@ -144,8 +144,8 @@ func NewVectorChainConfig(mintableTokens ...map[uint16]string) *TestCardanoChain
 	return cfg
 }
 
-func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
-	return &TestCardanoChainConfig{
+func NewCardanoChainConfig(isEnabled bool, mintableTokens ...map[uint16]string) *TestCardanoChainConfig {
+	cfg := &TestCardanoChainConfig{
 		IsEnabled:                   isEnabled,
 		ID:                          4,
 		NetworkType:                 infrawallet.TestNetNetwork,
@@ -165,6 +165,14 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		TreasuryAddress:             defaultCardanoTreasuryAddress,
 		BridgingAddressCnt:          1,
 	}
+
+	if len(mintableTokens) > 0 {
+		cfg.FundRelayerAmount = WeiToDfm(defaultFundTokenAmount).Uint64()
+		cfg.CustodialAddressGeneration = true
+		cfg.MintableTokens = mintableTokens[0]
+	}
+
+	return cfg
 }
 
 func NewRemotePrimeChainConfig(

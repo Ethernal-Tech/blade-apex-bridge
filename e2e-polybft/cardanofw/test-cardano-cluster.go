@@ -485,7 +485,6 @@ func (c *TestCardanoCluster) CopyConfigFilesStep1(genesisDir string) error {
 	items := [][2]string{
 		{"alonzo-babbage-test-genesis.json", "genesis.alonzo.spec.json"},
 		{"conway-babbage-test-genesis.json", "genesis.conway.spec.json"},
-		{"conway-test-genesis.json", "conway-test-genesis.json"},
 		{"configuration.yaml", "configuration.yaml"},
 	}
 	for _, it := range items {

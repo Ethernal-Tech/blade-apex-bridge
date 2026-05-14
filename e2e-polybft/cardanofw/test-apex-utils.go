@@ -78,13 +78,11 @@ func ResolveCardanoCliBinary(chainID ChainID) string {
 }
 
 func ResolveOgmiosBinary(chainID ChainID) string {
-	if chainID == ChainIDCardano {
-		env, name := "OGMIOS_11_BINARY", "ogmios-11"
-
-		return tryResolveFromEnv(env, name)
-	}
-
 	env, name := "OGMIOS", "ogmios"
+
+	if chainID == ChainIDCardano {
+		env, name = "OGMIOS_11_BINARY", "ogmios-10"
+	}
 
 	return tryResolveFromEnv(env, name)
 }

@@ -615,6 +615,31 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 
 			a.EcosystemTokens[USDTTokenID] = USDTTokenName
 
+			if _, ok := a.Config.CardanoConfig.MintableTokens[USDCxTokenID]; ok {
+				a.NexusInfo.DestChain[ChainIDCardano] = append(a.NexusInfo.DestChain[ChainIDCardano], Direction{
+					SourceTokenID:      USDCTokenID,
+					DestinationTokenID: USDCxTokenID,
+				})
+				a.NexusInfo.Tokens[USDCTokenID] = Token{
+					ChainSpecific:     "",
+					LockUnlock:        true,
+					IsWrappedCurrency: false,
+				}
+
+				a.CardanoInfo.DestChain[ChainIDNexus] = append(a.CardanoInfo.DestChain[ChainIDNexus], Direction{
+					SourceTokenID:      USDCxTokenID,
+					DestinationTokenID: USDCTokenID,
+				})
+				a.CardanoInfo.Tokens[USDCxTokenID] = Token{
+					ChainSpecific:     "",
+					LockUnlock:        false,
+					IsWrappedCurrency: false,
+				}
+
+				a.EcosystemTokens[USDCTokenID] = USDCTokenName
+				a.EcosystemTokens[USDCxTokenID] = USDCxTokenName
+			}
+
 			if a.Config.PolygonConfig != nil && a.Config.PolygonConfig.IsEnabled {
 				// In case Polygon is enabled, we need to add:
 				// - Polygon <-> Nexus = wUSDT/MATIC <-> USDT/xMATIC
