@@ -3,11 +3,11 @@ package precompiled
 import (
 	"errors"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/chain"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/signer"
 	"github.com/0xPolygon/polygon-edge/state/runtime"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo/abi"
 )
 
@@ -64,7 +64,7 @@ func (c *blsAggSignsVerification) run(input []byte, caller types.Address, host r
 		return nil, errBLSVInvalidSign
 	}
 
-	sig, err := bls.UnmarshalSignature(aggSig)
+	sig, err := bn256.UnmarshalSignature(aggSig)
 	if err != nil {
 		return nil, errBLSVInvalidSign
 	}
@@ -89,18 +89,18 @@ func (c *blsAggSignsVerification) run(input []byte, caller types.Address, host r
 		return nil, errBLSVInvalidPubKeysPart
 	}
 
-	blsPubKeys := make([]*bls.PublicKey, len(publicKeys))
+	pubKeys := make([]*bn256.PublicKey, len(publicKeys))
 
 	for i, pk := range publicKeys {
-		blsPubKey, err := bls.UnmarshalPublicKey(pk)
+		bn256PubKey, err := bn256.UnmarshalPublicKey(pk)
 		if err != nil {
 			return nil, errBLSVInvalidPubKeys
 		}
 
-		blsPubKeys[i] = blsPubKey
+		pubKeys[i] = bn256PubKey
 	}
 
-	if sig.VerifyAggregated(blsPubKeys, types.Hash(msg).Bytes(), signer.DomainStateReceiver) {
+	if sig.VerifyAggregated(pubKeys, types.Hash(msg).Bytes(), signer.DomainStateReceiver) {
 		return abiBoolTrue, nil
 	}
 

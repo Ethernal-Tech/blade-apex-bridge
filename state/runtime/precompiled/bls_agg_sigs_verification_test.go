@@ -3,9 +3,9 @@ package precompiled
 import (
 	"testing"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/signer"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo/abi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,16 +56,16 @@ func Test_BlsAggSignsVerification(t *testing.T) {
 	assert.Equal(t, abiBoolFalse, out)
 }
 
-func generatePubKeysAndSignature(t *testing.T, numKeys int, messageRaw []byte) ([][]byte, bls.Signatures) {
+func generatePubKeysAndSignature(t *testing.T, numKeys int, messageRaw []byte) ([][]byte, bn256.Signatures) {
 	t.Helper()
 
 	message := types.BytesToHash(messageRaw)
 
-	validators, err := bls.CreateRandomBlsKeys(numKeys)
+	validators, err := bn256.GeneratePrivateKeys(numKeys)
 	require.NoError(t, err)
 
 	pubKeys := make([][]byte, len(validators))
-	signatures := make(bls.Signatures, len(validators))
+	signatures := make(bn256.Signatures, len(validators))
 
 	for i, validator := range validators {
 		sign, err := validator.Sign(message[:], signer.DomainStateReceiver)
@@ -78,7 +78,7 @@ func generatePubKeysAndSignature(t *testing.T, numKeys int, messageRaw []byte) (
 	return pubKeys, signatures
 }
 
-func generateInput(t *testing.T, messageRaw []byte, publicKeys [][]byte, signatures bls.Signatures) []byte {
+func generateInput(t *testing.T, messageRaw []byte, publicKeys [][]byte, signatures bn256.Signatures) []byte {
 	t.Helper()
 
 	message := types.BytesToHash(messageRaw)

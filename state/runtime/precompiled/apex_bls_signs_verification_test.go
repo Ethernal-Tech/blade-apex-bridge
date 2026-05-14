@@ -4,10 +4,10 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo/abi"
 	"github.com/stretchr/testify/require"
 )
@@ -34,10 +34,10 @@ func Test_apexBLSSignatureVerification(t *testing.T) {
 	}
 
 	aggregateSignatures := func(
-		allSignatures []*bls.Signature, indexes ...int,
+		allSignatures []*bn256.Signature, indexes ...int,
 	) ([]byte, bitmap.Bitmap) {
 		bmp := bitmap.Bitmap{}
-		signatures := make(bls.Signatures, len(indexes))
+		signatures := make(bn256.Signatures, len(indexes))
 
 		for i, indx := range indexes {
 			signatures[i] = allSignatures[indx]
@@ -54,11 +54,11 @@ func Test_apexBLSSignatureVerification(t *testing.T) {
 	message := crypto.Keccak256([]byte("test message to sign"))
 	b := &apexBLSSignatureVerification{domain: domain}
 
-	validators, err := bls.CreateRandomBlsKeys(validatorsCount)
+	validators, err := bn256.GeneratePrivateKeys(validatorsCount)
 	require.NoError(t, err)
 
 	pubKeys := make([][4]*big.Int, len(validators))
-	signatures := make([]*bls.Signature, len(validators))
+	signatures := make([]*bn256.Signature, len(validators))
 
 	for i, validator := range validators {
 		signatures[i], err = validator.Sign(message, domain)

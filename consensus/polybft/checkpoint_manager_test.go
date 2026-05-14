@@ -12,13 +12,13 @@ import (
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/signer"
 	"github.com/0xPolygon/polygon-edge/crypto"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo"
 	merkle "github.com/Ethernal-Tech/merkle-tree"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/validator"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/wallet"
@@ -60,7 +60,7 @@ func TestCheckpointManager_SubmitCheckpoint(t *testing.T) {
 			idx         = uint64(0)
 			header      *types.Header
 			bitmap      bitmap.Bitmap
-			signatures  bls.Signatures
+			signatures  bn256.Signatures
 		)
 
 		validators.IterAcct(aliases, func(t *validator.TestValidator) {
@@ -167,7 +167,7 @@ func TestCheckpointManager_abiEncodeCheckpointBlock(t *testing.T) {
 	bmp := bitmap.Bitmap{}
 	i := uint64(0)
 
-	var signatures bls.Signatures
+	var signatures bn256.Signatures
 
 	currentValidators.IterAcct(nil, func(v *validator.TestValidator) {
 		signatures = append(signatures, v.MustSign(proposalHash, signer.DomainCheckpointManager))
