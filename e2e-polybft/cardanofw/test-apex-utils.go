@@ -88,13 +88,10 @@ func ResolveOgmiosBinary(chainID ChainID) string {
 }
 
 func ResolveCardanoNodeBinary(chainID ChainID) string {
-	if chainID == ChainIDCardano {
-		env, name := "CARDANO_NODE_11_BINARY", "cardano-node-11"
-
-		return tryResolveFromEnv(env, name)
-	}
-
 	env, name := "CARDANO_NODE_BINARY", "cardano-node"
+	if chainID == ChainIDCardano {
+		env, name = "CARDANO_NODE_11_BINARY", "cardano-node-11"
+	}
 
 	return tryResolveFromEnv(env, name)
 }
