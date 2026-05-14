@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/go-ibft/messages/proto"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/stretchr/testify/require"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/signer"
 )
 
@@ -44,7 +44,7 @@ func Test_Sign(t *testing.T) {
 
 		require.NoError(t, err)
 
-		sig, err := bls.UnmarshalSignature(ser)
+		sig, err := bn256.UnmarshalSignature(ser)
 		require.NoError(t, err)
 
 		require.True(t, sig.Verify(key.raw.Bls.PublicKey(), msg, signer.DomainCheckpointManager))

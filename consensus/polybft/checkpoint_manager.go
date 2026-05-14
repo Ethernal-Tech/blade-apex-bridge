@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/validator"
 	"github.com/0xPolygon/polygon-edge/contracts"
@@ -14,6 +13,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/helper/hex"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo"
 	merkle "github.com/Ethernal-Tech/merkle-tree"
 	hclog "github.com/hashicorp/go-hclog"
@@ -237,7 +237,7 @@ func (c *checkpointManager) encodeAndSendCheckpoint(header *types.Header, extra 
 // abiEncodeCheckpointBlock encodes checkpoint data into ABI format for a given header
 func (c *checkpointManager) abiEncodeCheckpointBlock(blockNumber uint64, blockHash types.Hash, extra *Extra,
 	nextValidators validator.AccountSet) ([]byte, error) {
-	aggs, err := bls.UnmarshalSignature(extra.Committed.AggregatedSignature)
+	aggs, err := bn256.UnmarshalSignature(extra.Committed.AggregatedSignature)
 	if err != nil {
 		return nil, err
 	}
