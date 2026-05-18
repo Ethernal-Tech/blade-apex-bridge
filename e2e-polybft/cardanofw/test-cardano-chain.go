@@ -144,8 +144,8 @@ func NewVectorChainConfig(mintableTokens ...map[uint16]string) *TestCardanoChain
 	return cfg
 }
 
-func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
-	return &TestCardanoChainConfig{
+func NewCardanoChainConfig(isEnabled bool, mintableTokens ...map[uint16]string) *TestCardanoChainConfig {
+	cfg := &TestCardanoChainConfig{
 		IsEnabled:                   isEnabled,
 		ID:                          4,
 		NetworkType:                 infrawallet.TestNetNetwork,
@@ -165,6 +165,14 @@ func NewCardanoChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		TreasuryAddress:             defaultCardanoTreasuryAddress,
 		BridgingAddressCnt:          1,
 	}
+
+	if len(mintableTokens) > 0 {
+		cfg.FundRelayerAmount = WeiToDfm(defaultFundTokenAmount).Uint64()
+		cfg.CustodialAddressGeneration = true
+		cfg.MintableTokens = mintableTokens[0]
+	}
+
+	return cfg
 }
 
 func NewRemotePrimeChainConfig(
@@ -249,12 +257,19 @@ func (ec *TestCardanoChain) GetBridgingStakeAddressInfo(
 	t.Helper()
 	require.True(t, ec.config.BridgeAddrHasStake)
 
-	txProvider, err := ec.GetTxProvider()
-	require.NoError(t, err)
+	// Use CLI to get stake address info instead of Ogmios since
+	// the check is not working on node v11.0.1
+	txProviderCLI, err := infrawallet.NewTxProviderCli(
+		ec.config.NetworkMagic, ec.cluster.OgmiosServer.SocketPath(), ResolveCardanoCliBinary(ec.ChainID()))
+	if err != nil {
+		return infrawallet.QueryStakeAddressInfo{}, fmt.Errorf("failed to create tx provider cli: %w", err)
+	}
+
+	fmt.Printf("Cardano chain %s multisig stake address: %v\n", ec.ChainID(), ec.multisigStakeAddr)
 
 	stakeBridgingAddrInfo, err := infracommon.ExecuteWithRetry(ctx,
 		func(ctx context.Context) (infrawallet.QueryStakeAddressInfo, error) {
-			addrInfo, err := txProvider.GetStakeAddressInfo(ctx, ec.multisigStakeAddr[indx])
+			addrInfo, err := txProviderCLI.GetStakeAddressInfo(ctx, ec.multisigStakeAddr[indx])
 			if err != nil && !expectError {
 				return infrawallet.QueryStakeAddressInfo{}, infracommon.ErrRetryTryAgain
 			}
@@ -427,6 +442,7 @@ func (ec *TestCardanoChain) DeployMintingContract(_ context.Context, _ string) e
 		"--nft-policy-id", custodialNFT.PolicyID,
 		"--nft-name-hex", hex.EncodeToString([]byte(custodialNFT.Name)),
 		"--plutus-script-dir", filepath.Join("..", "..", cardanoSmartContractDir),
+		"--cardano-cli-binary-name", ResolveCardanoCliBinary(ec.ChainID()),
 	}
 
 	var outb bytes.Buffer
@@ -499,6 +515,7 @@ func (ec *TestCardanoChain) CreateAddresses(
 		"--bridge-addr", contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
 		"--chain", ec.ChainID(),
+		"--cardano-cli-binary-name", ResolveCardanoCliBinary(ec.ChainID()),
 	}
 
 	if custodialAddressGeneration {
@@ -691,6 +708,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		"--dbs-path", dbsPath,
 		"--min-fee-for-bridging", fmt.Sprint(ec.config.DefaultMinBridgingFee),
 		"--min-operation-fee", fmt.Sprint(ec.config.MinOperationFee),
+		"--cardano-cli-binary-name", ResolveCardanoCliBinary(ec.ChainID()),
 	}
 
 	if ec.config.CustodialNFT != nil {
@@ -869,7 +887,7 @@ func (ec *TestCardanoChain) CreateMetadata(
 
 func (ec *TestCardanoChain) BridgingRequest(params BridgingRequestParams) (string, error) {
 	wallets, policyScript, senderAddr, err := FromCardanoPrivateKeyString(
-		params.PrivateKey, ec.config.NetworkType, ec.config.NetworkMagic)
+		params.PrivateKey, ec.ChainID(), ec.config.NetworkType, ec.config.NetworkMagic)
 	if err != nil {
 		return "", err
 	}
@@ -970,7 +988,7 @@ func (ec *TestCardanoChain) SendTx(
 	}
 
 	wallets, policyScript, senderAddr, err := FromCardanoPrivateKeyString(
-		privateKey, ec.config.NetworkType, ec.config.NetworkMagic)
+		privateKey, ec.ChainID(), ec.config.NetworkType, ec.config.NetworkMagic)
 	if err != nil {
 		return "", err
 	}
@@ -1102,7 +1120,7 @@ func (ec *TestCardanoChain) submitTx(
 		retryWaitTime = time.Second * 5
 	)
 
-	txBuilder, err := infrawallet.NewTxBuilder(ResolveCardanoCliBinary(ec.config.NetworkType))
+	txBuilder, err := infrawallet.NewTxBuilder(ResolveCardanoCliBinary(ec.ChainID()))
 	if err != nil {
 		return "", err
 	}

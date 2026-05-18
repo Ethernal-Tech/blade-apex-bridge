@@ -31,6 +31,11 @@ jobs:
           go-version: ${{ vars.GOLANG_VERSION }}   
       - name: Install Cardano tools
         uses: milos-ethernal/cardano-node-action@5a3bce7266cc1500d96e8fa63b3bb97135988482
+      - name: Install Cardano tools v11
+        uses: milos-ethernal/cardano-node-action@d50edd56c4da9f10533ef99c9bfdb960c879956d
+        with:
+          tag: '11.0.1'
+          sufix: '11'
       - name: Install Dependencies
         run: ./setup-ci.sh
       - name: Run Go Test

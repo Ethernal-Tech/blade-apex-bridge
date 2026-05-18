@@ -21,13 +21,70 @@ func getShelleyGenesis(networkMagic uint) func(mp map[string]interface{}) {
 	}
 }
 
-// Still not in conway era so this be left with noChanges
-func getConwayGenesis(networkType wallet.CardanoNetworkType) func(mp map[string]interface{}) {
-	switch networkType {
-	case wallet.TestNetNetwork:
-		return noChanges
+// cardano-cli 11 generates pvt-prefixed keys in genesis.conway.json,
+// but cardano-node expects the old unprefixed key names.
+func fixConwayPoolVotingThresholds(mp map[string]interface{}) {
+	// Fix poolVotingThresholds
+	if pvt, ok := mp["poolVotingThresholds"].(map[string]interface{}); ok {
+		pvtRemap := map[string]string{
+			"pvtMotionNoConfidence":    "motionNoConfidence",
+			"pvtCommitteeNormal":       "committeeNormal",
+			"pvtCommitteeNoConfidence": "committeeNoConfidence",
+			"pvtHardForkInitiation":    "hardForkInitiation",
+			"pvtPPSecurityGroup":       "ppSecurityGroup",
+		}
+		fixed := remapKeys(pvt, pvtRemap)
+
+		if _, exists := fixed["ppSecurityGroup"]; !exists {
+			fixed["ppSecurityGroup"] = 0.51
+		}
+
+		mp["poolVotingThresholds"] = fixed
+	}
+
+	// Fix dRepVotingThresholds
+	if dvt, ok := mp["dRepVotingThresholds"].(map[string]interface{}); ok {
+		dvtRemap := map[string]string{
+			"dvtMotionNoConfidence":    "motionNoConfidence",
+			"dvtCommitteeNormal":       "committeeNormal",
+			"dvtCommitteeNoConfidence": "committeeNoConfidence",
+			"dvtUpdateToConstitution":  "updateToConstitution",
+			"dvtHardForkInitiation":    "hardForkInitiation",
+			"dvtPPNetworkGroup":        "ppNetworkGroup",
+			"dvtPPEconomicGroup":       "ppEconomicGroup",
+			"dvtPPTechnicalGroup":      "ppTechnicalGroup",
+			"dvtPPGovGroup":            "ppGovGroup",
+			"dvtTreasuryWithdrawal":    "treasuryWithdrawal",
+		}
+		mp["dRepVotingThresholds"] = remapKeys(dvt, dvtRemap)
+	}
+
+	// Add missing top-level fields required by cardano-node
+	if _, exists := mp["minFeeRefScriptCostPerByte"]; !exists {
+		mp["minFeeRefScriptCostPerByte"] = 44
+	}
+}
+
+func remapKeys(m map[string]interface{}, remap map[string]string) map[string]interface{} {
+	fixed := make(map[string]interface{}, len(m))
+
+	for k, v := range m {
+		if newKey, exists := remap[k]; exists {
+			fixed[newKey] = v
+		} else {
+			fixed[k] = v
+		}
+	}
+
+	return fixed
+}
+
+func getConwayGenesis(networkMagic uint) func(mp map[string]interface{}) {
+	switch networkMagic {
+	case wallet.TestNetProtocolMagic:
+		return fixConwayPoolVotingThresholds
 	default:
-		return nil
+		return noChanges
 	}
 }
 

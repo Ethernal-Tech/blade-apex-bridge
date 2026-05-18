@@ -199,8 +199,9 @@ func NewCardanoTestCluster(opts ...CardanoClusterOption) (cluster *TestCardanoCl
 
 func (c *TestCardanoCluster) NewTestServer(id int, port int) error {
 	srv, err := NewCardanoTestServer(&TestCardanoServerConfig{
-		ID:   id,
-		Port: port,
+		ID:      id,
+		ChainID: c.Config.ChainType,
+		Port:    port,
 		//StdOut:       c.Config.GetStdout(fmt.Sprintf("node-%d", id)),
 		ConfigFile:   c.Config.Dir("configuration.yaml"),
 		NodeDir:      c.Config.Dir(fmt.Sprintf("node-spo%d", id)),
@@ -423,12 +424,14 @@ func (c *TestCardanoCluster) WaitForBlockWithState(
 
 func (c *TestCardanoCluster) StartOgmios(id int, stdOut io.Writer) error {
 	srv, err := NewOgmiosTestServer(&TestOgmiosServerConfig{
-		ID:         id,
-		ConfigFile: c.Servers[0].config.ConfigFile,
-		NetworkID:  c.Config.NetworkType,
-		Port:       c.Config.OgmiosPort,
-		SocketPath: c.Servers[0].SocketPath(),
-		StdOut:     stdOut,
+		ID:           id,
+		ChainID:      c.Config.ChainType,
+		ConfigFile:   c.Servers[0].config.ConfigFile,
+		NetworkID:    c.Config.NetworkType,
+		NetworkMagic: c.Config.NetworkMagic,
+		Port:         c.Config.OgmiosPort,
+		SocketPath:   c.Servers[0].SocketPath(),
+		StdOut:       stdOut,
 	})
 	if err != nil {
 		return err
@@ -475,7 +478,7 @@ func (c *TestCardanoCluster) InitGenesis(startTime int64, genesisDir string) err
 		"--genesis-output-dir", c.Config.Dir("byron-gen-command"),
 	}
 
-	return RunCommand(ResolveCardanoCliBinary(c.Config.NetworkType), args, os.Stdout)
+	return RunCommand(ResolveCardanoCliBinary(c.Config.ChainType), args, os.Stdout)
 }
 
 func (c *TestCardanoCluster) CopyConfigFilesStep1(genesisDir string) error {
@@ -556,7 +559,7 @@ func (c *TestCardanoCluster) CopyConfigFilesAndInitDirectoriesStep2(networkType 
 	err = UpdateJSONFile(
 		c.Config.Dir("genesis.conway.json"),
 		c.Config.Dir("genesis/shelley/genesis.conway.json"),
-		getConwayGenesis(networkType),
+		getConwayGenesis(c.Config.NetworkMagic),
 		true)
 	if err != nil {
 		return err
@@ -580,11 +583,48 @@ func (c *TestCardanoCluster) CopyConfigFilesAndInitDirectoriesStep2(networkType 
 			}
 		}
 
-		topologyJSONContent, err := json.MarshalIndent(map[string]interface{}{
-			"Producers": producers,
-		}, "", "    ")
-		if err != nil {
-			return err
+		var topologyJSONContent []byte
+
+		if c.Config.NetworkMagic != wallet.TestNetProtocolMagic {
+			topologyJSONContent, err = json.MarshalIndent(map[string]interface{}{
+				"Producers": producers,
+			}, "", "    ")
+			if err != nil {
+				return err
+			}
+		} else {
+			topology := map[string]interface{}{
+				"Producers": producers,
+			}
+
+			if c.Config.ChainType == ChainIDCardano {
+				accessPoints := make([]map[string]interface{}, 0, len(producers))
+				for _, producer := range producers {
+					accessPoints = append(accessPoints, map[string]interface{}{
+						"address": producer["addr"],
+						"port":    producer["port"],
+					})
+				}
+
+				topology = map[string]interface{}{
+					"bootstrapPeers": accessPoints,
+					"localRoots": []map[string]interface{}{
+						{
+							"accessPoints": accessPoints,
+							"advertise":    false,
+							"trustable":    true,
+							"valency":      len(accessPoints),
+						},
+					},
+					"publicRoots":        []interface{}{},
+					"useLedgerAfterSlot": 0,
+				}
+			}
+
+			topologyJSONContent, err = json.MarshalIndent(topology, "", "    ")
+			if err != nil {
+				return err
+			}
 		}
 
 		if err := os.WriteFile(
@@ -650,8 +690,8 @@ func (c *TestCardanoCluster) GenesisCreateStaked(startTime time.Time) error {
 		"--gen-utxo-keys", strconv.Itoa(c.Config.NodesCount),
 	}, GetTestNetMagicArgs(c.Config.NetworkMagic)...)
 
-	err := RunCommand(ResolveCardanoCliBinary(c.Config.NetworkType), args, os.Stdout)
-	if strings.Contains(err.Error(), exprectedErr) {
+	err := RunCommand(ResolveCardanoCliBinary(c.Config.ChainType), args, os.Stdout)
+	if err != nil && strings.Contains(err.Error(), exprectedErr) {
 		return nil
 	}
 

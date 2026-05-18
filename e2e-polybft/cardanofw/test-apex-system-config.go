@@ -40,6 +40,8 @@ const (
 	POLTokenID   uint16 = 14
 	XPOLTokenID  uint16 = 15
 	PAP3XTokenID uint16 = 16
+	USDCTokenID  uint16 = 17
+	USDCxTokenID uint16 = 18
 )
 
 // Human readable token names
@@ -52,6 +54,8 @@ const (
 	POLTokenName   = "POL"
 	XPOLTokenName  = "xPOL"
 	PAP3XTokenName = "pAP3X"
+	USDCTokenName  = "USDC"
+	USDCxTokenName = "USDCx"
 )
 
 type ApexSystemConfig struct {
@@ -304,4 +308,8 @@ func (asc *ApexSystemConfig) GetTelemetryForValidatorIdx(idx int) string {
 	default:
 		return ""
 	}
+}
+
+func IsCardanoTypeChain(chainID ChainID) bool {
+	return chainID == ChainIDCardano || chainID == ChainIDPrime || chainID == ChainIDVector
 }

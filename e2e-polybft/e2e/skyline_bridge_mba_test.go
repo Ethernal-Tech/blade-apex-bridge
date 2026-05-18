@@ -334,6 +334,7 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 
 	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
 	cardanoConfig.FundTokenAmount = 1_000_000_000
+	cardanoConfig.BridgeAddrHasStake = true
 	primeConfig.DefaultMinBridgingFee = oldMinBridgingFee
 	primeConfig.MinBridgingFeeForTokens = oldMinBridgingFee
 	cardanoConfig.DefaultMinBridgingFee = oldMinBridgingFee
@@ -386,86 +387,120 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 	executeBridging(cardanofw.ChainIDPrime, cardanofw.ChainIDCardano, sendAmount,
 		[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
 
-	primeTestChain := apex.GetChainMust(t, cardanofw.ChainIDPrime)
-
 	// 1. Check existing stake pools in the system
-	stakePools := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetExistingStakePools(t, ctx)
-	require.NotEmpty(t, stakePools)
+	stakePoolsPrime := apex.GetChainMust(t, cardanofw.ChainIDPrime).GetExistingStakePools(t, ctx)
+	require.NotEmpty(t, stakePoolsPrime)
+
+	stakePoolsCardano := apex.GetChainMust(t, cardanofw.ChainIDCardano).GetExistingStakePools(t, ctx)
+	require.NotEmpty(t, stakePoolsCardano)
+
+	getStakePools := func(chainID cardanofw.ChainID, index int) string {
+		if chainID == cardanofw.ChainIDPrime {
+			return stakePoolsPrime[index]
+		}
+
+		return stakePoolsCardano[index]
+	}
+
+	getDestChain := func(chainID cardanofw.ChainID) cardanofw.ChainID {
+		if chainID == cardanofw.ChainIDPrime {
+			return cardanofw.ChainIDCardano
+		}
+
+		return cardanofw.ChainIDPrime
+	}
+
+	chains := []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDCardano}
 
 	t.Run("redeleg before reg and del should fail", func(t *testing.T) {
-		err := apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[1], false)
-		require.Error(t, err)
+		for idx, chain := range chains {
+			fmt.Printf("%d. %s\n", idx+1, chain)
+			err := apex.DelegateStakeAddress(ctx, chain, 0, getStakePools(chain, 1), false)
+			require.Error(t, err)
+		}
 	})
 
 	t.Run("reg and del should pass", func(t *testing.T) {
-		err := apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
-		require.NoError(t, err)
+		for idx, chain := range chains {
+			fmt.Printf("%d. %s\n", idx+1, chain)
+			err := apex.DelegateStakeAddress(ctx, chain, 0, getStakePools(chain, 0), true)
+			require.NoError(t, err)
 
-		addrInfo, err := primeTestChain.GetBridgingStakeAddressInfo(t, ctx, 0, false)
-		require.NoError(t, err)
-		require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
+			addrInfo, err := apex.GetChainMust(t, chain).GetBridgingStakeAddressInfo(t, ctx, 0, false)
+			require.NoError(t, err)
+			require.Equal(t, getStakePools(chain, 0), addrInfo.StakeDelegation)
 
-		executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmount,
-			[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
+			executeBridging(chain, getDestChain(chain), sendAmount,
+				[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
+		}
 	})
 
 	t.Run("reg and del again should fail", func(t *testing.T) {
 		// Registering already registered address should fail:
-		err := apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
-		require.Error(t, err)
+		for idx, chain := range chains {
+			fmt.Printf("%d. %s\n", idx+1, chain)
+			err := apex.DelegateStakeAddress(ctx, chain, 0, getStakePools(chain, 0), true)
+			require.Error(t, err)
+		}
 	})
 
 	t.Run("redeleg should pass", func(t *testing.T) {
-		err := apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[1], false)
-		require.NoError(t, err)
-
-		previousStakePool := stakePools[0]
-
-		for range 60 {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(time.Second):
-			}
-
-			addrInfo, err := primeTestChain.GetBridgingStakeAddressInfo(t, ctx, 0, false)
+		for idx, chain := range chains {
+			fmt.Printf("%d. %s\n", idx+1, chain)
+			err := apex.DelegateStakeAddress(ctx, chain, 0, getStakePools(chain, 1), false)
 			require.NoError(t, err)
 
-			if addrInfo.StakeDelegation != previousStakePool {
-				require.Equal(t, stakePools[1], addrInfo.StakeDelegation)
+			previousStakePool := getStakePools(chain, 0)
 
-				break
+			for range 60 {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(time.Second):
+				}
+
+				addrInfo, err := apex.GetChainMust(t, chain).GetBridgingStakeAddressInfo(t, ctx, 0, false)
+				require.NoError(t, err)
+
+				if addrInfo.StakeDelegation != previousStakePool {
+					require.Equal(t, getStakePools(chain, 1), addrInfo.StakeDelegation)
+
+					break
+				}
 			}
-		}
 
-		executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmount,
-			[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
+			executeBridging(chain, getDestChain(chain), sendAmount,
+				[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
+		}
 	})
 
 	t.Run("dereg should pass", func(t *testing.T) {
-		err := apex.DeregisterStakeAddress(ctx, cardanofw.ChainIDPrime, 0)
-		require.NoError(t, err)
+		for idx, chain := range chains {
+			fmt.Printf("%d. %s\n", idx+1, chain)
+			err := apex.DeregisterStakeAddress(ctx, chain, 0)
+			require.NoError(t, err)
 
-		for range 60 {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(time.Second):
+			for range 60 {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(time.Second):
+				}
+
+				addrInfo, err := apex.GetChainMust(t, chain).GetBridgingStakeAddressInfo(t, ctx, 0, true)
+
+				if err != nil {
+					require.ErrorContains(t, err, "stake address is not registered yet")
+					require.Error(t, err)
+					require.Equal(t, addrInfo, wallet.QueryStakeAddressInfo{})
+
+					break
+				}
 			}
 
-			addrInfo, err := primeTestChain.GetBridgingStakeAddressInfo(t, ctx, 0, true)
-
-			if err != nil {
-				require.ErrorContains(t, err, "stake address is not registered yet")
-				require.Error(t, err)
-				require.Equal(t, addrInfo, wallet.QueryStakeAddressInfo{})
-
-				break
-			}
+			executeBridging(chain, getDestChain(chain), sendAmount,
+				[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
 		}
-
-		executeBridging(cardanofw.ChainIDCardano, cardanofw.ChainIDPrime, sendAmount,
-			[]*cardanofw.TestApexUser{apex.Users[0], apex.Users[1]}, []*cardanofw.TestApexUser{apex.Users[2], apex.Users[3]})
 	})
 
 	t.Run("simultaneous test", func(t *testing.T) {
@@ -498,15 +533,15 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 				}
 
 				// 1. Check existing stake pools in the system
-				stakePools := primeTestChain.GetExistingStakePools(t, ctx)
+				stakePools := apex.GetChainMust(t, srcChainID).GetExistingStakePools(t, ctx)
 				require.NotEmpty(t, stakePools)
 
 				// 2. Register and delegate bridging address
-				err := apex.DelegateStakeAddress(ctx, cardanofw.ChainIDPrime, 0, stakePools[0], true)
+				err := apex.DelegateStakeAddress(ctx, srcChainID, 0, stakePools[0], true)
 				require.NoError(t, err)
 
 				// 3. Check if the registration and delegation was successful
-				addrInfo, err := primeTestChain.GetBridgingStakeAddressInfo(t, ctx, 0, false)
+				addrInfo, err := apex.GetChainMust(t, srcChainID).GetBridgingStakeAddressInfo(t, ctx, 0, false)
 				require.NoError(t, err)
 				require.Equal(t, stakePools[0], addrInfo.StakeDelegation)
 				fmt.Println("Bridging address staked successfully")
@@ -517,19 +552,23 @@ func TestE2E_SkylineBridgeMBA_StakeAddressOperationsTest(t *testing.T) {
 
 		doRegDelegValues := []bool{false, true, false}
 
-		for _, doRegDeleg := range doRegDelegValues {
-			executeBridging(
-				cardanofw.ChainIDCardano,
-				cardanofw.ChainIDPrime,
-				sendAmount,
-				[]*cardanofw.TestApexUser{
-					apex.Users[0], apex.Users[1], apex.Users[2], apex.Users[3],
-				},
-				[]*cardanofw.TestApexUser{
-					apex.Users[4], apex.Users[5], apex.Users[6], apex.Users[7],
-				},
-				doRegDeleg,
-			)
+		for idx, srcChainID := range chains {
+			fmt.Printf("%d. %s\n", idx+1, srcChainID)
+
+			for _, doRegDeleg := range doRegDelegValues {
+				executeBridging(
+					srcChainID,
+					getDestChain(srcChainID),
+					sendAmount,
+					[]*cardanofw.TestApexUser{
+						apex.Users[0], apex.Users[1], apex.Users[2], apex.Users[3],
+					},
+					[]*cardanofw.TestApexUser{
+						apex.Users[4], apex.Users[5], apex.Users[6], apex.Users[7],
+					},
+					doRegDeleg,
+				)
+			}
 		}
 	})
 }

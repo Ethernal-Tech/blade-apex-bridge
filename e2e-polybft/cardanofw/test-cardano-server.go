@@ -14,6 +14,7 @@ import (
 
 type TestCardanoServerConfig struct {
 	ID           int
+	ChainID      ChainID
 	NodeDir      string
 	ConfigFile   string
 	Port         int
@@ -80,9 +81,8 @@ func (t *TestCardanoServer) Start() error {
 		"--shelley-operational-certificate", fmt.Sprintf("%s/opcert.cert", t.config.NodeDir),
 		"--port", strconv.Itoa(t.config.Port),
 	}
-	binary := ResolveCardanoNodeBinary(t.config.NetworkID)
 
-	node, err := framework.NewNode(binary, args, t.config.StdOut)
+	node, err := framework.NewNode(ResolveCardanoNodeBinary(t.config.ChainID), args, t.config.StdOut)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func (t *TestCardanoServer) NetworkAddress() string {
 func (t *TestCardanoServer) getTxProvider() (cardanowallet.ITxProvider, error) {
 	if t.txProvider == nil {
 		txProvider, err := cardanowallet.NewTxProviderCli(
-			t.config.NetworkMagic, t.SocketPath(), ResolveCardanoCliBinary(t.config.NetworkID))
+			t.config.NetworkMagic, t.SocketPath(), ResolveCardanoCliBinary(t.config.ChainID))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create tx provider: %w", err)
 		}
