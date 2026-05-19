@@ -61,7 +61,17 @@ jobs:
       - name: Install Cardano tools
         uses: milos-ethernal/cardano-node-action@5a3bce7266cc1500d96e8fa63b3bb97135988482
       - name: Install ogmios
-        uses: milos-ethernal/ogmios-action@13e2be0b00da80f26bb8583fa129bd7c08856a49      
+        uses: milos-ethernal/ogmios-action@13e2be0b00da80f26bb8583fa129bd7c08856a49
+      - name: Install Cardano tools v11
+        uses: milos-ethernal/cardano-node-action@d50edd56c4da9f10533ef99c9bfdb960c879956d
+        with:
+          tag: '11.0.1'
+          sufix: '11'
+      - name: Install ogmios for v11
+        uses: milos-ethernal/ogmios-action@53cfb88b80a9c3c7891e13ba7f29e4028aea9630
+        with:
+          tag: 'v6.14.0'
+          sufix: '11'     
       - name: Checkout apex-bridge repo
         uses: actions/checkout@v4.1.1
         with:
