@@ -134,7 +134,7 @@ func Test_E2E_TestnetDefund(t *testing.T) {
 				tokens, err := cardanowallet.GetTokensFromSumMap(balance)
 				require.NoError(t, err)
 
-				txBuilder, err := cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary(chainInfo[chain].networkType))
+				txBuilder, err := cardanowallet.NewTxBuilder(cardanofw.ResolveCardanoCliBinary(chain))
 				require.NoError(t, err)
 				defer txBuilder.Dispose()
 

@@ -69,20 +69,30 @@ const (
 	BatchTypeValidatorSetFinal
 )
 
-func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
+func ResolveCardanoCliBinary(chainID ChainID) string {
 	env, name := "CARDANO_CLI_BINARY", "cardano-cli"
+	if chainID == ChainIDCardano {
+		env, name = "CARDANO_CLI_11_BINARY", "cardano-cli-11"
+	}
 
 	return tryResolveFromEnv(env, name)
 }
 
-func ResolveOgmiosBinary(networkID wallet.CardanoNetworkType) string {
+func ResolveOgmiosBinary(chainID ChainID) string {
 	env, name := "OGMIOS", "ogmios"
 
+	if chainID == ChainIDCardano {
+		env, name = "OGMIOS_11_BINARY", "ogmios-11"
+	}
+
 	return tryResolveFromEnv(env, name)
 }
 
-func ResolveCardanoNodeBinary(networkID wallet.CardanoNetworkType) string {
+func ResolveCardanoNodeBinary(chainID ChainID) string {
 	env, name := "CARDANO_NODE_BINARY", "cardano-node"
+	if chainID == ChainIDCardano {
+		env, name = "CARDANO_NODE_11_BINARY", "cardano-node-11"
+	}
 
 	return tryResolveFromEnv(env, name)
 }
@@ -178,7 +188,7 @@ func ToCardanoPrivateKeyString(paymentKey, stakeKey []byte) string {
 }
 
 func FromCardanoPrivateKeyString(
-	str string, networkID wallet.CardanoNetworkType, networkMagic uint,
+	str string, chainID ChainID, networkID wallet.CardanoNetworkType, networkMagic uint,
 ) (wallets []*wallet.Wallet, policyScript *wallet.PolicyScript, addr string, err error) {
 	if !strings.HasPrefix(str, "ps") {
 		parts := strings.Split(str, "_")
@@ -232,7 +242,7 @@ func FromCardanoPrivateKeyString(
 		wallets[i] = wallet.NewWallet(paymentKey, nil)
 	}
 
-	cliUtils := wallet.NewCliUtils(ResolveCardanoCliBinary(networkID))
+	cliUtils := wallet.NewCliUtils(ResolveCardanoCliBinary(chainID))
 
 	walletAddress, err := cliUtils.GetPolicyScriptEnterpriseAddress(networkMagic, policyScript)
 	if err != nil {
@@ -699,7 +709,7 @@ func GetTokenAndPolicyForVerificationKey(
 		KeyHash: keyHash,
 	}
 
-	pid, err := wallet.NewCliUtils(wallet.ResolveCardanoCliBinary(networkType)).GetPolicyID(policyScript)
+	pid, err := wallet.NewCliUtils(ResolveCardanoCliBinary(chainID)).GetPolicyID(policyScript)
 	if err != nil {
 		return wallet.Token{}, nil, err
 	}
@@ -776,6 +786,7 @@ func MintToken(
 		"--testnet-magic", fmt.Sprintf("%v", chain.config.NetworkMagic),
 		"--token-name", tokenName,
 		"--amount", mintDfmAmount.String(),
+		"--cardano-cli-binary-name", ResolveCardanoCliBinary(chain.ChainID()),
 	}
 
 	if len(minterWallet.StakeSigningKey) > 0 {

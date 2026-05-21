@@ -255,13 +255,13 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 			continue
 		}
 
-		info, networkType := apex.PrimeInfo, apex.Config.PrimeConfig.NetworkType
+		info := apex.PrimeInfo
 		if chain == cardanofw.ChainIDCardano {
-			info, networkType = apex.CardanoInfo, apex.Config.CardanoConfig.NetworkType
+			info = apex.CardanoInfo
 		}
 
 		if chain == cardanofw.ChainIDVector {
-			info, networkType = apex.VectorInfo, apex.Config.VectorConfig.NetworkType
+			info = apex.VectorInfo
 		}
 
 		txProvider, err := info.GetTxProvider()
@@ -274,7 +274,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 
 		funderReceiverAddr := apex.FunderUser.GetAddress(chain)
 
-		txBuilder, err := cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary(networkType))
+		txBuilder, err := cardanowallet.NewTxBuilder(cardanofw.ResolveCardanoCliBinary(chain))
 		require.NoError(t, err)
 
 		chainBalances := balances[chain]

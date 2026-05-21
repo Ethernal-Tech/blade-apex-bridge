@@ -101,10 +101,18 @@ func Test_SkylineBridgeCC_General(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(
+		true,
+		map[uint16]string{cardanofw.USDCxTokenID: cardanofw.USDCxTokenName},
+	)
 	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{cardanofw.USDTTokenID: cardanofw.USDTTokenName})
 	nexusConfig := cardanofw.NewNexusChainConfig(true)
 	polygonConfig := cardanofw.NewPolygonChainConfig(true)
+	nexusConfig.LockUnlockTokens = append(nexusConfig.LockUnlockTokens, cardanofw.EVMTokenInfo{
+		ID:     cardanofw.USDCTokenID,
+		Name:   cardanofw.USDCTokenName,
+		Symbol: cardanofw.USDCTokenName,
+	})
 
 	cardanoConfig.FundTokenAmount = 1_000_000_000
 	vectorConfig.FundTokenAmount = 1_000_000_000
@@ -125,6 +133,22 @@ func Test_SkylineBridgeCC_General(t *testing.T) {
 	user := apex.Users[0]
 
 	fmt.Printf("User: %+v\n", user.GetAddress(cardanofw.ChainIDNexus))
+
+	fmt.Println("cardano socket path:", apex.CardanoInfo.SocketPath)
+
+	t.Run("Nexus <-> Cardano USDC <-> USDCx", func(t *testing.T) {
+		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(2)), cardanofw.USDCTokenID)
+		require.NoError(t, err)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDNexus, cardanofw.ChainIDCardano, cardanofw.DfmToWei(big.NewInt(1)),
+			cardanofw.USDCTokenID, true)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.DfmToWei(big.NewInt(1)),
+			cardanofw.USDCxTokenID, true)
+	})
 
 	t.Run("Nexus <-> Vector USTD <-> wUSDT", func(t *testing.T) {
 		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)

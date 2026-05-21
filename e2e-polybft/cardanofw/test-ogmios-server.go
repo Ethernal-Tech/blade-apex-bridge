@@ -9,12 +9,14 @@ import (
 )
 
 type TestOgmiosServerConfig struct {
-	ID         int
-	ConfigFile string
-	NetworkID  wallet.CardanoNetworkType
-	Port       int
-	SocketPath string
-	StdOut     io.Writer
+	ID           int
+	ChainID      ChainID
+	ConfigFile   string
+	NetworkID    wallet.CardanoNetworkType
+	NetworkMagic uint
+	Port         int
+	SocketPath   string
+	StdOut       io.Writer
 }
 
 type TestOgmiosServer struct {
@@ -51,9 +53,8 @@ func (t *TestOgmiosServer) Start() error {
 		"--node-socket", t.config.SocketPath,
 		"--node-config", t.config.ConfigFile,
 	}
-	binary := ResolveOgmiosBinary(t.config.NetworkID)
 
-	node, err := framework.NewNode(binary, args, t.config.StdOut)
+	node, err := framework.NewNode(ResolveOgmiosBinary(t.config.ChainID), args, t.config.StdOut)
 	if err != nil {
 		return err
 	}

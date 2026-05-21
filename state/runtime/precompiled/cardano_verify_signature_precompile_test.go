@@ -23,7 +23,7 @@ func Test_cardanoVerifySignaturePrecompile_ValidSignature(t *testing.T) {
 	txRaw, _ := createTx(t)
 	walletBasic, walletFee := createWallets(t)
 
-	txBuilder, err := cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary(cardanowallet.TestNetNetwork))
+	txBuilder, err := cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary("cardano-cli-11"))
 	require.NoError(t, err)
 
 	defer txBuilder.Dispose()
@@ -95,7 +95,7 @@ func Test_cardanoVerifySignaturePrecompile_InvalidSignature(t *testing.T) {
 	txRaw, _ := createTx(t)
 	walletBasic, walletFee := createWallets(t)
 
-	txBuilder, err := cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary(cardanowallet.TestNetNetwork))
+	txBuilder, err := cardanowallet.NewTxBuilder(cardanowallet.ResolveCardanoCliBinary("cardano-cli-11"))
 	require.NoError(t, err)
 
 	defer txBuilder.Dispose()
@@ -231,7 +231,7 @@ func createTx(t *testing.T) ([]byte, string) {
 
 	policyScriptMultiSig := cardanowallet.NewPolicyScript(walletsKeyHashes, len(walletsKeyHashes)*2/3+1)
 	policyScriptFeeMultiSig := cardanowallet.NewPolicyScript(walletsFeeKeyHashes, len(walletsFeeKeyHashes)*2/3+1)
-	cardanoCliBinary := cardanowallet.ResolveCardanoCliBinary(cardanowallet.TestNetNetwork)
+	cardanoCliBinary := cardanowallet.ResolveCardanoCliBinary("cardano-cli-11")
 	cliUtils := cardanowallet.NewCliUtils(cardanoCliBinary)
 
 	policyID, err := cliUtils.GetPolicyID(policyScriptMultiSig)

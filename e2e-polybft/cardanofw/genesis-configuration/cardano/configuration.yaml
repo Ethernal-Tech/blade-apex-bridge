@@ -274,7 +274,7 @@ PBftSignatureThreshold: 0.6
 # This is less efficient than the coarse trace filters above but provides
 # much more precise control.
 
-options:
+Options:
 
   # This routes metrics matching specific names to particular backends.
   # This overrides the 'defaultBackends' listed above. And note that it is
@@ -301,5 +301,5 @@ TestAllegraHardForkAtEpoch: 0
 TestMaryHardForkAtEpoch: 0
 TestAlonzoHardForkAtEpoch: 0
 TestBabbageHardForkAtEpoch: 0
-# TestConwayHardForkAtEpoch: 0
+TestConwayHardForkAtEpoch: 0
 ExperimentalProtocolsEnabled: True
