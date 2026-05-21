@@ -20,6 +20,7 @@ import (
 	carsendtx "github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	carwallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	solsendtx "github.com/Ethernal-Tech/solana-infrastructure/sendtx"
+	"github.com/Ethernal-Tech/solana-infrastructure/sendtx/skyline_program"
 	solanawallet "github.com/Ethernal-Tech/solana-infrastructure/wallet"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -74,18 +75,20 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 		StartingPort:           8899,
 		InitialHotWalletAmount: SolanaToWei(big.NewInt(1000)),
 		FundAmount:             LamportToWei(SolanaToLamport(big.NewInt(100000))),
-		MinBridgingFee:         SolanaToLamport(big.NewInt(1)), // 1 SOL
-		MinBridgingAmount:      big.NewInt(1_000_000_000),      // 1.000000 SOL
-		MinTokenBridgingAmount: big.NewInt(1_000_000_000),      // 1.000000 SOL
-		MinOperationFee:        big.NewInt(500000000),          // 0.5 SOL
+		MinBridgingFee:         big.NewInt(1_000_000_000), // 1 SOL
+		MinBridgingAmount:      big.NewInt(1_000_000_000), // 1.000000 SOL
+		MinTokenBridgingAmount: big.NewInt(1_000_000_000), // 1.000000 SOL
+		MinOperationFee:        big.NewInt(500000000),     // 0.5 SOL
 		CurrencyID:             WSOLTokenID,
 		TreasuryAddress:        solana.MustPublicKeyFromBase58(TreasuryAddress),
 		TokensMint: map[uint16]string{
 			WSOLTokenID: WSOLMintAddress, // by default add wSOL to the tokens mint map
+			SOLTokenID:  skyline_program.NATIVE_SOL_MINT.String(),
 		},
 
 		LockUnlockTokens: map[uint16]string{
 			WSOLTokenID: WSOLANATokenName,
+			SOLTokenID:  SOLANATokenName,
 		},
 
 		MintableTokens: map[uint16]string{
@@ -143,6 +146,23 @@ func (sc *TestSolanaChain) GetTreasuryAddress() string {
 	return sc.config.TreasuryAddress.String()
 }
 
+func (sc *TestSolanaChain) GetVaultAddress() (string, error) {
+	programPubKey, err := solanawallet.PublicKeyFromAddress(sc.programID)
+	if err != nil {
+		return "", fmt.Errorf("parse program public key: %w", err)
+	}
+
+	vaultPda, _, err := solana.FindProgramAddress(
+		[][]byte{[]byte("vault")},
+		programPubKey,
+	)
+	if err != nil {
+		return "", fmt.Errorf("derive vault PDA: %w", err)
+	}
+
+	return vaultPda.String(), nil
+}
+
 func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string, error) {
 	txProvider, err := sc.GetTxProvider()
 	if err != nil {
@@ -164,8 +184,8 @@ func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string
 		txReceivers = append(txReceivers, solsendtx.BridgingTxReceiver{
 			Address: addr,
 			TokenAmount: solanawallet.TokenAmount{
-				TokenMint: sc.config.TokensMint[amount.TokenID],
-				Amount:    WeiToLamport(amount.Amount),
+				TokenID: amount.TokenID,
+				Amount:  WeiToLamport(amount.Amount).Uint64(),
 			},
 		})
 	}
@@ -176,6 +196,7 @@ func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string
 	}
 
 	txDto := solsendtx.BridgeRequestDto{
+		Ctx:          params.Ctx,
 		ProgramID:    solana.MustPublicKeyFromBase58(sc.programID),
 		DstChainID:   params.DestChainID,
 		SenderAddr:   senderWallet.PublicKey.String(),
@@ -354,7 +375,7 @@ func (sc *TestSolanaChain) hotWalletIncrementFunding(ctx context.Context) error 
 	}
 
 	for tokenID, tokenName := range sc.config.LockUnlockTokens {
-		if tokenName != WSOLANATokenName {
+		if tokenName != WSOLANATokenName && tokenName != SOLANATokenName {
 			continue
 		}
 
@@ -432,7 +453,7 @@ func (sc *TestSolanaChain) deployLockUnlockTokens(ctx context.Context) error {
 	}
 
 	for tokenID, tokenName := range sc.config.LockUnlockTokens {
-		if tokenName == WSOLANATokenName {
+		if tokenName == WSOLANATokenName || tokenName == SOLANATokenName {
 			// wSOL already exists on chain, so we don't need to deploy it again
 			continue
 		}
@@ -552,11 +573,6 @@ func (sc *TestSolanaChain) createSPLToken(
 
 	fmt.Printf("admin lock/unlock token balance: %s\n", adminLockUnlockTokenBalance.Value.Amount)
 
-	programPubKey, err := solanawallet.PublicKeyFromAddress(sc.programID)
-	if err != nil {
-		return "", fmt.Errorf("parse program public key: %w", err)
-	}
-
 	relayerAddr, err := solanawallet.PublicKeyFromAddress(sc.relayerAddr)
 	if err != nil {
 		return "", fmt.Errorf("parse relayer address: %w", err)
@@ -567,19 +583,14 @@ func (sc *TestSolanaChain) createSPLToken(
 		BridgingFeeAddress: relayerAddr,
 	})
 
-	//------------------------------------------------------------------------------------------------
-	// Derive the vault PDA: findProgramAddress([]byte("vault"), programID)
-	vaultPda, _, err := solana.FindProgramAddress(
-		[][]byte{[]byte("vault")},
-		programPubKey,
-	)
+	vaultAddress, err := sc.GetVaultAddress()
 	if err != nil {
-		return "", fmt.Errorf("derive vault PDA: %w", err)
+		return "", err
 	}
 
 	// 4. Create program's ATA before sending tokens to it
 	if err := sc.ensureReceiverTokenAccount(ctx, provider, txSender,
-		sc.admin, vaultPda.String(), mintAddress); err != nil {
+		sc.admin, vaultAddress, mintAddress); err != nil {
 		return "", fmt.Errorf("ensure receiver token account: %w", err)
 	}
 
@@ -587,7 +598,7 @@ func (sc *TestSolanaChain) createSPLToken(
 	mintAmount, _ := new(big.Int).SetString(solanaFixedSupplyMintAmount, 10)
 
 	if err := splTokenTransfer(ctx, provider, txSender, sc.admin, GenericTxReceiver{
-		Addr: vaultPda.String(),
+		Addr: vaultAddress,
 		NativeTokens: []GenericTokenAmount{
 			{
 				Token:  carwallet.Token{PolicyID: mintAddress},
@@ -667,6 +678,10 @@ func (sc *TestSolanaChain) registerTokens() error {
 	}
 
 	for tokenID, tokenName := range sc.config.LockUnlockTokens {
+		if tokenName == SOLANATokenName {
+			continue
+		}
+
 		tokenMint, ok := sc.config.TokensMint[tokenID]
 		if !ok {
 			return fmt.Errorf("token %d not found in configured mints", tokenID)
@@ -800,8 +815,9 @@ func (sc *TestSolanaChain) initializeALT() error {
 		"--alt-address", sc.altPublicKey,
 		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 	}
-	for _, tokenMint := range sc.config.TokensMint {
-		extendALTParams = append(extendALTParams, "--token-mint", tokenMint)
+
+	for tokenID, tokenMint := range sc.config.TokensMint {
+		extendALTParams = append(extendALTParams, "--token-id-and-mint", fmt.Sprintf("%d:%s", tokenID, tokenMint))
 	}
 
 	var extendOut bytes.Buffer

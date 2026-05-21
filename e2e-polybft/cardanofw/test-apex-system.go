@@ -954,7 +954,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 	a.InitTxSendChainConfiguration()
 
 	if a.Config.SolanaConfig != nil && a.Config.SolanaConfig.IsEnabled {
-		err := a.UpdateChainMaxNumberOfTransactions(ChainIDSolana, 2)
+		err := a.UpdateChainMaxNumberOfTransactions(ChainIDSolana, 4)
 		if err != nil {
 			return err
 		}
@@ -1131,7 +1131,12 @@ func (a *ApexSystem) DeployMintingContracts(ctx context.Context) error {
 					}
 				case ChainIDSolana:
 					chainInfo := a.SolanaInfo
+
 					for tokenID, tokenName := range mintableTokens {
+						if tokenID == SOLTokenID {
+							continue
+						}
+
 						if token, ok := chainInfo.Tokens[tokenID]; ok {
 							token.ChainSpecific = tokenName
 							chainInfo.Tokens[tokenID] = token

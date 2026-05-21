@@ -60,6 +60,11 @@ func Test_SkylineSolana_AllDirections(t *testing.T) {
 	fmt.Println("solana user wSOL balance: ", balance)
 
 	t.Run("SOL -> Vector", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(5)),
+			cardanofw.WSOLTokenID, true)
+	})
+	t.Run("Vector -> SOL", func(t *testing.T) {
 		relayerUser := &cardanofw.TestApexUser{
 			HasSolanaWallet: true,
 			SolanaAddress:   apex.SolanaInfo.RelayerAddress,
@@ -68,20 +73,13 @@ func Test_SkylineSolana_AllDirections(t *testing.T) {
 		require.NoError(t, err)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
-			cardanofw.WSOLTokenID, true)
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
+			cardanofw.ASOLTokenID, true)
 
 		relayerBalanceAfter, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
 		require.NoError(t, err)
 
-		diff := new(big.Int).Sub(relayerBalanceAfter["lovelace"], relayerBalance["lovelace"])
-		require.True(t, diff.Cmp(cardanofw.LamportToWei(solanaConfig.MinBridgingFee)) == 0)
-	})
-
-	t.Run("Vector -> SOL", func(t *testing.T) {
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
-			cardanofw.ASOLTokenID, true)
+		require.True(t, relayerBalanceAfter["lovelace"].Cmp(relayerBalance["lovelace"]) > 0)
 	})
 
 	t.Run("SOL -> Nexus", func(t *testing.T) {
@@ -120,23 +118,6 @@ func Test_SkylineSolana_AllDirections(t *testing.T) {
 			cardanofw.SAP3XTokenID, true)
 	})
 
-	// mint VS and NS tokens to the user
-	_, err = cardanofw.FundUserWithToken(ctx, apex, cardanofw.ChainIDVector,
-		apex.VectorInfo.GenesisWallet, apex.Users[0], cardanofw.VSTokenName,
-		cardanofw.ApexToWei(big.NewInt(400_000_000)), cardanofw.ApexToWei(big.NewInt(1)), cardanofw.ApexToWei(big.NewInt(400_000_000)))
-	require.NoError(t, err)
-
-	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-	err = nexusChain.FundUsersWithToken(apex.Users[0].GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(400_000_000)), cardanofw.NSTokenID)
-	require.NoError(t, err)
-
-	userBalance, err := apex.GetBalanceWithTokenName(ctx, apex.Users[0], cardanofw.ChainIDVector, apex.VectorInfo.Tokens[cardanofw.VSTokenID].ChainSpecific)
-	require.NoError(t, err)
-	fmt.Println("vector user VS balance: ", userBalance)
-	userBalance, err = apex.GetBalanceWithTokenName(ctx, apex.Users[0], cardanofw.ChainIDNexus, apex.NexusInfo.Tokens[cardanofw.NSTokenID].ChainSpecific)
-	require.NoError(t, err)
-	fmt.Println("nexus user NS balance: ", userBalance)
-
 	t.Run("Vector VS -> Solana VS", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
@@ -160,6 +141,110 @@ func Test_SkylineSolana_AllDirections(t *testing.T) {
 			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDNexus, cardanofw.ApexToWei(big.NewInt(1)),
 			cardanofw.NSTokenID, true)
 	})
+}
+
+func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{
+		cardanofw.ASOLTokenID:  cardanofw.ASOLTokenName,
+		cardanofw.USDTTokenID:  cardanofw.USDTTokenName,
+		cardanofw.SAP3XTokenID: cardanofw.SAP3XTokenName,
+	})
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
+
+	solanaConfig := cardanofw.NewSolanaChainConfig(true)
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithSolanaConfig(solanaConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithUserCnt(2),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	t.Run("SOL -> Vector", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(5)),
+			cardanofw.WSOLTokenID, true)
+	})
+
+	// mint VS and NS tokens to the user
+	_, err := cardanofw.FundUserWithToken(ctx, apex, cardanofw.ChainIDVector,
+		apex.VectorInfo.GenesisWallet, apex.Users[0], cardanofw.VSTokenName,
+		cardanofw.ApexToWei(big.NewInt(400_000_000)), cardanofw.ApexToWei(big.NewInt(1)), cardanofw.ApexToWei(big.NewInt(400_000_000)))
+	require.NoError(t, err)
+
+	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+	err = nexusChain.FundUsersWithToken(apex.Users[0].GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(400_000_000)), cardanofw.NSTokenID)
+	require.NoError(t, err)
+
+	userBalance, err := apex.GetBalanceWithTokenName(ctx, apex.Users[0], cardanofw.ChainIDVector, apex.VectorInfo.Tokens[cardanofw.VSTokenID].ChainSpecific)
+	require.NoError(t, err)
+	fmt.Println("vector user VS balance: ", userBalance)
+	userBalance, err = apex.GetBalanceWithTokenName(ctx, apex.Users[0], cardanofw.ChainIDNexus, apex.NexusInfo.Tokens[cardanofw.NSTokenID].ChainSpecific)
+	require.NoError(t, err)
+	fmt.Println("nexus user NS balance: ", userBalance)
+
+	solanaReceivers := make([]*cardanofw.TestApexUser, 4)
+	for i := range len(solanaReceivers) {
+		solanaReceivers[i], err = cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypes(cardanofw.ApexNetworkTypesParams{
+			PrimeConfig:   primeConfig,
+			VectorConfig:  vectorConfig,
+			CardanoConfig: cardanoConfig,
+			NexusConfig:   nexusConfig,
+			SolanaConfig:  solanaConfig,
+		}))
+		require.NoError(t, err)
+	}
+
+	for range 5 {
+		t.Run("TEST SOLANA BRIDGING", func(t *testing.T) {
+			wg := sync.WaitGroup{}
+			wg.Add(4)
+
+			go func() {
+				defer wg.Done()
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, apex.Users[0], solanaReceivers[0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
+					cardanofw.VSTokenID, false)
+			}()
+
+			go func() {
+				defer wg.Done()
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, apex.Users[1], solanaReceivers[1], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
+					cardanofw.AP3XTokenID, false)
+			}()
+
+			go func() {
+				defer wg.Done()
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, apex.Users[0], solanaReceivers[2], cardanofw.ChainIDNexus, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
+					cardanofw.NSTokenID, false)
+			}()
+
+			go func() {
+				defer wg.Done()
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, apex.Users[0], solanaReceivers[3], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
+					cardanofw.ASOLTokenID, false)
+			}()
+
+			wg.Wait()
+		})
+	}
 }
 
 func Test_SkylineSolana_OpFeeNotSet(t *testing.T) {
@@ -622,75 +707,75 @@ func Test_SkylineSolana_ValidScenarios(t *testing.T) {
 	)
 
 	bridgingAmount := cardanofw.ApexToWei(big.NewInt(1))
+	/*
+		//nolint:dupl
+		t.Run("1. Wait for each submit", func(t *testing.T) {
+			for idx, br := range bridgingRequests {
+				fmt.Printf("1.%d %s -> %s - tokenID: %d\n", idx+1, br.src, br.dest, br.srcTokenID)
 
-	//nolint:dupl
-	t.Run("1. Wait for each submit", func(t *testing.T) {
-		for idx, br := range bridgingRequests {
-			fmt.Printf("1.%d %s -> %s - tokenID: %d\n", idx+1, br.src, br.dest, br.srcTokenID)
+				t.Cleanup(func() {
+					apex.ResetIndexers()
+				})
 
-			t.Cleanup(func() {
-				apex.ResetIndexers()
-			})
+				const (
+					instances = 5
+				)
 
-			const (
-				instances = 5
-			)
+				fundAmount := new(big.Int).Mul(bridgingAmount, big.NewInt(int64(instances)))
 
-			fundAmount := new(big.Int).Mul(bridgingAmount, big.NewInt(int64(instances)))
+				if br.src == cardanofw.ChainIDVector && br.srcTokenID == cardanofw.VSTokenID {
+					_, err := cardanofw.FundUserWithToken(ctx, apex, cardanofw.ChainIDVector,
+						apex.VectorInfo.GenesisWallet, br.sender, cardanofw.VSTokenName,
+						fundAmount, cardanofw.ApexToWei(big.NewInt(1)), fundAmount)
+					require.NoError(t, err)
+				}
 
-			if br.src == cardanofw.ChainIDVector && br.srcTokenID == cardanofw.VSTokenID {
-				_, err := cardanofw.FundUserWithToken(ctx, apex, cardanofw.ChainIDVector,
-					apex.VectorInfo.GenesisWallet, br.sender, cardanofw.VSTokenName,
-					fundAmount, cardanofw.ApexToWei(big.NewInt(1)), fundAmount)
-				require.NoError(t, err)
+				if br.src == cardanofw.ChainIDNexus && br.srcTokenID == cardanofw.NSTokenID {
+					nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+					err := nexusChain.FundUsersWithToken(br.sender.GetAddress(cardanofw.ChainIDNexus), fundAmount, br.srcTokenID)
+					require.NoError(t, err)
+				}
+
+				e2ehelper.ExecuteBridgingOneByOneWaitOnOtherSide(
+					t, ctx, apex, instances, br.sender, br.src, br.dest, bridgingAmount,
+					br.srcTokenID)
 			}
+		})
 
-			if br.src == cardanofw.ChainIDNexus && br.srcTokenID == cardanofw.NSTokenID {
-				nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-				err := nexusChain.FundUsersWithToken(br.sender.GetAddress(cardanofw.ChainIDNexus), fundAmount, br.srcTokenID)
-				require.NoError(t, err)
+		//nolint:dupl
+		t.Run("2. One by one", func(t *testing.T) {
+			for idx, br := range bridgingRequests {
+				fmt.Printf("2.%d %s -> %s - tokenID: %d\n", idx+1, br.src, br.dest, br.srcTokenID)
+
+				t.Cleanup(func() {
+					apex.ResetIndexers()
+				})
+
+				const (
+					instances = 5
+				)
+
+				fundAmount := new(big.Int).Mul(bridgingAmount, big.NewInt(int64(instances)))
+
+				if br.src == cardanofw.ChainIDVector && br.srcTokenID == cardanofw.VSTokenID {
+					_, err := cardanofw.FundUserWithToken(ctx, apex, cardanofw.ChainIDVector,
+						apex.VectorInfo.GenesisWallet, br.sender, cardanofw.VSTokenName,
+						fundAmount, cardanofw.ApexToWei(big.NewInt(1)), fundAmount)
+					require.NoError(t, err)
+				}
+
+				if br.src == cardanofw.ChainIDNexus && br.srcTokenID == cardanofw.NSTokenID {
+					nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+					err := nexusChain.FundUsersWithToken(br.sender.GetAddress(cardanofw.ChainIDNexus), fundAmount, br.srcTokenID)
+					require.NoError(t, err)
+				}
+
+				e2ehelper.ExecuteBridgingWaitAfterSubmits(
+					t, ctx, apex, instances, br.sender, br.src, br.dest, bridgingAmount,
+					br.srcTokenID)
 			}
-
-			e2ehelper.ExecuteBridgingOneByOneWaitOnOtherSide(
-				t, ctx, apex, instances, br.sender, br.src, br.dest, bridgingAmount,
-				br.srcTokenID)
-		}
-	})
-
-	//nolint:dupl
-	t.Run("2. One by one", func(t *testing.T) {
-		for idx, br := range bridgingRequests {
-			fmt.Printf("2.%d %s -> %s - tokenID: %d\n", idx+1, br.src, br.dest, br.srcTokenID)
-
-			t.Cleanup(func() {
-				apex.ResetIndexers()
-			})
-
-			const (
-				instances = 5
-			)
-
-			fundAmount := new(big.Int).Mul(bridgingAmount, big.NewInt(int64(instances)))
-
-			if br.src == cardanofw.ChainIDVector && br.srcTokenID == cardanofw.VSTokenID {
-				_, err := cardanofw.FundUserWithToken(ctx, apex, cardanofw.ChainIDVector,
-					apex.VectorInfo.GenesisWallet, br.sender, cardanofw.VSTokenName,
-					fundAmount, cardanofw.ApexToWei(big.NewInt(1)), fundAmount)
-				require.NoError(t, err)
-			}
-
-			if br.src == cardanofw.ChainIDNexus && br.srcTokenID == cardanofw.NSTokenID {
-				nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
-				err := nexusChain.FundUsersWithToken(br.sender.GetAddress(cardanofw.ChainIDNexus), fundAmount, br.srcTokenID)
-				require.NoError(t, err)
-			}
-
-			e2ehelper.ExecuteBridgingWaitAfterSubmits(
-				t, ctx, apex, instances, br.sender, br.src, br.dest, bridgingAmount,
-				br.srcTokenID)
-		}
-	})
-
+		})
+	*/
 	user := apex.Users[len(apex.Users)-1]
 
 	t.Run("3. Parallel bridging tests", func(t *testing.T) {

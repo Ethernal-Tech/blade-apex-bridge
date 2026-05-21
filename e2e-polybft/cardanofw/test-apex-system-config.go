@@ -180,6 +180,7 @@ func WithPolygonConfig(config *TestEVMChainConfig) ApexSystemOptions {
 func WithSolanaConfig(config *TestSolanaChainConfig) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.SolanaConfig = config
+		h.BladeValidatorCount = 5
 	}
 }
 
