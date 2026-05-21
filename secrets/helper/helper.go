@@ -12,11 +12,11 @@ import (
 	"math/big"
 	"time"
 
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/hashicorp/go-hclog"
 	libp2pCrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/helper/hex"
 	"github.com/0xPolygon/polygon-edge/network"
@@ -237,7 +237,7 @@ func LoadBLSPublicKey(secretsManager secrets.SecretsManager) (string, error) {
 		return "", err
 	}
 
-	secretKey, err := bls.UnmarshalPrivateKey(encodedKey)
+	secretKey, err := bn256.UnmarshalPrivateKey(encodedKey)
 	if err != nil {
 		return "", err
 	}

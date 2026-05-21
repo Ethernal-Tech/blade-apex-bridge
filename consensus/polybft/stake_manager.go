@@ -9,12 +9,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/validator"
 	"github.com/0xPolygon/polygon-edge/helper/hex"
 	"github.com/0xPolygon/polygon-edge/types"
+	bn256 "github.com/Ethernal-Tech/bn256"
 	"github.com/Ethernal-Tech/ethgo"
 	"github.com/Ethernal-Tech/ethgo/abi"
 	"github.com/Ethernal-Tech/ethgo/contract"
@@ -274,7 +274,7 @@ func (s *stakeManager) UpdateValidatorSet(epoch uint64, maxValidatorSetSize uint
 }
 
 // getBlsKey returns bls key for validator from the supernet contract
-func (s *stakeManager) getBlsKey(address types.Address) (*bls.PublicKey, error) {
+func (s *stakeManager) getBlsKey(address types.Address) (*bn256.PublicKey, error) {
 	provider, err := s.blockchain.GetStateProviderForBlock(s.blockchain.CurrentHeader())
 	if err != nil {
 		return nil, err
@@ -300,7 +300,7 @@ func (s *stakeManager) getBlsKey(address types.Address) (*bls.PublicKey, error) 
 		return nil, fmt.Errorf("failed to decode blskey")
 	}
 
-	pubKey, err := bls.UnmarshalPublicKeyFromBigInt(blsKey)
+	pubKey, err := bn256.UnmarshalPublicKeyFromBigInt(blsKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal BLS public key: %w", err)
 	}

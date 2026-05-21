@@ -8,7 +8,7 @@ require (
 	cloud.google.com/go/secretmanager v1.14.5
 	github.com/0xPolygon/go-ibft v0.4.1-0.20240621090555-e81a63ff50d7
 	github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20240628125004-67308570b6e2
-	github.com/Ethernal-Tech/bn256 v0.0.0-20240711150404-47c82e53dd19
+	github.com/Ethernal-Tech/bn256 v0.0.0-20260512092402-9d67137eba57
 	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20260415110044-7a9f89bd3813
 	github.com/Ethernal-Tech/ethgo v0.0.0-20240801172627-47215d9e504c
 	github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04
@@ -56,7 +56,6 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d
 	github.com/trailofbits/go-fuzz-utils v0.0.0-20210901195358-9657fcfd256c
 	github.com/umbracle/fastrlp v0.1.1-0.20230504065717-58a1b8a9929d
-	github.com/umbracle/go-eth-bn256 v0.0.0-20230125114011-47cb310d9b0b
 	github.com/valyala/fastjson v1.6.4
 	go.etcd.io/bbolt v1.4.3
 	golang.org/x/crypto v0.35.0
