@@ -237,8 +237,6 @@ destroy-docker:
 
 .PHONY: update-apex-contracts
 update-apex-contracts:
-	git submodule update --remote --init apex-bridge-smartcontracts && \
-	cd apex-bridge-smartcontracts/ && npm i && npx hardhat compile && cd .. && \
 	go run consensus/polybft/contractsapi/apex-artifacts-gen/main.go && \
 	go run consensus/polybft/contractsapi/bindings-gen/main.go
 
@@ -267,6 +265,7 @@ help:
 	@printf "  %-35s - %s\n" "test-e2e-skyline-bridge" "Run end-to-end tests for Skyline Bridge"
 	@printf "  %-35s - %s\n" "test-e2e-skyline-bridge-mba" "Run end-to-end tests for Skyline Bridge MBA (Multiple Bridging Addresses)"
 	@printf "  %-35s - %s\n" "test-e2e-skyline-bridge-cc" "Run end-to-end tests for Skyline Bridge Colored coins"
+	@printf "  %-35s - %s\n" "test-e2e-skyline-solana" "Run end-to-end tests for Skyline Solana"
 	@printf "  %-35s - %s\n" "test-e2e-refund-apex-bridge" "Run end-to-end Refund tests for Apex Bridge"
 	@printf "  %-35s - %s\n" "fund-testnet-e2e-apex-bridge" "Fund wallets for end-to-end tests for Apex Bridge Testnet"
 	@printf "  %-35s - %s\n" "defund-testnet-e2e-apex-bridge" "Defund wallets for end-to-end tests for Apex Bridge Testnet"

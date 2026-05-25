@@ -61,7 +61,7 @@ func Test_SkylineSolana_AllDirections(t *testing.T) {
 
 	t.Run("SOL -> Vector", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(5)),
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
 			cardanofw.WSOLTokenID, true)
 	})
 	t.Run("Vector -> SOL", func(t *testing.T) {
@@ -117,6 +117,23 @@ func Test_SkylineSolana_AllDirections(t *testing.T) {
 			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDNexus, cardanofw.ApexToWei(big.NewInt(1)),
 			cardanofw.SAP3XTokenID, true)
 	})
+
+	// mint VS and NS tokens to the user
+	_, err = cardanofw.FundUserWithToken(ctx, apex, cardanofw.ChainIDVector,
+		apex.VectorInfo.GenesisWallet, apex.Users[0], cardanofw.VSTokenName,
+		cardanofw.ApexToWei(big.NewInt(400_000_000)), cardanofw.ApexToWei(big.NewInt(1)), cardanofw.ApexToWei(big.NewInt(400_000_000)))
+	require.NoError(t, err)
+
+	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+	err = nexusChain.FundUsersWithToken(apex.Users[0].GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(400_000_000)), cardanofw.NSTokenID)
+	require.NoError(t, err)
+
+	userBalance, err := apex.GetBalanceWithTokenName(ctx, apex.Users[0], cardanofw.ChainIDVector, apex.VectorInfo.Tokens[cardanofw.VSTokenID].ChainSpecific)
+	require.NoError(t, err)
+	fmt.Println("vector user VS balance: ", userBalance)
+	userBalance, err = apex.GetBalanceWithTokenName(ctx, apex.Users[0], cardanofw.ChainIDNexus, apex.NexusInfo.Tokens[cardanofw.NSTokenID].ChainSpecific)
+	require.NoError(t, err)
+	fmt.Println("nexus user NS balance: ", userBalance)
 
 	t.Run("Vector VS -> Solana VS", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(

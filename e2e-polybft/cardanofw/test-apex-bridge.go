@@ -227,4 +227,19 @@ func bridgeSmartContractsUpgrades(t *testing.T, apexSystem *ApexSystem, bridgeSm
 		contractParams: contractParams,
 		gasLimit:       7_000_000,
 	}))
+
+	contractParams = []ContractParams{
+		{
+			contractName:    "Claims",
+			contractAddress: contracts.Claims.String(),
+			functionName:    "setAdditionalDependenciesAndSync2",
+			functionArgs:    []string{},
+		},
+	}
+
+	require.NoError(t, apexSystem.UpgradeSmartContract(&UpgradeSCParams{
+		contractsDir:   dir,
+		contractParams: contractParams,
+		gasLimit:       7_000_000,
+	}))
 }

@@ -428,7 +428,6 @@ func (sc *TestSolanaChain) initializeProgram() error {
 		"--min-fee-for-bridging", strconv.Itoa(int(sc.config.MinBridgingFee.Uint64())),
 		"--min-amount-to-bridge", strconv.Itoa(int(sc.config.MinTokenBridgingAmount.Uint64())),
 		"--treasury-address", sc.config.TreasuryAddress.String(),
-		"--relayer-address", sc.relayerAddr,
 		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 	}
 
@@ -1011,7 +1010,6 @@ func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexVal
 		"--relayer-data-dir", validator.GetRelayerDataDir(),
 		"--dbs-path", dbsPath,
 		"--treasury-address", sc.config.TreasuryAddress.String(),
-		"--fee-addr-bridging", sc.relayerAddr,
 		"--alt-public-key", sc.altPublicKey,
 	}
 
