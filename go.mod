@@ -312,5 +312,3 @@ require (
 	gotest.tools/v3 v3.4.0 // indirect
 	lukechampine.com/blake3 v1.4.0 // indirect
 )
-
-replace github.com/Ethernal-Tech/cardano-infrastructure => ../cardano-infrastructure
