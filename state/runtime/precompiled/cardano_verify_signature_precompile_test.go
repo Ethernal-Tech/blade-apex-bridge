@@ -293,16 +293,26 @@ func createTx(t *testing.T) ([]byte, string) {
 	builder.AddInputsWithScript(policyScriptMultiSig, multiSigInputs.Inputs...)
 	builder.AddInputsWithScript(policyScriptFeeMultiSig, multiSigFeeInputs.Inputs...)
 
+	// rough estimate of the fee
 	fee, err := builder.CalculateFee(0)
 	require.NoError(t, err)
 
-	builder.SetFee(fee)
+	applyFeeAndChange(builder, multiSigInputs.Sum, multiSigFeeInputs.Sum, outputsSum, fee)
 
-	builder.UpdateOutputAmount(-2, multiSigInputs.Sum[cardanowallet.AdaTokenName]-outputsSum[cardanowallet.AdaTokenName])
-	builder.UpdateOutputAmount(-1, multiSigFeeInputs.Sum[cardanowallet.AdaTokenName]-fee)
+	// more precise fee calculation
+	fee, err = builder.CalculateFee(0)
+	require.NoError(t, err)
+
+	applyFeeAndChange(builder, multiSigInputs.Sum, multiSigFeeInputs.Sum, outputsSum, fee)
 
 	txRaw, txHash, err := builder.Build()
 	require.NoError(t, err)
 
 	return txRaw, txHash
+}
+
+func applyFeeAndChange(builder *cardanowallet.TxBuilder, multisigInputsSum map[string]uint64, multisigFeeInputsSum map[string]uint64, outputsSum map[string]uint64, fee uint64) {
+	builder.SetFee(fee)
+	builder.UpdateOutputAmount(-2, multisigInputsSum[cardanowallet.AdaTokenName]-outputsSum[cardanowallet.AdaTokenName])
+	builder.UpdateOutputAmount(-1, multisigFeeInputsSum[cardanowallet.AdaTokenName]-fee)
 }
