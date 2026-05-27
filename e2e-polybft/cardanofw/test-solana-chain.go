@@ -169,14 +169,8 @@ func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string
 		return "", err
 	}
 
-	relayerAddr, err := solanawallet.PublicKeyFromAddress(sc.relayerAddr)
-	if err != nil {
-		return "", err
-	}
-
 	txSender := solsendtx.NewTxSender(txProvider, &solsendtx.ChainConfig{
-		TreasuryAddress:    sc.config.TreasuryAddress,
-		BridgingFeeAddress: relayerAddr,
+		TreasuryAddress: sc.config.TreasuryAddress,
 	})
 
 	txReceivers := make([]solsendtx.BridgingTxReceiver, 0, len(params.Receivers))
@@ -572,14 +566,8 @@ func (sc *TestSolanaChain) createSPLToken(
 
 	fmt.Printf("admin lock/unlock token balance: %s\n", adminLockUnlockTokenBalance.Value.Amount)
 
-	relayerAddr, err := solanawallet.PublicKeyFromAddress(sc.relayerAddr)
-	if err != nil {
-		return "", fmt.Errorf("parse relayer address: %w", err)
-	}
-
 	txSender := solsendtx.NewTxSender(provider, &solsendtx.ChainConfig{
-		TreasuryAddress:    sc.config.TreasuryAddress,
-		BridgingFeeAddress: relayerAddr,
+		TreasuryAddress: sc.config.TreasuryAddress,
 	})
 
 	vaultAddress, err := sc.GetVaultAddress()
@@ -1231,14 +1219,8 @@ func (sc *TestSolanaChain) SendTx(
 		return "", err
 	}
 
-	relayerAddr, err := solanawallet.PublicKeyFromAddress(sc.relayerAddr)
-	if err != nil {
-		return "", fmt.Errorf("get relayer address: %w", err)
-	}
-
 	txSender := solsendtx.NewTxSender(txProvider, &solsendtx.ChainConfig{
-		TreasuryAddress:    sc.config.TreasuryAddress,
-		BridgingFeeAddress: relayerAddr,
+		TreasuryAddress: sc.config.TreasuryAddress,
 	})
 
 	for _, receiver := range receivers {
@@ -1339,14 +1321,8 @@ func (sc *TestSolanaChain) FundUserWithToken(
 			return fmt.Errorf("get tx provider: %w", err)
 		}
 
-		relayerAddr, err := solanawallet.PublicKeyFromAddress(sc.relayerAddr)
-		if err != nil {
-			return fmt.Errorf("get relayer address: %w", err)
-		}
-
 		txSender := solsendtx.NewTxSender(provider, &solsendtx.ChainConfig{
-			TreasuryAddress:    sc.config.TreasuryAddress,
-			BridgingFeeAddress: relayerAddr,
+			TreasuryAddress: sc.config.TreasuryAddress,
 		})
 
 		// Ensure receiver ATA exists before minting to avoid AccountNotFound/AccountNotInitialized errors.
@@ -1625,8 +1601,7 @@ func (sc *TestSolanaChain) GetProgramVersion(ctx context.Context) (string, error
 	}
 
 	txSender := solsendtx.NewTxSender(txProvider, &solsendtx.ChainConfig{
-		TreasuryAddress:    sc.config.TreasuryAddress,
-		BridgingFeeAddress: solana.MustPublicKeyFromBase58(sc.relayerAddr),
+		TreasuryAddress: sc.config.TreasuryAddress,
 	})
 
 	programConfig, err := txSender.GetProgramConfig(ctx, solana.MustPublicKeyFromBase58(sc.programID))
