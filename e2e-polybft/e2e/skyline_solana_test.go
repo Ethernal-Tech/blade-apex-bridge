@@ -454,14 +454,17 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
 			cardanofw.WSOLTokenID, true)
 
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
+			cardanofw.ASOLTokenID, true)
+
 		relayerBalanceAfter, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
 		require.NoError(t, err)
 
 		diff := new(big.Int).Sub(relayerBalanceAfter["lovelace"], relayerBalance["lovelace"])
-		require.True(t, diff.Cmp(cardanofw.LamportToWei(newBridgeFee)) == 0)
+		require.True(t, diff.Cmp(cardanofw.LamportToWei(solanaConfig.MinBridgingFee)) == -1)
 	})
 
-	//nolint:dupl
 	t.Run("Update fee config - update treasury address", func(t *testing.T) {
 		newTreasuryWallet, err := solanawallet.NewWallet()
 		require.NoError(t, err)
@@ -491,38 +494,6 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 		treasuryBalanceAfter, err := apex.GetBalance(ctx, treasuryUser, cardanofw.ChainIDSolana)
 		require.NoError(t, err)
 		require.True(t, treasuryBalanceAfter["lovelace"].Cmp(cardanofw.LamportToWei(newOpFee)) == 0)
-	})
-
-	//nolint:dupl
-	t.Run("Update fee config - update relayer address", func(t *testing.T) {
-		newRelayerWallet, err := solanawallet.NewWallet()
-		require.NoError(t, err)
-
-		solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
-		err = solanaChain.UpdateFeeConfig(ctx, cardanofw.UpdateFeeConfigDto{
-			MinOperationFee: newOpFee,
-			BridgeFee:       newBridgeFee,
-			UpdateRelayer:   true,
-			RelayerAddress:  newRelayerWallet.PublicKey.String(),
-		})
-		require.NoError(t, err)
-
-		relayerUser := &cardanofw.TestApexUser{
-			HasSolanaWallet: true,
-			SolanaAddress:   newRelayerWallet.PublicKey.String(),
-		}
-		relayerBalance, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
-		require.NoError(t, err)
-
-		require.True(t, relayerBalance["lovelace"].Cmp(big.NewInt(0)) == 0)
-
-		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.SolanaToWei(big.NewInt(1)),
-			cardanofw.WSOLTokenID, true)
-
-		relayerBalanceAfter, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
-		require.NoError(t, err)
-		require.True(t, relayerBalanceAfter["lovelace"].Cmp(cardanofw.LamportToWei(newBridgeFee)) == 0)
 	})
 }
 

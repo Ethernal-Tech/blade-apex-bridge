@@ -1682,9 +1682,7 @@ type UpdateFeeConfigDto struct {
 	MinOperationFee *big.Int
 	BridgeFee       *big.Int
 	UpdateTreasury  bool
-	UpdateRelayer   bool
 	TreasuryAddress string
-	RelayerAddress  string
 }
 
 func (sc *TestSolanaChain) UpdateFeeConfig(ctx context.Context, feeConfig UpdateFeeConfigDto) error {
@@ -1718,11 +1716,6 @@ func (sc *TestSolanaChain) UpdateFeeConfig(ctx context.Context, feeConfig Update
 		params = append(params, "--new-treasury-address", feeConfig.TreasuryAddress)
 	}
 
-	if feeConfig.UpdateRelayer {
-		params = append(params, "--update-relayer", "true")
-		params = append(params, "--new-relayer-address", feeConfig.RelayerAddress)
-	}
-
 	var b bytes.Buffer
 
 	err = RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
@@ -1732,10 +1725,6 @@ func (sc *TestSolanaChain) UpdateFeeConfig(ctx context.Context, feeConfig Update
 
 	sc.config.MinBridgingFee = feeConfig.BridgeFee
 	sc.config.MinOperationFee = feeConfig.MinOperationFee
-
-	if feeConfig.UpdateRelayer {
-		sc.relayerAddr = feeConfig.RelayerAddress
-	}
 
 	if feeConfig.UpdateTreasury {
 		sc.config.TreasuryAddress = solana.MustPublicKeyFromBase58(feeConfig.TreasuryAddress)
