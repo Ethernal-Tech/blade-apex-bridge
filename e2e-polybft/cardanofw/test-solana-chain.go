@@ -75,7 +75,7 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 		StartingPort:           8899,
 		InitialHotWalletAmount: SolanaToWei(big.NewInt(1000)),
 		FundAmount:             LamportToWei(SolanaToLamport(big.NewInt(100000))),
-		MinBridgingFee:         big.NewInt(3000000), // 0.003 SOL
+		MinBridgingFee:         big.NewInt(6000000), // 0.006 SOL
 		MinBridgingAmount:      big.NewInt(1000),    // 0.000001 SOL
 		MinTokenBridgingAmount: big.NewInt(1000),    // 0.000001 SOL
 		MinOperationFee:        big.NewInt(1500000), // 0.0015 SOL
@@ -96,6 +96,21 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 			VSTokenID:    VSTokenName,
 			NSTokenID:    NSTokenName,
 		},
+	}
+}
+
+func NewRemoteSolanaChainConfig(
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string) *TestSolanaChainConfig {
+	return &TestSolanaChainConfig{
+		IsEnabled:        isEnabled,
+		ChainID:          ChainIDSolana,
+		MinBridgingFee:   minBridgingFeeAmount,
+		MinOperationFee:  minOperationFee,
+		TreasuryAddress:  solana.MustPublicKeyFromBase58(treasuryAddress),
+		CurrencyID:       WSOLTokenID, //TODO: redo after deployment
+		LockUnlockTokens: map[uint16]string{},
+		MintableTokens:   map[uint16]string{},
+		TokensMint:       map[uint16]string{},
 	}
 }
 
@@ -136,6 +151,20 @@ func NewTestSolanaChain(config *TestSolanaChainConfig) (ITestApexChain, error) {
 		admin:   admin,
 		indexer: e2eindexer.NewTxsExecutedComponentDummy(),
 	}, nil
+}
+
+func NewRemoteTestSolanaChain(
+	programID, jsonRPCURL, relayerAddress, treasuryAddress string,
+	minBridgingFee, minOperationFee *big.Int,
+) *TestSolanaChain {
+	return &TestSolanaChain{
+		config: NewRemoteSolanaChainConfig(
+			true, minBridgingFee, minOperationFee, treasuryAddress),
+		relayerAddr: relayerAddress,
+		jsonRPCAddr: jsonRPCURL,
+		programID:   programID,
+		indexer:     e2eindexer.NewTxsExecutedComponentDummy(),
+	}
 }
 
 func (sc *TestSolanaChain) GetTxProvider() (*solanawallet.Provider, error) {
@@ -287,6 +316,11 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 		return fmt.Errorf("write admin private key: %w", err)
 	}
 
+	adminBalanceBefore, err := sc.GetAddressBalance(ctx, sc.admin.PublicKey.String())
+	if err != nil {
+		return fmt.Errorf("get admin balance before deploying program: %w", err)
+	}
+
 	params := []string{
 		"deploy-solana",
 		"deploy-program",
@@ -316,6 +350,14 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 	programID := programIDMatch[1]
 
 	sc.programID = programID
+
+	adminBalanceAfter, err := sc.GetAddressBalance(ctx, sc.admin.PublicKey.String())
+	if err != nil {
+		return fmt.Errorf("get admin balance after deploying program: %w", err)
+	}
+
+	diff := new(big.Int).Sub(adminBalanceBefore["lovelace"], adminBalanceAfter["lovelace"])
+	fmt.Println("Program deployment cost: ", WeiToLamport(diff))
 
 	if err := sc.initializeProgram(); err != nil {
 		return fmt.Errorf("initialize program: %w", err)
@@ -681,7 +723,6 @@ func (sc *TestSolanaChain) registerTokens() error {
 			"--program-id", sc.programID,
 			"--admin-key", adminPkFile.Name(),
 			"--treasury-address", sc.config.TreasuryAddress.String(),
-			"--relayer-address", sc.relayerAddr,
 			"--token-id", strconv.Itoa(int(tokenID)),
 			"--token-mint", tokenMint,
 			"--min-bridging-amount", strconv.Itoa(int(sc.config.MinTokenBridgingAmount.Uint64())),
@@ -705,7 +746,6 @@ func (sc *TestSolanaChain) registerTokens() error {
 			"--program-id", sc.programID,
 			"--admin-key", adminPkFile.Name(),
 			"--treasury-address", sc.config.TreasuryAddress.String(),
-			"--relayer-address", sc.relayerAddr,
 			"--token-id", strconv.Itoa(int(tokenID)),
 			"--token-name", tokenName,
 			"--token-symbol", tokenName,
@@ -999,6 +1039,8 @@ func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexVal
 		"--dbs-path", dbsPath,
 		"--treasury-address", sc.config.TreasuryAddress.String(),
 		"--alt-public-key", sc.altPublicKey,
+		// "--sol-tracker-start-slot", fmt.Sprintf("%d", 300),
+		"--sol-confirmation-timeout", "60000000000",
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)

@@ -236,10 +236,18 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	relayerUser := &cardanofw.TestApexUser{
+		HasSolanaWallet: true,
+		SolanaAddress:   apex.SolanaInfo.RelayerAddress,
+	}
+
 	for range 5 {
 		t.Run("TEST SOLANA BRIDGING", func(t *testing.T) {
 			wg := sync.WaitGroup{}
 			wg.Add(4)
+
+			relayerBalance, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
+			require.NoError(t, err)
 
 			go func() {
 				defer wg.Done()
@@ -270,6 +278,14 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 			}()
 
 			wg.Wait()
+
+			relayerBalanceAfter, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
+			require.NoError(t, err)
+
+			diff := new(big.Int).Sub(relayerBalanceAfter["lovelace"], relayerBalance["lovelace"])
+			fee := new(big.Int).Sub(cardanofw.LamportToWei(big.NewInt(6_000_000*4)), diff)
+			fmt.Println("diff: ", cardanofw.WeiToLamport(diff))
+			fmt.Println("fee: ", cardanofw.WeiToLamport(fee))
 		})
 	}
 }
@@ -1098,6 +1114,10 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 	t.Run("5. refund - invalid destination chain ID", func(t *testing.T) {
 		userWSolBalance, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDSolana, cardanofw.WSOLMintAddress)
 		require.NoError(t, err)
+		userSolBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+		fmt.Println("user SOL balance: ", cardanofw.WeiToLamport(userSolBalance[cardanofw.ADATokenName]))
+		fmt.Println("user WSOL balance: ", cardanofw.WeiToLamport(userWSolBalance[cardanofw.WSOLMintAddress]))
 
 		txSig, err := solanaChain.BridgingRequest(cardanofw.BridgingRequestParams{
 			Ctx:            ctx,
@@ -1122,12 +1142,23 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 
 		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userWSolBalance, sendAmount, true, maxWaitTimeSec, retryIntervalSec)
 		require.NoError(t, err)
+
+		userWSolBalanceAfter, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDSolana, cardanofw.WSOLMintAddress)
+		require.NoError(t, err)
+		userSolBalanceAfter, err := apex.GetBalance(ctx, user, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+		fmt.Println("user SOL balance after: ", cardanofw.WeiToLamport(userSolBalanceAfter[cardanofw.ADATokenName]))
+		fmt.Println("user WSOL balance after: ", cardanofw.WeiToLamport(userWSolBalanceAfter[cardanofw.WSOLMintAddress]))
 	})
 
 	//nolint:dupl
 	t.Run("6. refund - invalid destination address", func(t *testing.T) {
 		userWSolBalance, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDSolana, cardanofw.WSOLMintAddress)
 		require.NoError(t, err)
+		userSolBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+		fmt.Println("user SOL balance: ", cardanofw.WeiToLamport(userSolBalance[cardanofw.ADATokenName]))
+		fmt.Println("user WSOL balance: ", cardanofw.WeiToLamport(userWSolBalance[cardanofw.WSOLMintAddress]))
 
 		txSig, err := solanaChain.BridgingRequest(cardanofw.BridgingRequestParams{
 			Ctx:            ctx,
@@ -1152,12 +1183,23 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 
 		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userWSolBalance, sendAmount, true, maxWaitTimeSec, retryIntervalSec)
 		require.NoError(t, err)
+
+		userWSolBalanceAfter, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDSolana, cardanofw.WSOLMintAddress)
+		require.NoError(t, err)
+		userSolBalanceAfter, err := apex.GetBalance(ctx, user, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+		fmt.Println("user SOL balance after: ", cardanofw.WeiToLamport(userSolBalanceAfter[cardanofw.ADATokenName]))
+		fmt.Println("user WSOL balance after: ", cardanofw.WeiToLamport(userWSolBalanceAfter[cardanofw.WSOLMintAddress]))
 	})
 
 	//nolint:dupl
 	t.Run("7. refund - chain ID not in directions", func(t *testing.T) {
 		userWSolBalance, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDSolana, cardanofw.WSOLMintAddress)
 		require.NoError(t, err)
+		userSolBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+		fmt.Println("user SOL balance: ", cardanofw.WeiToLamport(userSolBalance[cardanofw.ADATokenName]))
+		fmt.Println("user WSOL balance: ", cardanofw.WeiToLamport(userWSolBalance[cardanofw.WSOLMintAddress]))
 
 		txSig, err := solanaChain.BridgingRequest(cardanofw.BridgingRequestParams{
 			Ctx:            ctx,
@@ -1182,6 +1224,13 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 
 		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userWSolBalance, sendAmount, true, maxWaitTimeSec, retryIntervalSec)
 		require.NoError(t, err)
+
+		userWSolBalanceAfter, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDSolana, cardanofw.WSOLMintAddress)
+		require.NoError(t, err)
+		userSolBalanceAfter, err := apex.GetBalance(ctx, user, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+		fmt.Println("user SOL balance after: ", cardanofw.WeiToLamport(userSolBalanceAfter[cardanofw.ADATokenName]))
+		fmt.Println("user WSOL balance after: ", cardanofw.WeiToLamport(userWSolBalanceAfter[cardanofw.WSOLMintAddress]))
 	})
 
 	t.Run("8. refund - wrong token for chain ID", func(t *testing.T) {
