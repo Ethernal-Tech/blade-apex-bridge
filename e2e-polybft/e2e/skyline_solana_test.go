@@ -10,7 +10,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
-	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	solanawallet "github.com/Ethernal-Tech/solana-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -582,7 +582,7 @@ func Test_SkylineSolana_ValidScenarios(t *testing.T) {
 		sender          *cardanofw.TestApexUser
 		srcTokenID      uint16
 		isValid         bool
-		srcMinterWallet *wallet.Wallet
+		srcMinterWallet *cardanowallet.Wallet
 	}
 
 	const (
@@ -1116,7 +1116,7 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 		userSolBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDSolana)
 		require.NoError(t, err)
-		fmt.Println("user SOL balance: ", cardanofw.WeiToLamport(userSolBalance[cardanofw.ADATokenName]))
+		fmt.Println("user SOL balance: ", cardanofw.WeiToLamport(userSolBalance[cardanowallet.AdaTokenName]))
 		fmt.Println("user WSOL balance: ", cardanofw.WeiToLamport(userWSolBalance[cardanofw.WSOLMintAddress]))
 
 		txSig, err := solanaChain.BridgingRequest(cardanofw.BridgingRequestParams{
@@ -1147,7 +1147,7 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 		userSolBalanceAfter, err := apex.GetBalance(ctx, user, cardanofw.ChainIDSolana)
 		require.NoError(t, err)
-		fmt.Println("user SOL balance after: ", cardanofw.WeiToLamport(userSolBalanceAfter[cardanofw.ADATokenName]))
+		fmt.Println("user SOL balance after: ", cardanofw.WeiToLamport(userSolBalanceAfter[cardanowallet.AdaTokenName]))
 		fmt.Println("user WSOL balance after: ", cardanofw.WeiToLamport(userWSolBalanceAfter[cardanofw.WSOLMintAddress]))
 	})
 
@@ -1157,7 +1157,7 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 		userSolBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDSolana)
 		require.NoError(t, err)
-		fmt.Println("user SOL balance: ", cardanofw.WeiToLamport(userSolBalance[cardanofw.ADATokenName]))
+		fmt.Println("user SOL balance: ", cardanofw.WeiToLamport(userSolBalance[cardanowallet.AdaTokenName]))
 		fmt.Println("user WSOL balance: ", cardanofw.WeiToLamport(userWSolBalance[cardanofw.WSOLMintAddress]))
 
 		txSig, err := solanaChain.BridgingRequest(cardanofw.BridgingRequestParams{
@@ -1188,7 +1188,7 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 		userSolBalanceAfter, err := apex.GetBalance(ctx, user, cardanofw.ChainIDSolana)
 		require.NoError(t, err)
-		fmt.Println("user SOL balance after: ", cardanofw.WeiToLamport(userSolBalanceAfter[cardanofw.ADATokenName]))
+		fmt.Println("user SOL balance after: ", cardanofw.WeiToLamport(userSolBalanceAfter[cardanowallet.AdaTokenName]))
 		fmt.Println("user WSOL balance after: ", cardanofw.WeiToLamport(userWSolBalanceAfter[cardanofw.WSOLMintAddress]))
 	})
 
@@ -1198,7 +1198,7 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 		userSolBalance, err := apex.GetBalance(ctx, user, cardanofw.ChainIDSolana)
 		require.NoError(t, err)
-		fmt.Println("user SOL balance: ", cardanofw.WeiToLamport(userSolBalance[cardanofw.ADATokenName]))
+		fmt.Println("user SOL balance: ", cardanofw.WeiToLamport(userSolBalance[cardanowallet.AdaTokenName]))
 		fmt.Println("user WSOL balance: ", cardanofw.WeiToLamport(userWSolBalance[cardanofw.WSOLMintAddress]))
 
 		txSig, err := solanaChain.BridgingRequest(cardanofw.BridgingRequestParams{
@@ -1229,7 +1229,7 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 		require.NoError(t, err)
 		userSolBalanceAfter, err := apex.GetBalance(ctx, user, cardanofw.ChainIDSolana)
 		require.NoError(t, err)
-		fmt.Println("user SOL balance after: ", cardanofw.WeiToLamport(userSolBalanceAfter[cardanofw.ADATokenName]))
+		fmt.Println("user SOL balance after: ", cardanofw.WeiToLamport(userSolBalanceAfter[cardanowallet.AdaTokenName]))
 		fmt.Println("user WSOL balance after: ", cardanofw.WeiToLamport(userWSolBalanceAfter[cardanofw.WSOLMintAddress]))
 	})
 
