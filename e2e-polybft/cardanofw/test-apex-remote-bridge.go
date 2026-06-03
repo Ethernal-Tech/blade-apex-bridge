@@ -240,6 +240,48 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 							LockUnlock:        true,
 							IsWrappedCurrency: true,
 						},
+						CPOLTokenID: {
+							ChainSpecific: cardanowallet.NewToken(
+								"1601bc807001f56ed18509f2b5e3b1d04ea333dd3c0d48de7ba765d6", "cPOL").String(),
+							LockUnlock:        false,
+							IsWrappedCurrency: false,
+						},
+						CKatanaETHTokenID: {
+							ChainSpecific: cardanowallet.NewToken(
+								"1601bc807001f56ed18509f2b5e3b1d04ea333dd3c0d48de7ba765d6", "cKatanaETH").String(),
+							LockUnlock:        false,
+							IsWrappedCurrency: false,
+						},
+						CETHTokenID: {
+							ChainSpecific: cardanowallet.NewToken(
+								"1601bc807001f56ed18509f2b5e3b1d04ea333dd3c0d48de7ba765d6", "cETH").String(),
+							LockUnlock:        false,
+							IsWrappedCurrency: false,
+						},
+						CSEITokenID: {
+							ChainSpecific: cardanowallet.NewToken(
+								"1601bc807001f56ed18509f2b5e3b1d04ea333dd3c0d48de7ba765d6", "cSEI").String(),
+							LockUnlock:        false,
+							IsWrappedCurrency: false,
+						},
+						CArbitrumETHTokenID: {
+							ChainSpecific: cardanowallet.NewToken(
+								"1601bc807001f56ed18509f2b5e3b1d04ea333dd3c0d48de7ba765d6", "cArbitrumETH").String(),
+							LockUnlock:        false,
+							IsWrappedCurrency: false,
+						},
+						CScrollETHTokenID: {
+							ChainSpecific: cardanowallet.NewToken(
+								"1601bc807001f56ed18509f2b5e3b1d04ea333dd3c0d48de7ba765d6", "cScrollETH").String(),
+							LockUnlock:        false,
+							IsWrappedCurrency: false,
+						},
+						CUnichainETHTokenID: {
+							ChainSpecific: cardanowallet.NewToken(
+								"1601bc807001f56ed18509f2b5e3b1d04ea333dd3c0d48de7ba765d6", "cUnichainETH").String(),
+							LockUnlock:        false,
+							IsWrappedCurrency: false,
+						},
 					},
 					DestChain: map[ChainID][]Direction{
 						ChainIDPrime: {
@@ -263,6 +305,62 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 								SourceTokenID:      ADATokenID,
 								DestinationTokenID: XADATokenID,
 								TrackSource:        true,
+								TrackDestination:   false,
+							},
+						},
+						ChainIDPolygon: {
+							{
+								SourceTokenID:      CPOLTokenID,
+								DestinationTokenID: POLTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+						ChainIDEthereum: {
+							{
+								SourceTokenID:      CETHTokenID,
+								DestinationTokenID: ETHTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+						ChainIDKatana: {
+							{
+								SourceTokenID:      CKatanaETHTokenID,
+								DestinationTokenID: KatanaETHTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+						ChainIDSei: {
+							{
+								SourceTokenID:      CSEITokenID,
+								DestinationTokenID: SEITokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+						ChainIDArbitrum: {
+							{
+								SourceTokenID:      CArbitrumETHTokenID,
+								DestinationTokenID: ArbitrumETHTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+						ChainIDScroll: {
+							{
+								SourceTokenID:      CScrollETHTokenID,
+								DestinationTokenID: ScrollETHTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+						ChainIDUnichain: {
+							{
+								SourceTokenID:      CUnichainETHTokenID,
+								DestinationTokenID: UnichainETHTokenID,
+								TrackSource:        false,
 								TrackDestination:   false,
 							},
 						},
@@ -299,7 +397,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						XPOLTokenID: {
 							ChainSpecific:     "0xD273f181d575aD1a3b9d1f555EA3982b3FBFd825",
 							LockUnlock:        false,
-							IsWrappedCurrency: true,
+							IsWrappedCurrency: false,
 						},
 					},
 					DestChain: map[ChainID][]Direction{
@@ -359,7 +457,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 						PAP3XTokenID: {
 							ChainSpecific:     "0x325E3AEf88F57d9DCA1744cEe740cD8104d1814a",
 							LockUnlock:        false,
-							IsWrappedCurrency: true,
+							IsWrappedCurrency: false,
 						},
 					},
 					DestChain: map[ChainID][]Direction{
@@ -377,10 +475,181 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 								TrackDestination:   false,
 							},
 						},
+						ChainIDCardano: {
+							{
+								SourceTokenID:      POLTokenID,
+								DestinationTokenID: CPOLTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
 					},
 				},
-				MinBridgingFee:  defaultMinBridgingFeeAmountPolygon,
+				MinBridgingFee:  defaultMinBridgingFeeAmountEvm[ChainIDPolygon],
 				MinOperationFee: big.NewInt(0),
+				TreasuryAddress: "",
+			},
+			ChainIDEthereum: {
+				Info: EVMChainInfo{
+					GatewayAddress:           types.StringToAddress("0x92D7d42368d2092954B56BFeedc87fF34F81CcB6"),
+					NativeTokenWalletAddress: types.StringToAddress("0xaDf8263B7D5A8E9Af2c67B39852cF90bD92D7b73"),
+					JSONRPCAddr:              "https://ethereum-sepolia-rpc.publicnode.com",
+					Tokens: map[uint16]Token{
+						ETHTokenID: {
+							ChainSpecific:     cardanowallet.AdaTokenName,
+							LockUnlock:        true,
+							IsWrappedCurrency: false,
+						},
+					},
+					DestChain: map[ChainID][]Direction{
+						ChainIDCardano: {
+							{
+								SourceTokenID:      ETHTokenID,
+								DestinationTokenID: CETHTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+					},
+				},
+				MinBridgingFee:  defaultMinBridgingFeeAmountEvm[ChainIDEthereum],
+				MinOperationFee: big.NewInt(0),
+				TreasuryAddress: "",
+			},
+			ChainIDKatana: {
+				Info: EVMChainInfo{
+					GatewayAddress:           types.StringToAddress("0x0389D656eb1EC436cBc662329462F51A70e7e29d"),
+					NativeTokenWalletAddress: types.StringToAddress("0xe26C3C393261a821B49AC8D72c9EAD1e90435726"),
+					JSONRPCAddr:              "https://rpc-bokuto.katanarpc.com",
+					Tokens: map[uint16]Token{
+						KatanaETHTokenID: {
+							ChainSpecific:     cardanowallet.AdaTokenName,
+							LockUnlock:        true,
+							IsWrappedCurrency: false,
+						},
+					},
+					DestChain: map[ChainID][]Direction{
+						ChainIDCardano: {
+							{
+								SourceTokenID:      KatanaETHTokenID,
+								DestinationTokenID: CKatanaETHTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+					},
+				},
+				MinBridgingFee:  defaultMinBridgingFeeAmountEvm[ChainIDKatana],
+				MinOperationFee: big.NewInt(0),
+				TreasuryAddress: "",
+			},
+			ChainIDSei: {
+				Info: EVMChainInfo{
+					GatewayAddress:           types.StringToAddress("0x92D7d42368d2092954B56BFeedc87fF34F81CcB6"),
+					NativeTokenWalletAddress: types.StringToAddress("0xaDf8263B7D5A8E9Af2c67B39852cF90bD92D7b73"),
+					JSONRPCAddr:              "https://evm-rpc-testnet.sei-apis.com",
+					Tokens: map[uint16]Token{
+						SEITokenID: {
+							ChainSpecific:     cardanowallet.AdaTokenName,
+							LockUnlock:        true,
+							IsWrappedCurrency: false,
+						},
+					},
+					DestChain: map[ChainID][]Direction{
+						ChainIDCardano: {
+							{
+								SourceTokenID:      SEITokenID,
+								DestinationTokenID: CSEITokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+					},
+				},
+				MinBridgingFee:  defaultMinBridgingFeeAmountEvm[ChainIDSei],
+				MinOperationFee: big.NewInt(0),
+				TreasuryAddress: "",
+			},
+			ChainIDArbitrum: {
+				Info: EVMChainInfo{
+					GatewayAddress:           types.StringToAddress("0x92D7d42368d2092954B56BFeedc87fF34F81CcB6"),
+					NativeTokenWalletAddress: types.StringToAddress("0xaDf8263B7D5A8E9Af2c67B39852cF90bD92D7b73"),
+					JSONRPCAddr:              "https://sepolia-rollup.arbitrum.io/rpc",
+					Tokens: map[uint16]Token{
+						ArbitrumETHTokenID: {
+							ChainSpecific:     cardanowallet.AdaTokenName,
+							LockUnlock:        true,
+							IsWrappedCurrency: false,
+						},
+					},
+					DestChain: map[ChainID][]Direction{
+						ChainIDCardano: {
+							{
+								SourceTokenID:      ArbitrumETHTokenID,
+								DestinationTokenID: CArbitrumETHTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+					},
+				},
+				MinBridgingFee:  defaultMinBridgingFeeAmountEvm[ChainIDArbitrum],
+				MinOperationFee: big.NewInt(0),
+				TreasuryAddress: "",
+			},
+			ChainIDScroll: {
+				Info: EVMChainInfo{
+					GatewayAddress:           types.StringToAddress("0x92D7d42368d2092954B56BFeedc87fF34F81CcB6"),
+					NativeTokenWalletAddress: types.StringToAddress("0xaDf8263B7D5A8E9Af2c67B39852cF90bD92D7b73"),
+					JSONRPCAddr:              "https://sepolia-rpc.scroll.io",
+					Tokens: map[uint16]Token{
+						ScrollETHTokenID: {
+							ChainSpecific:     cardanowallet.AdaTokenName,
+							LockUnlock:        true,
+							IsWrappedCurrency: false,
+						},
+					},
+					DestChain: map[ChainID][]Direction{
+						ChainIDCardano: {
+							{
+								SourceTokenID:      ScrollETHTokenID,
+								DestinationTokenID: CScrollETHTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+					},
+				},
+				MinBridgingFee:  defaultMinBridgingFeeAmountEvm[ChainIDScroll],
+				MinOperationFee: big.NewInt(0),
+				TreasuryAddress: "",
+			},
+			ChainIDUnichain: {
+				Info: EVMChainInfo{
+					GatewayAddress:           types.StringToAddress("0x92D7d42368d2092954B56BFeedc87fF34F81CcB6"),
+					NativeTokenWalletAddress: types.StringToAddress("0xaDf8263B7D5A8E9Af2c67B39852cF90bD92D7b73"),
+					JSONRPCAddr:              "https://unichain-sepolia-rpc.publicnode.com",
+					Tokens: map[uint16]Token{
+						UnichainETHTokenID: {
+							ChainSpecific:     cardanowallet.AdaTokenName,
+							LockUnlock:        true,
+							IsWrappedCurrency: false,
+						},
+					},
+					DestChain: map[ChainID][]Direction{
+						ChainIDCardano: {
+							{
+								SourceTokenID:      UnichainETHTokenID,
+								DestinationTokenID: CUnichainETHTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+					},
+				},
+				MinBridgingFee:  defaultMinBridgingFeeAmountEvm[ChainIDUnichain],
+				MinOperationFee: big.NewInt(0),
+				TreasuryAddress: "",
 			},
 		},
 		BridgingAPIs: []string{
@@ -466,7 +735,7 @@ func SetupRemoteApexBridge(
 			vectorRemoteConfig.DefaultMinBridgingFee,
 			vectorRemoteConfig.MinBridgingFeeForTokens, vectorRemoteConfig.MinOperationFee, vectorRemoteConfig.TreasuryAddress),
 		NexusConfig: NewRemoteNexusChainConfig(true,
-			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee, ""),
+			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee, "", map[uint16]Token{}),
 		APIKey: remoteConfig.BridgingAPIKey,
 	}
 
@@ -553,6 +822,12 @@ func SetupSkylineRemoteBridge(
 	cardanoRemoteConfig := remoteConfig.CardanoChains[ChainIDCardano]
 	nexusRemoteConfig := remoteConfig.EVMChains[ChainIDNexus]
 	polygonRemoteConfig := remoteConfig.EVMChains[ChainIDPolygon]
+	ethereumRemoteConfig := remoteConfig.EVMChains[ChainIDEthereum]
+	katanaRemoteConfig := remoteConfig.EVMChains[ChainIDKatana]
+	seiRemoteConfig := remoteConfig.EVMChains[ChainIDSei]
+	arbitrumRemoteConfig := remoteConfig.EVMChains[ChainIDArbitrum]
+	scrollRemoteConfig := remoteConfig.EVMChains[ChainIDScroll]
+	unichainRemoteConfig := remoteConfig.EVMChains[ChainIDUnichain]
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig: NewRemotePrimeChainConfig(
 			primeRemoteConfig.DefaultMinBridgingFee, primeRemoteConfig.MinBridgingFeeForTokens,
@@ -564,9 +839,29 @@ func SetupSkylineRemoteBridge(
 			true, cardanoRemoteConfig.DefaultMinBridgingFee, cardanoRemoteConfig.MinBridgingFeeForTokens,
 			cardanoRemoteConfig.MinOperationFee, cardanoRemoteConfig.TreasuryAddress),
 		NexusConfig: NewRemoteNexusChainConfig(true,
-			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee, nexusRemoteConfig.TreasuryAddress),
+			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee,
+			nexusRemoteConfig.TreasuryAddress, nexusRemoteConfig.Info.Tokens),
 		PolygonConfig: NewRemotePolygonChainConfig(true,
-			polygonRemoteConfig.MinBridgingFee, polygonRemoteConfig.MinOperationFee, polygonRemoteConfig.TreasuryAddress),
+			polygonRemoteConfig.MinBridgingFee, polygonRemoteConfig.MinOperationFee,
+			polygonRemoteConfig.TreasuryAddress, polygonRemoteConfig.Info.Tokens),
+		EthereumConfig: NewRemoteEthereumChainConfig(true,
+			ethereumRemoteConfig.MinBridgingFee, ethereumRemoteConfig.MinOperationFee,
+			ethereumRemoteConfig.TreasuryAddress, ethereumRemoteConfig.Info.Tokens),
+		KatanaConfig: NewRemoteKatanaChainConfig(true,
+			katanaRemoteConfig.MinBridgingFee, katanaRemoteConfig.MinOperationFee,
+			katanaRemoteConfig.TreasuryAddress, katanaRemoteConfig.Info.Tokens),
+		SeiConfig: NewRemoteSeiChainConfig(true,
+			seiRemoteConfig.MinBridgingFee, seiRemoteConfig.MinOperationFee,
+			seiRemoteConfig.TreasuryAddress, seiRemoteConfig.Info.Tokens),
+		ArbitrumConfig: NewRemoteArbitrumChainConfig(true,
+			arbitrumRemoteConfig.MinBridgingFee, arbitrumRemoteConfig.MinOperationFee,
+			arbitrumRemoteConfig.TreasuryAddress, arbitrumRemoteConfig.Info.Tokens),
+		ScrollConfig: NewRemoteScrollChainConfig(true,
+			scrollRemoteConfig.MinBridgingFee, scrollRemoteConfig.MinOperationFee,
+			scrollRemoteConfig.TreasuryAddress, scrollRemoteConfig.Info.Tokens),
+		UnichainConfig: NewRemoteUnichainChainConfig(true,
+			unichainRemoteConfig.MinBridgingFee, unichainRemoteConfig.MinOperationFee,
+			unichainRemoteConfig.TreasuryAddress, unichainRemoteConfig.Info.Tokens),
 		APIKey: remoteConfig.BridgingAPIKey,
 	}
 
@@ -620,13 +915,67 @@ func SetupSkylineRemoteBridge(
 		indexer:               e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 
+	ethereumChain := &TestEVMChain{
+		config:                apexConfig.EthereumConfig,
+		gatewayAddr:           ethereumRemoteConfig.Info.GatewayAddress,
+		nativeTokenWalletAddr: ethereumRemoteConfig.Info.NativeTokenWalletAddress,
+		jsonRPCAddr:           ethereumRemoteConfig.Info.JSONRPCAddr,
+		indexer:               e2eindexer.NewTxsExecutedComponentDummy(),
+	}
+
+	katanaChain := &TestEVMChain{
+		config:                apexConfig.KatanaConfig,
+		gatewayAddr:           katanaRemoteConfig.Info.GatewayAddress,
+		nativeTokenWalletAddr: katanaRemoteConfig.Info.NativeTokenWalletAddress,
+		jsonRPCAddr:           katanaRemoteConfig.Info.JSONRPCAddr,
+		indexer:               e2eindexer.NewTxsExecutedComponentDummy(),
+	}
+
+	seiChain := &TestEVMChain{
+		config:                apexConfig.SeiConfig,
+		gatewayAddr:           seiRemoteConfig.Info.GatewayAddress,
+		nativeTokenWalletAddr: seiRemoteConfig.Info.NativeTokenWalletAddress,
+		jsonRPCAddr:           seiRemoteConfig.Info.JSONRPCAddr,
+		indexer:               e2eindexer.NewTxsExecutedComponentDummy(),
+	}
+
+	arbitrumChain := &TestEVMChain{
+		config:                apexConfig.ArbitrumConfig,
+		gatewayAddr:           arbitrumRemoteConfig.Info.GatewayAddress,
+		nativeTokenWalletAddr: arbitrumRemoteConfig.Info.NativeTokenWalletAddress,
+		jsonRPCAddr:           arbitrumRemoteConfig.Info.JSONRPCAddr,
+		indexer:               e2eindexer.NewTxsExecutedComponentDummy(),
+	}
+
+	scrollChain := &TestEVMChain{
+		config:                apexConfig.ScrollConfig,
+		gatewayAddr:           scrollRemoteConfig.Info.GatewayAddress,
+		nativeTokenWalletAddr: scrollRemoteConfig.Info.NativeTokenWalletAddress,
+		jsonRPCAddr:           scrollRemoteConfig.Info.JSONRPCAddr,
+		indexer:               e2eindexer.NewTxsExecutedComponentDummy(),
+	}
+
+	unichainChain := &TestEVMChain{
+		config:                apexConfig.UnichainConfig,
+		gatewayAddr:           unichainRemoteConfig.Info.GatewayAddress,
+		nativeTokenWalletAddr: unichainRemoteConfig.Info.NativeTokenWalletAddress,
+		jsonRPCAddr:           unichainRemoteConfig.Info.JSONRPCAddr,
+		indexer:               e2eindexer.NewTxsExecutedComponentDummy(),
+	}
+
 	usersData, err := GetTestnetApexUsers(
 		NewApexNetworkTypes(ApexNetworkTypesParams{
-			PrimeConfig:   apexConfig.PrimeConfig,
-			VectorConfig:  apexConfig.VectorConfig,
-			CardanoConfig: apexConfig.CardanoConfig,
-			NexusConfig:   apexConfig.NexusConfig,
-			PolygonConfig: apexConfig.PolygonConfig,
+			PrimeConfig:    apexConfig.PrimeConfig,
+			VectorConfig:   apexConfig.VectorConfig,
+			CardanoConfig:  apexConfig.CardanoConfig,
+			NexusConfig:    apexConfig.NexusConfig,
+			PolygonConfig:  apexConfig.PolygonConfig,
+			EthereumConfig: apexConfig.EthereumConfig,
+			KatanaConfig:   apexConfig.KatanaConfig,
+			SeiConfig:      apexConfig.SeiConfig,
+			ArbitrumConfig: apexConfig.ArbitrumConfig,
+			ScrollConfig:   apexConfig.ScrollConfig,
+			UnichainConfig: apexConfig.UnichainConfig,
 		}),
 	)
 	if err != nil {
@@ -634,26 +983,48 @@ func SetupSkylineRemoteBridge(
 	}
 
 	apexSystem := &ApexSystem{
-		Config:       apexConfig,
-		FunderUser:   usersData.Funder,
-		Users:        usersData.Users,
-		IsSkyline:    true,
-		chains:       []ITestApexChain{primeChain, vectorChain, cardanoChain, nexusChain, polygonChain},
+		Config:     apexConfig,
+		FunderUser: usersData.Funder,
+		Users:      usersData.Users,
+		IsSkyline:  true,
+		chains: []ITestApexChain{
+			primeChain, vectorChain, cardanoChain, nexusChain, polygonChain,
+			ethereumChain, katanaChain, seiChain, arbitrumChain, scrollChain, unichainChain,
+		},
 		bridgingAPIs: remoteConfig.BridgingAPIs,
 		PrimeInfo:    primeRemoteConfig.Info,
 		VectorInfo:   vectorRemoteConfig.Info,
 		CardanoInfo:  cardanoRemoteConfig.Info,
 		NexusInfo:    nexusRemoteConfig.Info,
 		PolygonInfo:  polygonRemoteConfig.Info,
+		EthereumInfo: ethereumRemoteConfig.Info,
+		KatanaInfo:   katanaRemoteConfig.Info,
+		SeiInfo:      seiRemoteConfig.Info,
+		ArbitrumInfo: arbitrumRemoteConfig.Info,
+		ScrollInfo:   scrollRemoteConfig.Info,
+		UnichainInfo: unichainRemoteConfig.Info,
 		EcosystemTokens: map[uint16]string{
-			USDTTokenID:  USDTTokenName,
-			XADATokenID:  XADATokenName,
-			AP3XTokenID:  cardanowallet.AdaTokenName,
-			ADATokenID:   cardanowallet.AdaTokenName,
-			CAP3XTokenID: CAP3XTokenName,
-			POLTokenID:   cardanowallet.AdaTokenName,
-			PAP3XTokenID: PAP3XTokenName,
-			XPOLTokenID:  XPOLTokenName,
+			AP3XTokenID:         cardanowallet.AdaTokenName,
+			ADATokenID:          cardanowallet.AdaTokenName,
+			CAP3XTokenID:        CAP3XTokenName,
+			XADATokenID:         XADATokenName,
+			USDTTokenID:         USDTTokenName,
+			POLTokenID:          cardanowallet.AdaTokenName,
+			XPOLTokenID:         XPOLTokenName,
+			PAP3XTokenID:        PAP3XTokenName,
+			CPOLTokenID:         CPOLTokenName,
+			KatanaETHTokenID:    cardanowallet.AdaTokenName,
+			CKatanaETHTokenID:   CKatanaETHTokenName,
+			ETHTokenID:          cardanowallet.AdaTokenName,
+			CETHTokenID:         CETHTokenName,
+			SEITokenID:          cardanowallet.AdaTokenName,
+			CSEITokenID:         CSEITokenName,
+			ArbitrumETHTokenID:  cardanowallet.AdaTokenName,
+			CArbitrumETHTokenID: CArbitrumETHTokenName,
+			ScrollETHTokenID:    cardanowallet.AdaTokenName,
+			CScrollETHTokenID:   CScrollETHTokenName,
+			UnichainETHTokenID:  cardanowallet.AdaTokenName,
+			CUnichainETHTokenID: CUnichainETHTokenName,
 		},
 		chainIDConfigPath: chainIDConfigDir,
 	}
