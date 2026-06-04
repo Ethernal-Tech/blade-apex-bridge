@@ -56,7 +56,7 @@ var (
 
 	// default min bridging fee
 	defaultFeeAddrBridgingAmountEvm = map[ChainID]*big.Int{
-		ChainIDPolygon:  DfmToWei(big.NewInt(132_000)),
+		ChainIDPolygon:  DfmToWei(big.NewInt(170_000)),
 		ChainIDEthereum: DfmToWei(big.NewInt(620)),
 		ChainIDKatana:   DfmToWei(big.NewInt(80)),
 		ChainIDSei:      DfmToWei(big.NewInt(80_000)),
@@ -66,7 +66,7 @@ var (
 	}
 
 	defaultMinBridgingFeeAmountEvm = map[ChainID]*big.Int{
-		ChainIDPolygon:  DfmToWei(big.NewInt(264_000)),
+		ChainIDPolygon:  DfmToWei(big.NewInt(340_000)),
 		ChainIDEthereum: DfmToWei(big.NewInt(1_240)),
 		ChainIDKatana:   DfmToWei(big.NewInt(160)),
 		ChainIDSei:      DfmToWei(big.NewInt(160_000)),
