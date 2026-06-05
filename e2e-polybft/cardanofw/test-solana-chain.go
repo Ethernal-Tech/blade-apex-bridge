@@ -1039,7 +1039,7 @@ func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexVal
 		"--dbs-path", dbsPath,
 		"--treasury-address", sc.config.TreasuryAddress.String(),
 		"--alt-public-key", sc.altPublicKey,
-		// "--sol-tracker-start-slot", fmt.Sprintf("%d", 300),
+		// "--sol-tracker-start-block", fmt.Sprintf("%d:%d", 300, 300), // slot:blockNum
 		"--sol-confirmation-timeout", "60000000000",
 	}
 
