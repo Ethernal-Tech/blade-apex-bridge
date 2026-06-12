@@ -29,14 +29,17 @@ func isEVMReceiptUnavailableError(err error) bool {
 	return err != nil && strings.Contains(err.Error(), txrelayer.ErrFailedToRetrieveTxReceipt.Error())
 }
 
-var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon}
+var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.ChainIDSolana}
 var fundableTokensPerChain = map[cardanofw.ChainID][]uint16{
 	cardanofw.ChainIDPrime:   {},
-	cardanofw.ChainIDVector:  {cardanofw.XADATokenID},
+	cardanofw.ChainIDVector:  {cardanofw.XADATokenID, cardanofw.ASOLTokenID},
 	cardanofw.ChainIDCardano: {cardanofw.CAP3XTokenID},
 	cardanofw.ChainIDNexus:   {cardanofw.USDTTokenID},
 	cardanofw.ChainIDPolygon: {cardanofw.PAP3XTokenID},
+	cardanofw.ChainIDSolana:  {cardanofw.WSOLTokenID, cardanofw.SAP3XTokenID},
 }
+
+const skylineTestsUserCnt = 10
 
 func Test_E2E_SkylineTestnetFund(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
@@ -47,6 +50,12 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 
 	tokensToFundPolygon := big.NewInt(5)
 	tokensToFundPol := cardanofw.ApexToWei(tokensToFundPolygon)
+
+	tokensToFundSolana := big.NewInt(2)
+	tokensToFundSol := cardanofw.SolanaToWei(tokensToFundSolana)
+
+	splTokensToFundSolana := big.NewInt(20)
+	splTokensToFundSol := cardanofw.SolanaToWei(splTokensToFundSolana)
 
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
@@ -70,46 +79,92 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 		go func(chain string) {
 			defer wg.Done()
 
-			tokens := func() []cardanofw.GenericTokenAmount {
-				if chain == cardanofw.ChainIDNexus || chain == cardanofw.ChainIDPolygon {
-					chainInfo := apex.GetEvmInfo(chain)
-					tokens := make([]cardanofw.GenericTokenAmount, len(fundableTokensPerChain[chain]))
+			var tokens []cardanofw.GenericTokenAmount
 
-					for i, tokenID := range fundableTokensPerChain[chain] {
-						tokens[i] = cardanofw.NewGenericTokenAmount(
-							cardanowallet.Token{PolicyID: chainInfo.Tokens[tokenID].ChainSpecific}, tokensToFund)
-					}
+			switch {
+			case chain == cardanofw.ChainIDNexus || chain == cardanofw.ChainIDPolygon:
+				chainInfo := apex.GetEvmInfo(chain)
+				tokens = make([]cardanofw.GenericTokenAmount, len(fundableTokensPerChain[chain]))
 
-					return tokens
+				for i, tokenID := range fundableTokensPerChain[chain] {
+					tokens[i] = cardanofw.NewGenericTokenAmount(
+						cardanowallet.Token{PolicyID: chainInfo.Tokens[tokenID].ChainSpecific}, tokensToFund)
 				}
+			case chain == cardanofw.ChainIDSolana:
+				chainInfo := apex.SolanaInfo
+				tokens = make([]cardanofw.GenericTokenAmount, len(fundableTokensPerChain[chain]))
 
+				for i, tokenID := range fundableTokensPerChain[chain] {
+					tokens[i] = cardanofw.NewGenericTokenAmount(
+						cardanowallet.Token{PolicyID: chainInfo.Tokens[tokenID].ChainSpecific}, splTokensToFundSol)
+				}
+			default:
 				chainInfo := apex.GetCardanoInfo(chain)
-				tokens := make([]cardanofw.GenericTokenAmount, len(fundableTokensPerChain[chain]))
+				tokens = make([]cardanofw.GenericTokenAmount, len(fundableTokensPerChain[chain]))
 
 				for i, tokenID := range fundableTokensPerChain[chain] {
 					token, err := cardanowallet.NewTokenWithFullNameTry(chainInfo.Tokens[tokenID].ChainSpecific)
-					require.NoError(t, err)
+					if err != nil {
+						mu.Lock()
+						addrErrs = append(addrErrs, fmt.Errorf("chain %s token %d: %w", chain, tokenID, err))
+						mu.Unlock()
+
+						return
+					}
+
+					if chain == cardanofw.ChainIDVector && tokenID == cardanofw.ASOLTokenID {
+						tokens[i] = cardanofw.NewGenericTokenAmount(token, splTokensToFundSol)
+
+						continue
+					}
 
 					tokens[i] = cardanofw.NewGenericTokenAmount(token, tokensToFund)
 				}
+			}
 
-				return tokens
-			}()
+			fundedCount := 0
 
-			for _, user := range apex.Users {
+			for id, user := range apex.Users {
 				receiverAddr := user.GetAddress(chain)
 
-				fmt.Printf("Funding %s address: %s\n", chain, receiverAddr)
+				if receiverAddr == "" {
+					// skip users with no address for solana
+					continue
+				}
 
 				amountToFund := tokensToFund
 				if chain == cardanofw.ChainIDPolygon {
 					amountToFund = tokensToFundPol
+				} else if chain == cardanofw.ChainIDSolana {
+					amountToFund = tokensToFundSol
+					// rpc cooldown
+					time.Sleep(10 * time.Second)
+				}
+
+				fundTokens := tokens
+
+				if id >= skylineTestsUserCnt {
+					// skip funding unnecessary tokens for solana tests
+					if chain == cardanofw.ChainIDCardano ||
+						chain == cardanofw.ChainIDPrime {
+						continue
+					}
+				} else {
+					if chain == cardanofw.ChainIDVector {
+						fundTokens = make([]cardanofw.GenericTokenAmount, 0)
+
+						for _, token := range tokens {
+							if token.Token.String() != apex.VectorInfo.Tokens[cardanofw.ASOLTokenID].ChainSpecific {
+								fundTokens = append(fundTokens, token)
+							}
+						}
+					}
 				}
 
 				// resubmit the transaction in case of error because of a possible rollback
 				txHash, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
 					txHash, err := apex.SubmitTx(ctx, chain, apex.FunderUser, receiverAddr,
-						amountToFund, tokens, nil, nil)
+						amountToFund, fundTokens, nil, nil)
 					if errors.Is(err, common.ErrRetryTimeout) {
 						return "", common.ErrRetryTryAgain
 					}
@@ -118,7 +173,8 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 				}, common.WithIsRetryableError(cardanofw.IsRetryableSubmitTx))
 				if err != nil {
 					if isUnknownBlockRPCError(err) {
-						fmt.Printf("funding non-fatal error for chain %s, address: %s, txHash: %s: %v\n", chain, receiverAddr, txHash, err)
+						fmt.Printf("funding non-fatal error for chain %s, address: %s, txHash: %s: %v\n",
+							chain, receiverAddr, txHash, err)
 
 						continue
 					}
@@ -126,7 +182,11 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 					mu.Lock()
 					addrErrs = append(addrErrs, fmt.Errorf("error while funding %s addr %s: %w", chain, receiverAddr, err))
 					mu.Unlock()
+
+					continue
 				}
+
+				fundedCount++
 			}
 		}(chain)
 	}
@@ -173,6 +233,12 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 			}
 
 			for _, user := range apex.Users {
+				addr := user.GetAddress(chain)
+				if addr == "" {
+					// skip users with no address for evm chains
+					continue
+				}
+
 				balance, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (map[string]*big.Int, error) {
 					return apex.GetBalance(ctx, user, chain)
 				})
@@ -255,6 +321,72 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 			continue
 		}
 
+		if chain == cardanofw.ChainIDSolana {
+			info := apex.SolanaInfo
+
+			for _, user := range apex.Users {
+				// rpc cooldown
+				time.Sleep(10 * time.Second)
+
+				receiverAddr := user.GetAddress(chain)
+				if receiverAddr == "" {
+					// skip users with no address for solana
+					continue
+				}
+
+				fmt.Printf("Defunding %s address: %s\n", chain, receiverAddr)
+
+				balance, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (map[string]*big.Int, error) {
+					return apex.GetBalance(ctx, user, chain)
+				})
+				require.NoError(t, err)
+
+				for _, token := range info.Tokens {
+					if token.ChainSpecific == cardanowallet.AdaTokenName {
+						continue
+					}
+
+					tokenBalance, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (map[string]*big.Int, error) {
+						return apex.GetBalanceWithTokenName(ctx, user, chain, token.ChainSpecific)
+					})
+
+					require.NoError(t, err)
+
+					if tokenBalance[token.ChainSpecific].Cmp(big.NewInt(0)) > 0 {
+						balance[token.ChainSpecific] = tokenBalance[token.ChainSpecific]
+					}
+				}
+
+				// sub 2 * tx fee + 3000000 for rent
+				refundAmount := new(big.Int).Sub(balance[cardanowallet.AdaTokenName], cardanofw.LamportToWei(big.NewInt(10_000+3_000_000)))
+				tokens := make([]cardanofw.GenericTokenAmount, 0, len(balance)-1)
+
+				for token, amount := range balance {
+					if token == cardanowallet.AdaTokenName {
+						continue
+					}
+
+					tokens = append(tokens, cardanofw.NewGenericTokenAmount(cardanowallet.Token{PolicyID: token}, amount))
+				}
+
+				txHash, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
+					txHash, err := apex.SubmitTx(ctx, chain, user, apex.FunderUser.GetAddress(chain),
+						refundAmount, tokens, nil, nil)
+					if err != nil && errors.Is(err, common.ErrRetryTimeout) {
+						return txHash, common.ErrRetryTryAgain
+					}
+
+					return txHash, err
+				}, common.WithIsRetryableError(cardanofw.IsRetryableSubmitTx))
+				if err != nil {
+					fmt.Printf("defunding non-fatal error for chain %s, address: %s, txHash: %s: %v\n",
+						chain, user.GetAddress(chain), txHash, err)
+				}
+			}
+
+			continue
+		}
+
 		info := apex.PrimeInfo
 		if chain == cardanofw.ChainIDCardano {
 			info = apex.CardanoInfo
@@ -308,7 +440,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 			balanceAtLeast := new(big.Int).Add(cardanofw.DfmToWei(new(big.Int).SetUint64(receiverMinUtxoDfm)), changePlusPotentialFee)
 
 			lovelaceBalance := balance[cardanowallet.AdaTokenName]
-			if lovelaceBalance.Cmp(balanceAtLeast) < 0 {
+			if lovelaceBalance == nil || lovelaceBalance.Cmp(balanceAtLeast) < 0 {
 				continue
 			}
 
@@ -405,6 +537,10 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
 
+	// Limit the number of users to 10
+	// the rest are used in parallel running tests
+	apex.Users = apex.Users[:skylineTestsUserCnt]
+
 	user := apex.Users[0]
 	sendAmount := cardanofw.DfmToWei(big.NewInt(1_050_000))
 
@@ -497,6 +633,10 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
+
+	// Limit the number of users to 10
+	// the rest are used in parallel running tests
+	apex.Users = apex.Users[:skylineTestsUserCnt]
 
 	user := apex.Users[6]
 	sendAmount := cardanofw.DfmToWei(big.NewInt(1_050_000))
@@ -732,6 +872,10 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios(t *testing.T) {
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
 
+	// Limit the number of users to 10
+	// the rest are used in parallel running tests
+	apex.Users = apex.Users[:skylineTestsUserCnt]
+
 	const (
 		requestStateTimeoutSec = 1500
 		retryIntervalSec       = 5
@@ -816,6 +960,10 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios_NexusSrc(t *testing.T) {
 
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
+
+	// Limit the number of users to 10
+	// the rest are used in parallel running tests
+	apex.Users = apex.Users[:skylineTestsUserCnt]
 
 	user := apex.Users[5]
 
@@ -1182,6 +1330,11 @@ func printSkylineUserBalances(
 				}
 			case cardanofw.ChainIDPolygon:
 				info := apex.PolygonInfo
+				for tokenID, token := range info.Tokens {
+					balanceToString(tokenID, balance[token.ChainSpecific])
+				}
+			case cardanofw.ChainIDSolana:
+				info := apex.SolanaInfo
 				for tokenID, token := range info.Tokens {
 					balanceToString(tokenID, balance[token.ChainSpecific])
 				}

@@ -89,6 +89,7 @@ type apexUserWallets struct {
 	Nexus   *crypto.ECDSAKey
 	Cardano *cardanowallet.Wallet
 	Polygon *crypto.ECDSAKey
+	Solana  *solanawallet.Wallet
 }
 
 type TestApexUser struct {
@@ -250,6 +251,11 @@ func NewExistingTestApexUser(
 		polygonUserAddress = wallets.Polygon.Address()
 	}
 
+	var solanaUserAddress string
+	if wallets.Solana != nil && networks.IsSolanaEnabled {
+		solanaUserAddress = wallets.Solana.PublicKey.String()
+	}
+
 	return &TestApexUser{
 		PrimeWallet:      wallets.Prime,
 		PrimeAddress:     primeUserAddress,
@@ -265,6 +271,9 @@ func NewExistingTestApexUser(
 		PolygonWallet:    wallets.Polygon,
 		PolygonAddress:   polygonUserAddress,
 		HasPolygonWallet: wallets.Polygon != nil,
+		HasSolanaWallet:  wallets.Solana != nil,
+		SolanaWallet:     wallets.Solana,
+		SolanaAddress:    solanaUserAddress,
 	}, nil
 }
 

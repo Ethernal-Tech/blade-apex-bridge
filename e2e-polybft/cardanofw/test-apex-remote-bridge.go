@@ -28,9 +28,17 @@ type RemoteEVMChainConfig struct {
 	TreasuryAddress string
 }
 
+type RemoteSolanaChainConfig struct {
+	Info            SolanaChainInfo
+	MinBridgingFee  *big.Int
+	MinOperationFee *big.Int
+	TreasuryAddress string
+}
+
 type RemoteApexBridgeConfig struct {
 	CardanoChains  map[string]RemoteCardanoChainConfig
 	EVMChains      map[string]RemoteEVMChainConfig
+	SolanaChains   map[string]RemoteSolanaChainConfig
 	BridgingAPIs   []string
 	BridgingAPIKey string
 }
@@ -192,6 +200,12 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 							LockUnlock:        false,
 							IsWrappedCurrency: false,
 						},
+						ASOLTokenID: {
+							ChainSpecific: cardanowallet.NewToken(
+								"ae97251d15dd961a8f2f6dc54a50daa8e34a9f18c793a96b62f72d24", "xwSOL").String(),
+							LockUnlock:        false,
+							IsWrappedCurrency: false,
+						},
 					},
 					DestChain: map[ChainID][]Direction{
 						ChainIDCardano: {
@@ -213,6 +227,20 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 								SourceTokenID:      USDTTokenID,
 								DestinationTokenID: USDTTokenID,
 								TrackSource:        false,
+								TrackDestination:   false,
+							},
+						},
+						ChainIDSolana: {
+							{
+								SourceTokenID:      ASOLTokenID,
+								DestinationTokenID: WSOLTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+							{
+								SourceTokenID:      AP3XTokenID,
+								DestinationTokenID: SAP3XTokenID,
+								TrackSource:        true,
 								TrackDestination:   false,
 							},
 						},
@@ -381,6 +409,52 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 				},
 				MinBridgingFee:  defaultMinBridgingFeeAmountPolygon,
 				MinOperationFee: big.NewInt(0),
+			},
+		},
+		SolanaChains: map[string]RemoteSolanaChainConfig{
+			ChainIDSolana: {
+				Info: SolanaChainInfo{
+					DestChain: map[ChainID][]Direction{
+						ChainIDVector: {
+							{
+								SourceTokenID:      WSOLTokenID,
+								DestinationTokenID: ASOLTokenID,
+								TrackSource:        false,
+								TrackDestination:   false,
+							},
+							{
+								SourceTokenID:      SAP3XTokenID,
+								DestinationTokenID: AP3XTokenID,
+								TrackSource:        false,
+								TrackDestination:   true,
+							},
+						},
+					},
+					Tokens: map[uint16]Token{
+						SOLTokenID: {
+							ChainSpecific:     cardanowallet.AdaTokenName,
+							LockUnlock:        true,
+							IsWrappedCurrency: false,
+						},
+						WSOLTokenID: {
+							ChainSpecific:     WSOLMintAddress,
+							LockUnlock:        true,
+							IsWrappedCurrency: false,
+						},
+						SAP3XTokenID: {
+							ChainSpecific:     "6V2Qv5UddyqAiZR12JF9yE4aed2TQ3rmyZYb7CegXiA6",
+							LockUnlock:        false,
+							IsWrappedCurrency: false,
+						},
+					},
+					RelayerAddress: "7bP47jShWo1xn1gVX4Be5oNNwcwLCKKmCt7aX2W2go8c",
+					JSONRPCAddr:    "https://api.devnet.solana.com",
+					ProgramID:      "6R9GdZEpwBFTicsZCqN7e7P4gqoKDTdiDQSceJz5pGHY",
+					AltPublicKey:   "9Xf3VFhcs1ZW55NBuSqhDaSX3Jb1PbNHLwrtgh6j4TJG",
+				},
+				MinBridgingFee:  big.NewInt(6000000),
+				MinOperationFee: big.NewInt(0),
+				TreasuryAddress: "BrQciKpBZg47NU8x3chSFAnXUoY9zszRbsy6oGm8Dp3p",
 			},
 		},
 		BridgingAPIs: []string{
@@ -553,6 +627,7 @@ func SetupSkylineRemoteBridge(
 	cardanoRemoteConfig := remoteConfig.CardanoChains[ChainIDCardano]
 	nexusRemoteConfig := remoteConfig.EVMChains[ChainIDNexus]
 	polygonRemoteConfig := remoteConfig.EVMChains[ChainIDPolygon]
+	solanaRemoteConfig := remoteConfig.SolanaChains[ChainIDSolana]
 	apexConfig := &ApexSystemConfig{
 		PrimeConfig: NewRemotePrimeChainConfig(
 			primeRemoteConfig.DefaultMinBridgingFee, primeRemoteConfig.MinBridgingFeeForTokens,
@@ -567,6 +642,8 @@ func SetupSkylineRemoteBridge(
 			nexusRemoteConfig.MinBridgingFee, nexusRemoteConfig.MinOperationFee, nexusRemoteConfig.TreasuryAddress),
 		PolygonConfig: NewRemotePolygonChainConfig(true,
 			polygonRemoteConfig.MinBridgingFee, polygonRemoteConfig.MinOperationFee, polygonRemoteConfig.TreasuryAddress),
+		SolanaConfig: NewRemoteSolanaChainConfig(true,
+			solanaRemoteConfig.MinBridgingFee, solanaRemoteConfig.MinOperationFee, solanaRemoteConfig.TreasuryAddress),
 		APIKey: remoteConfig.BridgingAPIKey,
 	}
 
@@ -620,6 +697,15 @@ func SetupSkylineRemoteBridge(
 		indexer:               e2eindexer.NewTxsExecutedComponentDummy(),
 	}
 
+	solanaChain := &TestSolanaChain{
+		config:       apexConfig.SolanaConfig,
+		relayerAddr:  solanaRemoteConfig.Info.RelayerAddress,
+		jsonRPCAddr:  solanaRemoteConfig.Info.JSONRPCAddr,
+		indexer:      e2eindexer.NewTxsExecutedComponentDummy(),
+		programID:    solanaRemoteConfig.Info.ProgramID,
+		altPublicKey: solanaRemoteConfig.Info.AltPublicKey,
+	}
+
 	usersData, err := GetTestnetApexUsers(
 		NewApexNetworkTypes(ApexNetworkTypesParams{
 			PrimeConfig:   apexConfig.PrimeConfig,
@@ -627,6 +713,7 @@ func SetupSkylineRemoteBridge(
 			CardanoConfig: apexConfig.CardanoConfig,
 			NexusConfig:   apexConfig.NexusConfig,
 			PolygonConfig: apexConfig.PolygonConfig,
+			SolanaConfig:  apexConfig.SolanaConfig,
 		}),
 	)
 	if err != nil {
@@ -638,13 +725,14 @@ func SetupSkylineRemoteBridge(
 		FunderUser:   usersData.Funder,
 		Users:        usersData.Users,
 		IsSkyline:    true,
-		chains:       []ITestApexChain{primeChain, vectorChain, cardanoChain, nexusChain, polygonChain},
+		chains:       []ITestApexChain{primeChain, vectorChain, cardanoChain, nexusChain, polygonChain, solanaChain},
 		bridgingAPIs: remoteConfig.BridgingAPIs,
 		PrimeInfo:    primeRemoteConfig.Info,
 		VectorInfo:   vectorRemoteConfig.Info,
 		CardanoInfo:  cardanoRemoteConfig.Info,
 		NexusInfo:    nexusRemoteConfig.Info,
 		PolygonInfo:  polygonRemoteConfig.Info,
+		SolanaInfo:   solanaRemoteConfig.Info,
 		EcosystemTokens: map[uint16]string{
 			USDTTokenID:  USDTTokenName,
 			XADATokenID:  XADATokenName,
@@ -654,6 +742,10 @@ func SetupSkylineRemoteBridge(
 			POLTokenID:   cardanowallet.AdaTokenName,
 			PAP3XTokenID: PAP3XTokenName,
 			XPOLTokenID:  XPOLTokenName,
+			SOLTokenID:   cardanowallet.AdaTokenName,
+			WSOLTokenID:  WSOLANATokenName,
+			ASOLTokenID:  ASOLTokenName,
+			SAP3XTokenID: SAP3XTokenName,
 		},
 		chainIDConfigPath: chainIDConfigDir,
 	}

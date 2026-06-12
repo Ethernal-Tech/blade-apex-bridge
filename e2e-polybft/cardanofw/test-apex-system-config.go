@@ -44,12 +44,12 @@ const (
 	USDCTokenID  uint16 = 17
 	USDCxTokenID uint16 = 18
 
-	SOLTokenID   uint16 = 20
-	WSOLTokenID  uint16 = 21
-	ASOLTokenID  uint16 = 22
-	SAP3XTokenID uint16 = 23
-	VSTokenID    uint16 = 24
-	NSTokenID    uint16 = 25
+	SOLTokenID   uint16 = 30
+	WSOLTokenID  uint16 = 31
+	ASOLTokenID  uint16 = 32
+	SAP3XTokenID uint16 = 33
+	VSTokenID    uint16 = 34
+	NSTokenID    uint16 = 35
 )
 
 // Human readable token names
@@ -66,7 +66,7 @@ const (
 	USDCxTokenName   = "USDCx"
 	SOLANATokenName  = "SOL"
 	WSOLANATokenName = "wSOL"
-	ASOLTokenName    = "aSOL"
+	ASOLTokenName    = "xwSOL"
 	SAP3XTokenName   = "sAP3X"
 	VSTokenName      = "VS"
 	NSTokenName      = "NS"

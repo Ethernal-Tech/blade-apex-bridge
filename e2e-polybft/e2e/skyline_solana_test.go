@@ -1140,7 +1140,7 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 		tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.WSOLTokenID)
 		require.NoError(t, err)
 
-		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userWSolBalance, sendAmount, true, maxWaitTimeSec, retryIntervalSec)
+		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userWSolBalance, true, maxWaitTimeSec, retryIntervalSec)
 		require.NoError(t, err)
 
 		userWSolBalanceAfter, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDSolana, cardanofw.WSOLMintAddress)
@@ -1181,7 +1181,7 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 		tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.WSOLTokenID)
 		require.NoError(t, err)
 
-		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userWSolBalance, sendAmount, true, maxWaitTimeSec, retryIntervalSec)
+		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userWSolBalance, true, maxWaitTimeSec, retryIntervalSec)
 		require.NoError(t, err)
 
 		userWSolBalanceAfter, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDSolana, cardanofw.WSOLMintAddress)
@@ -1222,7 +1222,7 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 		tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.WSOLTokenID)
 		require.NoError(t, err)
 
-		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userWSolBalance, sendAmount, true, maxWaitTimeSec, retryIntervalSec)
+		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userWSolBalance, true, maxWaitTimeSec, retryIntervalSec)
 		require.NoError(t, err)
 
 		userWSolBalanceAfter, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDSolana, cardanofw.WSOLMintAddress)
@@ -1274,7 +1274,7 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 		tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDSolana, cardanofw.ChainIDNexus, cardanofw.NSTokenID)
 		require.NoError(t, err)
 
-		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userNSBalanceBefore, sendAmount, true, maxWaitTimeSec, retryIntervalSec)
+		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userNSBalanceBefore, true, maxWaitTimeSec, retryIntervalSec)
 		require.NoError(t, err)
 	})
 }
@@ -1282,7 +1282,7 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 func waitForInvalidTestResultSol(
 	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, srcChainID cardanofw.ChainID,
 	tokensInfo *cardanofw.BridgingTokensInfo, user *cardanofw.TestApexUser,
-	txHash string, beforeSendingAmount map[string]*big.Int, sentAmount *big.Int,
+	txHash string, beforeSendingAmount map[string]*big.Int,
 	refundEnabled bool, maxWaitTimeSec, retryIntervalSec uint,
 ) {
 	t.Helper()
@@ -1291,15 +1291,11 @@ func waitForInvalidTestResultSol(
 	numRetries := max(1, int(maxWaitTimeSec/retryIntervalSec))
 
 	if refundEnabled {
-		lowerBoundary := new(big.Int).Sub(
-			beforeSendingAmount[tokensInfo.SrcTokenName], sentAmount)
-
-		fmt.Printf("Tx sent. hash: %s, lowerBoundary: %+v, higherBoundary: %+v\n", txHash, lowerBoundary,
+		fmt.Printf("Tx sent. hash: %s, beforeSendingAmount: %+v\n", txHash,
 			beforeSendingAmount)
 
-		err := apex.WaitForAmountInRange(ctx, user, srcChainID, lowerBoundary,
-			beforeSendingAmount[tokensInfo.SrcTokenName], numRetries,
-			time.Second*time.Duration(retryIntervalSec), tokensInfo.SrcTokenName)
+		err := apex.WaitForExactAmount(ctx, user, srcChainID, beforeSendingAmount[tokensInfo.SrcTokenName],
+			numRetries, time.Second*time.Duration(retryIntervalSec), tokensInfo.SrcTokenName)
 		require.NoError(t, err)
 	} else {
 		cardanofw.WaitForInvalidState(t, ctx, apex, srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)

@@ -602,7 +602,7 @@ func ChainIDToInt(chainID string) uint8 {
 	}
 }
 
-func populateEvmTokenBalances(
+func populateEvmAndSolTokenBalances(
 	ctx context.Context,
 	apex *ApexSystem,
 	user *TestApexUser,
@@ -616,17 +616,12 @@ func populateEvmTokenBalances(
 
 	var errs []error
 
-	for _, token := range apex.GetEvmInfo(chain).Tokens {
-		name := token.ChainSpecific
-		if name == wallet.AdaTokenName {
-			continue
-		}
-
+	getTokenBalance := func(name string) {
 		byToken, err := apex.GetBalanceWithTokenName(ctx, user, chain, name)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to get balance for (%s, %s): %w", chain, addr, err))
 
-			continue
+			return
 		}
 
 		if byToken != nil {
@@ -634,6 +629,28 @@ func populateEvmTokenBalances(
 				balance[name] = v
 			}
 		}
+	}
+
+	if chain == ChainIDSolana {
+		for _, token := range apex.SolanaInfo.Tokens {
+			name := token.ChainSpecific
+			if name == wallet.AdaTokenName {
+				continue
+			}
+
+			getTokenBalance(name)
+		}
+
+		return balance, errs
+	}
+
+	for _, token := range apex.GetEvmInfo(chain).Tokens {
+		name := token.ChainSpecific
+		if name == wallet.AdaTokenName {
+			continue
+		}
+
+		getTokenBalance(name)
 	}
 
 	return balance, errs
@@ -674,8 +691,8 @@ func GetUsersBalances(
 				)
 
 				var tokenErrs []error
-				if err == nil && (chain == ChainIDNexus || chain == ChainIDPolygon) {
-					balance, tokenErrs = populateEvmTokenBalances(ctx, apex, user, chain, addr, balance)
+				if err == nil && (chain == ChainIDNexus || chain == ChainIDPolygon || chain == ChainIDSolana) {
+					balance, tokenErrs = populateEvmAndSolTokenBalances(ctx, apex, user, chain, addr, balance)
 				}
 
 				mu.Lock()

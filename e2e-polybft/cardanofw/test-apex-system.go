@@ -113,6 +113,9 @@ type SolanaChainInfo struct {
 	DestChain      map[ChainID][]Direction
 	Tokens         map[uint16]Token
 	RelayerAddress string
+	JSONRPCAddr    string
+	ProgramID      string
+	AltPublicKey   string
 }
 
 type ApexSystem struct {
