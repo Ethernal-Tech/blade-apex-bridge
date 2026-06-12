@@ -64,14 +64,54 @@ jobs:
     needs: [inputs_check, build_blade]
     with:
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
-  e2e_skyline_partner_testnet_test:
-    name: E2E Skyline Partner Testnet Tests
+  fund_skyline_partner_testnet:
+    name: Fund Skyline Partner Testnet
     uses: ./.github/workflows/skyline-e2e-testnet-test.yml
     needs: [build_blade, inputs_check]
     if: needs.inputs_check.outputs.run_blade_apex_bridge_partner == 'true' && !cancelled()
     with:
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       blade_apex_bridge_version: partner
+      make_target: fund-testnet-e2e-skyline-bridge
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY }}
+      SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT }}
+  e2e_skyline_partner_testnet_test:
+    name: E2E Skyline Partner Testnet Tests
+    uses: ./.github/workflows/skyline-e2e-testnet-test.yml
+    needs: [fund_skyline_partner_testnet, inputs_check]
+    if: needs.inputs_check.outputs.run_blade_apex_bridge_partner == 'true' && needs.fund_skyline_partner_testnet.result == 'success' && !cancelled()
+    with:
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
+      blade_apex_bridge_version: partner
+      make_target: test-testnet-e2e-skyline-bridge
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY }}
+      SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT }}
+  e2e_skyline_solana_partner_testnet_test:
+    name: E2E Skyline Solana Partner Testnet Tests
+    uses: ./.github/workflows/skyline-e2e-testnet-test.yml
+    needs: [fund_skyline_partner_testnet, inputs_check]
+    if: needs.inputs_check.outputs.run_blade_apex_bridge_partner == 'true' && needs.fund_skyline_partner_testnet.result == 'success' && !cancelled()
+    with:
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
+      blade_apex_bridge_version: partner
+      make_target: test-testnet-e2e-skyline-solana
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY }}
+      SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT }}
+  defund_skyline_partner_testnet:
+    name: Defund Skyline Partner Testnet
+    uses: ./.github/workflows/skyline-e2e-testnet-test.yml
+    needs: [fund_skyline_partner_testnet, e2e_skyline_partner_testnet_test, e2e_skyline_solana_partner_testnet_test, inputs_check]
+    if: needs.inputs_check.outputs.run_blade_apex_bridge_partner == 'true' && needs.fund_skyline_partner_testnet.result != 'skipped' && !cancelled()
+    with:
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
+      blade_apex_bridge_version: partner
+      make_target: defund-testnet-e2e-skyline-bridge
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY }}
@@ -79,12 +119,15 @@ jobs:
   notification_skyline_testnet:
     name: Skyline Testnet Notification
     uses: ./.github/workflows/skyline-notification-testnet.yml
-    needs: [build_blade, inputs_check, lint, e2e_skyline_partner_testnet_test]
+    needs: [build_blade, inputs_check, lint, fund_skyline_partner_testnet, e2e_skyline_partner_testnet_test, e2e_skyline_solana_partner_testnet_test, defund_skyline_partner_testnet]
     if: needs.inputs_check.outputs.notification == 'true' && !cancelled()
     with:
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       build_blade_output: ${{ needs.build_blade.outputs.workflow_output }}
       lint_output: ${{ needs.lint.outputs.workflow_output }}
+      fund_skyline_partner_testnet_output: ${{ needs.fund_skyline_partner_testnet.outputs.workflow_output }}
       e2e_skyline_partner_testnet_test_output: ${{ needs.e2e_skyline_partner_testnet_test.outputs.workflow_output }}
+      e2e_skyline_solana_partner_testnet_test_output: ${{ needs.e2e_skyline_solana_partner_testnet_test.outputs.workflow_output }}
+      defund_skyline_partner_testnet_output: ${{ needs.defund_skyline_partner_testnet.outputs.workflow_output }}
     secrets:
       APEX_SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}

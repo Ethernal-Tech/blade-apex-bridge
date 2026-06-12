@@ -11,6 +11,10 @@ on: # yamllint disable-line rule:truthy
         description: The Bridge version
         type: string
         required: true
+      make_target:
+        description: The make target to run
+        type: string
+        required: true
     outputs:
       workflow_output:
         description: Skyline Testnet Tests output
@@ -25,7 +29,7 @@ on: # yamllint disable-line rule:truthy
 
 jobs:
   e2e_skyline_testnet:
-    name: Run E2E Skyline Testnet Tests
+    name: Run ${{ inputs.make_target }}
     runs-on: ubuntu-latest
     env:
       E2E_TESTS: true
@@ -71,7 +75,7 @@ jobs:
         uses: milos-ethernal/ogmios-action@53cfb88b80a9c3c7891e13ba7f29e4028aea9630
         with:
           tag: 'v6.14.0'
-          sufix: '11'      
+          sufix: '11'
       - name: Checkout apex-bridge repo
         uses: actions/checkout@v4.1.1
         with:
@@ -90,14 +94,8 @@ jobs:
           submodules: recursive
       - name: Check certificate key permissions
         run: ls -l /etc/ssl/private/localhost.key
-      - name: Run Fund
-        run: make fund-testnet-e2e-skyline-bridge
-      - name: Run Test
-        if: success()
-        run: make test-testnet-e2e-skyline-bridge
-      - name: Run Defund
-        if: always()
-        run: make defund-testnet-e2e-skyline-bridge
+      - name: Run make ${{ inputs.make_target }}
+        run: make ${{ inputs.make_target }}
       - name: Run tests failed
         if: failure()
         id: run_e2e_skyline_testnet_failure
@@ -106,13 +104,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4.3.0
         with:
-          name: e2e-skyline-logs
+          name: e2e-skyline-logs-${{ inputs.make_target }}
           path: e2e-logs-*/
           retention-days: 30
       - name: Archive e2e bridge data
         if: always()
         uses: actions/upload-artifact@v4.3.0
         with:
-          name: e2e-skyline-data
+          name: e2e-skyline-data-${{ inputs.make_target }}
           path: e2e-bridge-data-tmp-*/
           retention-days: 3
