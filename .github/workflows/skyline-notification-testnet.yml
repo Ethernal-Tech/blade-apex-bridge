@@ -15,8 +15,20 @@ on: # yamllint disable-line rule:truthy
         description: Lint output
         type: string
         required: true
+      fund_skyline_partner_testnet_output:
+        description: Fund Skyline Partner Testnet output
+        type: string
+        required: true
       e2e_skyline_partner_testnet_test_output:
         description: E2E Skyline Partner Testnet Tests output
+        type: string
+        required: true
+      e2e_skyline_solana_partner_testnet_test_output:
+        description: E2E Skyline Solana Partner Testnet Tests output
+        type: string
+        required: true
+      defund_skyline_partner_testnet_output:
+        description: Defund Skyline Partner Testnet output
         type: string
         required: true
     secrets:
@@ -67,7 +79,7 @@ jobs:
                         "type": "plain_text",
                         "text": "Workflow Run"
                       },
-                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.e2e_skyline_partner_testnet_test_output == '' && env.succeed_bnt || env.failed_bnt }}",
+                      "style": "${{ inputs.build_blade_output == '' && inputs.lint_output == '' && inputs.fund_skyline_partner_testnet_output == '' && inputs.e2e_skyline_partner_testnet_test_output == '' && inputs.e2e_skyline_solana_partner_testnet_test_output == '' && inputs.defund_skyline_partner_testnet_output == '' && env.succeed_bnt || env.failed_bnt }}",
                       "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                     }
                   ]
@@ -97,7 +109,19 @@ jobs:
                     },
                     {
                       "type": "mrkdwn",
+                      "text": "${{ inputs.fund_skyline_partner_testnet_output == '' && env.succeed_job || env.failed_job }} *Fund Skyline Partner Testnet*"
+                    },
+                    {
+                      "type": "mrkdwn",
                       "text": "${{ inputs.e2e_skyline_partner_testnet_test_output == '' && env.succeed_job || env.failed_job }} *E2E Skyline Partner Testnet Tests*"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "${{ inputs.e2e_skyline_solana_partner_testnet_test_output == '' && env.succeed_job || env.failed_job }} *E2E Skyline Solana Partner Testnet Tests*"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "${{ inputs.defund_skyline_partner_testnet_output == '' && env.succeed_job || env.failed_job }} *Defund Skyline Partner Testnet*"
                     }
                   ]
                 }
