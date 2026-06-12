@@ -920,7 +920,8 @@ func (sc *TestSolanaChain) FundWallets(ctx context.Context) error {
 					Token: carwallet.Token{
 						PolicyID: wsolMint.String(),
 					},
-					Amount: WeiToLamport(sc.config.FundAmount),
+					// Amount is in wei: splTokenTransfer converts to lamports internally.
+					Amount: new(big.Int).Set(sc.config.FundAmount),
 				},
 			},
 		}
