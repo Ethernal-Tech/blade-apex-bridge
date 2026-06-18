@@ -134,6 +134,17 @@ func TestE2E_SkylineSolanaTestnetBridge_ValidScenarios(t *testing.T) {
 			e2ehelper.NewChainPair(cardanofw.ChainIDSolana, cardanofw.ChainIDVector): cardanofw.SAP3XTokenID,
 		})
 	})
+
+	// rpc cooldown
+	time.Sleep(5 * time.Second)
+
+	t.Run("return src tokens to original src chains", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDSolana, new(big.Int).Mul(sendAmount, big.NewInt(3)), cardanofw.ASOLTokenID, false)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user, cardanofw.ChainIDSolana, cardanofw.ChainIDVector, new(big.Int).Mul(sendAmount, big.NewInt(3)), cardanofw.SAP3XTokenID, false)
+	})
 }
 
 func TestE2E_SkylineSolanaTestnetBridge_InvalidScenarios(t *testing.T) {

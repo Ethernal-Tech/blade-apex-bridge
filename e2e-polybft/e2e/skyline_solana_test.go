@@ -549,7 +549,12 @@ func Test_SkylineSolana_LockUnlockTokenFlow(t *testing.T) {
 	t.Run("Vector AP3X -> Solana sAP3X", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
-			cardanofw.AP3XTokenID, true)
+			cardanofw.AP3XTokenID, true, e2ehelper.WithTimeoutConfig(
+				e2ehelper.NewTimeoutConfig(
+					e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
+					e2ehelper.WithBridgingNumRetries(150),
+				),
+			))
 	})
 
 	t.Run("Solana sAP3X -> Vector AP3X", func(t *testing.T) {
@@ -669,7 +674,12 @@ func Test_SkylineSolana_ValidScenarios(t *testing.T) {
 
 				e2ehelper.ExecuteSingleBridging(
 					t, ctx, apex, apex.Users[0], user, cardanofw.ChainIDVector, cardanofw.ChainIDSolana, bridgeAmount,
-					cardanofw.VSTokenID, false)
+					cardanofw.VSTokenID, false, e2ehelper.WithTimeoutConfig(
+						e2ehelper.NewTimeoutConfig(
+							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
+							e2ehelper.WithBridgingNumRetries(150),
+						)),
+				)
 			}()
 
 			go func() {
@@ -677,7 +687,12 @@ func Test_SkylineSolana_ValidScenarios(t *testing.T) {
 
 				e2ehelper.ExecuteSingleBridging(
 					t, ctx, apex, apex.Users[0], user, cardanofw.ChainIDNexus, cardanofw.ChainIDSolana, bridgeAmount,
-					cardanofw.NSTokenID, false)
+					cardanofw.NSTokenID, false, e2ehelper.WithTimeoutConfig(
+						e2ehelper.NewTimeoutConfig(
+							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
+							e2ehelper.WithBridgingNumRetries(150),
+						)),
+				)
 			}()
 
 			go func() {
@@ -685,7 +700,12 @@ func Test_SkylineSolana_ValidScenarios(t *testing.T) {
 
 				e2ehelper.ExecuteSingleBridging(
 					t, ctx, apex, apex.Users[i], apex.Users[i], cardanofw.ChainIDSolana, cardanofw.ChainIDVector, bridgeAmountSol,
-					cardanofw.WSOLTokenID, false)
+					cardanofw.WSOLTokenID, false, e2ehelper.WithTimeoutConfig(
+						e2ehelper.NewTimeoutConfig(
+							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
+							e2ehelper.WithBridgingNumRetries(150),
+						)),
+				)
 			}()
 
 			go func() {
@@ -693,7 +713,12 @@ func Test_SkylineSolana_ValidScenarios(t *testing.T) {
 
 				e2ehelper.ExecuteSingleBridging(
 					t, ctx, apex, apex.Users[lenUsers-i], apex.Users[lenUsers-i], cardanofw.ChainIDSolana, cardanofw.ChainIDNexus, bridgeAmountSol,
-					cardanofw.WSOLTokenID, false)
+					cardanofw.WSOLTokenID, false, e2ehelper.WithTimeoutConfig(
+						e2ehelper.NewTimeoutConfig(
+							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
+							e2ehelper.WithBridgingNumRetries(150),
+						)),
+				)
 			}()
 
 			wg.Wait()

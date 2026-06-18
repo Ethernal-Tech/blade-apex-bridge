@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2eindexer"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/solanafw"
@@ -119,17 +120,19 @@ func NewRemoteSolanaChainConfig(
 }
 
 type TestSolanaChain struct {
-	config           *TestSolanaChainConfig
-	provider         *solanawallet.Provider
-	relayerAddr      string
-	validatorPubKeys []string
-	cluster          *solanafw.TestSolanaCluster
-	admin            *solanawallet.Wallet
-	jsonRPCAddr      string
-	gatewayAddr      string
-	indexer          e2eindexer.TxsExecutedComponent
-	programID        string
-	altPublicKey     string
+	config       *TestSolanaChainConfig
+	provider     *solanawallet.Provider
+	relayerAddr  string
+	cluster      *solanafw.TestSolanaCluster
+	admin        *solanawallet.Wallet
+	jsonRPCAddr  string
+	gatewayAddr  string
+	indexer      e2eindexer.TxsExecutedComponent
+	programID    string
+	altPublicKey string
+
+	bridgeURL      string
+	chainIDsConfig string
 }
 
 var _ ITestApexChain = (*TestSolanaChain)(nil)
@@ -282,6 +285,9 @@ func (sc *TestSolanaChain) ChainID() string {
 }
 
 func (sc *TestSolanaChain) CreateAddresses(bladeAdmin *crypto.ECDSAKey, bridgeURL string, chainIDsConfig string) error {
+	sc.bridgeURL = bridgeURL
+	sc.chainIDsConfig = chainIDsConfig
+
 	return nil
 }
 
@@ -303,12 +309,10 @@ func (sc *TestSolanaChain) CreateWallets(validator *TestApexValidator) error {
 		}
 	}
 
-	validatorPubKey, err := validator.SolanaWalletCreate(sc.ChainID())
+	_, err = validator.SolanaWalletCreate(sc.ChainID())
 	if err != nil {
 		return err
 	}
-
-	sc.validatorPubKeys = append(sc.validatorPubKeys, validatorPubKey)
 
 	return nil
 }
@@ -343,6 +347,16 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 		"--key", filepath.Join("..", "..", solanaProgramDir, solanaProgramKeypairPath),
 		"--build-path", filepath.Join("..", "..", solanaProgramDir, solanaProgramBuildPath),
 		"--commitment", "finalized",
+		"--admin-key", adminPkFile.Name(),
+		"--bridge-url", sc.bridgeURL,
+		"--bridge-addr", contracts.Bridge.String(),
+		"--chain-ids-config", chainIDsConfig,
+		"--last-id", "0",
+		"--min-operation-fee", strconv.Itoa(int(sc.config.MinOperationFee.Uint64())),
+		"--min-fee-for-bridging", strconv.Itoa(int(sc.config.MinBridgingFee.Uint64())),
+		"--min-amount-to-bridge", strconv.Itoa(int(sc.config.MinTokenBridgingAmount.Uint64())),
+		"--treasury-address", sc.config.TreasuryAddress.String(),
+		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 	}
 
 	var b bytes.Buffer
@@ -372,10 +386,6 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 
 	diff := new(big.Int).Sub(adminBalanceBefore["lovelace"], adminBalanceAfter["lovelace"])
 	fmt.Println("Program deployment cost: ", WeiToLamport(diff))
-
-	if err := sc.initializeProgram(); err != nil {
-		return fmt.Errorf("initialize program: %w", err)
-	}
 
 	if err := sc.deployLockUnlockTokens(ctx); err != nil {
 		return fmt.Errorf("deploy mintable tokens: %w", err)
@@ -447,49 +457,6 @@ func (sc *TestSolanaChain) hotWalletIncrementFunding(ctx context.Context) error 
 		}
 
 		fmt.Printf("incremented hot wallet funding for token %d with name %s on Solana\n", tokenID, tokenName)
-	}
-
-	return nil
-}
-
-func (sc *TestSolanaChain) initializeProgram() error {
-	adminPkFile, err := os.CreateTemp(os.TempDir(), "admin-pk-*.json")
-	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
-	}
-
-	defer adminPkFile.Close()
-
-	pkString := fmt.Sprintf("%v", []byte(sc.admin.PrivateKey))
-	pkString = strings.ReplaceAll(pkString, " ", ",")
-
-	if _, err := adminPkFile.Write([]byte(pkString)); err != nil {
-		return fmt.Errorf("write admin private key: %w", err)
-	}
-
-	params := []string{
-		"deploy-solana",
-		"initialize-program",
-		"--url", sc.jsonRPCAddr,
-		"--program-id", sc.programID,
-		"--admin-key", adminPkFile.Name(),
-		"--last-id", "0",
-		"--min-operation-fee", strconv.Itoa(int(sc.config.MinOperationFee.Uint64())),
-		"--min-fee-for-bridging", strconv.Itoa(int(sc.config.MinBridgingFee.Uint64())),
-		"--min-amount-to-bridge", strconv.Itoa(int(sc.config.MinTokenBridgingAmount.Uint64())),
-		"--treasury-address", sc.config.TreasuryAddress.String(),
-		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
-	}
-
-	for _, validatorPubKey := range sc.validatorPubKeys {
-		params = append(params, "--validator", validatorPubKey)
-	}
-
-	var b bytes.Buffer
-
-	err = RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
-	if err != nil {
-		return err
 	}
 
 	return nil
@@ -1284,20 +1251,9 @@ func (sc *TestSolanaChain) SendTx(
 			}
 
 			// Check sender's token balance before attempting wSOL/SPL transfer
-			if bal, err := sc.GetAddressBalanceWithTokenName(ctx, wallet.PublicKey.String(),
+			if _, err := sc.GetAddressBalanceWithTokenName(ctx, wallet.PublicKey.String(),
 				nativeToken.PolicyID); err != nil {
-				fmt.Printf("sender %s token balance (mint %s): failed to query: %v\n",
-					wallet.PublicKey.String(),
-					nativeToken.PolicyID,
-					err,
-				)
-			} else {
-				fmt.Printf("sender %s token balance (mint %s): %s (attempting to send %s wei, %s lamports)\n",
-					wallet.PublicKey.String(),
-					nativeToken.PolicyID,
-					bal[nativeToken.PolicyID].String(),
-					nativeToken.Amount.String(),
-					WeiToLamport(nativeToken.Amount).String())
+				return "", fmt.Errorf("get address balance with token name: %w", err)
 			}
 
 			// Create receiver ATA in a separate confirmed transaction before transferring.
