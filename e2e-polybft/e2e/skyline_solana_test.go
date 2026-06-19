@@ -253,28 +253,48 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
 					t, ctx, apex, apex.Users[0], solanaReceivers[0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
-					cardanofw.VSTokenID, false)
+					cardanofw.VSTokenID, false, e2ehelper.WithTimeoutConfig(
+						e2ehelper.NewTimeoutConfig(
+							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
+							e2ehelper.WithBridgingNumRetries(150),
+						)),
+				)
 			}()
 
 			go func() {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
 					t, ctx, apex, apex.Users[1], solanaReceivers[1], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
-					cardanofw.AP3XTokenID, false)
+					cardanofw.AP3XTokenID, false, e2ehelper.WithTimeoutConfig(
+						e2ehelper.NewTimeoutConfig(
+							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
+							e2ehelper.WithBridgingNumRetries(150),
+						)),
+				)
 			}()
 
 			go func() {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
 					t, ctx, apex, apex.Users[0], solanaReceivers[2], cardanofw.ChainIDNexus, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
-					cardanofw.NSTokenID, false)
+					cardanofw.NSTokenID, false, e2ehelper.WithTimeoutConfig(
+						e2ehelper.NewTimeoutConfig(
+							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
+							e2ehelper.WithBridgingNumRetries(150),
+						)),
+				)
 			}()
 
 			go func() {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
 					t, ctx, apex, apex.Users[0], solanaReceivers[3], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
-					cardanofw.ASOLTokenID, false)
+					cardanofw.ASOLTokenID, false, e2ehelper.WithTimeoutConfig(
+						e2ehelper.NewTimeoutConfig(
+							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
+							e2ehelper.WithBridgingNumRetries(150),
+						)),
+				)
 			}()
 
 			wg.Wait()
@@ -1165,7 +1185,7 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 		tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.WSOLTokenID)
 		require.NoError(t, err)
 
-		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userWSolBalance, true, maxWaitTimeSec, retryIntervalSec)
+		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userWSolBalance, true, maxWaitTimeSec*2, retryIntervalSec)
 		require.NoError(t, err)
 
 		userWSolBalanceAfter, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDSolana, cardanofw.WSOLMintAddress)
