@@ -102,7 +102,7 @@ jobs:
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY }}
-      SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT }}
+      SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT_SOLANA: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT_SOLANA }}
   e2e_skyline_partner_testnet_test:
     name: E2E Skyline Partner Testnet Tests
     uses: ./.github/workflows/skyline-e2e-testnet-test.yml
@@ -115,7 +115,7 @@ jobs:
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY }}
-      SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT }}
+      SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT_SOLANA: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT_SOLANA }}
   e2e_skyline_solana_partner_testnet_test:
     name: E2E Skyline Solana Partner Testnet Tests
     uses: ./.github/workflows/skyline-e2e-testnet-test.yml
@@ -128,7 +128,7 @@ jobs:
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY }}
-      SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT }}
+      SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT_SOLANA: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT_SOLANA }}
   defund_skyline_partner_testnet:
     name: Defund Skyline Partner Testnet
     uses: ./.github/workflows/skyline-e2e-testnet-test.yml
@@ -147,7 +147,7 @@ jobs:
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY: ${{ secrets.PARTNER_TESTNET_SKYLINE_BRIDGING_API_KEY }}
-      SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT }}
+      SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT_SOLANA: ${{ secrets.SKYLINE_E2E_TESTNET_WALLET_KEYS_CONTENT_SOLANA }}
   notification_skyline_testnet:
     name: Skyline Testnet Notification
     uses: ./.github/workflows/skyline-notification-testnet.yml
