@@ -429,6 +429,44 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 
 	testFunc()
 
+	t.Run("Update min bridging amount", func(t *testing.T) {
+		minTokenBridgingAmount := solanaConfig.MinTokenBridgingAmount
+		newMinTokenBridgingAmount := big.NewInt(2000)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector,
+			cardanofw.LamportToWei(minTokenBridgingAmount),
+			cardanofw.WSOLTokenID, true)
+
+		solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
+		err := solanaChain.UpdateMinBridgingAmount(ctx, cardanofw.WSOLTokenID, newMinTokenBridgingAmount)
+		require.NoError(t, err)
+
+		_, err = solanaChain.BridgingRequest(cardanofw.BridgingRequestParams{
+			Ctx:            ctx,
+			DestChainID:    cardanofw.ChainIDVector,
+			PrivateKey:     apex.Users[0].SolanaWallet.PrivateKey.String(),
+			ChainIDsConfig: "",
+			Receivers: map[string]cardanofw.ReceiverAmount{
+				apex.Users[0].GetAddress(cardanofw.ChainIDVector): {
+					TokenID: cardanofw.WSOLTokenID,
+					Amount:  cardanofw.LamportToWei(minTokenBridgingAmount),
+				},
+			},
+			FeeAmount:      solanaConfig.MinBridgingFee,
+			OperationFee:   solanaConfig.MinOperationFee,
+			IsCurrencySrc:  false,
+			IsCurrencyDest: false,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "BridgingAmountTooLow")
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector,
+			cardanofw.LamportToWei(newMinTokenBridgingAmount),
+			cardanofw.WSOLTokenID, true)
+	})
+
 	t.Run("Upgrade program", func(t *testing.T) {
 		solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
 		err := solanaChain.UpgradeProgram(ctx)
