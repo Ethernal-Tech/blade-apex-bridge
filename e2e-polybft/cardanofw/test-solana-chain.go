@@ -1725,6 +1725,48 @@ func (sc *TestSolanaChain) UpdateFeeConfig(ctx context.Context, feeConfig Update
 	return nil
 }
 
+func (sc *TestSolanaChain) UpdateMinBridgingAmount(
+	ctx context.Context,
+	tokenID uint16,
+	minBridgingAmount *big.Int,
+) error {
+	adminPkFile, err := os.CreateTemp(os.TempDir(), "admin-pk-*.json")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+
+	defer adminPkFile.Close()
+
+	pkString := fmt.Sprintf("%v", []byte(sc.admin.PrivateKey))
+	pkString = strings.ReplaceAll(pkString, " ", ",")
+
+	if _, err := adminPkFile.Write([]byte(pkString)); err != nil {
+		return fmt.Errorf("write admin private key: %w", err)
+	}
+
+	params := []string{
+		"deploy-solana",
+		"update-min-bridging-amount",
+		"--url", sc.jsonRPCAddr,
+		"--admin-key", adminPkFile.Name(),
+		"--program-id", sc.programID,
+		"--token-id", strconv.Itoa(int(tokenID)),
+		"--min-bridging-amount", strconv.Itoa(int(minBridgingAmount.Uint64())),
+		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
+	}
+
+	var b bytes.Buffer
+
+	err = RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
+	if err != nil {
+		return err
+	}
+
+	sc.config.MinTokenBridgingAmount = minBridgingAmount
+
+	return nil
+}
+
 func (sc *TestSolanaChain) SetCustodialNFT(token carwallet.Token) {
 	panic("unimplemented") //nolint:gocritic
 }
