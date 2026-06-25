@@ -81,12 +81,14 @@ func Test_OnlyRunSkylineBridge(t *testing.T) {
 	fmt.Printf("prime ogmios url: %s\n", apex.PrimeInfo.OgmiosURL)
 	fmt.Printf("prime bridging addr: %s\n", apex.PrimeInfo.MultisigAddr[0])
 	fmt.Printf("prime fee addr: %s\n", apex.PrimeInfo.FeeAddr)
+	fmt.Printf("prime treasury addr: %s\n", primeConfig.TreasuryAddress)
 	fmt.Printf("prime socket path: %s\n", apex.PrimeInfo.SocketPath)
 
 	fmt.Printf("cardano network url: %s\n", apex.CardanoInfo.NetworkAddress)
 	fmt.Printf("cardano ogmios url: %s\n", apex.CardanoInfo.OgmiosURL)
 	fmt.Printf("cardano bridging addr: %s\n", apex.CardanoInfo.MultisigAddr[0])
 	fmt.Printf("cardano fee addr: %s\n", apex.CardanoInfo.FeeAddr)
+	fmt.Printf("cardano treasury addr: %s\n", cardanoConfig.TreasuryAddress)
 	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
 
 	nexusAdminPrivateKey, err := apex.NexusInfo.AdminKey.MarshallPrivateKey()
@@ -108,6 +110,8 @@ func Test_OnlyRunSkylineBridge(t *testing.T) {
 	fmt.Printf("user prime signing key hex: %s\n", userPrimeSK)
 	fmt.Printf("user cardano addr: %s\n", user.GetAddress(cardanofw.ChainIDCardano))
 	fmt.Printf("user cardano signing key hex: %s\n", userCardanoSK)
+	fmt.Printf("user solana addr: %s\n", user.SolanaAddress)
+	fmt.Printf("user solana signing key hex: %s\n", user.SolanaWallet.PrivateKey.String())
 
 	proxyAdminPrivateKeyRaw, err := apex.GetBridgeProxyAdmin().MarshallPrivateKey()
 	require.NoError(t, err)
