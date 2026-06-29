@@ -501,19 +501,19 @@ func TestE2E_SkylineTestnetBridge_EvmChains(t *testing.T) {
 		})
 	})
 
-	// t.Run("Unichain", func(t *testing.T) {
-	// 	t.Run("Unichain -> Cardano", func(t *testing.T) {
-	// 		e2ehelper.ExecuteSingleBridging(
-	// 			t, ctx, apex, user, user, cardanofw.ChainIDUnichain, cardanofw.ChainIDCardano,
-	// 			sendAmount, cardanofw.UnichainETHTokenID, false)
-	// 	})
-	//
-	// 	t.Run("Cardano -> Unichain", func(t *testing.T) {
-	// 		e2ehelper.ExecuteSingleBridging(
-	// 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDUnichain,
-	// 			sendAmount, cardanofw.CUnichainETHTokenID, false)
-	// 	})
-	// })
+	t.Run("Unichain", func(t *testing.T) {
+		t.Run("Unichain -> Cardano", func(t *testing.T) {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, user, user, cardanofw.ChainIDUnichain, cardanofw.ChainIDCardano,
+				sendAmount, cardanofw.UnichainETHTokenID, false)
+		})
+
+		t.Run("Cardano -> Unichain", func(t *testing.T) {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDUnichain,
+				sendAmount, cardanofw.CUnichainETHTokenID, false)
+		})
+	})
 }
 
 func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
