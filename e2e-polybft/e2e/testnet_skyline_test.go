@@ -29,13 +29,20 @@ func isEVMReceiptUnavailableError(err error) bool {
 	return err != nil && strings.Contains(err.Error(), txrelayer.ErrFailedToRetrieveTxReceipt.Error())
 }
 
-var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon}
+var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon,
+	cardanofw.ChainIDEthereum, cardanofw.ChainIDKatana, cardanofw.ChainIDSei, cardanofw.ChainIDScroll, cardanofw.ChainIDUnichain,
+}
 var fundableTokensPerChain = map[cardanofw.ChainID][]uint16{
-	cardanofw.ChainIDPrime:   {},
-	cardanofw.ChainIDVector:  {cardanofw.XADATokenID},
-	cardanofw.ChainIDCardano: {cardanofw.CAP3XTokenID},
-	cardanofw.ChainIDNexus:   {cardanofw.USDTTokenID},
-	cardanofw.ChainIDPolygon: {cardanofw.PAP3XTokenID},
+	cardanofw.ChainIDPrime:    {},
+	cardanofw.ChainIDVector:   {cardanofw.XADATokenID},
+	cardanofw.ChainIDCardano:  {cardanofw.CAP3XTokenID},
+	cardanofw.ChainIDNexus:    {cardanofw.USDTTokenID},
+	cardanofw.ChainIDPolygon:  {cardanofw.PAP3XTokenID},
+	cardanofw.ChainIDEthereum: {cardanofw.ETHTokenID},
+	cardanofw.ChainIDKatana:   {cardanofw.KatanaETHTokenID},
+	cardanofw.ChainIDSei:      {cardanofw.SEITokenID},
+	cardanofw.ChainIDScroll:   {cardanofw.ScrollETHTokenID},
+	cardanofw.ChainIDUnichain: {cardanofw.UnichainETHTokenID},
 }
 
 func Test_E2E_SkylineTestnetFund(t *testing.T) {
@@ -47,6 +54,10 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 
 	tokensToFundPolygon := big.NewInt(5)
 	tokensToFundPol := cardanofw.ApexToWei(tokensToFundPolygon)
+
+	// 0.1 (0.2) ETH
+	tokensToFundEvmChains := big.NewInt(100000000000000000)
+	tokensToFundSeiChain := big.NewInt(200000000000000000)
 
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
@@ -71,7 +82,7 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 			defer wg.Done()
 
 			tokens := func() []cardanofw.GenericTokenAmount {
-				if chain == cardanofw.ChainIDNexus || chain == cardanofw.ChainIDPolygon {
+				if cardanofw.IsEVMChain(chain) {
 					chainInfo := apex.GetEvmInfo(chain)
 					tokens := make([]cardanofw.GenericTokenAmount, len(fundableTokensPerChain[chain]))
 
@@ -104,6 +115,17 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 				amountToFund := tokensToFund
 				if chain == cardanofw.ChainIDPolygon {
 					amountToFund = tokensToFundPol
+				}
+
+				if chain == cardanofw.ChainIDKatana ||
+					chain == cardanofw.ChainIDScroll ||
+					chain == cardanofw.ChainIDUnichain ||
+					chain == cardanofw.ChainIDEthereum {
+					amountToFund = tokensToFundEvmChains
+				}
+
+				if chain == cardanofw.ChainIDSei {
+					amountToFund = tokensToFundSeiChain
 				}
 
 				// resubmit the transaction in case of error because of a possible rollback
@@ -162,7 +184,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 	fmt.Printf("defunding the wallets\n")
 
 	for _, chain := range skylineChains {
-		if chain == cardanofw.ChainIDNexus || chain == cardanofw.ChainIDPolygon {
+		if cardanofw.IsEVMChain(chain) {
 			var info cardanofw.EVMChainInfo
 
 			switch chain {
@@ -170,6 +192,16 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 				info = apex.NexusInfo
 			case cardanofw.ChainIDPolygon:
 				info = apex.PolygonInfo
+			case cardanofw.ChainIDEthereum:
+				info = apex.EthereumInfo
+			case cardanofw.ChainIDKatana:
+				info = apex.KatanaInfo
+			case cardanofw.ChainIDSei:
+				info = apex.SeiInfo
+			case cardanofw.ChainIDScroll:
+				info = apex.ScrollInfo
+			case cardanofw.ChainIDUnichain:
+				info = apex.UnichainInfo
 			}
 
 			for _, user := range apex.Users {
@@ -191,8 +223,13 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 				}
 
 				// 1. Compute change in Wei (PotentialFee is in Wei units)
+				potentialFee := cardanofw.PotentialFee
+				if chain != cardanofw.ChainIDNexus && chain != cardanofw.ChainIDPolygon {
+					potentialFee = big.NewInt(5000000000000000) // sei has the biggest tx fee
+				}
+
 				change := new(big.Int).Mul(
-					cardanofw.PotentialFee, new(big.Int).SetUint64(uint64(len(balance))))
+					potentialFee, new(big.Int).SetUint64(uint64(len(balance))))
 
 				if balance[cardanowallet.AdaTokenName].Cmp(change) <= 0 {
 					continue
@@ -234,7 +271,7 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 						}
 
 						mu.Lock()
-						addrErrs = append(addrErrs, fmt.Errorf("error while defunding addr %s: %w", addr, err))
+						addrErrs = append(addrErrs, fmt.Errorf("error while defunding addr %s on chain %s: %w", addr, chain, err))
 						mu.Unlock()
 					}
 				}
@@ -396,6 +433,87 @@ func Test_E2E_SkylineSanityCheck(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
 			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, dir.srcTokenID, false, bridgingOpts...)
 	}
+}
+
+func TestE2E_SkylineTestnetBridge_EvmChains(t *testing.T) {
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
+	require.NoError(t, err)
+
+	user := apex.Users[0]
+	sendAmount := big.NewInt(100000000000000) // 0.0001 ETH
+
+	t.Run("Ethereum", func(t *testing.T) {
+		t.Run("Ethereum -> Cardano", func(t *testing.T) {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, user, user, cardanofw.ChainIDEthereum, cardanofw.ChainIDCardano,
+				sendAmount, cardanofw.ETHTokenID, false)
+		})
+
+		t.Run("Cardano -> Ethereum", func(t *testing.T) {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDEthereum,
+				sendAmount, cardanofw.CETHTokenID, false)
+		})
+	})
+
+	t.Run("Katana", func(t *testing.T) {
+		t.Run("Katana -> Cardano", func(t *testing.T) {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, user, user, cardanofw.ChainIDKatana, cardanofw.ChainIDCardano,
+				sendAmount, cardanofw.KatanaETHTokenID, false)
+		})
+
+		t.Run("Cardano -> Katana", func(t *testing.T) {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDKatana,
+				sendAmount, cardanofw.CKatanaETHTokenID, false)
+		})
+	})
+
+	t.Run("Sei", func(t *testing.T) {
+		t.Run("Sei -> Cardano", func(t *testing.T) {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, user, user, cardanofw.ChainIDSei, cardanofw.ChainIDCardano,
+				sendAmount, cardanofw.SEITokenID, false)
+		})
+
+		t.Run("Cardano -> Sei", func(t *testing.T) {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDSei,
+				sendAmount, cardanofw.CSEITokenID, false)
+		})
+	})
+
+	t.Run("Scroll", func(t *testing.T) {
+		t.Run("Scroll -> Cardano", func(t *testing.T) {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, user, user, cardanofw.ChainIDScroll, cardanofw.ChainIDCardano,
+				sendAmount, cardanofw.ScrollETHTokenID, false)
+		})
+
+		t.Run("Cardano -> Scroll", func(t *testing.T) {
+			e2ehelper.ExecuteSingleBridging(
+				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDScroll,
+				sendAmount, cardanofw.CScrollETHTokenID, false)
+		})
+	})
+
+	// t.Run("Unichain", func(t *testing.T) {
+	// 	t.Run("Unichain -> Cardano", func(t *testing.T) {
+	// 		e2ehelper.ExecuteSingleBridging(
+	// 			t, ctx, apex, user, user, cardanofw.ChainIDUnichain, cardanofw.ChainIDCardano,
+	// 			sendAmount, cardanofw.UnichainETHTokenID, false)
+	// 	})
+	//
+	// 	t.Run("Cardano -> Unichain", func(t *testing.T) {
+	// 		e2ehelper.ExecuteSingleBridging(
+	// 			t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDUnichain,
+	// 			sendAmount, cardanofw.CUnichainETHTokenID, false)
+	// 	})
+	// })
 }
 
 func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
@@ -1182,6 +1300,31 @@ func printSkylineUserBalances(
 				}
 			case cardanofw.ChainIDPolygon:
 				info := apex.PolygonInfo
+				for tokenID, token := range info.Tokens {
+					balanceToString(tokenID, balance[token.ChainSpecific])
+				}
+			case cardanofw.ChainIDEthereum:
+				info := apex.EthereumInfo
+				for tokenID, token := range info.Tokens {
+					balanceToString(tokenID, balance[token.ChainSpecific])
+				}
+			case cardanofw.ChainIDKatana:
+				info := apex.KatanaInfo
+				for tokenID, token := range info.Tokens {
+					balanceToString(tokenID, balance[token.ChainSpecific])
+				}
+			case cardanofw.ChainIDSei:
+				info := apex.SeiInfo
+				for tokenID, token := range info.Tokens {
+					balanceToString(tokenID, balance[token.ChainSpecific])
+				}
+			case cardanofw.ChainIDScroll:
+				info := apex.ScrollInfo
+				for tokenID, token := range info.Tokens {
+					balanceToString(tokenID, balance[token.ChainSpecific])
+				}
+			case cardanofw.ChainIDUnichain:
+				info := apex.UnichainInfo
 				for tokenID, token := range info.Tokens {
 					balanceToString(tokenID, balance[token.ChainSpecific])
 				}
