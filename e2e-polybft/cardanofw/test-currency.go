@@ -9,7 +9,7 @@ const (
 )
 
 func WeiToChainNativeTokenAmount(chainID string, weiAmount *big.Int) *big.Int {
-	if chainID != ChainIDNexus && chainID != ChainIDPolygon {
+	if IsCardanoChain(chainID) {
 		return WeiToDfm(weiAmount)
 	}
 
@@ -17,7 +17,7 @@ func WeiToChainNativeTokenAmount(chainID string, weiAmount *big.Int) *big.Int {
 }
 
 func ChainNativeTokenAmountToWei(chainID string, nativeTokenAmount *big.Int) *big.Int {
-	if chainID != ChainIDNexus && chainID != ChainIDPolygon {
+	if IsCardanoChain(chainID) {
 		return DfmToWei(nativeTokenAmount)
 	}
 

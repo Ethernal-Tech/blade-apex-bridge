@@ -18,6 +18,12 @@ type ApexPrivateKeys struct {
 	CardanoPaymentSigningKeyCborHex string `json:"cardanoPaymentSKCborHex"`
 	CardanoStakeSigningKeyCborHex   string `json:"cardanoStakeSKCborHex"`
 	PolygonPrivateKey               string `json:"polygonPK"`
+	EthereumPrivateKey              string `json:"ethereumPK"`
+	KatanaPrivateKey                string `json:"katanaPK"`
+	SeiPrivateKey                   string `json:"seiPK"`
+	ArbitrumPrivateKey              string `json:"arbitrumPK"`
+	ScrollPrivateKey                string `json:"scrollPK"`
+	UnichainPrivateKey              string `json:"unichainPK"`
 	SolanaPrivateKey                string `json:"solanaPK"`
 }
 
@@ -29,9 +35,9 @@ func (keys *ApexPrivateKeys) Wallets() (*apexUserWallets, error) {
 	}
 
 	var (
-		vector, cardano *wallet.Wallet
-		nexus, polygon  *crypto.ECDSAKey
-		solana          *solanawallet.Wallet
+		vector, cardano                                                   *wallet.Wallet
+		nexus, polygon, ethereum, katana, sei, arbitrum, scroll, unichain *crypto.ECDSAKey
+		solana                                                            *solanawallet.Wallet
 	)
 
 	if len(keys.VectorPaymentSigningKeyCborHex) > 0 {
@@ -63,6 +69,48 @@ func (keys *ApexPrivateKeys) Wallets() (*apexUserWallets, error) {
 		}
 	}
 
+	if len(keys.EthereumPrivateKey) > 0 {
+		ethereum, err = newEvmWallet(keys.EthereumPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(keys.KatanaPrivateKey) > 0 {
+		katana, err = newEvmWallet(keys.KatanaPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(keys.SeiPrivateKey) > 0 {
+		sei, err = newEvmWallet(keys.SeiPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(keys.ArbitrumPrivateKey) > 0 {
+		arbitrum, err = newEvmWallet(keys.ArbitrumPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(keys.ScrollPrivateKey) > 0 {
+		scroll, err = newEvmWallet(keys.ScrollPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(keys.UnichainPrivateKey) > 0 {
+		unichain, err = newEvmWallet(keys.UnichainPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if len(keys.SolanaPrivateKey) > 0 {
 		solana, err = newSolanaWalletFromBase58(keys.SolanaPrivateKey)
 		if err != nil {
@@ -71,12 +119,18 @@ func (keys *ApexPrivateKeys) Wallets() (*apexUserWallets, error) {
 	}
 
 	return &apexUserWallets{
-		Prime:   prime,
-		Vector:  vector,
-		Nexus:   nexus,
-		Cardano: cardano,
-		Polygon: polygon,
-		Solana:  solana,
+		Prime:    prime,
+		Vector:   vector,
+		Nexus:    nexus,
+		Cardano:  cardano,
+		Polygon:  polygon,
+		Ethereum: ethereum,
+		Katana:   katana,
+		Sei:      sei,
+		Arbitrum: arbitrum,
+		Scroll:   scroll,
+		Unichain: unichain,
+		Solana:   solana,
 	}, nil
 }
 

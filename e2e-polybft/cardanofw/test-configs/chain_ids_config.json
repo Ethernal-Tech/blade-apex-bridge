@@ -26,6 +26,36 @@
             "chainType": "evm"
         },
         {
+            "chainID": "ethereum",
+            "chainIDNum": 6,
+            "chainType": "evm"
+        },
+        {
+            "chainID": "katana",
+            "chainIDNum": 7,
+            "chainType": "evm"
+        },
+        {
+            "chainID": "sei",
+            "chainIDNum": 8,
+            "chainType": "evm"
+        },
+        {
+            "chainID": "arbitrum",
+            "chainIDNum": 9,
+            "chainType": "evm"
+        },
+        {
+            "chainID": "scroll",
+            "chainIDNum": 10,
+            "chainType": "evm"
+        },
+        {
+            "chainID": "unichain",
+            "chainIDNum": 11,
+            "chainType": "evm"
+        },
+        {
             "chainID": "solana",
             "chainIDNum": 12,
             "chainType": "solana"

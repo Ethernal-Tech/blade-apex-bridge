@@ -40,6 +40,7 @@ const (
 	defaultPremineEthTokenAmount     = uint64(1_000_000_000_000)
 	defaultFundRelayerEthTokenAmount = uint64(5)
 
+	defaultEvmTreasuryAddress     = "0xcCB2dDA531690E0eacf03338116Ea214c6379cD4"
 	defaultNexusTreasuryAddress   = "0xcCB2dDA531690E0eacf03338116Ea214c6379cD4"
 	defaultPolygonTreasuryAddress = "0x721a6a568e78588e8226e8AeEeBa77f8ce7Db62e"
 
@@ -146,8 +147,23 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 	}
 }
 
+func getEvmConfigurableTokens(tokensAddrs map[uint16]Token) map[uint16]string {
+	configurableTokens := make(map[uint16]string, len(tokensAddrs))
+
+	for id, info := range tokensAddrs {
+		if info.ChainSpecific != infrawallet.AdaTokenName {
+			configurableTokens[id] = info.ChainSpecific
+		}
+	}
+
+	return configurableTokens
+}
+
 func NewRemoteNexusChainConfig(
-	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string) *TestEVMChainConfig {
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string, tokensAddrs map[uint16]Token,
+) *TestEVMChainConfig {
+	configurableTokens := getEvmConfigurableTokens(tokensAddrs)
+
 	return &TestEVMChainConfig{
 		IsEnabled:       isEnabled,
 		ChainID:         ChainIDNexus,
@@ -174,11 +190,7 @@ func NewRemoteNexusChainConfig(
 				Symbol: XPOLTokenName,
 			},
 		},
-		ConfigurableTokens: map[uint16]string{
-			USDTTokenID: "0xEb0d073E1Da42d1cA3609F6DcA26547945D37cC0",
-			XADATokenID: "0xEB8cDa7443d0eDbe917Ae19ADFc02d460DDfCC9f",
-			XPOLTokenID: "0xD273f181d575aD1a3b9d1f555EA3982b3FBFd825",
-		},
+		ConfigurableTokens: configurableTokens,
 	}
 }
 
@@ -197,12 +209,12 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
 		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
 		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
-		MinBridgingFee:         defaultMinBridgingFeeAmountPolygon,
+		MinBridgingFee:         defaultMinBridgingFeeAmountEvm[ChainIDPolygon],
 		MinBridgingAmount:      MinUTxODefaultValue,
 		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
 		MinOperationFee:        DefaultMinOperationFee,
 		CurrencyID:             POLTokenID,
-		FeeAddrBridging:        defaultFeeAddrBridgingAmount,
+		FeeAddrBridging:        defaultFeeAddrBridgingAmountEvm[ChainIDPolygon],
 
 		TreasuryAddress: defaultPolygonTreasuryAddress,
 
@@ -223,7 +235,10 @@ func NewPolygonChainConfig(isEnabled bool) *TestEVMChainConfig {
 }
 
 func NewRemotePolygonChainConfig(
-	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string) *TestEVMChainConfig {
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string, tokensAddrs map[uint16]Token,
+) *TestEVMChainConfig {
+	configurableTokens := getEvmConfigurableTokens(tokensAddrs)
+
 	return &TestEVMChainConfig{
 		IsEnabled:       isEnabled,
 		ChainID:         ChainIDPolygon,
@@ -238,9 +253,283 @@ func NewRemotePolygonChainConfig(
 				Symbol: PAP3XTokenName,
 			},
 		},
-		ConfigurableTokens: map[uint16]string{
-			PAP3XTokenID: "0x325E3AEf88F57d9DCA1744cEe740cD8104d1814a",
+		ConfigurableTokens: configurableTokens,
+	}
+}
+
+func NewEthereumChainConfig(isEnabled bool) *TestEVMChainConfig {
+	return &TestEVMChainConfig{
+		ChainID:        ChainIDEthereum,
+		IsEnabled:      isEnabled,
+		ValidatorCount: 4,
+		StartingPort:   int64(30600),
+		BurnContractInfo: &polybft.BurnContractInfo{
+			BlockNumber: 0,
+			Address:     types.ZeroAddress,
 		},
+		ApexConfig:             genesis.ApexConfigEthChain,
+		InitialHotWalletAmount: big.NewInt(0),
+		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
+		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
+		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
+		MinBridgingFee:         defaultMinBridgingFeeAmountEvm[ChainIDEthereum],
+		MinBridgingAmount:      MinUTxODefaultValue,
+		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
+		MinOperationFee:        DfmToWei(DefaultMinOperationFee),
+		CurrencyID:             ETHTokenID,
+		FeeAddrBridging:        defaultFeeAddrBridgingAmountEvm[ChainIDEthereum],
+
+		TreasuryAddress: defaultEvmTreasuryAddress,
+
+		LockUnlockTokens: []EVMTokenInfo{},
+		MintTokens:       []EVMTokenInfo{},
+	}
+}
+
+func NewRemoteEthereumChainConfig(
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string, tokensAddrs map[uint16]Token,
+) *TestEVMChainConfig {
+	configurableTokens := getEvmConfigurableTokens(tokensAddrs)
+
+	return &TestEVMChainConfig{
+		IsEnabled:          isEnabled,
+		ChainID:            ChainIDEthereum,
+		MinBridgingFee:     minBridgingFeeAmount,
+		MinOperationFee:    minOperationFee,
+		CurrencyID:         ETHTokenID,
+		TreasuryAddress:    treasuryAddress,
+		MintTokens:         []EVMTokenInfo{},
+		ConfigurableTokens: configurableTokens,
+	}
+}
+
+func NewKatanaChainConfig(isEnabled bool) *TestEVMChainConfig {
+	return &TestEVMChainConfig{
+		ChainID:        ChainIDKatana,
+		IsEnabled:      isEnabled,
+		ValidatorCount: 4,
+		StartingPort:   int64(30700),
+		BurnContractInfo: &polybft.BurnContractInfo{
+			BlockNumber: 0,
+			Address:     types.ZeroAddress,
+		},
+		ApexConfig:             genesis.ApexConfigEthChain,
+		InitialHotWalletAmount: big.NewInt(0),
+		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
+		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
+		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
+		MinBridgingFee:         defaultMinBridgingFeeAmountEvm[ChainIDKatana],
+		MinBridgingAmount:      MinUTxODefaultValue,
+		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
+		MinOperationFee:        DfmToWei(DefaultMinOperationFee),
+		CurrencyID:             KatanaETHTokenID,
+		FeeAddrBridging:        defaultFeeAddrBridgingAmountEvm[ChainIDKatana],
+
+		TreasuryAddress: defaultEvmTreasuryAddress,
+
+		LockUnlockTokens: []EVMTokenInfo{},
+		MintTokens:       []EVMTokenInfo{},
+	}
+}
+
+func NewRemoteKatanaChainConfig(
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string, tokensAddrs map[uint16]Token,
+) *TestEVMChainConfig {
+	configurableTokens := getEvmConfigurableTokens(tokensAddrs)
+
+	return &TestEVMChainConfig{
+		IsEnabled:          isEnabled,
+		ChainID:            ChainIDKatana,
+		MinBridgingFee:     minBridgingFeeAmount,
+		MinOperationFee:    minOperationFee,
+		CurrencyID:         KatanaETHTokenID,
+		TreasuryAddress:    treasuryAddress,
+		MintTokens:         []EVMTokenInfo{},
+		ConfigurableTokens: configurableTokens,
+	}
+}
+
+func NewSeiChainConfig(isEnabled bool) *TestEVMChainConfig {
+	return &TestEVMChainConfig{
+		ChainID:        ChainIDSei,
+		IsEnabled:      isEnabled,
+		ValidatorCount: 4,
+		StartingPort:   int64(30800),
+		BurnContractInfo: &polybft.BurnContractInfo{
+			BlockNumber: 0,
+			Address:     types.ZeroAddress,
+		},
+		ApexConfig:             genesis.ApexConfigEthChain,
+		InitialHotWalletAmount: big.NewInt(0),
+		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
+		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
+		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
+		MinBridgingFee:         defaultMinBridgingFeeAmountEvm[ChainIDSei],
+		MinBridgingAmount:      MinUTxODefaultValue,
+		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
+		MinOperationFee:        DfmToWei(DefaultMinOperationFee),
+		CurrencyID:             SEITokenID,
+		FeeAddrBridging:        defaultFeeAddrBridgingAmountEvm[ChainIDSei],
+
+		TreasuryAddress: defaultEvmTreasuryAddress,
+
+		LockUnlockTokens: []EVMTokenInfo{},
+		MintTokens:       []EVMTokenInfo{},
+	}
+}
+
+func NewRemoteSeiChainConfig(
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string, tokensAddrs map[uint16]Token,
+) *TestEVMChainConfig {
+	configurableTokens := getEvmConfigurableTokens(tokensAddrs)
+
+	return &TestEVMChainConfig{
+		IsEnabled:          isEnabled,
+		ChainID:            ChainIDSei,
+		MinBridgingFee:     minBridgingFeeAmount,
+		MinOperationFee:    minOperationFee,
+		CurrencyID:         SEITokenID,
+		TreasuryAddress:    treasuryAddress,
+		MintTokens:         []EVMTokenInfo{},
+		ConfigurableTokens: configurableTokens,
+	}
+}
+
+func NewArbitrumChainConfig(isEnabled bool) *TestEVMChainConfig {
+	return &TestEVMChainConfig{
+		ChainID:        ChainIDArbitrum,
+		IsEnabled:      isEnabled,
+		ValidatorCount: 4,
+		StartingPort:   int64(30900),
+		BurnContractInfo: &polybft.BurnContractInfo{
+			BlockNumber: 0,
+			Address:     types.ZeroAddress,
+		},
+		ApexConfig:             genesis.ApexConfigEthChain,
+		InitialHotWalletAmount: big.NewInt(0),
+		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
+		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
+		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
+		MinBridgingFee:         defaultMinBridgingFeeAmountEvm[ChainIDArbitrum],
+		MinBridgingAmount:      MinUTxODefaultValue,
+		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
+		MinOperationFee:        DfmToWei(DefaultMinOperationFee),
+		CurrencyID:             ArbitrumETHTokenID,
+		FeeAddrBridging:        defaultFeeAddrBridgingAmountEvm[ChainIDArbitrum],
+
+		TreasuryAddress: defaultEvmTreasuryAddress,
+
+		LockUnlockTokens: []EVMTokenInfo{},
+		MintTokens:       []EVMTokenInfo{},
+	}
+}
+
+func NewRemoteArbitrumChainConfig(
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string, tokensAddrs map[uint16]Token,
+) *TestEVMChainConfig {
+	configurableTokens := getEvmConfigurableTokens(tokensAddrs)
+
+	return &TestEVMChainConfig{
+		IsEnabled:          isEnabled,
+		ChainID:            ChainIDArbitrum,
+		MinBridgingFee:     minBridgingFeeAmount,
+		MinOperationFee:    minOperationFee,
+		CurrencyID:         ArbitrumETHTokenID,
+		TreasuryAddress:    treasuryAddress,
+		MintTokens:         []EVMTokenInfo{},
+		ConfigurableTokens: configurableTokens,
+	}
+}
+
+func NewScrollChainConfig(isEnabled bool) *TestEVMChainConfig {
+	return &TestEVMChainConfig{
+		ChainID:        ChainIDScroll,
+		IsEnabled:      isEnabled,
+		ValidatorCount: 4,
+		StartingPort:   int64(31000),
+		BurnContractInfo: &polybft.BurnContractInfo{
+			BlockNumber: 0,
+			Address:     types.ZeroAddress,
+		},
+		ApexConfig:             genesis.ApexConfigEthChain,
+		InitialHotWalletAmount: big.NewInt(0),
+		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
+		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
+		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
+		MinBridgingFee:         defaultMinBridgingFeeAmountEvm[ChainIDScroll],
+		MinBridgingAmount:      MinUTxODefaultValue,
+		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
+		MinOperationFee:        DfmToWei(DefaultMinOperationFee),
+		CurrencyID:             ScrollETHTokenID,
+		FeeAddrBridging:        defaultFeeAddrBridgingAmountEvm[ChainIDScroll],
+
+		TreasuryAddress: defaultEvmTreasuryAddress,
+
+		LockUnlockTokens: []EVMTokenInfo{},
+		MintTokens:       []EVMTokenInfo{},
+	}
+}
+
+func NewRemoteScrollChainConfig(
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string, tokensAddrs map[uint16]Token,
+) *TestEVMChainConfig {
+	configurableTokens := getEvmConfigurableTokens(tokensAddrs)
+
+	return &TestEVMChainConfig{
+		IsEnabled:          isEnabled,
+		ChainID:            ChainIDScroll,
+		MinBridgingFee:     minBridgingFeeAmount,
+		MinOperationFee:    minOperationFee,
+		CurrencyID:         ScrollETHTokenID,
+		TreasuryAddress:    treasuryAddress,
+		MintTokens:         []EVMTokenInfo{},
+		ConfigurableTokens: configurableTokens,
+	}
+}
+
+func NewUnichainChainConfig(isEnabled bool) *TestEVMChainConfig {
+	return &TestEVMChainConfig{
+		ChainID:        ChainIDUnichain,
+		IsEnabled:      isEnabled,
+		ValidatorCount: 4,
+		StartingPort:   int64(31100),
+		BurnContractInfo: &polybft.BurnContractInfo{
+			BlockNumber: 0,
+			Address:     types.ZeroAddress,
+		},
+		ApexConfig:             genesis.ApexConfigEthChain,
+		InitialHotWalletAmount: big.NewInt(0),
+		PremineAmount:          ApexToWei(new(big.Int).SetUint64(defaultPremineEthTokenAmount)),
+		FundAmount:             ApexToWei(new(big.Int).SetUint64(defaultFundEthTokenAmount)),
+		FundRelayerAmount:      ApexToWei(new(big.Int).SetUint64(defaultFundRelayerEthTokenAmount)),
+		MinBridgingFee:         defaultMinBridgingFeeAmountEvm[ChainIDUnichain],
+		MinBridgingAmount:      MinUTxODefaultValue,
+		MinTokenBridgingAmount: DfmToWei(big.NewInt(1)),
+		MinOperationFee:        DfmToWei(DefaultMinOperationFee),
+		CurrencyID:             UnichainETHTokenID,
+		FeeAddrBridging:        defaultFeeAddrBridgingAmountEvm[ChainIDUnichain],
+
+		TreasuryAddress: defaultEvmTreasuryAddress,
+
+		LockUnlockTokens: []EVMTokenInfo{},
+		MintTokens:       []EVMTokenInfo{},
+	}
+}
+
+func NewRemoteUnichainChainConfig(
+	isEnabled bool, minBridgingFeeAmount, minOperationFee *big.Int, treasuryAddress string, tokensAddrs map[uint16]Token,
+) *TestEVMChainConfig {
+	configurableTokens := getEvmConfigurableTokens(tokensAddrs)
+
+	return &TestEVMChainConfig{
+		IsEnabled:          isEnabled,
+		ChainID:            ChainIDUnichain,
+		MinBridgingFee:     minBridgingFeeAmount,
+		MinOperationFee:    minOperationFee,
+		CurrencyID:         UnichainETHTokenID,
+		TreasuryAddress:    treasuryAddress,
+		MintTokens:         []EVMTokenInfo{},
+		ConfigurableTokens: configurableTokens,
 	}
 }
 
@@ -819,6 +1108,18 @@ func (ec *TestEVMChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem)
 		apexSystem.NexusInfo = ec.getChainInfo(t)
 	case ChainIDPolygon:
 		apexSystem.PolygonInfo = ec.getChainInfo(t)
+	case ChainIDEthereum:
+		apexSystem.EthereumInfo = ec.getChainInfo(t)
+	case ChainIDKatana:
+		apexSystem.KatanaInfo = ec.getChainInfo(t)
+	case ChainIDSei:
+		apexSystem.SeiInfo = ec.getChainInfo(t)
+	case ChainIDArbitrum:
+		apexSystem.ArbitrumInfo = ec.getChainInfo(t)
+	case ChainIDScroll:
+		apexSystem.ScrollInfo = ec.getChainInfo(t)
+	case ChainIDUnichain:
+		apexSystem.UnichainInfo = ec.getChainInfo(t)
 	}
 
 	return nil

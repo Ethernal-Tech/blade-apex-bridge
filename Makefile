@@ -102,6 +102,7 @@ test-e2e-skyline-bridge: check-go
 .PHONY: test-e2e-skyline-bridge-mba
 test-e2e-skyline-bridge-mba: check-go
 	go build -o artifacts/blade .
+	cd cardano-smart-contracts/ && npm i && cd ..
 	env EDGE_BINARY=${PWD}/artifacts/blade E2E_TESTS=true E2E_LOGS=true \
 	go test -v -timeout=7h ./e2e-polybft/e2e/... -run 'SkylineBridgeMBA_'
 

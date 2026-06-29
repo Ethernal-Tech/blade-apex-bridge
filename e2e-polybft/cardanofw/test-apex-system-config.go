@@ -12,11 +12,17 @@ type TelemetryConfig = int
 type CustomConfigHandler = func(apex *ApexSystem, mp map[string]interface{})
 
 const (
-	ChainIDPrime   ChainID = "prime"
-	ChainIDVector  ChainID = "vector"
-	ChainIDNexus   ChainID = "nexus"
-	ChainIDPolygon ChainID = "polygon"
-	ChainIDSolana  ChainID = "solana"
+	ChainIDPrime    ChainID = "prime"
+	ChainIDVector   ChainID = "vector"
+	ChainIDNexus    ChainID = "nexus"
+	ChainIDPolygon  ChainID = "polygon"
+	ChainIDEthereum ChainID = "ethereum"
+	ChainIDKatana   ChainID = "katana"
+	ChainIDSei      ChainID = "sei"
+	ChainIDArbitrum ChainID = "arbitrum"
+	ChainIDScroll   ChainID = "scroll"
+	ChainIDUnichain ChainID = "unichain"
+	ChainIDSolana   ChainID = "solana"
 
 	ChainIDCardano ChainID = "cardano"
 
@@ -33,16 +39,31 @@ const (
 // Token IDs
 // 6-13 token IDs are registered tokens used only on web
 const (
-	AP3XTokenID  uint16 = 1
-	ADATokenID   uint16 = 2
-	CAP3XTokenID uint16 = 3
-	XADATokenID  uint16 = 4
-	USDTTokenID  uint16 = 5
-	POLTokenID   uint16 = 14
-	XPOLTokenID  uint16 = 15
-	PAP3XTokenID uint16 = 16
-	USDCTokenID  uint16 = 17
-	USDCxTokenID uint16 = 18
+	AP3XTokenID         uint16 = 1
+	ADATokenID          uint16 = 2
+	CAP3XTokenID        uint16 = 3
+	XADATokenID         uint16 = 4
+	USDTTokenID         uint16 = 5
+	POLTokenID          uint16 = 14
+	XPOLTokenID         uint16 = 15
+	PAP3XTokenID        uint16 = 16
+	CPOLTokenID         uint16 = 17
+	KatanaETHTokenID    uint16 = 18
+	CKatanaETHTokenID   uint16 = 19
+	ETHTokenID          uint16 = 20
+	CETHTokenID         uint16 = 21
+	SEITokenID          uint16 = 22
+	CSEITokenID         uint16 = 23
+	ArbitrumETHTokenID  uint16 = 24
+	CArbitrumETHTokenID uint16 = 25
+	ScrollETHTokenID    uint16 = 26
+	CScrollETHTokenID   uint16 = 27
+	UnichainETHTokenID  uint16 = 28
+	CUnichainETHTokenID uint16 = 29
+
+	// not on testnet - only for local tests
+	USDCTokenID  uint16 = 60017
+	USDCxTokenID uint16 = 60018
 
 	SOLTokenID   uint16 = 30
 	WSOLTokenID  uint16 = 31
@@ -54,14 +75,28 @@ const (
 
 // Human readable token names
 const (
-	AP3XTokenName    = "AP3X"
-	ADATokenName     = "ADA"
-	CAP3XTokenName   = "cAP3X"
-	XADATokenName    = "xADA"
-	USDTTokenName    = "USDT"
-	POLTokenName     = "POL"
-	XPOLTokenName    = "xPOL"
-	PAP3XTokenName   = "pAP3X"
+	AP3XTokenName         = "AP3X"
+	ADATokenName          = "ADA"
+	CAP3XTokenName        = "cAP3X"
+	XADATokenName         = "xADA"
+	USDTTokenName         = "USDT"
+	POLTokenName          = "POL"
+	XPOLTokenName         = "xPOL"
+	PAP3XTokenName        = "pAP3X"
+	CPOLTokenName         = "cPOL"
+	KatanaETHTokenName    = "KatanaETH"
+	CKatanaETHTokenName   = "cKatanaETH"
+	ETHTokenName          = "ETH"
+	CETHTokenName         = "cETH"
+	SEITokenName          = "SEI"
+	CSEITokenName         = "cSEI"
+	ArbitrumETHTokenName  = "ArbitrumETH"  //nolint:gosec
+	CArbitrumETHTokenName = "cArbitrumETH" //nolint:gosec
+	ScrollETHTokenName    = "ScrollETH"
+	CScrollETHTokenName   = "cScrollETH"
+	UnichainETHTokenName  = "UnichainETH"
+	CUnichainETHTokenName = "cUnichainETH" //nolint:gosec
+
 	USDCTokenName    = "USDC"
 	USDCxTokenName   = "USDCx"
 	SOLANATokenName  = "SOL"
@@ -87,8 +122,14 @@ type ApexSystemConfig struct {
 	VectorConfig  *TestCardanoChainConfig
 	CardanoConfig *TestCardanoChainConfig
 
-	NexusConfig   *TestEVMChainConfig
-	PolygonConfig *TestEVMChainConfig
+	NexusConfig    *TestEVMChainConfig
+	PolygonConfig  *TestEVMChainConfig
+	EthereumConfig *TestEVMChainConfig
+	KatanaConfig   *TestEVMChainConfig
+	SeiConfig      *TestEVMChainConfig
+	ArbitrumConfig *TestEVMChainConfig
+	ScrollConfig   *TestEVMChainConfig
+	UnichainConfig *TestEVMChainConfig
 
 	SolanaConfig *TestSolanaChainConfig
 
@@ -139,6 +180,42 @@ func WithPolygonEnabled(enabled bool) ApexSystemOptions {
 	}
 }
 
+func WithEthereumEnabled(enabled bool) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.EthereumConfig.IsEnabled = enabled
+	}
+}
+
+func WithKatanaEnabled(enabled bool) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.KatanaConfig.IsEnabled = enabled
+	}
+}
+
+func WithSeiEnabled(enabled bool) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.SeiConfig.IsEnabled = enabled
+	}
+}
+
+func WithArbitrumEnabled(enabled bool) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.ArbitrumConfig.IsEnabled = enabled
+	}
+}
+
+func WithScrollEnabled(enabled bool) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.ScrollConfig.IsEnabled = enabled
+	}
+}
+
+func WithUnichainEnabled(enabled bool) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.UnichainConfig.IsEnabled = enabled
+	}
+}
+
 func WithTelemetryConfig(tc TelemetryConfig) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.TelemetryConfig = tc
@@ -178,6 +255,42 @@ func WithNexusConfig(config *TestEVMChainConfig) ApexSystemOptions {
 func WithPolygonConfig(config *TestEVMChainConfig) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
 		h.PolygonConfig = config
+	}
+}
+
+func WithEthereumConfig(config *TestEVMChainConfig) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.EthereumConfig = config
+	}
+}
+
+func WithKatanaConfig(config *TestEVMChainConfig) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.KatanaConfig = config
+	}
+}
+
+func WithSeiConfig(config *TestEVMChainConfig) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.SeiConfig = config
+	}
+}
+
+func WithArbitrumConfig(config *TestEVMChainConfig) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.ArbitrumConfig = config
+	}
+}
+
+func WithScrollConfig(config *TestEVMChainConfig) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.ScrollConfig = config
+	}
+}
+
+func WithUnichainConfig(config *TestEVMChainConfig) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.UnichainConfig = config
 	}
 }
 
@@ -227,12 +340,18 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 
 		BladeValidatorCount: 4,
 
-		PrimeConfig:   NewPrimeChainConfig(),
-		VectorConfig:  NewVectorChainConfig(),
-		CardanoConfig: NewCardanoChainConfig(false),
-		NexusConfig:   NewNexusChainConfig(false),
-		PolygonConfig: NewPolygonChainConfig(false),
-		SolanaConfig:  NewSolanaChainConfig(false),
+		PrimeConfig:    NewPrimeChainConfig(),
+		VectorConfig:   NewVectorChainConfig(),
+		CardanoConfig:  NewCardanoChainConfig(false),
+		NexusConfig:    NewNexusChainConfig(false),
+		PolygonConfig:  NewPolygonChainConfig(false),
+		EthereumConfig: NewEthereumChainConfig(false),
+		KatanaConfig:   NewKatanaChainConfig(false),
+		SeiConfig:      NewSeiChainConfig(false),
+		ArbitrumConfig: NewArbitrumChainConfig(false),
+		ScrollConfig:   NewScrollChainConfig(false),
+		UnichainConfig: NewUnichainChainConfig(false),
+		SolanaConfig:   NewSolanaChainConfig(false),
 
 		UserCnt: 10,
 	}
@@ -246,12 +365,18 @@ func getDefaultSkylineSystemConfig() *ApexSystemConfig {
 
 		BladeValidatorCount: 4,
 
-		PrimeConfig:   NewPrimeChainConfig(),
-		VectorConfig:  NewVectorChainConfig(),
-		CardanoConfig: NewCardanoChainConfig(true),
-		NexusConfig:   NewNexusChainConfig(false),
-		PolygonConfig: NewPolygonChainConfig(false),
-		SolanaConfig:  NewSolanaChainConfig(false),
+		PrimeConfig:    NewPrimeChainConfig(),
+		VectorConfig:   NewVectorChainConfig(),
+		CardanoConfig:  NewCardanoChainConfig(true),
+		NexusConfig:    NewNexusChainConfig(false),
+		PolygonConfig:  NewPolygonChainConfig(false),
+		EthereumConfig: NewEthereumChainConfig(false),
+		KatanaConfig:   NewKatanaChainConfig(false),
+		SeiConfig:      NewSeiChainConfig(false),
+		ArbitrumConfig: NewArbitrumChainConfig(false),
+		ScrollConfig:   NewScrollChainConfig(false),
+		UnichainConfig: NewUnichainChainConfig(false),
+		SolanaConfig:   NewSolanaChainConfig(false),
 
 		UserCnt: 10,
 	}
@@ -274,6 +399,30 @@ func (asc *ApexSystemConfig) ServiceCount() int {
 	}
 
 	if asc.PolygonConfig.IsEnabled {
+		count++
+	}
+
+	if asc.EthereumConfig.IsEnabled {
+		count++
+	}
+
+	if asc.KatanaConfig.IsEnabled {
+		count++
+	}
+
+	if asc.SeiConfig.IsEnabled {
+		count++
+	}
+
+	if asc.ArbitrumConfig.IsEnabled {
+		count++
+	}
+
+	if asc.ScrollConfig.IsEnabled {
+		count++
+	}
+
+	if asc.UnichainConfig.IsEnabled {
 		count++
 	}
 
@@ -305,6 +454,30 @@ func (asc *ApexSystemConfig) applyPremineFundingOptions(users []*TestApexUser) {
 		asc.PolygonConfig.PreminesAddresses = make([]types.Address, 0, len(users))
 	}
 
+	if len(asc.EthereumConfig.PreminesAddresses) == 0 {
+		asc.EthereumConfig.PreminesAddresses = make([]types.Address, 0, len(users))
+	}
+
+	if len(asc.KatanaConfig.PreminesAddresses) == 0 {
+		asc.KatanaConfig.PreminesAddresses = make([]types.Address, 0, len(users))
+	}
+
+	if len(asc.SeiConfig.PreminesAddresses) == 0 {
+		asc.SeiConfig.PreminesAddresses = make([]types.Address, 0, len(users))
+	}
+
+	if len(asc.ArbitrumConfig.PreminesAddresses) == 0 {
+		asc.ArbitrumConfig.PreminesAddresses = make([]types.Address, 0, len(users))
+	}
+
+	if len(asc.ScrollConfig.PreminesAddresses) == 0 {
+		asc.ScrollConfig.PreminesAddresses = make([]types.Address, 0, len(users))
+	}
+
+	if len(asc.UnichainConfig.PreminesAddresses) == 0 {
+		asc.UnichainConfig.PreminesAddresses = make([]types.Address, 0, len(users))
+	}
+
 	if len(asc.SolanaConfig.PreminesAddresses) == 0 {
 		asc.SolanaConfig.PreminesAddresses = make([]string, 0, len(users))
 	}
@@ -329,6 +502,30 @@ func (asc *ApexSystemConfig) applyPremineFundingOptions(users []*TestApexUser) {
 
 		if user.HasPolygonWallet {
 			asc.PolygonConfig.PreminesAddresses = append(asc.PolygonConfig.PreminesAddresses, user.PolygonAddress)
+		}
+
+		if user.HasEthereumWallet {
+			asc.EthereumConfig.PreminesAddresses = append(asc.EthereumConfig.PreminesAddresses, user.EthereumAddress)
+		}
+
+		if user.HasKatanaWallet {
+			asc.KatanaConfig.PreminesAddresses = append(asc.KatanaConfig.PreminesAddresses, user.KatanaAddress)
+		}
+
+		if user.HasSeiWallet {
+			asc.SeiConfig.PreminesAddresses = append(asc.SeiConfig.PreminesAddresses, user.SeiAddress)
+		}
+
+		if user.HasArbitrumWallet {
+			asc.ArbitrumConfig.PreminesAddresses = append(asc.ArbitrumConfig.PreminesAddresses, user.ArbitrumAddress)
+		}
+
+		if user.HasScrollWallet {
+			asc.ScrollConfig.PreminesAddresses = append(asc.ScrollConfig.PreminesAddresses, user.ScrollAddress)
+		}
+
+		if user.HasUnichainWallet {
+			asc.UnichainConfig.PreminesAddresses = append(asc.UnichainConfig.PreminesAddresses, user.UnichainAddress)
 		}
 
 		if user.HasSolanaWallet {

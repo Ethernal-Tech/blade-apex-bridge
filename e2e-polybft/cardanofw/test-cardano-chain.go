@@ -133,11 +133,11 @@ func NewVectorChainConfig(mintableTokens ...map[uint16]string) *TestCardanoChain
 		MinOperationFee:             WeiToDfm(DefaultMinOperationFee).Uint64(),
 		TreasuryAddress:             defaultVectorTreasuryAddress,
 		BridgingAddressCnt:          1,
+		CustodialAddressGeneration:  true,
 	}
 
 	if len(mintableTokens) > 0 {
 		cfg.FundRelayerAmount = WeiToDfm(defaultFundTokenAmount).Uint64()
-		cfg.CustodialAddressGeneration = true
 		cfg.MintableTokens = mintableTokens[0]
 	}
 
@@ -164,6 +164,7 @@ func NewCardanoChainConfig(isEnabled bool, mintableTokens ...map[uint16]string) 
 		MinOperationFee:             WeiToDfm(DefaultMinOperationFee).Uint64(),
 		TreasuryAddress:             defaultCardanoTreasuryAddress,
 		BridgingAddressCnt:          1,
+		CustodialAddressGeneration:  true,
 	}
 
 	if len(mintableTokens) > 0 {
