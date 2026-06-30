@@ -270,6 +270,8 @@ func executeInvalidMetadataInvalidSender(
 		lovelaceAmount, nil, metadata)
 	require.NoError(t, err)
 
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
+
 	cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)
 }
 
