@@ -436,84 +436,49 @@ func Test_E2E_SkylineSanityCheck(t *testing.T) {
 }
 
 func TestE2E_SkylineTestnetBridge_EvmChains(t *testing.T) {
+	t.Parallel()
+
 	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
+	t.Cleanup(cncl)
 
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
 	require.NoError(t, err)
 
-	user := apex.Users[0]
 	sendAmount := big.NewInt(100000000000000) // 0.0001 ETH
 
-	t.Run("Ethereum", func(t *testing.T) {
-		t.Run("Ethereum -> Cardano", func(t *testing.T) {
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, user, user, cardanofw.ChainIDEthereum, cardanofw.ChainIDCardano,
-				sendAmount, cardanofw.ETHTokenID, false)
-		})
+	chainTests := []struct {
+		name           string
+		user           *cardanofw.TestApexUser
+		chainID        string
+		tokenToCardano uint16
+		tokenFromCrdn  uint16
+	}{
+		{name: "Ethereum", user: apex.Users[0], chainID: cardanofw.ChainIDEthereum, tokenToCardano: cardanofw.ETHTokenID, tokenFromCrdn: cardanofw.CETHTokenID},
+		{name: "Katana", user: apex.Users[1], chainID: cardanofw.ChainIDKatana, tokenToCardano: cardanofw.KatanaETHTokenID, tokenFromCrdn: cardanofw.CKatanaETHTokenID},
+		{name: "Sei", user: apex.Users[2], chainID: cardanofw.ChainIDSei, tokenToCardano: cardanofw.SEITokenID, tokenFromCrdn: cardanofw.CSEITokenID},
+		{name: "Scroll", user: apex.Users[3], chainID: cardanofw.ChainIDScroll, tokenToCardano: cardanofw.ScrollETHTokenID, tokenFromCrdn: cardanofw.CScrollETHTokenID},
+		{name: "Unichain", user: apex.Users[4], chainID: cardanofw.ChainIDUnichain, tokenToCardano: cardanofw.UnichainETHTokenID, tokenFromCrdn: cardanofw.CUnichainETHTokenID},
+	}
 
-		t.Run("Cardano -> Ethereum", func(t *testing.T) {
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDEthereum,
-				sendAmount, cardanofw.CETHTokenID, false)
-		})
-	})
+	for _, tc := range chainTests {
+		tc := tc
 
-	t.Run("Katana", func(t *testing.T) {
-		t.Run("Katana -> Cardano", func(t *testing.T) {
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, user, user, cardanofw.ChainIDKatana, cardanofw.ChainIDCardano,
-				sendAmount, cardanofw.KatanaETHTokenID, false)
-		})
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		t.Run("Cardano -> Katana", func(t *testing.T) {
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDKatana,
-				sendAmount, cardanofw.CKatanaETHTokenID, false)
-		})
-	})
+			t.Run(fmt.Sprintf("%s -> Cardano", tc.name), func(t *testing.T) {
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, tc.user, tc.user, tc.chainID, cardanofw.ChainIDCardano,
+					sendAmount, tc.tokenToCardano, false)
+			})
 
-	t.Run("Sei", func(t *testing.T) {
-		t.Run("Sei -> Cardano", func(t *testing.T) {
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, user, user, cardanofw.ChainIDSei, cardanofw.ChainIDCardano,
-				sendAmount, cardanofw.SEITokenID, false)
+			t.Run(fmt.Sprintf("Cardano -> %s", tc.name), func(t *testing.T) {
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, tc.user, tc.user, cardanofw.ChainIDCardano, tc.chainID,
+					sendAmount, tc.tokenFromCrdn, false)
+			})
 		})
-
-		t.Run("Cardano -> Sei", func(t *testing.T) {
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDSei,
-				sendAmount, cardanofw.CSEITokenID, false)
-		})
-	})
-
-	t.Run("Scroll", func(t *testing.T) {
-		t.Run("Scroll -> Cardano", func(t *testing.T) {
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, user, user, cardanofw.ChainIDScroll, cardanofw.ChainIDCardano,
-				sendAmount, cardanofw.ScrollETHTokenID, false)
-		})
-
-		t.Run("Cardano -> Scroll", func(t *testing.T) {
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDScroll,
-				sendAmount, cardanofw.CScrollETHTokenID, false)
-		})
-	})
-
-	t.Run("Unichain", func(t *testing.T) {
-		t.Run("Unichain -> Cardano", func(t *testing.T) {
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, user, user, cardanofw.ChainIDUnichain, cardanofw.ChainIDCardano,
-				sendAmount, cardanofw.UnichainETHTokenID, false)
-		})
-
-		t.Run("Cardano -> Unichain", func(t *testing.T) {
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, user, user, cardanofw.ChainIDCardano, cardanofw.ChainIDUnichain,
-				sendAmount, cardanofw.CUnichainETHTokenID, false)
-		})
-	})
+	}
 }
 
 func TestE2E_SkylineTestnetBridge_ValidScenarios(t *testing.T) {
