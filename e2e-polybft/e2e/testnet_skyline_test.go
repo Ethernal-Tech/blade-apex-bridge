@@ -435,9 +435,7 @@ func Test_E2E_SkylineSanityCheck(t *testing.T) {
 	}
 }
 
-func TestE2E_SkylineTestnetBridge_EvmChains(t *testing.T) {
-	t.Parallel()
-
+func TestE2E_SkylineTestnetBridge_EvmChains(t *testing.T) { //nolint:tparallel
 	ctx, cncl := context.WithCancel(context.Background())
 	t.Cleanup(cncl)
 
