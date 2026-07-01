@@ -233,6 +233,7 @@ func NewSkylineSystem(
 	for _, opt := range opts {
 		opt(config)
 	}
+
 	config.EthereumConfig.MinOperationFee = DefaultMinOperationFee
 	config.KatanaConfig.MinOperationFee = DefaultMinOperationFee
 	config.SeiConfig.MinOperationFee = DefaultMinOperationFee
@@ -248,9 +249,9 @@ func NewSkylineSystem(
 		users[i], err = NewTestApexUser(
 			NewApexNetworkTypes(ApexNetworkTypesParams{
 				PrimeConfig: config.PrimeConfig, VectorConfig: config.VectorConfig, CardanoConfig: config.CardanoConfig,
-				NexusConfig: config.NexusConfig, PolygonConfig: config.PolygonConfig, SolanaConfig: config.SolanaConfig, EthereumConfig: config.EthereumConfig,
-				KatanaConfig: config.KatanaConfig, SeiConfig: config.SeiConfig, ArbitrumConfig: config.ArbitrumConfig,
-				ScrollConfig: config.ScrollConfig, UnichainConfig: config.UnichainConfig,
+				NexusConfig: config.NexusConfig, PolygonConfig: config.PolygonConfig, SolanaConfig: config.SolanaConfig,
+				EthereumConfig: config.EthereumConfig, KatanaConfig: config.KatanaConfig, SeiConfig: config.SeiConfig,
+				ArbitrumConfig: config.ArbitrumConfig, ScrollConfig: config.ScrollConfig, UnichainConfig: config.UnichainConfig,
 			}),
 		)
 		if err != nil {
@@ -1046,164 +1047,6 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 				a.EcosystemTokens[NSTokenID] = NSTokenName
 			}
 		}
-
-		if a.Config.SolanaConfig != nil && a.Config.SolanaConfig.IsEnabled {
-			if a.Config.VectorConfig != nil && a.Config.VectorConfig.IsEnabled {
-				vsToken, _, err := GetTokenAndPolicyForVerificationKey(
-					a.Config.VectorConfig.ChainType, a.Config.VectorConfig.NetworkType,
-					a.VectorInfo.GenesisWallet.VerificationKey, VSTokenName)
-				require.NoError(t, err)
-
-				a.SolanaInfo.DestChain = map[ChainID][]Direction{
-					ChainIDVector: {
-						{
-							SourceTokenID:      WSOLTokenID,
-							DestinationTokenID: ASOLTokenID,
-							TrackSource:        false, // true
-							TrackDestination:   false,
-						},
-						{
-							SourceTokenID:      SAP3XTokenID,
-							DestinationTokenID: AP3XTokenID,
-							TrackSource:        false,
-							TrackDestination:   true,
-						},
-						{
-							SourceTokenID:      VSTokenID,
-							DestinationTokenID: VSTokenID,
-							TrackSource:        false,
-							TrackDestination:   false,
-						},
-					},
-				}
-
-				a.SolanaInfo.Tokens = map[uint16]Token{
-					WSOLTokenID: {
-						ChainSpecific:     WSOLMintAddress,
-						LockUnlock:        true,
-						IsWrappedCurrency: false, // true
-					},
-					SOLTokenID: {
-						ChainSpecific:     cardanowallet.AdaTokenName,
-						LockUnlock:        true,
-						IsWrappedCurrency: false,
-					},
-					SAP3XTokenID: {
-						ChainSpecific:     "",
-						LockUnlock:        false,
-						IsWrappedCurrency: true,
-					},
-					VSTokenID: {
-						ChainSpecific:     "",
-						LockUnlock:        false,
-						IsWrappedCurrency: false,
-					},
-				}
-
-				a.VectorInfo.DestChain[ChainIDSolana] = []Direction{
-					{
-						SourceTokenID:      ASOLTokenID,
-						DestinationTokenID: WSOLTokenID,
-						TrackSource:        false,
-						TrackDestination:   false, // true
-					},
-					{
-						SourceTokenID:      AP3XTokenID,
-						DestinationTokenID: SAP3XTokenID,
-						TrackSource:        true,
-						TrackDestination:   false,
-					},
-					{
-						SourceTokenID:      VSTokenID,
-						DestinationTokenID: VSTokenID,
-						TrackSource:        false,
-						TrackDestination:   false,
-					},
-				}
-
-				a.VectorInfo.Tokens[ASOLTokenID] = Token{
-					ChainSpecific:     "",
-					LockUnlock:        false,
-					IsWrappedCurrency: false,
-				}
-
-				a.VectorInfo.Tokens[VSTokenID] = Token{
-					ChainSpecific:     vsToken.String(),
-					LockUnlock:        true,
-					IsWrappedCurrency: false,
-				}
-
-				a.EcosystemTokens[WSOLTokenID] = WSOLANATokenName
-				a.EcosystemTokens[SOLTokenID] = cardanowallet.AdaTokenName
-				a.EcosystemTokens[ASOLTokenID] = ASOLTokenName
-				a.EcosystemTokens[SAP3XTokenID] = SAP3XTokenName
-				a.EcosystemTokens[VSTokenID] = VSTokenName
-			}
-
-			if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
-				a.SolanaInfo.DestChain[ChainIDNexus] = []Direction{
-					{
-						SourceTokenID:      WSOLTokenID,
-						DestinationTokenID: ASOLTokenID,
-						TrackSource:        false, // true
-						TrackDestination:   false,
-					},
-					{
-						SourceTokenID:      SAP3XTokenID,
-						DestinationTokenID: AP3XTokenID,
-						TrackSource:        false,
-						TrackDestination:   true,
-					},
-					{
-						SourceTokenID:      NSTokenID,
-						DestinationTokenID: NSTokenID,
-						TrackSource:        false,
-						TrackDestination:   false,
-					},
-				}
-
-				a.NexusInfo.DestChain[ChainIDSolana] = []Direction{
-					{
-						SourceTokenID:      ASOLTokenID,
-						DestinationTokenID: WSOLTokenID,
-						TrackSource:        false,
-						TrackDestination:   false, // true
-					},
-					{
-						SourceTokenID:      AP3XTokenID,
-						DestinationTokenID: SAP3XTokenID,
-						TrackSource:        true,
-						TrackDestination:   false,
-					},
-					{
-						SourceTokenID:      NSTokenID,
-						DestinationTokenID: NSTokenID,
-						TrackSource:        false,
-						TrackDestination:   false,
-					},
-				}
-
-				a.NexusInfo.Tokens[ASOLTokenID] = Token{
-					ChainSpecific:     "",
-					LockUnlock:        false,
-					IsWrappedCurrency: false,
-				}
-
-				a.NexusInfo.Tokens[NSTokenID] = Token{
-					ChainSpecific:     "",
-					LockUnlock:        false,
-					IsWrappedCurrency: false,
-				}
-
-				a.SolanaInfo.Tokens[NSTokenID] = Token{
-					ChainSpecific:     "",
-					LockUnlock:        false,
-					IsWrappedCurrency: false,
-				}
-
-				a.EcosystemTokens[NSTokenID] = NSTokenName
-			}
-		}
 	} else {
 		require.NotNil(t, a.PrimeInfo.GenesisWallet)
 		require.NotNil(t, a.VectorInfo.GenesisWallet)
@@ -1308,7 +1151,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 	a.InitTxSendChainConfiguration()
 
 	if a.Config.SolanaConfig != nil && a.Config.SolanaConfig.IsEnabled {
-		err := a.UpdateChainMaxNumberOfTransactions(ChainIDSolana, 4)
+		err := a.UpdateChainMaxNumberOfTransactions(ChainIDSolana, 3)
 		if err != nil {
 			return err
 		}
@@ -2572,19 +2415,20 @@ type BridgingTokensInfo struct {
 }
 
 func (a *ApexSystem) GetChainDirectionsAndTokens(chain ChainID) (map[ChainID][]Direction, map[uint16]Token) {
-	if IsEVMChain(chain) {
+	switch {
+	case IsEVMChain(chain):
 		info := a.GetEvmInfo(chain)
 
 		return info.DestChain, info.Tokens
-	} else if IsCardanoChain(chain) {
+	case IsCardanoChain(chain):
 		info := a.GetCardanoInfo(chain)
 
 		return info.DestChain, info.Tokens
-	} else if chain == ChainIDSolana {
+	case chain == ChainIDSolana:
 		return a.SolanaInfo.DestChain, a.SolanaInfo.Tokens
+	default:
+		return nil, nil
 	}
-
-	return nil, nil
 }
 
 func (a *ApexSystem) GetChainCurrencyID(chain ChainID) (uint16, error) {
@@ -2891,11 +2735,12 @@ func (a *ApexSystem) SetDependencies(upgradeParams *SetDependenciesSCParams) err
 }
 
 func (a *ApexSystem) GetMinBridgingFee(chainID ChainID, isNativeTokenBridging bool) *big.Int {
-	if IsEVMChain(chainID) {
+	switch {
+	case IsEVMChain(chainID):
 		return a.getEvmConfig(chainID).MinBridgingFee
-	} else if chainID == ChainIDSolana {
+	case chainID == ChainIDSolana:
 		return a.Config.SolanaConfig.MinBridgingFee
-	} else {
+	default:
 		config := a.getCardanoConfig(chainID)
 
 		if isNativeTokenBridging {
@@ -2907,13 +2752,14 @@ func (a *ApexSystem) GetMinBridgingFee(chainID ChainID, isNativeTokenBridging bo
 }
 
 func (a *ApexSystem) GetMinOperationFee(chainID ChainID) *big.Int {
-	if IsEVMChain(chainID) {
+	switch {
+	case IsEVMChain(chainID):
 		return a.getEvmConfig(chainID).MinOperationFee
-	} else if IsCardanoChain(chainID) {
+	case IsCardanoChain(chainID):
 		return DfmToWei(new(big.Int).SetUint64(a.getCardanoConfig(chainID).MinOperationFee))
-	} else if chainID == ChainIDSolana {
+	case chainID == ChainIDSolana:
 		return a.Config.SolanaConfig.MinOperationFee
-	} else {
+	default:
 		return big.NewInt(0)
 	}
 }

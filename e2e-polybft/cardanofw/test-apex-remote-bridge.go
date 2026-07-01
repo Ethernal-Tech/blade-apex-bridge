@@ -726,52 +726,6 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 				TreasuryAddress: "BrQciKpBZg47NU8x3chSFAnXUoY9zszRbsy6oGm8Dp3p",
 			},
 		},
-		SolanaChains: map[string]RemoteSolanaChainConfig{
-			ChainIDSolana: {
-				Info: SolanaChainInfo{
-					DestChain: map[ChainID][]Direction{
-						ChainIDVector: {
-							{
-								SourceTokenID:      WSOLTokenID,
-								DestinationTokenID: ASOLTokenID,
-								TrackSource:        false,
-								TrackDestination:   false,
-							},
-							{
-								SourceTokenID:      SAP3XTokenID,
-								DestinationTokenID: AP3XTokenID,
-								TrackSource:        false,
-								TrackDestination:   true,
-							},
-						},
-					},
-					Tokens: map[uint16]Token{
-						SOLTokenID: {
-							ChainSpecific:     cardanowallet.AdaTokenName,
-							LockUnlock:        true,
-							IsWrappedCurrency: false,
-						},
-						WSOLTokenID: {
-							ChainSpecific:     WSOLMintAddress,
-							LockUnlock:        true,
-							IsWrappedCurrency: false,
-						},
-						SAP3XTokenID: {
-							ChainSpecific:     "6V2Qv5UddyqAiZR12JF9yE4aed2TQ3rmyZYb7CegXiA6",
-							LockUnlock:        false,
-							IsWrappedCurrency: false,
-						},
-					},
-					RelayerAddress: "7bP47jShWo1xn1gVX4Be5oNNwcwLCKKmCt7aX2W2go8c",
-					JSONRPCAddr:    "https://api.devnet.solana.com",
-					ProgramID:      "6R9GdZEpwBFTicsZCqN7e7P4gqoKDTdiDQSceJz5pGHY",
-					AltPublicKey:   "9Xf3VFhcs1ZW55NBuSqhDaSX3Jb1PbNHLwrtgh6j4TJG",
-				},
-				MinBridgingFee:  big.NewInt(6000000),
-				MinOperationFee: big.NewInt(0),
-				TreasuryAddress: "BrQciKpBZg47NU8x3chSFAnXUoY9zszRbsy6oGm8Dp3p",
-			},
-		},
 		BridgingAPIs: []string{
 			"http://validator-1-skyline-partner.testnet.ethernal.work:10003",
 		},

@@ -694,5 +694,6 @@ func (u *TestApexUser) HasWallet(chain ChainID) bool {
 		ChainIDArbitrum: u.HasArbitrumWallet,
 		ChainIDScroll:   u.HasScrollWallet,
 		ChainIDUnichain: u.HasUnichainWallet,
+		ChainIDSolana:   u.HasSolanaWallet,
 	}[chain]
 }
