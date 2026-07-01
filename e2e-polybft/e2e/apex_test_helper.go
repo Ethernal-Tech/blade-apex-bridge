@@ -539,6 +539,8 @@ func executeInvalidMetadataInvalidSender(
 		defaultAmount, sentTokenAmount, metadata, operationFee)
 	require.NoError(t, err)
 
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
+
 	cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)
 
 	if initialTreasuryBalance != nil && operationFee.Cmp(big.NewInt(0)) > 0 {
