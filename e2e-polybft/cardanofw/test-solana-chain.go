@@ -1171,6 +1171,8 @@ func (sc *TestSolanaChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSyst
 	t.Helper()
 
 	apexSystem.SolanaInfo.RelayerAddress = sc.relayerAddr
+	apexSystem.SolanaInfo.JSONRPCAddr = sc.jsonRPCAddr
+	apexSystem.SolanaInfo.ProgramID = sc.programID
 
 	return nil
 }
