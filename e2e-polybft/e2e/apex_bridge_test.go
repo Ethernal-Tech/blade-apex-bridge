@@ -2024,10 +2024,12 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 	// Send only half bytes of metadata making it invalid
 	metadata = metadata[0 : len(metadata)/2]
 
-	_, err = apex.SubmitTx(
+	txHash, err := apex.SubmitTx(
 		ctx, cardanofw.ChainIDPrime, user,
 		apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), nil, metadata)
 	require.Error(t, err)
+
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
 }
 
 func sendWithoutWaitInvalidMetadataWrongType(
@@ -2086,10 +2088,12 @@ func submitInvalidSendAmountTransaction(
 		}, feeAmount.Uint64())
 	require.NoError(t, err)
 
-	_, err = apex.SubmitTx(
+	txHash, err := apex.SubmitTx(
 		ctx, src, senderUser, srcTestChain.GetHotWalletAddress(),
 		new(big.Int).Add(sendAmount, feeAmount), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
+
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
 }
 
 func TestE2E_ApexBridge_UTxOConsolidation(t *testing.T) {
