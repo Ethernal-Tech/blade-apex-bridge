@@ -1221,11 +1221,6 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 	//nolint:prealloc
 	var params []string
 
-	binary := ""
-	if IsCardanoTypeChain(brParams.DestChainID) {
-		binary = ResolveCardanoCliBinary(brParams.DestChainID)
-	}
-
 	if brParams.IsCurrencySrc && brParams.IsCurrencyDest {
 		params = []string{
 			"sendtx",
@@ -1240,8 +1235,8 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 			"--operation-fee", brParams.OperationFee.String(),
 		}
 
-		if binary != "" {
-			params = append(params, "--cardano-cli-binary-name", binary)
+		if IsCardanoTypeChain(brParams.DestChainID) {
+			params = append(params, "--cardano-cli-binary-name", ResolveCardanoCliBinary(brParams.DestChainID))
 		}
 	} else {
 		receiverTokenID := uint16(0)
@@ -1276,10 +1271,6 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 			"--src-token-id", fmt.Sprint(receiverTokenID),
 		}
 
-		if binary != "" {
-			params = append(params, "--cardano-cli-binary-name", binary)
-		}
-
 		if brParams.IsCurrencySrc {
 			params = append(params, "--src-token-name", infrawallet.AdaTokenName)
 		} else if isTokenLockUnlock {
@@ -1287,6 +1278,8 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 				"--native-token-wallet-contract-addr", ec.nativeTokenWalletAddr.String(),
 				"--src-token-contract-addr", ec.config.ConfigurableTokens[receiverTokenID])
 		}
+
+		params = appendSendtxDestinationWaitFlags(params, brParams)
 	}
 
 	for addr, amount := range brParams.Receivers {
@@ -1612,4 +1605,24 @@ func (ec *TestEVMChain) getChainInfo(t *testing.T) EVMChainInfo {
 
 func (ec *TestEVMChain) GetAddressToBridgeTo(ctx context.Context, hasTokens bool) (string, error) {
 	return ec.gatewayAddr.String(), nil
+}
+
+func appendSendtxDestinationWaitFlags(params []string, brParams BridgingRequestParams) []string {
+	if brParams.DstTokenName != "" {
+		params = append(params, "--dst-token-name", brParams.DstTokenName)
+	}
+
+	if brParams.DstOgmiosURL != "" {
+		params = append(params, "--ogmios-dst", brParams.DstOgmiosURL)
+	}
+
+	if brParams.DstSolanaURL != "" {
+		params = append(params, "--solana-url", brParams.DstSolanaURL)
+	}
+
+	if brParams.DstTokenContractAddr != "" {
+		params = append(params, "--dst-token-contract-addr", brParams.DstTokenContractAddr)
+	}
+
+	return params
 }

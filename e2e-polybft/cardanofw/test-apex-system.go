@@ -2377,17 +2377,24 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 	feeAmount := a.GetMinBridgingFee(data.SourceChain, !isCurrencySrc)
 
+	dstTokenName, dstOgmiosURL, dstSolanaURL, dstTokenContractAddr :=
+		a.destinationSendtxWaitParams(data.DestinationChain, data.TokensInfo)
+
 	txHash, err := infracommon.ExecuteWithRetry(data.Context, func(ctx context.Context) (string, error) {
 		txHash, err := srcChain.BridgingRequest(BridgingRequestParams{
-			Ctx:            ctx,
-			DestChainID:    data.DestinationChain,
-			PrivateKey:     privateKey,
-			ChainIDsConfig: a.GetChainIDsConfig(),
-			Receivers:      receiversMap,
-			FeeAmount:      feeAmount,
-			OperationFee:   operationFee,
-			IsCurrencySrc:  isCurrencySrc,
-			IsCurrencyDest: destCurrencyID == data.TokensInfo.DstTokenID,
+			Ctx:                  ctx,
+			DestChainID:          data.DestinationChain,
+			PrivateKey:           privateKey,
+			ChainIDsConfig:       a.GetChainIDsConfig(),
+			Receivers:            receiversMap,
+			FeeAmount:            feeAmount,
+			OperationFee:         operationFee,
+			IsCurrencySrc:        isCurrencySrc,
+			IsCurrencyDest:       destCurrencyID == data.TokensInfo.DstTokenID,
+			DstTokenName:         dstTokenName,
+			DstOgmiosURL:         dstOgmiosURL,
+			DstSolanaURL:         dstSolanaURL,
+			DstTokenContractAddr: dstTokenContractAddr,
 		})
 		if err != nil {
 			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
@@ -2405,6 +2412,29 @@ func (a *ApexSystem) SubmitBridgingRequest(
 	}
 
 	return txHash, nil
+}
+
+func (a *ApexSystem) destinationSendtxWaitParams(
+	dstChain ChainID, tokensInfo *BridgingTokensInfo,
+) (dstTokenName, ogmiosURL, solanaURL, tokenContractAddr string) {
+	if tokensInfo == nil {
+		return "", "", "", ""
+	}
+
+	dstTokenName = tokensInfo.DstTokenName
+
+	switch {
+	case IsCardanoChain(dstChain):
+		ogmiosURL = a.GetCardanoInfo(dstChain).OgmiosURL
+	case dstChain == ChainIDSolana:
+		solanaURL = a.SolanaInfo.JSONRPCAddr
+	case IsEVMChain(dstChain):
+		if strings.HasPrefix(dstTokenName, "0x") {
+			tokenContractAddr = dstTokenName
+		}
+	}
+
+	return dstTokenName, ogmiosURL, solanaURL, tokenContractAddr
 }
 
 type BridgingTokensInfo struct {
