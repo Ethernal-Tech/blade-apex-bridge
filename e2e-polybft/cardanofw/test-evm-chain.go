@@ -963,7 +963,7 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 		params = []string{
 			"sendtx",
 			"skyline",
-			"--tx-type", "evm",
+			"evm",
 			"--chain-ids-config", brParams.ChainIDsConfig,
 			"--gateway-addr", ec.gatewayAddr.String(),
 			"--rpc-url", ec.jsonRPCAddr,
