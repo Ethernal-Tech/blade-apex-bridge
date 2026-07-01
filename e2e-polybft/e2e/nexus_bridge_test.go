@@ -1813,6 +1813,8 @@ func DstNexusInvalidMetadataInvalidSender(
 		new(big.Int).Add(sendAmount, minBridgingFee), nil, bridgingRequestMetadata, nil)
 	require.NoError(t, err)
 
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
+
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
 }
 

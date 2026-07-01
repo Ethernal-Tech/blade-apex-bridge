@@ -2240,10 +2240,12 @@ func PrimeToVectorInvalidMetadataSlicedOff(
 	// Send only half bytes of metadata making it invalid
 	metadata = metadata[0 : len(metadata)/2]
 
-	_, err = apex.SubmitTx(
+	txHash, err := apex.SubmitTx(
 		ctx, cardanofw.ChainIDPrime, user,
 		apex.PrimeInfo.MultisigAddr[0], new(big.Int).Add(sendAmount, minBridgingFee), nil, metadata, nil)
 	require.Error(t, err)
+
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
 }
 
 func PrimeToVectorSequentialAndParallelWithMaxReceivers(
