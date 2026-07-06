@@ -67,6 +67,10 @@ type TestSolanaChainConfig struct {
 	// Human readable names of tokens that should be mintable on this chain
 	MintableTokens   map[uint16]string
 	LockUnlockTokens map[uint16]string
+
+	// Disables the rate limiting for the solana chain tracker.
+	// Should be set to true only for local testing.
+	DisableTrackRateLimiting bool
 }
 
 func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
@@ -97,6 +101,8 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 			VSTokenID:    VSTokenName,
 			NSTokenID:    NSTokenName,
 		},
+
+		DisableTrackRateLimiting: true,
 	}
 }
 
@@ -115,7 +121,8 @@ func NewRemoteSolanaChainConfig(
 		MintableTokens: map[uint16]string{
 			SAP3XTokenID: SAP3XTokenName,
 		},
-		TokensMint: map[uint16]string{},
+		TokensMint:               map[uint16]string{},
+		DisableTrackRateLimiting: false,
 	}
 }
 
@@ -1018,6 +1025,10 @@ func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexVal
 		"--alt-public-key", sc.altPublicKey,
 		// "--sol-tracker-start-block", fmt.Sprintf("%d:%d", 300, 300), // slot:blockNum
 		"--sol-confirmation-timeout", "60000000000",
+	}
+
+	if sc.config.DisableTrackRateLimiting {
+		args = append(args, "--disable-rate-limiting")
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)

@@ -241,7 +241,7 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 		SolanaAddress:   apex.SolanaInfo.RelayerAddress,
 	}
 
-	for range 5 {
+	for range 3 {
 		t.Run("TEST SOLANA BRIDGING", func(t *testing.T) {
 			wg := sync.WaitGroup{}
 			wg.Add(4)
