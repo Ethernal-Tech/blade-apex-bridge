@@ -1620,6 +1620,10 @@ func appendSendtxDestinationWaitFlags(params []string, brParams BridgingRequestP
 		params = append(params, "--solana-url", brParams.DstSolanaURL)
 	}
 
+	if brParams.DstRPCURL != "" {
+		params = append(params, "--rpc-url-dst", brParams.DstRPCURL)
+	}
+
 	if brParams.DstTokenContractAddr != "" {
 		params = append(params, "--dst-token-contract-addr", brParams.DstTokenContractAddr)
 	}

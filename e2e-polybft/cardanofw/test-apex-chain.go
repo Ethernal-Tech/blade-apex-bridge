@@ -54,6 +54,7 @@ type BridgingRequestParams struct {
 	DstTokenName         string
 	DstOgmiosURL         string
 	DstSolanaURL         string
+	DstRPCURL            string
 	DstTokenContractAddr string
 }
 

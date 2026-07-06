@@ -2377,7 +2377,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 	feeAmount := a.GetMinBridgingFee(data.SourceChain, !isCurrencySrc)
 
-	dstTokenName, dstOgmiosURL, dstSolanaURL, dstTokenContractAddr :=
+	dstTokenName, dstOgmiosURL, dstSolanaURL, dstRPCURL, dstTokenContractAddr :=
 		a.destinationSendtxWaitParams(data.DestinationChain, data.TokensInfo)
 
 	txHash, err := infracommon.ExecuteWithRetry(data.Context, func(ctx context.Context) (string, error) {
@@ -2394,6 +2394,7 @@ func (a *ApexSystem) SubmitBridgingRequest(
 			DstTokenName:         dstTokenName,
 			DstOgmiosURL:         dstOgmiosURL,
 			DstSolanaURL:         dstSolanaURL,
+			DstRPCURL:            dstRPCURL,
 			DstTokenContractAddr: dstTokenContractAddr,
 		})
 		if err != nil {
@@ -2416,9 +2417,9 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 func (a *ApexSystem) destinationSendtxWaitParams(
 	dstChain ChainID, tokensInfo *BridgingTokensInfo,
-) (dstTokenName, ogmiosURL, solanaURL, tokenContractAddr string) {
+) (dstTokenName, ogmiosURL, solanaURL, rpcURL, tokenContractAddr string) {
 	if tokensInfo == nil {
-		return "", "", "", ""
+		return "", "", "", "", ""
 	}
 
 	dstTokenName = tokensInfo.DstTokenName
@@ -2429,12 +2430,15 @@ func (a *ApexSystem) destinationSendtxWaitParams(
 	case dstChain == ChainIDSolana:
 		solanaURL = a.SolanaInfo.JSONRPCAddr
 	case IsEVMChain(dstChain):
+		rpcURL = a.GetEvmInfo(dstChain).JSONRPCAddr
+
 		if strings.HasPrefix(dstTokenName, "0x") {
 			tokenContractAddr = dstTokenName
+			dstTokenName = ""
 		}
 	}
 
-	return dstTokenName, ogmiosURL, solanaURL, tokenContractAddr
+	return dstTokenName, ogmiosURL, solanaURL, rpcURL, tokenContractAddr
 }
 
 type BridgingTokensInfo struct {
