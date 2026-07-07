@@ -80,7 +80,7 @@ jobs:
         uses: actions/checkout@v4.1.1
         with:
           repository: Ethernal-Tech/apex-bridge
-          ref: feat/skyline-solana
+          ref: feat/skyline
       - name: Build apex-bridge
         run: |
           go build -tags testenv
