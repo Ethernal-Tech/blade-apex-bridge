@@ -488,18 +488,21 @@ func ExecuteBridging(
 		srcChainMap            = map[string]string{}
 	)
 
+	// initialize all destination chain/token pairs to zero
+	for _, pair := range chainPairs {
+		tokensInfo, err := apex.GetBridgingTokensInfo(pair.srcChain, pair.dstChain, srcTokenIDs[pair])
+		require.NoError(t, err)
+
+		if _, exists := originalDesiredAmounts[pair.dstChain]; !exists {
+			originalDesiredAmounts[pair.dstChain] = make(map[string]*big.Int)
+		}
+
+		originalDesiredAmounts[pair.dstChain][tokensInfo.DstTokenName] = big.NewInt(0)
+	}
+
 	// calculate desired amounts per chain
 	for _, txData := range sendTxDatas {
 		tokensInfo := txData.TokensInfo
-
-		if _, exists := originalDesiredAmounts[txData.DstChainID]; !exists {
-			originalDesiredAmounts[txData.DstChainID] = make(map[string]*big.Int)
-		}
-
-		if _, exists := originalDesiredAmounts[txData.DstChainID][tokensInfo.DstTokenName]; !exists {
-			originalDesiredAmounts[txData.DstChainID][tokensInfo.DstTokenName] = big.NewInt(0)
-		}
-
 		expectedAmount := new(big.Int).Set(txData.SendAmount)
 
 		originalDesiredAmounts[txData.DstChainID][tokensInfo.DstTokenName].Add(
@@ -823,16 +826,17 @@ func ExecuteBridgingExtended(
 		srcChainMap            = map[string]string{}
 	)
 
+	// initialize all destination chain/token pairs to zero
+	for _, combo := range combos {
+		if _, exists := originalDesiredAmounts[combo.dstChain]; !exists {
+			originalDesiredAmounts[combo.dstChain] = make(map[string]*big.Int)
+		}
+
+		originalDesiredAmounts[combo.dstChain][combo.dstTokenName] = big.NewInt(0)
+	}
+
 	// calculate desired amounts per chain/token
 	for _, txData := range sendTxDatas {
-		if _, exists := originalDesiredAmounts[txData.DstChainID]; !exists {
-			originalDesiredAmounts[txData.DstChainID] = make(map[string]*big.Int)
-		}
-
-		if _, exists := originalDesiredAmounts[txData.DstChainID][txData.DstTokenName]; !exists {
-			originalDesiredAmounts[txData.DstChainID][txData.DstTokenName] = big.NewInt(0)
-		}
-
 		expectedAmount := new(big.Int).Set(txData.SendAmount)
 
 		originalDesiredAmounts[txData.DstChainID][txData.DstTokenName].Add(

@@ -28,6 +28,7 @@ import (
 const (
 	ChainTypeCardano = iota
 	ChainTypeEVM
+	ChainTypeSolana
 
 	BatchStateFailedToExecute           = "FailedToExecuteOnDestination"
 	BatchStateIncludedInBatch           = "IncludedInBatch"
@@ -119,6 +120,10 @@ func ResolveApexBridgeBinary() string {
 
 func ResolveBladeBinary() string {
 	return tryResolveFromEnv("BLADE_BINARY", "blade")
+}
+
+func ResolveSPLTokenBinary() string {
+	return tryResolveFromEnv("SPL_TOKEN_BINARY", "spl-token")
 }
 
 func RunCommandContext(
@@ -296,7 +301,10 @@ func GetAPIRequestGeneric[T any](ctx context.Context, requestURL string, apiKey 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return t, err
-	} else if resp.StatusCode != http.StatusOK {
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
 		return t, fmt.Errorf("http status for %s code is %d", requestURL, resp.StatusCode)
 	}
 
@@ -345,7 +353,10 @@ func FaucetRequest(ctx context.Context, addr string) (err error) {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
-	} else if resp.StatusCode != http.StatusOK {
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("http status for %s code is %d", requestURL, resp.StatusCode)
 	}
 
@@ -626,7 +637,7 @@ func ChainIDToInt(chainID string) uint8 {
 	}
 }
 
-func populateEvmTokenBalances(
+func populateEvmAndSolTokenBalances(
 	ctx context.Context,
 	apex *ApexSystem,
 	user *TestApexUser,
@@ -640,17 +651,12 @@ func populateEvmTokenBalances(
 
 	var errs []error
 
-	for _, token := range apex.GetEvmInfo(chain).Tokens {
-		name := token.ChainSpecific
-		if name == wallet.AdaTokenName {
-			continue
-		}
-
+	getTokenBalance := func(name string) {
 		byToken, err := apex.GetBalanceWithTokenName(ctx, user, chain, name)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to get balance for (%s, %s): %w", chain, addr, err))
 
-			continue
+			return
 		}
 
 		if byToken != nil {
@@ -658,6 +664,28 @@ func populateEvmTokenBalances(
 				balance[name] = v
 			}
 		}
+	}
+
+	if chain == ChainIDSolana {
+		for _, token := range apex.SolanaInfo.Tokens {
+			name := token.ChainSpecific
+			if name == wallet.AdaTokenName {
+				continue
+			}
+
+			getTokenBalance(name)
+		}
+
+		return balance, errs
+	}
+
+	for _, token := range apex.GetEvmInfo(chain).Tokens {
+		name := token.ChainSpecific
+		if name == wallet.AdaTokenName {
+			continue
+		}
+
+		getTokenBalance(name)
 	}
 
 	return balance, errs
@@ -698,8 +726,8 @@ func GetUsersBalances(
 				)
 
 				var tokenErrs []error
-				if err == nil && IsEVMChain(chain) {
-					balance, tokenErrs = populateEvmTokenBalances(ctx, apex, user, chain, addr, balance)
+				if err == nil && (IsEVMChain(chain) || chain == ChainIDSolana) {
+					balance, tokenErrs = populateEvmAndSolTokenBalances(ctx, apex, user, chain, addr, balance)
 				}
 
 				mu.Lock()

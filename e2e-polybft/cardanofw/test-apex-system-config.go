@@ -22,6 +22,7 @@ const (
 	ChainIDArbitrum ChainID = "arbitrum"
 	ChainIDScroll   ChainID = "scroll"
 	ChainIDUnichain ChainID = "unichain"
+	ChainIDSolana   ChainID = "solana"
 
 	ChainIDCardano ChainID = "cardano"
 
@@ -63,6 +64,13 @@ const (
 	// not on testnet - only for local tests
 	USDCTokenID  uint16 = 60017
 	USDCxTokenID uint16 = 60018
+
+	SOLTokenID   uint16 = 30
+	WSOLTokenID  uint16 = 31
+	ASOLTokenID  uint16 = 32
+	SAP3XTokenID uint16 = 33
+	VSTokenID    uint16 = 34
+	NSTokenID    uint16 = 35
 )
 
 // Human readable token names
@@ -89,8 +97,15 @@ const (
 	UnichainETHTokenName  = "UnichainETH"
 	CUnichainETHTokenName = "cUnichainETH" //nolint:gosec
 
-	USDCTokenName  = "USDC"
-	USDCxTokenName = "USDCx"
+	USDCTokenName    = "USDC"
+	USDCxTokenName   = "USDCx"
+	SOLANATokenName  = "SOL"
+	WSOLANATokenName = "wSOL"
+	ASOLTokenName    = "xwSOL"
+	SAP3XTokenName   = "sAP3X"
+	VSTokenName      = "VS"
+	NSTokenName      = "NS"
+	WSOLMintAddress  = "So11111111111111111111111111111111111111112"
 )
 
 type ApexSystemConfig struct {
@@ -115,6 +130,8 @@ type ApexSystemConfig struct {
 	ArbitrumConfig *TestEVMChainConfig
 	ScrollConfig   *TestEVMChainConfig
 	UnichainConfig *TestEVMChainConfig
+
+	SolanaConfig *TestSolanaChainConfig
 
 	CustomOracleConfigHandler     CustomConfigHandler
 	CustomRelayerConfigHandler    CustomConfigHandler
@@ -277,6 +294,13 @@ func WithUnichainConfig(config *TestEVMChainConfig) ApexSystemOptions {
 	}
 }
 
+func WithSolanaConfig(config *TestSolanaChainConfig) ApexSystemOptions {
+	return func(h *ApexSystemConfig) {
+		h.SolanaConfig = config
+		h.BladeValidatorCount = 5
+	}
+}
+
 func WithCustomConfigHandlers(
 	callbackOracle, callbackRelayer, callbackDirections, callbackChainIDs CustomConfigHandler) ApexSystemOptions {
 	return func(h *ApexSystemConfig) {
@@ -327,6 +351,7 @@ func getDefaultApexSystemConfig() *ApexSystemConfig {
 		ArbitrumConfig: NewArbitrumChainConfig(false),
 		ScrollConfig:   NewScrollChainConfig(false),
 		UnichainConfig: NewUnichainChainConfig(false),
+		SolanaConfig:   NewSolanaChainConfig(false),
 
 		UserCnt: 10,
 	}
@@ -351,6 +376,7 @@ func getDefaultSkylineSystemConfig() *ApexSystemConfig {
 		ArbitrumConfig: NewArbitrumChainConfig(false),
 		ScrollConfig:   NewScrollChainConfig(false),
 		UnichainConfig: NewUnichainChainConfig(false),
+		SolanaConfig:   NewSolanaChainConfig(false),
 
 		UserCnt: 10,
 	}
@@ -397,6 +423,10 @@ func (asc *ApexSystemConfig) ServiceCount() int {
 	}
 
 	if asc.UnichainConfig.IsEnabled {
+		count++
+	}
+
+	if asc.SolanaConfig.IsEnabled {
 		count++
 	}
 
@@ -448,6 +478,10 @@ func (asc *ApexSystemConfig) applyPremineFundingOptions(users []*TestApexUser) {
 		asc.UnichainConfig.PreminesAddresses = make([]types.Address, 0, len(users))
 	}
 
+	if len(asc.SolanaConfig.PreminesAddresses) == 0 {
+		asc.SolanaConfig.PreminesAddresses = make([]string, 0, len(users))
+	}
+
 	for _, user := range users {
 		asc.PrimeConfig.PreminesAddresses = append(asc.PrimeConfig.PreminesAddresses,
 			hex.EncodeToString(user.PrimeAddress.GetBytes()))
@@ -492,6 +526,10 @@ func (asc *ApexSystemConfig) applyPremineFundingOptions(users []*TestApexUser) {
 
 		if user.HasUnichainWallet {
 			asc.UnichainConfig.PreminesAddresses = append(asc.UnichainConfig.PreminesAddresses, user.UnichainAddress)
+		}
+
+		if user.HasSolanaWallet {
+			asc.SolanaConfig.PreminesAddresses = append(asc.SolanaConfig.PreminesAddresses, user.SolanaAddress)
 		}
 	}
 }

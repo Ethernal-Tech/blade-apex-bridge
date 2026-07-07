@@ -43,11 +43,19 @@ func Test_OnlyRunSkylineBridge(t *testing.T) {
 	// primeConfig.FundTokenAmount = 1_000_000_000
 	cardanoConfig.FundTokenAmount = 1_000_000_000
 
-	vectorConfig := cardanofw.NewVectorChainConfig()
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{
+		cardanofw.WSOLTokenID:  cardanofw.WSOLANATokenName,
+		cardanofw.ASOLTokenID:  cardanofw.ASOLTokenName,
+		cardanofw.USDTTokenID:  cardanofw.USDTTokenName,
+		cardanofw.SAP3XTokenID: cardanofw.SAP3XTokenName,
+	})
 	vectorConfig.FundTokenAmount = 1_000_000_000
 
 	nexusConfig := cardanofw.NewNexusChainConfig(true)
 	cardanoConfig.FundTokenAmount = 1_000_000_000
+
+	solanaConfig := cardanofw.NewSolanaChainConfig(true)
+	solanaConfig.FundAmount = cardanofw.LamportToWei(cardanofw.SolanaToLamport(big.NewInt(10000)))
 
 	apex := cardanofw.SetupAndRunSkylineBridge(
 		t, ctx,
@@ -56,6 +64,7 @@ func Test_OnlyRunSkylineBridge(t *testing.T) {
 		cardanofw.WithPrimeConfig(primeConfig),
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithSolanaConfig(solanaConfig),
 		cardanofw.WithUserCnt(1),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 	)
@@ -72,12 +81,21 @@ func Test_OnlyRunSkylineBridge(t *testing.T) {
 	fmt.Printf("prime ogmios url: %s\n", apex.PrimeInfo.OgmiosURL)
 	fmt.Printf("prime bridging addr: %s\n", apex.PrimeInfo.MultisigAddr[0])
 	fmt.Printf("prime fee addr: %s\n", apex.PrimeInfo.FeeAddr)
+	fmt.Printf("prime treasury addr: %s\n", primeConfig.TreasuryAddress)
 	fmt.Printf("prime socket path: %s\n", apex.PrimeInfo.SocketPath)
+
+	fmt.Printf("vector network url: %s\n", apex.VectorInfo.NetworkAddress)
+	fmt.Printf("vector ogmios url: %s\n", apex.VectorInfo.OgmiosURL)
+	fmt.Printf("vector bridging addr: %s\n", apex.VectorInfo.MultisigAddr[0])
+	fmt.Printf("vector fee addr: %s\n", apex.VectorInfo.FeeAddr)
+	fmt.Printf("vector treasury addr: %s\n", vectorConfig.TreasuryAddress)
+	fmt.Printf("vector socket path: %s\n", apex.VectorInfo.SocketPath)
 
 	fmt.Printf("cardano network url: %s\n", apex.CardanoInfo.NetworkAddress)
 	fmt.Printf("cardano ogmios url: %s\n", apex.CardanoInfo.OgmiosURL)
 	fmt.Printf("cardano bridging addr: %s\n", apex.CardanoInfo.MultisigAddr[0])
 	fmt.Printf("cardano fee addr: %s\n", apex.CardanoInfo.FeeAddr)
+	fmt.Printf("cardano treasury addr: %s\n", cardanoConfig.TreasuryAddress)
 	fmt.Printf("cardano socket path: %s\n", apex.CardanoInfo.SocketPath)
 
 	nexusAdminPrivateKey, err := apex.NexusInfo.AdminKey.MarshallPrivateKey()
@@ -92,6 +110,10 @@ func Test_OnlyRunSkylineBridge(t *testing.T) {
 	user := apex.Users[0]
 	userPrimeSK, err := user.GetPrivateKey(cardanofw.ChainIDPrime)
 	require.NoError(t, err)
+	userVectorSK, err := user.GetPrivateKey(cardanofw.ChainIDVector)
+	require.NoError(t, err)
+	userNexusSK, err := user.GetPrivateKey(cardanofw.ChainIDNexus)
+	require.NoError(t, err)
 	userCardanoSK, err := user.GetPrivateKey(cardanofw.ChainIDCardano)
 	require.NoError(t, err)
 
@@ -99,6 +121,12 @@ func Test_OnlyRunSkylineBridge(t *testing.T) {
 	fmt.Printf("user prime signing key hex: %s\n", userPrimeSK)
 	fmt.Printf("user cardano addr: %s\n", user.GetAddress(cardanofw.ChainIDCardano))
 	fmt.Printf("user cardano signing key hex: %s\n", userCardanoSK)
+	fmt.Printf("user vector addr: %s\n", user.GetAddress(cardanofw.ChainIDVector))
+	fmt.Printf("user vector signing key hex: %s\n", userVectorSK)
+	fmt.Printf("user nexus addr: %s\n", user.GetAddress(cardanofw.ChainIDNexus))
+	fmt.Printf("user nexus signing key hex: %s\n", userNexusSK)
+	fmt.Printf("user solana addr: %s\n", user.SolanaAddress)
+	fmt.Printf("user solana signing key hex: %s\n", user.SolanaWallet.PrivateKey.String())
 
 	proxyAdminPrivateKeyRaw, err := apex.GetBridgeProxyAdmin().MarshallPrivateKey()
 	require.NoError(t, err)
@@ -111,6 +139,10 @@ func Test_OnlyRunSkylineBridge(t *testing.T) {
 	fmt.Printf("bridge admin address: %s\n", apex.GetBridgeAdmin().Address())
 	fmt.Printf("bridge proxy admin key: %s\n", hex.EncodeToString(proxyAdminPrivateKeyRaw))
 	fmt.Printf("bridge proxy admin address: %s\n", apex.GetBridgeProxyAdmin().Address())
+
+	fmt.Printf("solana relayer address: %s\n", apex.SolanaInfo.RelayerAddress)
+	fmt.Printf("solana treasury address: %s\n", solanaConfig.TreasuryAddress)
+	fmt.Printf("solana tokens: \n%v\n", solanaConfig.TokensMint)
 
 	for i := 0; i < apex.GetValidatorsCount(); i++ {
 		fmt.Printf("validator %d `--telemetry` flag telemetry url(s): %s\n",

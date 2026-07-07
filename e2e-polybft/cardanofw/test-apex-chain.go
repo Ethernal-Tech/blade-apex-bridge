@@ -49,6 +49,13 @@ type BridgingRequestParams struct {
 	OperationFee   *big.Int
 	IsCurrencySrc  bool
 	IsCurrencyDest bool
+
+	// Destination wait flags for sendtx CLI
+	DstTokenName         string
+	DstOgmiosURL         string
+	DstSolanaURL         string
+	DstRPCURL            string
+	DstTokenContractAddr string
 }
 
 type ITestApexChain interface {

@@ -104,7 +104,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		FundFeeUTxOCount:            1,
 		DefaultMinBridgingFee:       WeiToDfm(defaultMinBridgingFeeAmount).Uint64(),
 		MinBridgingFeeForTokens:     WeiToDfm(defaultMinBridgingFeeAmountForTokens).Uint64(),
-		MinOperationFee:             uint64(0),
+		MinOperationFee:             WeiToDfm(DefaultMinOperationFee).Uint64(),
 		TreasuryAddress:             defaultPrimeTreasuryAddress,
 		BridgeAddrHasStake:          true,
 		BridgingAddressCnt:          1,
@@ -130,7 +130,7 @@ func NewVectorChainConfig(mintableTokens ...map[uint16]string) *TestCardanoChain
 		FundFeeUTxOCount:            1,
 		DefaultMinBridgingFee:       WeiToDfm(defaultMinBridgingFeeAmount).Uint64(),
 		MinBridgingFeeForTokens:     WeiToDfm(defaultMinBridgingFeeAmountForTokens).Uint64(),
-		MinOperationFee:             uint64(0),
+		MinOperationFee:             WeiToDfm(DefaultMinOperationFee).Uint64(),
 		TreasuryAddress:             defaultVectorTreasuryAddress,
 		BridgingAddressCnt:          1,
 		CustodialAddressGeneration:  true,
@@ -408,7 +408,7 @@ func (ec *TestCardanoChain) CreateWallets(validator *TestApexValidator) error {
 	)
 
 	if RunRelayerOnValidatorID == validator.ID {
-		ec.relayerAddr, err = validator.RelayerCardanoWalletCreate(ec.ChainID())
+		ec.relayerAddr, err = validator.RelayerWalletCreate(ec.ChainID())
 		if err != nil {
 			return err
 		}

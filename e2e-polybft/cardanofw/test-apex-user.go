@@ -7,6 +7,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/types"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	solanawallet "github.com/Ethernal-Tech/solana-infrastructure/wallet"
 )
 
 type ApexNetworkTypes struct {
@@ -23,6 +24,7 @@ type ApexNetworkTypes struct {
 	IsArbitrumEnabled bool
 	IsScrollEnabled   bool
 	IsUnichainEnabled bool
+	IsSolanaEnabled   bool
 }
 
 type ApexNetworkTypesParams struct {
@@ -38,12 +40,14 @@ type ApexNetworkTypesParams struct {
 	ArbitrumConfig *TestEVMChainConfig
 	ScrollConfig   *TestEVMChainConfig
 	UnichainConfig *TestEVMChainConfig
+
+	SolanaConfig *TestSolanaChainConfig
 }
 
 func NewApexNetworkTypes(p ApexNetworkTypesParams) *ApexNetworkTypes {
 	var (
-		vectorNetworkType, cardanoNetworkType cardanowallet.CardanoNetworkType
-		vectorIsEnabled, cardanoIsEnabled     bool
+		vectorNetworkType, cardanoNetworkType              cardanowallet.CardanoNetworkType
+		vectorIsEnabled, cardanoIsEnabled, solanaIsEnabled bool
 	)
 
 	if p.VectorConfig != nil {
@@ -54,6 +58,10 @@ func NewApexNetworkTypes(p ApexNetworkTypesParams) *ApexNetworkTypes {
 	if p.CardanoConfig != nil {
 		cardanoNetworkType = p.CardanoConfig.NetworkType
 		cardanoIsEnabled = p.CardanoConfig.IsEnabled
+	}
+
+	if p.SolanaConfig != nil {
+		solanaIsEnabled = p.SolanaConfig.IsEnabled
 	}
 
 	return &ApexNetworkTypes{
@@ -70,6 +78,7 @@ func NewApexNetworkTypes(p ApexNetworkTypesParams) *ApexNetworkTypes {
 		IsArbitrumEnabled: p.ArbitrumConfig != nil && p.ArbitrumConfig.IsEnabled,
 		IsScrollEnabled:   p.ScrollConfig != nil && p.ScrollConfig.IsEnabled,
 		IsUnichainEnabled: p.UnichainConfig != nil && p.UnichainConfig.IsEnabled,
+		IsSolanaEnabled:   solanaIsEnabled,
 	}
 }
 
@@ -86,6 +95,7 @@ func NewApexNetworkTypesFromSystem(apex *ApexSystem) *ApexNetworkTypes {
 		ArbitrumConfig: apex.Config.ArbitrumConfig,
 		ScrollConfig:   apex.Config.ScrollConfig,
 		UnichainConfig: apex.Config.UnichainConfig,
+		SolanaConfig:   apex.Config.SolanaConfig,
 	})
 }
 
@@ -101,6 +111,7 @@ type apexUserWallets struct {
 	Arbitrum *crypto.ECDSAKey
 	Scroll   *crypto.ECDSAKey
 	Unichain *crypto.ECDSAKey
+	Solana   *solanawallet.Wallet
 }
 
 type TestApexUser struct {
@@ -146,6 +157,10 @@ type TestApexUser struct {
 	HasUnichainWallet bool
 	UnichainWallet    *crypto.ECDSAKey
 	UnichainAddress   types.Address
+
+	HasSolanaWallet bool
+	SolanaWallet    *solanawallet.Wallet
+	SolanaAddress   string
 }
 
 func NewTestApexUser(
@@ -172,6 +187,8 @@ func NewTestApexUser(
 		scrollUserAddress                                 = types.Address{}
 		unichainWallet      *crypto.ECDSAKey              = nil
 		unichainUserAddress                               = types.Address{}
+		solanaWallet        *solanawallet.Wallet          = nil
+		solanaUserAddress                                 = ""
 	)
 
 	primeWallet, err := cardanowallet.GenerateWallet(false)
@@ -280,6 +297,15 @@ func NewTestApexUser(
 		unichainUserAddress = unichainWallet.Address()
 	}
 
+	if networks.IsSolanaEnabled {
+		solanaWallet, err = solanawallet.NewWallet()
+		if err != nil {
+			return nil, err
+		}
+
+		solanaUserAddress = solanaWallet.PublicKey.String()
+	}
+
 	return &TestApexUser{
 		PrimeWallet:       primeWallet,
 		PrimeAddress:      primeUserAddress,
@@ -313,6 +339,9 @@ func NewTestApexUser(
 		UnichainWallet:    unichainWallet,
 		UnichainAddress:   unichainUserAddress,
 		HasUnichainWallet: networks.IsUnichainEnabled,
+		HasSolanaWallet:   networks.IsSolanaEnabled,
+		SolanaWallet:      solanaWallet,
+		SolanaAddress:     solanaUserAddress,
 	}, nil
 }
 
@@ -378,6 +407,11 @@ func NewExistingTestApexUser(
 		unichainUserAddress = wallets.Unichain.Address()
 	}
 
+	var solanaUserAddress string
+	if wallets.Solana != nil && networks.IsSolanaEnabled {
+		solanaUserAddress = wallets.Solana.PublicKey.String()
+	}
+
 	return &TestApexUser{
 		PrimeWallet:       wallets.Prime,
 		PrimeAddress:      primeUserAddress,
@@ -411,6 +445,9 @@ func NewExistingTestApexUser(
 		UnichainWallet:    wallets.Unichain,
 		UnichainAddress:   unichainUserAddress,
 		HasUnichainWallet: wallets.Unichain != nil,
+		HasSolanaWallet:   wallets.Solana != nil,
+		SolanaWallet:      wallets.Solana,
+		SolanaAddress:     solanaUserAddress,
 	}, nil
 }
 
@@ -515,6 +552,12 @@ func (u *TestApexUser) GetAddress(chain ChainID) string {
 	case ChainIDUnichain:
 		if u.HasUnichainWallet {
 			return u.UnichainAddress.String()
+		}
+
+		return ""
+	case ChainIDSolana:
+		if u.HasSolanaWallet {
+			return u.SolanaAddress
 		}
 
 		return ""
@@ -627,6 +670,12 @@ func (u *TestApexUser) GetPrivateKey(chain ChainID) (string, error) {
 		}
 
 		return "", fmt.Errorf("user doesn't have a unichain wallet")
+	case ChainIDSolana:
+		if u.HasSolanaWallet {
+			return u.SolanaWallet.PrivateKey.String(), nil
+		}
+
+		return "", fmt.Errorf("user doesn't have a solana wallet")
 	}
 
 	return "", nil
@@ -645,5 +694,6 @@ func (u *TestApexUser) HasWallet(chain ChainID) bool {
 		ChainIDArbitrum: u.HasArbitrumWallet,
 		ChainIDScroll:   u.HasScrollWallet,
 		ChainIDUnichain: u.HasUnichainWallet,
+		ChainIDSolana:   u.HasSolanaWallet,
 	}[chain]
 }

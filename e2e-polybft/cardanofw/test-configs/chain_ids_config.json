@@ -54,6 +54,11 @@
             "chainID": "unichain",
             "chainIDNum": 11,
             "chainType": "evm"
+        },
+        {
+            "chainID": "solana",
+            "chainIDNum": 12,
+            "chainType": "solana"
         }
     ]
 }
