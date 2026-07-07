@@ -1441,9 +1441,11 @@ func DstNexusInvalidMetadataSlicedOff(
 	// Send only half bytes of metadata making it invalid
 	metadata = metadata[0 : len(metadata)/2]
 
-	_, err = apex.SubmitTx(
+	txHash, err := apex.SubmitTx(
 		ctx, srcChain, user, receiverAddr, sendAmountDfm, nil, metadata)
 	require.Error(t, err)
+
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
 }
 
 func DstNexusInvalidMetadataWrongType(
@@ -1569,6 +1571,8 @@ func DstNexusInvalidMetadataInvalidSender(
 		ctx, srcChain, user, receiverAddr,
 		new(big.Int).Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), nil, bridgingRequestMetadata)
 	require.NoError(t, err)
+
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
 	cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apex.Config.APIKey, invalidStateTimeoutSec)
 }

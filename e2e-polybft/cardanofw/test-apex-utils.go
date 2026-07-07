@@ -244,7 +244,10 @@ func GetAPIRequestGeneric[T any](ctx context.Context, requestURL string, apiKey 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return t, err
-	} else if resp.StatusCode != http.StatusOK {
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
 		return t, fmt.Errorf("http status for %s code is %d", requestURL, resp.StatusCode)
 	}
 
@@ -293,7 +296,10 @@ func FaucetRequest(ctx context.Context, addr string) (err error) {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
-	} else if resp.StatusCode != http.StatusOK {
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("http status for %s code is %d", requestURL, resp.StatusCode)
 	}
 
