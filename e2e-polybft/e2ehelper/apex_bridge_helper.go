@@ -128,12 +128,12 @@ func ExecuteBridging(
 		txHashTxDataMap        = make(map[string]*SubmittedTxData)
 		errs                   = make([]error, len(receiverUsers)*len(dstChains))
 	)
+	// initialize all destination chain originalDesiredAmounts to zero
+	for _, chainID := range dstChains {
+		originalDesiredAmounts[chainID] = big.NewInt(0)
+	}
 	// calculate desired amounts per chain
 	for _, txData := range sendTxDatas {
-		if _, exists := originalDesiredAmounts[txData.DstChainID]; !exists {
-			originalDesiredAmounts[txData.DstChainID] = big.NewInt(0)
-		}
-
 		originalDesiredAmounts[txData.DstChainID].Add(originalDesiredAmounts[txData.DstChainID], txData.SendAmountDfm)
 		txHashTxDataMap[txData.TxHash] = txData
 	}
