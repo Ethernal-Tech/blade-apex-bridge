@@ -1665,7 +1665,7 @@ func (sc *TestSolanaChain) UpgradeProgram(ctx context.Context) error {
 		"--url", sc.jsonRPCAddr,
 		"--fee-payer", adminPkFile.Name(),
 		"--key", filepath.Join("..", "..", solanaProgramDir, solanaProgramKeypairPath),
-		"--build-path", filepath.Join("..", "..", solanaProgramDir, solanaProgramBuildPath),
+		"--build-path", filepath.Join("..", "..", solanaProgramDir, solanaProgramUpgradePath),
 		"--program-id", sc.programID,
 		"--upgrade-program-version", "999.999.999",
 		"--admin-key", adminPkFile.Name(),
