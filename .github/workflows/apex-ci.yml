@@ -31,6 +31,10 @@ on: # yamllint disable-line rule:truthy
         description: E2E ApexBridge Big Tests
         type: boolean
         default: false
+      e2e_dynamic_validators_test:
+        description: E2E Dynamic Validators Tests
+        type: boolean
+        default: false
       e2e_skyline_mba_test:
         description: E2E Skyline MBA Tests
         type: boolean
@@ -93,6 +97,10 @@ on: # yamllint disable-line rule:truthy
         description: E2E Skyline Solana Tests
         type: boolean
         required: true
+      e2e_dynamic_validators_test:
+        description: E2E Dynamic Validators Tests
+        type: boolean
+        required: true
       e2e_apex_skip_redundant_tests:
         description: E2E ApexBridge Skip Redundant Tests
         type: string
@@ -139,6 +147,9 @@ on: # yamllint disable-line rule:truthy
       e2e_skyline_solana_test:
         description: E2E Skyline Solana Tests output
         value: ${{ jobs.e2e_skyline_solana_test.outputs.workflow_output }}
+      e2e_dynamic_validators_test:
+        description: E2E Dynamic Validators Tests output
+        value: ${{ jobs.e2e_dynamic_validators_test.outputs.workflow_output }}
     secrets:
       PERSONAL_ACCESS_TOKEN:
         required: true
@@ -434,6 +445,30 @@ jobs:
     with:
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
+      e2e_apex_skip_redundant_tests: false
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_dynamic_validators_test:
+    name: E2E Dynamic Validators Tests
+    uses: ./.github/workflows/e2e-dynamic-validators-test.yml
+    needs: [inputs_check, build_blade]
+    if: |
+      inputs.e2e_dynamic_validators_test ||
+      (github.event_name == 'pull_request' && github.base_ref == 'develop')
+    with:
+      apex_bridge_ref: ${{ needs.inputs_check.outputs.apex_bridge_ref }}
+      blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
+      e2e_apex_skip_redundant_tests: ${{ needs.inputs_check.outputs.skip_redundant_tests }}
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  e2e_dynamic_validators_test_push:
+    name: E2E Dynamic Validators Tests (push on develop branch)
+    uses: ./.github/workflows/e2e-dynamic-validators-test.yml
+    needs: build_blade
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/develop')
+    with:
+      apex_bridge_ref: main
+      blade_apex_bridge_ref: develop
       e2e_apex_skip_redundant_tests: false
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
