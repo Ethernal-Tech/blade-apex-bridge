@@ -11,13 +11,14 @@ jobs:
     name: ApexBridge CI
     uses: ./.github/workflows/apex-ci.yml
     with:
-      lint: true
-      unit_test: true
       e2e_apex_test: true
       e2e_skyline_test: false
       e2e_refund_test: true
       e2e_refund_skyline_bridge_test: false
       e2e_skyline_mba_test: false
+      e2e_skyline_cc_test: false
+      e2e_skyline_solana_test: false
+      e2e_dynamic_validators_test: true
       apex_bridge_ref: main
       blade_apex_bridge_ref: develop
       e2e_apex_big_test: ${{ vars.RUN_E2E_BIG_TESTS }}
@@ -31,11 +32,13 @@ jobs:
     if: success() || failure()
     with:
       environment: nightly
+      blade_apex_bridge_ref: develop
       build_blade_output: ${{ needs.apex-ci.outputs.build_blade }}
       lint_output: ${{ needs.apex-ci.outputs.lint }}
       unit_test_output: ${{ needs.apex-ci.outputs.unit_test }}
       e2e_apex_test_output: ${{ needs.apex-ci.outputs.e2e_apex_test }}
       e2e_apex_with_nexus_test_output: ${{ needs.apex-ci.outputs.e2e_apex_with_nexus_test }}
       e2e_refund_test_output: ${{ needs.apex-ci.outputs.e2e_refund_test }}
+      e2e_dynamic_validators_test_output: ${{ needs.apex-ci.outputs.e2e_dynamic_validators_test }}
     secrets:
       APEX_SLACK_WEBHOOK_URL: ${{ secrets.APEX_SLACK_WEBHOOK_URL }}

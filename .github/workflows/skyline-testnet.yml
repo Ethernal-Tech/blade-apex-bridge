@@ -3,7 +3,7 @@ name: Skyline Partner Skyline Testnet
 on: # yamllint disable-line rule:truthy
   schedule:
     # * is a special character in YAML so you have to quote this string
-    - cron: '0 21 * * *'
+    - cron: '0 17 * * *'
   workflow_dispatch:
     inputs:
       blade_apex_bridge_ref:
