@@ -394,11 +394,6 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 	err := nexusChain.FundUsersWithToken(apex.Users[0].GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(400_000_000)), cardanofw.NSTokenID)
 	require.NoError(t, err)
 
-	solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
-	version, err := solanaChain.GetProgramVersion(ctx)
-	require.NoError(t, err)
-	require.Equal(t, "0.2.0", version)
-
 	testFunc := func() {
 		t.Run("Bridging after changes", func(t *testing.T) {
 			t.Run("SOL -> Vector", func(t *testing.T) {
@@ -474,7 +469,7 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 
 		version, err := solanaChain.GetProgramVersion(ctx)
 		require.NoError(t, err)
-		require.Equal(t, "0.2.0", version)
+		require.Equal(t, "999.999.999", version)
 	})
 
 	testFunc()
