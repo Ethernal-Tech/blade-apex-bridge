@@ -18,6 +18,8 @@ jobs:
       e2e_refund_test: true
       e2e_refund_skyline_bridge_test: true
       e2e_skyline_mba_test: true
+      e2e_skyline_cc_test: true
+      e2e_skyline_solana_test: true
       apex_bridge_ref: feat/skyline
       blade_apex_bridge_ref: feat/skyline
       e2e_apex_big_test: ${{ vars.RUN_E2E_BIG_TESTS }}
@@ -39,6 +41,8 @@ jobs:
       e2e_apex_with_nexus_test_output: ${{ needs.skyline_ci.outputs.e2e_apex_with_nexus_test }}
       e2e_skyline_test_output: ${{ needs.skyline_ci.outputs.e2e_skyline_test }}
       e2e_skyline_mba_test_output: ${{ needs.skyline_ci.outputs.e2e_skyline_mba_test }}
+      e2e_skyline_cc_test_output: ${{ needs.skyline_ci.outputs.e2e_skyline_cc_test }}
+      e2e_skyline_solana_test_output: ${{ needs.skyline_ci.outputs.e2e_skyline_solana_test }}
       e2e_refund_test_output: ${{ needs.skyline_ci.outputs.e2e_refund_test }}
       e2e_refund_skyline_bridge_test_output: ${{ needs.skyline_ci.outputs.e2e_refund_skyline_bridge_test }}
     secrets:

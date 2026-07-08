@@ -18,6 +18,8 @@ jobs:
       e2e_refund_test: true
       e2e_refund_skyline_bridge_test: false
       e2e_skyline_mba_test: false
+      e2e_skyline_cc_test: false
+      e2e_skyline_solana_test: false
       apex_bridge_ref: main
       blade_apex_bridge_ref: develop
       e2e_apex_big_test: ${{ vars.RUN_E2E_BIG_TESTS }}
