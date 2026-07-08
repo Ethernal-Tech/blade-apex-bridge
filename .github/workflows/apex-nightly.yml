@@ -11,8 +11,6 @@ jobs:
     name: ApexBridge CI
     uses: ./.github/workflows/apex-ci.yml
     with:
-      lint: true
-      unit_test: true
       e2e_apex_test: true
       e2e_skyline_test: false
       e2e_refund_test: true

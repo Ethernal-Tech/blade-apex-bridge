@@ -114,4 +114,4 @@ jobs:
         with:
           name: e2e-skyline-cc-data
           path: e2e-bridge-data-tmp-*/
-          retention-days: 3 
+          retention-days: 3
