@@ -24,7 +24,7 @@ on: # yamllint disable-line rule:truthy
 
 jobs:
   e2e_skyline_cc_bridge:
-    name: Run E2E Skyline Mint Tests
+    name: Run E2E Skyline Colored Coins Tests
     runs-on: ubuntu-latest
     env:
       E2E_TESTS: true
