@@ -376,6 +376,7 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 	nexusConfig := cardanofw.NewNexusChainConfig(true)
 
 	solanaConfig := cardanofw.NewSolanaChainConfig(true)
+	solanaConfig.DeployLatestProgram = false
 
 	apex := cardanofw.SetupAndRunSkylineBridge(
 		t, ctx,
@@ -393,6 +394,15 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
 	err := nexusChain.FundUsersWithToken(apex.Users[0].GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(400_000_000)), cardanofw.NSTokenID)
 	require.NoError(t, err)
+
+	// Notice: This test is meant to test the upgrade and backward compatibility of the Solana program
+	// which can be imposible if there is some breaking changes because of the apex-bridge binary
+	// If there was a breaking change set prev program to be similar to the latest one
+	// This will fail if the version isn't the latest one
+	solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
+	version, err := solanaChain.GetProgramVersion(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "0.2.0", version)
 
 	testFunc := func() {
 		t.Run("Bridging after changes", func(t *testing.T) {
@@ -469,7 +479,8 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 
 		version, err := solanaChain.GetProgramVersion(ctx)
 		require.NoError(t, err)
-		require.Equal(t, "999.999.999", version)
+		// Make sure to update the version in the test if the program is upgraded
+		require.Equal(t, "0.3.0", version)
 	})
 
 	testFunc()
