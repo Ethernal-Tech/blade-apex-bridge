@@ -34,9 +34,9 @@ var wsolMint = solana.MustPublicKeyFromBase58(WSOLMintAddress)
 
 const (
 	solanaProgramDir         = "skyline-solana-programs"
-	solanaProgramBuildPath   = "program_build/skyline_program.so"
+	solanaProgramBuildPath   = "program_build/skyline_program_latest.so"
 	solanaProgramKeypairPath = "program_build/skyline_program-keypair.json"
-	solanaProgramUpgradePath = "program_build/skyline_program_v2.so"
+	solanaProgramUpgradePath = "program_build/skyline_program_prev.so"
 
 	TreasuryAddress = "AXXWYCH6PNm6AGjaasPG1maarfQvRedSw18wj91Nem1F"
 
@@ -46,8 +46,9 @@ const (
 )
 
 type TestSolanaChainConfig struct {
-	ChainID   string
-	IsEnabled bool
+	ChainID             string
+	IsEnabled           bool
+	DeployLatestProgram bool
 
 	InitialHotWalletAmount *big.Int
 	FundAmount             *big.Int
@@ -77,6 +78,7 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 	return &TestSolanaChainConfig{
 		ChainID:                ChainIDSolana,
 		IsEnabled:              enabled,
+		DeployLatestProgram:    true,
 		StartingPort:           8899,
 		InitialHotWalletAmount: SolanaToWei(big.NewInt(1000)),
 		FundAmount:             LamportToWei(SolanaToLamport(big.NewInt(100000))),
@@ -346,13 +348,19 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 		return fmt.Errorf("get admin balance before deploying program: %w", err)
 	}
 
+	buildPath := filepath.Join("..", "..", solanaProgramDir, solanaProgramBuildPath)
+	if !sc.config.DeployLatestProgram {
+		buildPath = filepath.Join("..", "..", solanaProgramDir, solanaProgramUpgradePath)
+	}
+
 	params := []string{
 		"deploy-solana",
 		"deploy-program",
 		"--url", sc.jsonRPCAddr,
 		"--fee-payer", adminPkFile.Name(),
 		"--key", filepath.Join("..", "..", solanaProgramDir, solanaProgramKeypairPath),
-		"--build-path", filepath.Join("..", "..", solanaProgramDir, solanaProgramBuildPath),
+		"--program-id", skyline_program.ProgramID.String(),
+		"--build-path", buildPath,
 		"--commitment", "finalized",
 		"--admin-key", adminPkFile.Name(),
 		"--bridge-url", sc.bridgeURL,
@@ -1665,9 +1673,9 @@ func (sc *TestSolanaChain) UpgradeProgram(ctx context.Context) error {
 		"--url", sc.jsonRPCAddr,
 		"--fee-payer", adminPkFile.Name(),
 		"--key", filepath.Join("..", "..", solanaProgramDir, solanaProgramKeypairPath),
-		"--build-path", filepath.Join("..", "..", solanaProgramDir, solanaProgramUpgradePath),
+		"--build-path", filepath.Join("..", "..", solanaProgramDir, solanaProgramBuildPath),
 		"--program-id", sc.programID,
-		"--upgrade-program-version", "999.999.999",
+		"--upgrade-program-version", "0.3.0",
 		"--admin-key", adminPkFile.Name(),
 		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 		"--commitment", "finalized",
