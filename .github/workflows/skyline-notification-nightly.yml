@@ -143,7 +143,12 @@ jobs:
                     {
                       "type": "mrkdwn",
                       "text": "${{ inputs.e2e_refund_test_output == '' && env.succeed_job || env.failed_job }} *E2E Refund Tests*"
-                    },
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
                     {
                       "type": "mrkdwn",
                       "text": "${{ inputs.e2e_skyline_test_output == '' && env.succeed_job || env.failed_job }} *E2E Skyline Tests*"
