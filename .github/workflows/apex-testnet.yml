@@ -3,7 +3,7 @@ name: ApexBridge Internal/Partner Reactor Testnet
 on: # yamllint disable-line rule:truthy
   schedule:
     # * is a special character in YAML so you have to quote this string
-    - cron: '0 2 * * *'
+    - cron: '0 22 * * *'
   workflow_dispatch:
     inputs:
       run_blade_apex_bridge_internal:
@@ -81,6 +81,7 @@ jobs:
     needs: [build_blade, inputs_check, lint, e2e_apex_partner_testnet_test]
     if: needs.inputs_check.outputs.notification == 'true' && !cancelled()
     with:
+      blade_apex_bridge_ref: develop
       build_blade_output: ${{ needs.build_blade.outputs.workflow_output }}
       lint_output: ${{ needs.lint.outputs.workflow_output }}
       e2e_apex_partner_testnet_test_output: ${{ needs.e2e_apex_partner_testnet_test.outputs.workflow_output }}

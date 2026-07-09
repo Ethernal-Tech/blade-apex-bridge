@@ -324,9 +324,14 @@ func executeAllDirectionsMulReceiversTest(
 	receivers := apex.Users[:receiversCnt]                               // [0,1]
 	senders := apex.Users[receiversCnt : receiversCnt+parallelInstances] // [2,3,4]
 
+	chains := make([]string, 0, len(chainsDst))
+	for srcChain := range chainsDst {
+		chains = append(chains, srcChain)
+	}
+
 	e2ehelper.ExecuteBridging(
 		t, ctx, apex, sequentialInstances, senders, receivers,
-		[]string{cardanofw.ChainIDPrime, cardanofw.ChainIDCardano},
+		chains,
 		chainsDst,
 		txTypes,
 		sendAmount, options...)
