@@ -121,20 +121,6 @@ func TestE2E_SkylineSolanaTestnetBridge_ValidScenarios(t *testing.T) {
 			sendAmount, cardanofw.SAP3XTokenID, bridgingOpts...)
 	})
 
-	// time.Sleep(20 * time.Second)
-	//
-	// t.Run("Both directions sequential and parallel multiple receivers", func(t *testing.T) {
-	// 	executeAllDirectionsMulReceiversTest(t, apex, ctx, sendAmount, map[string][]string{
-	// 		cardanofw.ChainIDSolana: {cardanofw.ChainIDVector},
-	// 		cardanofw.ChainIDVector: {cardanofw.ChainIDSolana},
-	// 	}, map[e2ehelper.SrcDstChainPair]uint16{
-	// 		e2ehelper.NewChainPair(cardanofw.ChainIDSolana, cardanofw.ChainIDVector): cardanofw.WSOLTokenID,
-	// 		e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDSolana): cardanofw.ASOLTokenID,
-	// 		e2ehelper.NewChainPair(cardanofw.ChainIDVector, cardanofw.ChainIDSolana): cardanofw.AP3XTokenID,
-	// 		e2ehelper.NewChainPair(cardanofw.ChainIDSolana, cardanofw.ChainIDVector): cardanofw.SAP3XTokenID,
-	// 	})
-	// })
-
 	// rpc cooldown
 	time.Sleep(5 * time.Second)
 
