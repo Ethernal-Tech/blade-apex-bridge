@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"slices"
 	"testing"
 	"time"
 
@@ -12,6 +11,26 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/stretchr/testify/require"
 )
+
+const (
+	splTokenSendAmountWei = 100000000000000000  // 0.1 wSOL
+	apexSendAmountWei     = 1000000000000000000 // 1 APEX
+)
+
+// returns the send amount in wei for a given token ID
+// if the token ID is a SPL token, returns the splTokenSendAmountWei
+// otherwise, returns the apexSendAmountWei
+func sendAmountValueForToken(isSPLToken bool) *big.Int {
+	if isSPLToken {
+		return big.NewInt(splTokenSendAmountWei)
+	}
+
+	return big.NewInt(apexSendAmountWei)
+}
+
+func isSPLToken(tokenID uint16) bool {
+	return tokenID == cardanofw.WSOLTokenID || tokenID == cardanofw.ASOLTokenID
+}
 
 func Test_E2E_SkylineSolanaSanityCheck(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
@@ -24,7 +43,6 @@ func Test_E2E_SkylineSolanaSanityCheck(t *testing.T) {
 
 	user := apex.Users[0]
 
-	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 	bridgingRequests := []struct {
 		src        string
 		dest       string
@@ -40,7 +58,7 @@ func Test_E2E_SkylineSolanaSanityCheck(t *testing.T) {
 		fmt.Printf("bridging from %s to %s, srcTokenID: %d\n", dir.src, dir.dest, dir.srcTokenID)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, dir.src, dir.dest, sendAmount, dir.srcTokenID, false, bridgingOpts...)
+			t, ctx, apex, user, user, dir.src, dir.dest, sendAmountValueForToken(isSPLToken(dir.srcTokenID)), dir.srcTokenID, false, bridgingOpts...)
 	}
 }
 
@@ -67,7 +85,6 @@ func TestE2E_SkylineSolanaTestnetBridge_ValidScenarios(t *testing.T) {
 	apex.Users = apex.Users[skylineTestsUserCnt:]
 
 	user := apex.Users[0]
-	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	const numOfInstanceForSequentialTests = 3
 
@@ -76,7 +93,7 @@ func TestE2E_SkylineSolanaTestnetBridge_ValidScenarios(t *testing.T) {
 
 	t.Run("Solana -> Vector - wrapped token on src", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDSolana, cardanofw.ChainIDVector, sendAmount, cardanofw.WSOLTokenID, false)
+			t, ctx, apex, user, user, cardanofw.ChainIDSolana, cardanofw.ChainIDVector, sendAmountValueForToken(true), cardanofw.WSOLTokenID, false)
 	})
 
 	// rpc cooldown
@@ -84,7 +101,7 @@ func TestE2E_SkylineSolanaTestnetBridge_ValidScenarios(t *testing.T) {
 
 	t.Run("Vector -> Solana - wrapped token on dest", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDSolana, sendAmount, cardanofw.ASOLTokenID, false)
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDSolana, sendAmountValueForToken(true), cardanofw.ASOLTokenID, false)
 	})
 
 	// rpc cooldown
@@ -92,7 +109,7 @@ func TestE2E_SkylineSolanaTestnetBridge_ValidScenarios(t *testing.T) {
 
 	t.Run("Vector -> Solana - mint token on dest", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDSolana, sendAmount, cardanofw.AP3XTokenID, false)
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDSolana, sendAmountValueForToken(false), cardanofw.AP3XTokenID, false)
 	})
 
 	// rpc cooldown
@@ -100,7 +117,7 @@ func TestE2E_SkylineSolanaTestnetBridge_ValidScenarios(t *testing.T) {
 
 	t.Run("Solana -> Vector - mint token on src", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDSolana, cardanofw.ChainIDVector, sendAmount, cardanofw.SAP3XTokenID, false)
+			t, ctx, apex, user, user, cardanofw.ChainIDSolana, cardanofw.ChainIDVector, sendAmountValueForToken(false), cardanofw.SAP3XTokenID, false)
 	})
 
 	time.Sleep(10 * time.Second)
@@ -109,7 +126,7 @@ func TestE2E_SkylineSolanaTestnetBridge_ValidScenarios(t *testing.T) {
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
 			t, ctx, apex, numOfInstanceForSequentialTests, user,
 			cardanofw.ChainIDSolana, cardanofw.ChainIDVector,
-			sendAmount, cardanofw.WSOLTokenID, bridgingOpts...)
+			sendAmountValueForToken(true), cardanofw.WSOLTokenID, bridgingOpts...)
 	})
 
 	time.Sleep(10 * time.Second)
@@ -118,18 +135,18 @@ func TestE2E_SkylineSolanaTestnetBridge_ValidScenarios(t *testing.T) {
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
 			t, ctx, apex, numOfInstanceForSequentialTests, user,
 			cardanofw.ChainIDSolana, cardanofw.ChainIDVector,
-			sendAmount, cardanofw.SAP3XTokenID, bridgingOpts...)
+			sendAmountValueForToken(false), cardanofw.SAP3XTokenID, bridgingOpts...)
 	})
 
 	// rpc cooldown
-	time.Sleep(5 * time.Second)
+	time.Sleep(20 * time.Second)
 
 	t.Run("return src tokens to original src chains", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDSolana, new(big.Int).Mul(sendAmount, big.NewInt(3)), cardanofw.ASOLTokenID, false)
+			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDSolana, new(big.Int).Mul(sendAmountValueForToken(true), big.NewInt(3)), cardanofw.ASOLTokenID, false)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDSolana, cardanofw.ChainIDVector, new(big.Int).Mul(sendAmount, big.NewInt(3)), cardanofw.SAP3XTokenID, false)
+			t, ctx, apex, user, user, cardanofw.ChainIDSolana, cardanofw.ChainIDVector, new(big.Int).Mul(sendAmountValueForToken(false), big.NewInt(2)), cardanofw.SAP3XTokenID, false)
 	})
 }
 
@@ -143,7 +160,6 @@ func TestE2E_SkylineSolanaTestnetBridge_InvalidScenarios(t *testing.T) {
 	apex.Users = apex.Users[skylineTestsUserCnt:]
 
 	user := apex.Users[0]
-	sendAmount := cardanofw.ApexToWei(big.NewInt(1))
 
 	bridgingFee := apex.GetMinBridgingFee(cardanofw.ChainIDSolana, false)
 
@@ -182,7 +198,7 @@ func TestE2E_SkylineSolanaTestnetBridge_InvalidScenarios(t *testing.T) {
 			Receivers: map[string]cardanofw.ReceiverAmount{
 				user.GetAddress(cardanofw.ChainIDVector): {
 					TokenID: cardanofw.WSOLTokenID,
-					Amount:  cardanofw.SolanaToWei(big.NewInt(1)),
+					Amount:  sendAmountValueForToken(true),
 				},
 			},
 			FeeAmount:      new(big.Int).Sub(bridgingFee, big.NewInt(1)),
@@ -211,7 +227,7 @@ func TestE2E_SkylineSolanaTestnetBridge_InvalidScenarios(t *testing.T) {
 			Receivers: map[string]cardanofw.ReceiverAmount{
 				user.GetAddress(cardanofw.ChainIDVector): {
 					TokenID: cardanofw.WSOLTokenID,
-					Amount:  sendAmount,
+					Amount:  sendAmountValueForToken(true),
 				},
 			},
 			FeeAmount:      bridgingFee,
@@ -241,7 +257,7 @@ func TestE2E_SkylineSolanaTestnetBridge_InvalidScenarios(t *testing.T) {
 			Receivers: map[string]cardanofw.ReceiverAmount{
 				user.GetAddress(cardanofw.ChainIDNexus): {
 					TokenID: cardanofw.WSOLTokenID,
-					Amount:  sendAmount,
+					Amount:  sendAmountValueForToken(true),
 				},
 			},
 			FeeAmount:      apex.GetMinBridgingFee(cardanofw.ChainIDSolana, false),
@@ -271,7 +287,7 @@ func TestE2E_SkylineSolanaTestnetBridge_InvalidScenarios(t *testing.T) {
 			Receivers: map[string]cardanofw.ReceiverAmount{
 				user.GetAddress(cardanofw.ChainIDCardano): {
 					TokenID: cardanofw.WSOLTokenID,
-					Amount:  sendAmount,
+					Amount:  sendAmountValueForToken(true),
 				},
 			},
 			FeeAmount:      apex.GetMinBridgingFee(cardanofw.ChainIDSolana, false),
@@ -287,38 +303,4 @@ func TestE2E_SkylineSolanaTestnetBridge_InvalidScenarios(t *testing.T) {
 		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userWSolBalance, true, maxWaitTimeSec, retryIntervalSec)
 		require.NoError(t, err)
 	})
-}
-
-func executeAllDirectionsMulReceiversTest(
-	t *testing.T,
-	apex *cardanofw.ApexSystem,
-	ctx context.Context,
-	sendAmount *big.Int,
-	chainsDst map[string][]string,
-	txTypes map[e2ehelper.SrcDstChainPair]uint16,
-) {
-	t.Helper()
-
-	const (
-		sequentialInstances = 2
-		parallelInstances   = 3
-		receiversCnt        = 2
-	)
-
-	options := append(slices.Clone(bridgingOpts), e2ehelper.WithWaitForUnexpectedBridges(true))
-
-	receivers := apex.Users[:receiversCnt]                               // [0,1]
-	senders := apex.Users[receiversCnt : receiversCnt+parallelInstances] // [2,3,4]
-
-	chains := make([]string, 0, len(chainsDst))
-	for srcChain := range chainsDst {
-		chains = append(chains, srcChain)
-	}
-
-	e2ehelper.ExecuteBridging(
-		t, ctx, apex, sequentialInstances, senders, receivers,
-		chains,
-		chainsDst,
-		txTypes,
-		sendAmount, options...)
 }
