@@ -32,6 +32,9 @@ import (
 const (
 	cardanoSmartContractDir = "cardano-smart-contracts"
 
+	// directBridgingMaxInputsPerTx mirrors sendtx.TxSender's default max inputs per tx
+	directBridgingMaxInputsPerTx = 50
+
 	defaultCardanoTreasuryAddress = "addr_test1wrphkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtcl6szpr"
 	defaultPrimeTreasuryAddress   = "addr_test1vqeux7xwusdju9dvsj8h7mca9aup2k439kfmwy773xxc2hcu7zy99"
 	defaultVectorTreasuryAddress  = "addr_test1vq6xsx99frfepnsjuhzac48vl9s2lc9awkvfknkgs89srqqslj660"
@@ -929,6 +932,181 @@ func (ec *TestCardanoChain) BridgingRequest(params BridgingRequestParams) (strin
 	}
 
 	return ec.submitTx(params.Ctx, txInfo.TxRaw, txInfo.TxHash, multisigAddr, wallets)
+}
+
+// DirectBridgingRequest builds, signs and submits a bridging transaction using the
+// Cardano tx builder directly instead of going through sendtx.TxSender. Because it
+// skips TxSender's fee/amount validation, it is useful for negative test scenarios
+// (e.g. a below-minimum fee or bridging amount) that TxSender would otherwise reject
+// before the request ever reaches the chain. It only supports plain currency
+// (ADA/APEX) bridging, not native/colored-coin token locking.
+func (ec *TestCardanoChain) DirectBridgingRequest(params BridgingRequestParams) (string, error) {
+	wallets, policyScript, senderAddr, err := FromCardanoPrivateKeyString(
+		params.PrivateKey, ec.ChainID(), ec.config.NetworkType, ec.config.NetworkMagic)
+	if err != nil {
+		return "", err
+	}
+
+	multisigAddr, err := ec.GetAddressToBridgeTo(params.Ctx, !params.IsCurrencySrc)
+	if err != nil {
+		return "", err
+	}
+
+	txProvider, err := ec.GetTxProvider()
+	if err != nil {
+		return "", err
+	}
+
+	utxos, err := infracommon.ExecuteWithRetry(params.Ctx, func(ctx context.Context) ([]infrawallet.Utxo, error) {
+		return txProvider.GetUtxos(ctx, senderAddr)
+	})
+	if err != nil {
+		return "", err
+	}
+
+	txBuilder, err := infrawallet.NewTxBuilder(ResolveCardanoCliBinary(ec.ChainID()))
+	if err != nil {
+		return "", err
+	}
+
+	defer txBuilder.Dispose()
+
+	if err := txBuilder.SetProtocolParametersAndTTL(params.Ctx, txProvider, ttlSlotNumberInc); err != nil {
+		return "", err
+	}
+
+	bridgingFee := WeiToDfm(params.FeeAmount).Uint64()
+	operationFee := WeiToDfm(params.OperationFee).Uint64()
+	bridgingOutputAmount := bridgingFee + operationFee
+
+	metadataTxs := make([]sendtx.BridgingRequestMetadataTransaction, 0, len(params.Receivers))
+
+	for receiverAddr, receiverAmount := range params.Receivers {
+		amount := WeiToDfm(receiverAmount.Amount).Uint64()
+
+		metadataTxs = append(metadataTxs, sendtx.BridgingRequestMetadataTransaction{
+			Address: sendtx.AddrToMetaDataAddr(receiverAddr),
+			Amount:  amount,
+			TokenID: receiverAmount.TokenID,
+		})
+
+		if params.IsCurrencySrc {
+			bridgingOutputAmount += amount
+		}
+	}
+
+	metadataRaw, err := sendtx.BridgingRequestMetadata{
+		BridgingTxType:     "bridge",
+		DestinationChainID: params.DestChainID,
+		SenderAddr:         sendtx.AddrToMetaDataAddr(senderAddr),
+		Transactions:       metadataTxs,
+		BridgingFee:        bridgingFee,
+		OperationFee:       operationFee,
+	}.Marshal()
+	if err != nil {
+		return "", err
+	}
+
+	minUtxo := WeiToDfm(MinUTxODefaultValue).Uint64()
+	if bridgingOutputAmount < minUtxo {
+		bridgingOutputAmount = minUtxo
+	}
+
+	// approximates the min UTXO cost of returning whatever native tokens the sender
+	// currently holds as change, mirroring sendtx.TxSender's own change calculation
+	potentialChangeTokenCost, err := infrawallet.GetMinUtxoForSumMap(
+		txBuilder, senderAddr, infrawallet.GetUtxosSum(utxos), nil)
+	if err != nil {
+		return "", err
+	}
+
+	changeMinUtxo := max(minUtxo, potentialChangeTokenCost)
+	potentialFee := WeiToDfm(PotentialFee).Uint64()
+
+	inputs, err := infrawallet.GetUTXOsForAmount(
+		utxos, infrawallet.AdaTokenName, bridgingOutputAmount+potentialFee+changeMinUtxo, directBridgingMaxInputsPerTx)
+	if err != nil {
+		return "", err
+	}
+
+	changeTokens, err := infrawallet.GetTokensFromSumMap(inputs.Sum)
+	if err != nil {
+		return "", err
+	}
+
+	changeLovelace := inputs.Sum[infrawallet.AdaTokenName] - bridgingOutputAmount
+
+	txBuilder.SetMetaData(metadataRaw)
+
+	if policyScript != nil {
+		txBuilder.AddInputsWithScript(policyScript, inputs.Inputs...)
+	} else {
+		txBuilder.AddInputs(inputs.Inputs...)
+	}
+
+	txBuilder.AddOutputs(
+		infrawallet.TxOutput{Addr: multisigAddr, Amount: bridgingOutputAmount},
+		infrawallet.TxOutput{Addr: senderAddr, Amount: changeLovelace, Tokens: changeTokens},
+	)
+
+	witnessCount := 1
+	if policyScript != nil {
+		witnessCount = policyScript.GetCount()
+	}
+
+	// mirrors sendtx.TxSender's two-pass fee estimation: a rough fee from the draft
+	// tx, applied to the change output, then a final fee recomputed against that
+	// adjusted draft
+	applyFeeAndChange := func(fee uint64) error {
+		if fee > changeLovelace {
+			return fmt.Errorf("insufficient remaining amount %d for fee %d", changeLovelace, fee)
+		}
+
+		change := changeLovelace - fee
+		if change != 0 && change < changeMinUtxo {
+			return fmt.Errorf("insufficient remaining amount %d for fee %d, or minimum UTXO (%d) not satisfied",
+				changeLovelace, fee, changeMinUtxo)
+		}
+
+		if change == 0 {
+			txBuilder.RemoveOutput(-1)
+		} else {
+			txBuilder.UpdateOutputAmount(-1, change)
+		}
+
+		txBuilder.SetFee(fee)
+
+		return nil
+	}
+
+	roughFee, err := txBuilder.CalculateFee(witnessCount)
+	if err != nil {
+		return "", err
+	}
+
+	if err := applyFeeAndChange(roughFee); err != nil {
+		return "", err
+	}
+
+	fee, err := txBuilder.CalculateFee(witnessCount)
+	if err != nil {
+		return "", err
+	}
+
+	if err := applyFeeAndChange(fee); err != nil {
+		return "", err
+	}
+
+	txRaw, txHash, err := txBuilder.Build()
+	if err != nil {
+		return "", err
+	}
+
+	if ec.indexer != nil {
+		ec.indexer.Add(txHash)
+	}
+
+	return ec.submitTx(params.Ctx, txRaw, txHash, multisigAddr, wallets)
 }
 
 func (ec *TestCardanoChain) GetAddressToBridgeTo(

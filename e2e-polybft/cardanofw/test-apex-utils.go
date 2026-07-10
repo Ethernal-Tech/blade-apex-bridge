@@ -632,6 +632,8 @@ func ChainIDToInt(chainID string) uint8 {
 		return 10
 	case ChainIDUnichain:
 		return 11
+	case ChainIDSolana:
+		return 12
 	default:
 		return 0
 	}

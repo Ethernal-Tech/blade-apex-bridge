@@ -1313,7 +1313,6 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 	feeAmount *big.Int,
 	operationFee *big.Int,
 	tokenContractAddrSrc string,
-	isReactorBridging bool,
 ) (
 	string, error,
 ) {
@@ -1328,6 +1327,7 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 
 	gatewayReceivers := make([]gatewayReceiverWithdraw, 0, len(receivers))
 	totalTokenAmount := big.NewInt(0)
+	totalAmount := big.NewInt(0)
 
 	for addr, ra := range receivers {
 		gatewayReceivers = append(gatewayReceivers, gatewayReceiverWithdraw{
@@ -1336,16 +1336,15 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 			TokenID:  ra.TokenID,
 		})
 
-		totalTokenAmount.Add(totalTokenAmount, ra.Amount)
+		if ec.config.CurrencyID == ra.TokenID {
+			totalAmount.Add(totalAmount, ra.Amount)
+		} else {
+			totalTokenAmount.Add(totalTokenAmount, ra.Amount)
+		}
 	}
 
-	totalAmount := big.NewInt(0)
 	totalAmount.Add(totalAmount, feeAmount)
 	totalAmount.Add(totalAmount, operationFee)
-
-	if isReactorBridging {
-		totalAmount.Add(totalAmount, totalTokenAmount)
-	}
 
 	txRelayer, err := txrelayer.NewTxRelayer(
 		txrelayer.WithIPAddress(ec.jsonRPCAddr),
@@ -1390,7 +1389,10 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 		}
 
 		if receipt.Status != uint64(types.ReceiptSuccess) {
-			return "", fmt.Errorf("approve transaction receipt status is unsuccessful: %d", receipt.Status)
+			logs := fmt.Sprintf("%v", receipt.Logs)
+
+			return "",
+				fmt.Errorf("approve transaction receipt status is unsuccessful: %d, logs %s", receipt.Status, logs)
 		}
 	}
 
@@ -1425,7 +1427,10 @@ func (ec *TestEVMChain) DirectBridgingRequest(
 	}
 
 	if receipt.Status != uint64(types.ReceiptSuccess) {
-		return "", fmt.Errorf("transaction receipt status is unsuccessful: %d", receipt.Status)
+		logs := fmt.Sprintf("%v", receipt.Logs)
+
+		return "",
+			fmt.Errorf("withdraw transaction receipt status is unsuccessful: %d, logs %s", receipt.Status, logs)
 	}
 
 	return receipt.TransactionHash.String(), nil

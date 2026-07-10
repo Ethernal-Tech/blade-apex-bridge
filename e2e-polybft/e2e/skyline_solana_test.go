@@ -1087,7 +1087,7 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 		cardanofw.WithVectorConfig(vectorConfig),
 		cardanofw.WithSolanaConfig(solanaConfig),
 		cardanofw.WithNexusConfig(nexusConfig),
-		cardanofw.WithUserCnt(1),
+		cardanofw.WithUserCnt(2),
 	)
 
 	defer require.True(t, apex.ApexBridgeProcessesRunning())
@@ -1365,6 +1365,222 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 
 		waitForInvalidTestResultSol(t, ctx, apex, cardanofw.ChainIDSolana, tokensInfo, user, txSig, userNSBalanceBefore, true, maxWaitTimeSec, retryIntervalSec)
 		require.NoError(t, err)
+	})
+
+	t.Run("9. refund - more than one receiver from evm chain", func(t *testing.T) {
+		nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
+		err := nexusChain.FundUsersWithToken(user.GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(400_000_000)), cardanofw.NSTokenID)
+		require.NoError(t, err)
+
+		userPk, err := user.GetPrivateKey(cardanofw.ChainIDNexus)
+		require.NoError(t, err)
+
+		fee := apex.GetMinBridgingFee(cardanofw.ChainIDNexus, true)
+		opFee := nexusConfig.MinOperationFee
+		totalFee := new(big.Int).Add(fee, opFee)
+		sendAmountPerUser := cardanofw.ApexToWei(big.NewInt(1))
+		totalSendAmount := new(big.Int).Mul(sendAmountPerUser, big.NewInt(2))
+
+		t.Run("9.1 sendtx should fail", func(t *testing.T) {
+			_, err = nexusChain.BridgingRequest(cardanofw.BridgingRequestParams{
+				Ctx:            ctx,
+				DestChainID:    cardanofw.ChainIDSolana,
+				PrivateKey:     userPk,
+				ChainIDsConfig: apex.GetChainIDsConfig(),
+				Receivers: map[string]cardanofw.ReceiverAmount{
+					apex.Users[0].GetAddress(cardanofw.ChainIDSolana): {
+						TokenID: cardanofw.AP3XTokenID,
+						Amount:  sendAmountPerUser,
+					},
+					apex.Users[1].GetAddress(cardanofw.ChainIDSolana): {
+						TokenID: cardanofw.AP3XTokenID,
+						Amount:  sendAmountPerUser,
+					},
+				},
+				FeeAmount:      fee,
+				OperationFee:   opFee,
+				IsCurrencySrc:  true,
+				IsCurrencyDest: false,
+			})
+			require.Error(t, err)
+			require.ErrorContains(t, err, "solana destination chain does not support multiple receivers")
+		})
+
+		t.Run("9.2 currency to solana", func(t *testing.T) {
+			beforeSendingAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDNexus)
+			require.NoError(t, err)
+
+			tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDSolana, cardanofw.AP3XTokenID)
+			require.NoError(t, err)
+
+			txHash, err := nexusChain.DirectBridgingRequest(
+				cardanofw.ChainIDToInt(cardanofw.ChainIDSolana),
+				userPk,
+				map[string]cardanofw.ReceiverAmount{
+					apex.Users[0].GetAddress(cardanofw.ChainIDSolana): {
+						TokenID: cardanofw.AP3XTokenID,
+						Amount:  sendAmountPerUser,
+					},
+					apex.Users[1].GetAddress(cardanofw.ChainIDSolana): {
+						TokenID: cardanofw.AP3XTokenID,
+						Amount:  sendAmountPerUser,
+					},
+				},
+				fee,
+				opFee,
+				tokenInfo.SrcTokenName,
+			)
+			require.NoError(t, err)
+
+			fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+			lowerBoundary := new(big.Int).Sub(beforeSendingAmount[cardanowallet.AdaTokenName], new(big.Int).Add(totalSendAmount, totalFee))
+
+			err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDNexus, lowerBoundary, beforeSendingAmount[cardanowallet.AdaTokenName],
+				50, time.Second*30, tokenInfo.SrcTokenName)
+			require.NoError(t, err)
+		})
+
+		t.Run("9.3 token to solana", func(t *testing.T) {
+			tokenInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDNexus, cardanofw.ChainIDSolana, cardanofw.NSTokenID)
+			require.NoError(t, err)
+
+			err = executeInvalidNexusBridgingRequest(t, ctx, apex, user, InvalidNexusBridgingRequest{
+				dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDSolana),
+				sender:     user,
+				receivers: map[string]cardanofw.ReceiverAmount{
+					apex.Users[0].GetAddress(cardanofw.ChainIDSolana): {
+						TokenID: cardanofw.NSTokenID,
+						Amount:  sendAmountPerUser,
+					},
+					apex.Users[1].GetAddress(cardanofw.ChainIDSolana): {
+						TokenID: cardanofw.NSTokenID,
+						Amount:  sendAmountPerUser,
+					},
+				},
+				operationFee: opFee,
+				tokenInfo:    tokenInfo,
+			})
+			require.NoError(t, err)
+		})
+	})
+
+	t.Run("10. refund - more than one receiver from cardano chain", func(t *testing.T) {
+		vectorChain := apex.GetChainMust(t, cardanofw.ChainIDVector).(*cardanofw.TestCardanoChain)
+		userPk, err := user.GetPrivateKey(cardanofw.ChainIDVector)
+		require.NoError(t, err)
+
+		fee := apex.GetMinBridgingFee(cardanofw.ChainIDVector, false)
+		opFee := cardanofw.DfmToWei(new(big.Int).SetUint64(vectorConfig.MinOperationFee))
+		totalFee := new(big.Int).Add(fee, opFee)
+		sendAmountPerUser := cardanofw.ApexToWei(big.NewInt(1))
+		totalSendAmount := new(big.Int).Mul(sendAmountPerUser, big.NewInt(2))
+
+		t.Run("10.1 sendtx should fail", func(t *testing.T) {
+			_, err = vectorChain.BridgingRequest(cardanofw.BridgingRequestParams{
+				Ctx:            ctx,
+				DestChainID:    cardanofw.ChainIDSolana,
+				PrivateKey:     userPk,
+				ChainIDsConfig: apex.GetChainIDsConfig(),
+				Receivers: map[string]cardanofw.ReceiverAmount{
+					apex.Users[0].GetAddress(cardanofw.ChainIDSolana): {
+						TokenID: cardanofw.AP3XTokenID,
+						Amount:  sendAmountPerUser,
+					},
+					apex.Users[1].GetAddress(cardanofw.ChainIDSolana): {
+						TokenID: cardanofw.AP3XTokenID,
+						Amount:  sendAmountPerUser,
+					},
+				},
+				FeeAmount:      fee,
+				OperationFee:   opFee,
+				IsCurrencySrc:  false,
+				IsCurrencyDest: false,
+			})
+			require.Error(t, err)
+			require.ErrorContains(t, err, "solana type chain does not support multiple receivers")
+		})
+
+		t.Run("10.2 currency to solana", func(t *testing.T) {
+			beforeSendingAmount, err := apex.GetBalance(ctx, user, cardanofw.ChainIDVector)
+			require.NoError(t, err)
+
+			txHash, err := vectorChain.DirectBridgingRequest(
+				cardanofw.BridgingRequestParams{
+					Ctx:            ctx,
+					DestChainID:    cardanofw.ChainIDSolana,
+					PrivateKey:     userPk,
+					ChainIDsConfig: apex.GetChainIDsConfig(),
+					Receivers: map[string]cardanofw.ReceiverAmount{
+						apex.Users[0].GetAddress(cardanofw.ChainIDSolana): {
+							TokenID: cardanofw.AP3XTokenID,
+							Amount:  sendAmountPerUser,
+						},
+						apex.Users[1].GetAddress(cardanofw.ChainIDSolana): {
+							TokenID: cardanofw.AP3XTokenID,
+							Amount:  sendAmountPerUser,
+						},
+					},
+					FeeAmount:      fee,
+					OperationFee:   opFee,
+					IsCurrencySrc:  false,
+					IsCurrencyDest: false,
+				})
+			require.NoError(t, err)
+
+			fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+			tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.AP3XTokenID)
+			require.NoError(t, err)
+
+			lowerBoundary := new(big.Int).Sub(beforeSendingAmount[cardanowallet.AdaTokenName], new(big.Int).Add(totalSendAmount, totalFee))
+
+			err = apex.WaitForAmountInRange(ctx, user, cardanofw.ChainIDVector, lowerBoundary, beforeSendingAmount[cardanowallet.AdaTokenName],
+				50, time.Second*30, tokensInfo.SrcTokenName)
+			require.NoError(t, err)
+		})
+
+		t.Run("10.3 token to solana", func(t *testing.T) {
+			_, err := cardanofw.FundUserWithToken(ctx, apex, cardanofw.ChainIDVector,
+				apex.VectorInfo.GenesisWallet, apex.Users[0], cardanofw.VSTokenName,
+				cardanofw.ApexToWei(big.NewInt(500_000_000)), cardanofw.ApexToWei(big.NewInt(1)), cardanofw.ApexToWei(big.NewInt(500_000_000)))
+			require.NoError(t, err)
+
+			tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.VSTokenID)
+			require.NoError(t, err)
+
+			beforeSendingAmount, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDVector, tokensInfo.SrcTokenName)
+			require.NoError(t, err)
+
+			txHash, err := vectorChain.DirectBridgingRequest(
+				cardanofw.BridgingRequestParams{
+					Ctx:            ctx,
+					DestChainID:    cardanofw.ChainIDSolana,
+					PrivateKey:     userPk,
+					ChainIDsConfig: apex.GetChainIDsConfig(),
+					Receivers: map[string]cardanofw.ReceiverAmount{
+						apex.Users[0].GetAddress(cardanofw.ChainIDSolana): {
+							TokenID: cardanofw.VSTokenID,
+							Amount:  sendAmountPerUser,
+						},
+						apex.Users[1].GetAddress(cardanofw.ChainIDSolana): {
+							TokenID: cardanofw.VSTokenID,
+							Amount:  sendAmountPerUser,
+						},
+					},
+					FeeAmount:      fee,
+					OperationFee:   opFee,
+					IsCurrencySrc:  false,
+					IsCurrencyDest: false,
+				})
+			require.NoError(t, err)
+
+			fmt.Printf("Tx sent. hash: %s\n", txHash)
+
+			err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDVector, beforeSendingAmount[tokensInfo.SrcTokenName],
+				50, time.Second*30, tokensInfo.SrcTokenName)
+			require.NoError(t, err)
+		})
 	})
 }
 
