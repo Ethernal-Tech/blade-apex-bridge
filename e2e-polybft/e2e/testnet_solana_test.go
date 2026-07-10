@@ -24,11 +24,12 @@ func sendAmountValueForToken(isSPLToken bool) *big.Int {
 	if isSPLToken {
 		return big.NewInt(splTokenSendAmountWei)
 	}
+
 	return big.NewInt(apexSendAmountWei)
 }
 
 func isSPLToken(tokenID uint16) bool {
-	return tokenID == cardanofw.WSOLTokenID || tokenID == cardanofw.ASOLTokenID || tokenID == cardanofw.SAP3XTokenID
+	return tokenID == cardanofw.WSOLTokenID || tokenID == cardanofw.ASOLTokenID
 }
 
 func Test_E2E_SkylineSolanaSanityCheck(t *testing.T) {
@@ -115,9 +116,8 @@ func TestE2E_SkylineSolanaTestnetBridge_ValidScenarios(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	t.Run("Solana -> Vector - mint token on src", func(t *testing.T) {
-		sendAmount := big.NewInt(apexSendAmountWei) // we are sending 1 sAP3X because of MinBridgingAmount on vector
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDSolana, cardanofw.ChainIDVector, sendAmount, cardanofw.SAP3XTokenID, false)
+			t, ctx, apex, user, user, cardanofw.ChainIDSolana, cardanofw.ChainIDVector, sendAmountValueForToken(false), cardanofw.SAP3XTokenID, false)
 	})
 
 	time.Sleep(10 * time.Second)
@@ -132,11 +132,10 @@ func TestE2E_SkylineSolanaTestnetBridge_ValidScenarios(t *testing.T) {
 	time.Sleep(10 * time.Second)
 
 	t.Run("Solana -> Vector sequential mint token on source", func(t *testing.T) {
-		sendAmount := big.NewInt(apexSendAmountWei) // we are sending 1 sAP3X because of MinBridgingAmount on vector
 		e2ehelper.ExecuteBridgingWaitAfterSubmits(
 			t, ctx, apex, numOfInstanceForSequentialTests, user,
 			cardanofw.ChainIDSolana, cardanofw.ChainIDVector,
-			sendAmount, cardanofw.SAP3XTokenID, bridgingOpts...)
+			sendAmountValueForToken(false), cardanofw.SAP3XTokenID, bridgingOpts...)
 	})
 
 	// rpc cooldown
@@ -147,7 +146,7 @@ func TestE2E_SkylineSolanaTestnetBridge_ValidScenarios(t *testing.T) {
 			t, ctx, apex, user, user, cardanofw.ChainIDVector, cardanofw.ChainIDSolana, new(big.Int).Mul(sendAmountValueForToken(true), big.NewInt(3)), cardanofw.ASOLTokenID, false)
 
 		e2ehelper.ExecuteSingleBridging(
-			t, ctx, apex, user, user, cardanofw.ChainIDSolana, cardanofw.ChainIDVector, new(big.Int).Mul(big.NewInt(apexSendAmountWei), big.NewInt(2)), cardanofw.SAP3XTokenID, false)
+			t, ctx, apex, user, user, cardanofw.ChainIDSolana, cardanofw.ChainIDVector, new(big.Int).Mul(sendAmountValueForToken(false), big.NewInt(2)), cardanofw.SAP3XTokenID, false)
 	})
 }
 
