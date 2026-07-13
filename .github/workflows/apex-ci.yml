@@ -169,7 +169,7 @@ jobs:
           if [[ "${{ inputs.apex_bridge_ref }}" == "" ]]; then
             if [[ "${{ github.event_name }}" == "pull_request" ]]; then
               if [[ "${{ github.base_ref }}" == "feat/skyline" ]]; then
-                echo "apex_bridge_ref=AD-1105-restrict-recv-number-to-solana" >> $GITHUB_OUTPUT
+                echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
               else
                 echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
               fi
