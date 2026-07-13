@@ -1469,7 +1469,7 @@ func Test_SkylineBridgeCC_InvalidScenarios_NexusSrc_MisconfiguredMinValues(t *te
 			feeAmount,
 			big.NewInt(0),
 			tokenInfo.SrcTokenName,
-			false)
+		)
 
 		require.NotEqual(t, "", txHash)
 		require.NoError(t, err)

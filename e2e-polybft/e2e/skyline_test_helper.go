@@ -410,7 +410,7 @@ func executeInvalidNexusBridgingRequest(
 	}
 
 	txHash, err := nexusChain.DirectBridgingRequest(
-		data.dstChainID, pk, data.receivers, feeAmount, data.operationFee, data.tokenInfo.SrcTokenName, false)
+		data.dstChainID, pk, data.receivers, feeAmount, data.operationFee, data.tokenInfo.SrcTokenName)
 	if err != nil {
 		return err
 	}

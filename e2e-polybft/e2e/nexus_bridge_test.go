@@ -309,7 +309,6 @@ func TestE2E_ABWithNexus_ApexRefund_SrcNexus_InvalidScenarios(t *testing.T) {
 				feeAmount,
 				big.NewInt(0),
 				tokenInfo.SrcTokenName,
-				true,
 			)
 
 			require.Equal(t, "", txHash)
@@ -383,7 +382,6 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios_MinValuesMisconfigure
 				feeAmount,
 				big.NewInt(0),
 				tokenInfo.SrcTokenName,
-				true,
 			)
 
 			require.NotEqual(t, "", txHash)
@@ -420,7 +418,6 @@ func TestE2E_ApexBridgeWithNexus_SrcNexus_InvalidScenarios_MinValuesMisconfigure
 				feeAmount,
 				big.NewInt(0),
 				tokenInfo.SrcTokenName,
-				true,
 			)
 
 			require.NotEqual(t, "", txHash)
@@ -1550,7 +1547,6 @@ func SrcNexusSubmitterNotEnoughFunds(
 		fee,
 		big.NewInt(0),
 		tokenInfo.SrcTokenName,
-		true,
 	)
 
 	require.Equal(t, "", txHash)
