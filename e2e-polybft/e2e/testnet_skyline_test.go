@@ -65,7 +65,7 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 	tokensToFundSolana := big.NewInt(2)
 	tokensToFundSol := cardanofw.SolanaToWei(tokensToFundSolana)
 
-	splTokensToFundSolana := big.NewInt(20)
+	splTokensToFundSolana := big.NewInt(5)
 	splTokensToFundSol := cardanofw.SolanaToWei(splTokensToFundSolana)
 
 	apex, err := cardanofw.SetupSkylineRemoteBridge(t, cardanofw.GetTestnetSkylineBridgeConfig())
