@@ -3,7 +3,7 @@ name: ApexBridge Internal/Partner Reactor Testnet
 on: # yamllint disable-line rule:truthy
   schedule:
     # * is a special character in YAML so you have to quote this string
-    - cron: '0 0 * * *' # currently run at ~04:00
+    - cron: '0 23 * * *' # currently run at ~23:00
       timezone: 'Europe/Belgrade'
   workflow_dispatch:
     inputs:
