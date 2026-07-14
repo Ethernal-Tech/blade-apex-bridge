@@ -3,7 +3,7 @@ name: Skyline Nightly Local Tests
 on: # yamllint disable-line rule:truthy
   schedule:
     # * is a special character in YAML so you have to quote this string
-    - cron: '3 0 * * *'
+    - cron: '0 3 * * *'
       timezone: 'Europe/Belgrade'
   workflow_dispatch:
 
