@@ -30,7 +30,7 @@ func isEVMReceiptUnavailableError(err error) bool {
 }
 
 var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.ChainIDSolana,
-	cardanofw.ChainIDEthereum, cardanofw.ChainIDKatana, cardanofw.ChainIDSei, cardanofw.ChainIDScroll, cardanofw.ChainIDUnichain,
+	cardanofw.ChainIDEthereum, cardanofw.ChainIDKatana, cardanofw.ChainIDSei /*cardanofw.ChainIDScroll,*/, cardanofw.ChainIDUnichain,
 }
 var fundableTokensPerChain = map[cardanofw.ChainID][]uint16{
 	cardanofw.ChainIDPrime:    {},
@@ -41,7 +41,7 @@ var fundableTokensPerChain = map[cardanofw.ChainID][]uint16{
 	cardanofw.ChainIDEthereum: {cardanofw.ETHTokenID},
 	cardanofw.ChainIDKatana:   {cardanofw.KatanaETHTokenID},
 	cardanofw.ChainIDSei:      {cardanofw.SEITokenID},
-	cardanofw.ChainIDScroll:   {cardanofw.ScrollETHTokenID},
+	// cardanofw.ChainIDScroll:   {cardanofw.ScrollETHTokenID},
 	cardanofw.ChainIDUnichain: {cardanofw.UnichainETHTokenID},
 	cardanofw.ChainIDSolana:   {cardanofw.WSOLTokenID, cardanofw.SAP3XTokenID},
 }
@@ -173,7 +173,7 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 				}
 
 				if chain == cardanofw.ChainIDKatana ||
-					chain == cardanofw.ChainIDScroll ||
+					// chain == cardanofw.ChainIDScroll ||
 					chain == cardanofw.ChainIDUnichain ||
 					chain == cardanofw.ChainIDEthereum {
 					amountToFund = tokensToFundEvmChains
@@ -258,8 +258,8 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 				info = apex.KatanaInfo
 			case cardanofw.ChainIDSei:
 				info = apex.SeiInfo
-			case cardanofw.ChainIDScroll:
-				info = apex.ScrollInfo
+			// case cardanofw.ChainIDScroll:
+			// 	info = apex.ScrollInfo
 			case cardanofw.ChainIDUnichain:
 				info = apex.UnichainInfo
 			}
@@ -586,7 +586,7 @@ func TestE2E_SkylineTestnetBridge_EvmChains(t *testing.T) { //nolint:tparallel
 		{name: "Ethereum", user: apex.Users[0], chainID: cardanofw.ChainIDEthereum, tokenToCardano: cardanofw.ETHTokenID, tokenFromCrdn: cardanofw.CETHTokenID},
 		{name: "Katana", user: apex.Users[1], chainID: cardanofw.ChainIDKatana, tokenToCardano: cardanofw.KatanaETHTokenID, tokenFromCrdn: cardanofw.CKatanaETHTokenID},
 		{name: "Sei", user: apex.Users[2], chainID: cardanofw.ChainIDSei, tokenToCardano: cardanofw.SEITokenID, tokenFromCrdn: cardanofw.CSEITokenID},
-		{name: "Scroll", user: apex.Users[3], chainID: cardanofw.ChainIDScroll, tokenToCardano: cardanofw.ScrollETHTokenID, tokenFromCrdn: cardanofw.CScrollETHTokenID},
+		// {name: "Scroll", user: apex.Users[3], chainID: cardanofw.ChainIDScroll, tokenToCardano: cardanofw.ScrollETHTokenID, tokenFromCrdn: cardanofw.CScrollETHTokenID},
 		{name: "Unichain", user: apex.Users[4], chainID: cardanofw.ChainIDUnichain, tokenToCardano: cardanofw.UnichainETHTokenID, tokenFromCrdn: cardanofw.CUnichainETHTokenID},
 	}
 
@@ -1429,11 +1429,11 @@ func printSkylineUserBalances(
 				for tokenID, token := range info.Tokens {
 					balanceToString(tokenID, balance[token.ChainSpecific])
 				}
-			case cardanofw.ChainIDScroll:
-				info := apex.ScrollInfo
-				for tokenID, token := range info.Tokens {
-					balanceToString(tokenID, balance[token.ChainSpecific])
-				}
+			// case cardanofw.ChainIDScroll:
+			// 	info := apex.ScrollInfo
+			// 	for tokenID, token := range info.Tokens {
+			// 		balanceToString(tokenID, balance[token.ChainSpecific])
+			// 	}
 			case cardanofw.ChainIDUnichain:
 				info := apex.UnichainInfo
 				for tokenID, token := range info.Tokens {
