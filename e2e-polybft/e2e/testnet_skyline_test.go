@@ -41,7 +41,7 @@ var fundableTokensPerChain = map[cardanofw.ChainID][]uint16{
 	cardanofw.ChainIDEthereum: {cardanofw.ETHTokenID},
 	cardanofw.ChainIDKatana:   {cardanofw.KatanaETHTokenID},
 	cardanofw.ChainIDSei:      {cardanofw.SEITokenID},
-	// cardanofw.ChainIDScroll:   {cardanofw.ScrollETHTokenID},
+	cardanofw.ChainIDScroll:   {cardanofw.ScrollETHTokenID},
 	cardanofw.ChainIDUnichain: {cardanofw.UnichainETHTokenID},
 	cardanofw.ChainIDSolana:   {cardanofw.WSOLTokenID, cardanofw.SAP3XTokenID},
 }
@@ -173,7 +173,7 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 				}
 
 				if chain == cardanofw.ChainIDKatana ||
-					// chain == cardanofw.ChainIDScroll ||
+					chain == cardanofw.ChainIDScroll ||
 					chain == cardanofw.ChainIDUnichain ||
 					chain == cardanofw.ChainIDEthereum {
 					amountToFund = tokensToFundEvmChains
@@ -258,8 +258,8 @@ func Test_E2E_SkylineTestnetDefund(t *testing.T) {
 				info = apex.KatanaInfo
 			case cardanofw.ChainIDSei:
 				info = apex.SeiInfo
-			// case cardanofw.ChainIDScroll:
-			// 	info = apex.ScrollInfo
+			case cardanofw.ChainIDScroll:
+				info = apex.ScrollInfo
 			case cardanofw.ChainIDUnichain:
 				info = apex.UnichainInfo
 			}
@@ -1429,11 +1429,11 @@ func printSkylineUserBalances(
 				for tokenID, token := range info.Tokens {
 					balanceToString(tokenID, balance[token.ChainSpecific])
 				}
-			// case cardanofw.ChainIDScroll:
-			// 	info := apex.ScrollInfo
-			// 	for tokenID, token := range info.Tokens {
-			// 		balanceToString(tokenID, balance[token.ChainSpecific])
-			// 	}
+			case cardanofw.ChainIDScroll:
+				info := apex.ScrollInfo
+				for tokenID, token := range info.Tokens {
+					balanceToString(tokenID, balance[token.ChainSpecific])
+				}
 			case cardanofw.ChainIDUnichain:
 				info := apex.UnichainInfo
 				for tokenID, token := range info.Tokens {
