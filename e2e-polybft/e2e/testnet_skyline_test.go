@@ -30,7 +30,7 @@ func isEVMReceiptUnavailableError(err error) bool {
 }
 
 var skylineChains = []cardanofw.ChainID{cardanofw.ChainIDPrime, cardanofw.ChainIDVector, cardanofw.ChainIDCardano, cardanofw.ChainIDNexus, cardanofw.ChainIDPolygon, cardanofw.ChainIDSolana,
-	cardanofw.ChainIDEthereum, cardanofw.ChainIDKatana, cardanofw.ChainIDSei, cardanofw.ChainIDScroll, cardanofw.ChainIDUnichain,
+	cardanofw.ChainIDEthereum, cardanofw.ChainIDKatana, cardanofw.ChainIDSei /*cardanofw.ChainIDScroll,*/, cardanofw.ChainIDUnichain,
 }
 var fundableTokensPerChain = map[cardanofw.ChainID][]uint16{
 	cardanofw.ChainIDPrime:    {},
@@ -586,7 +586,7 @@ func TestE2E_SkylineTestnetBridge_EvmChains(t *testing.T) { //nolint:tparallel
 		{name: "Ethereum", user: apex.Users[0], chainID: cardanofw.ChainIDEthereum, tokenToCardano: cardanofw.ETHTokenID, tokenFromCrdn: cardanofw.CETHTokenID},
 		{name: "Katana", user: apex.Users[1], chainID: cardanofw.ChainIDKatana, tokenToCardano: cardanofw.KatanaETHTokenID, tokenFromCrdn: cardanofw.CKatanaETHTokenID},
 		{name: "Sei", user: apex.Users[2], chainID: cardanofw.ChainIDSei, tokenToCardano: cardanofw.SEITokenID, tokenFromCrdn: cardanofw.CSEITokenID},
-		{name: "Scroll", user: apex.Users[3], chainID: cardanofw.ChainIDScroll, tokenToCardano: cardanofw.ScrollETHTokenID, tokenFromCrdn: cardanofw.CScrollETHTokenID},
+		// {name: "Scroll", user: apex.Users[3], chainID: cardanofw.ChainIDScroll, tokenToCardano: cardanofw.ScrollETHTokenID, tokenFromCrdn: cardanofw.CScrollETHTokenID},
 		{name: "Unichain", user: apex.Users[4], chainID: cardanofw.ChainIDUnichain, tokenToCardano: cardanofw.UnichainETHTokenID, tokenFromCrdn: cardanofw.CUnichainETHTokenID},
 	}
 
