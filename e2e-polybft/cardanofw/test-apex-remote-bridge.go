@@ -475,7 +475,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 				Info: EVMChainInfo{
 					GatewayAddress:           types.StringToAddress("0xb21565df525a795e18C12d49d710766774dAEaDe"),
 					NativeTokenWalletAddress: types.StringToAddress("0x55A1A578fCc44A9E403E6F411CFb2B61A7eef5b2"),
-					JSONRPCAddr:              "https://rpc-amoy.polygon.technology",
+					JSONRPCAddr:              "https://polygon-amoy.drpc.org",
 					Tokens: map[uint16]Token{
 						POLTokenID: {
 							ChainSpecific:     cardanowallet.AdaTokenName,
