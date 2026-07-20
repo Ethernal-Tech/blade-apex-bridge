@@ -36,7 +36,7 @@ var fundableTokensPerChain = map[cardanofw.ChainID][]uint16{
 	cardanofw.ChainIDPrime:    {},
 	cardanofw.ChainIDVector:   {cardanofw.XADATokenID, cardanofw.ASOLTokenID},
 	cardanofw.ChainIDCardano:  {cardanofw.CAP3XTokenID},
-	cardanofw.ChainIDNexus:    {cardanofw.USDTTokenID},
+	cardanofw.ChainIDNexus:    {cardanofw.USDTTokenID, cardanofw.XPOLTokenID},
 	cardanofw.ChainIDPolygon:  {cardanofw.PAP3XTokenID},
 	cardanofw.ChainIDEthereum: {cardanofw.ETHTokenID},
 	cardanofw.ChainIDKatana:   {cardanofw.KatanaETHTokenID},
@@ -98,8 +98,13 @@ func Test_E2E_SkylineTestnetFund(t *testing.T) {
 				tokens = make([]cardanofw.GenericTokenAmount, len(fundableTokensPerChain[chain]))
 
 				for i, tokenID := range fundableTokensPerChain[chain] {
+					amount := tokensToFund
+					if chain == cardanofw.ChainIDNexus && tokenID == cardanofw.XPOLTokenID {
+						amount = tokensToFundPol
+					}
+
 					tokens[i] = cardanofw.NewGenericTokenAmount(
-						cardanowallet.Token{PolicyID: chainInfo.Tokens[tokenID].ChainSpecific}, tokensToFund)
+						cardanowallet.Token{PolicyID: chainInfo.Tokens[tokenID].ChainSpecific}, amount)
 				}
 			case chain == cardanofw.ChainIDSolana:
 				chainInfo := apex.SolanaInfo
@@ -908,22 +913,6 @@ func TestE2E_SkylineTestnetBridge_ValidScenarios_ColoredCoins(t *testing.T) {
 	tenthApexWei := new(big.Int).Div(oneApexWei, big.NewInt(10))
 
 	polygonParallelSendPOL := tenthApexWei
-
-	polPerChainNeed := new(big.Int).Mul(
-		polygonParallelSendPOL, big.NewInt(int64(polygonSequentialInstances*receiversCnt)))
-
-	polygonSeedFundPOL := new(big.Int).Mul(polPerChainNeed, big.NewInt(2))
-	if polygonSeedFundPOL.Cmp(oneApexWei) < 0 {
-		polygonSeedFundPOL = new(big.Int).Set(oneApexWei)
-	}
-
-	t.Run("13. Seed xPOL on Nexus (Polygon -> Nexus xPOL per sender)", func(t *testing.T) {
-		for _, u := range senders {
-			e2ehelper.ExecuteSingleBridging(
-				t, ctx, apex, u, u, cardanofw.ChainIDPolygon, cardanofw.ChainIDNexus, polygonSeedFundPOL,
-				cardanofw.POLTokenID, true, bridgingOpts...)
-		}
-	})
 
 	t.Run("14. Polygon <-> Nexus POL and xPOL both directions parallel", func(t *testing.T) {
 		bridgingDirections := []e2ehelper.BridgingDirectionConfig{
