@@ -1265,8 +1265,8 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios_NexusSrc(t *testing.T) {
 			operationFee: big.NewInt(0),
 			tokenInfo:    polygonXPOLInfo,
 		})
-		require.Error(t, err)
-		require.ErrorContains(t, err, "transaction receipt status is unsuccessful")
+		// refund procedure is triggered and funds are returned to the user
+		require.NoError(t, err)
 	})
 }
 
