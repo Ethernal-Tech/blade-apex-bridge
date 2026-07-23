@@ -9,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygon/polygon-edge/consensus/polybft/bitmap"
+	"github.com/0xPolygon/polygon-edge/consensus/polybft/signer"
+	"github.com/0xPolygon/polygon-edge/contracts"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
@@ -125,10 +128,7 @@ func TestE2E_Testnet_SC_BLS_Verify_Hardcoded_Valid(t *testing.T) {
 
 	t.Logf("\n%s\n", hardcodedTestCase)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, hardcodedTestCase)
-
-	require.NoError(t, err)
-	require.True(t, isValid)
+	requireBLSVerifyBothValid(t, hardcodedTestCase)
 }
 
 func TestE2E_Testnet_SC_BLS_Verify_Hardcoded_Invalid(t *testing.T) {
@@ -143,10 +143,7 @@ func TestE2E_Testnet_SC_BLS_Verify_Hardcoded_Invalid(t *testing.T) {
 
 	t.Logf("\n\nAltered: \n%s\n\n", hardcodedTestCase)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, hardcodedTestCase)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, hardcodedTestCase)
 }
 
 func TestE2E_Testnet_SC_BLS_Verify_Valid(t *testing.T) {
@@ -158,10 +155,7 @@ func TestE2E_Testnet_SC_BLS_Verify_Valid(t *testing.T) {
 	data, err := testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.True(t, isValid)
+	requireBLSVerifyBothValid(t, data)
 }
 
 func TestE2E_Testnet_SC_BLS_Verify_WrongSig(t *testing.T) {
@@ -175,10 +169,7 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongSig(t *testing.T) {
 
 	t.Logf("\n\nOriginal: \n%s\n\n", data)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.True(t, isValid)
+	requireBLSVerifyBothValid(t, data)
 
 	bytes, err := hex.DecodeString(data.signature)
 	require.NoError(t, err)
@@ -190,12 +181,11 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongSig(t *testing.T) {
 
 	t.Logf("\n\nAltered: \n%s\n\n", data)
 
-	isValid, err = callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, data)
 }
 
+// Domain is only a parameter of the SC call; the precompile has it baked in
+// (DOMAIN_APEX_BRIDGE_EVM), so this scenario is SC-only.
 func TestE2E_Testnet_SC_BLS_Verify_WrongDomain(t *testing.T) {
 	testCase, err := generateTestCase(randomValCnt())
 	require.NoError(t, err)
@@ -233,10 +223,7 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongMsg(t *testing.T) {
 	data, err := testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.True(t, isValid)
+	requireBLSVerifyBothValid(t, data)
 
 	t.Logf("Changing first byte of the message\n")
 
@@ -246,10 +233,7 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongMsg(t *testing.T) {
 	data, err = testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err = callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, data)
 }
 
 func TestE2E_Testnet_SC_BLS_Verify_WrongBitmap(t *testing.T) {
@@ -262,37 +246,25 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongBitmap(t *testing.T) {
 	data, err := testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.True(t, isValid)
+	requireBLSVerifyBothValid(t, data)
 
 	data.bitmap = new(big.Int).Add(data.bitmap, big.NewInt(1))
 
 	t.Logf("\nTrying bitmap: %v\n", data.bitmap)
 
-	isValid, err = callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, data)
 
 	data.bitmap = new(big.Int).Sub(new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(valCnt)), nil), big.NewInt(1))
 
 	t.Logf("\nTrying bitmap: %v\n", data.bitmap)
 
-	isValid, err = callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, data)
 
 	data.bitmap = big.NewInt(0)
 
 	t.Logf("\nTrying bitmap: %v\n", data.bitmap)
 
-	isValid, err = callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, data)
 }
 
 func TestE2E_Testnet_SC_BLS_Verify_ReplaceWithWrongValidator(t *testing.T) {
@@ -306,10 +278,7 @@ func TestE2E_Testnet_SC_BLS_Verify_ReplaceWithWrongValidator(t *testing.T) {
 
 	t.Logf("\n\nOriginal: \n%s\n\n", data)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.True(t, isValid)
+	requireBLSVerifyBothValid(t, data)
 
 	key, err := bn256.GeneratePrivateKey()
 	require.NoError(t, err)
@@ -320,10 +289,7 @@ func TestE2E_Testnet_SC_BLS_Verify_ReplaceWithWrongValidator(t *testing.T) {
 
 	t.Logf("\n\nAltered: \n%s\n\n", data)
 
-	isValid, err = callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, data)
 }
 
 func TestE2E_Testnet_SC_BLS_Verify_WrongValidatorAddedToStart(t *testing.T) {
@@ -337,10 +303,7 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongValidatorAddedToStart(t *testing.T) {
 
 	t.Logf("\n\nOriginal: \n%s\n\n", data)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.True(t, isValid)
+	requireBLSVerifyBothValid(t, data)
 
 	key, err := bn256.GeneratePrivateKey()
 	require.NoError(t, err)
@@ -351,10 +314,7 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongValidatorAddedToStart(t *testing.T) {
 
 	t.Logf("\n\nAltered: \n%s\n\n", data)
 
-	isValid, err = callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, data)
 }
 
 func TestE2E_Testnet_SC_BLS_Verify_SomeValidatorsRemoved(t *testing.T) {
@@ -368,10 +328,7 @@ func TestE2E_Testnet_SC_BLS_Verify_SomeValidatorsRemoved(t *testing.T) {
 
 	t.Logf("\n\nOriginal: \n%s\n\n", data)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.True(t, isValid)
+	requireBLSVerifyBothValid(t, data)
 
 	t.Logf("Removing first 2 validators from the start\n")
 
@@ -379,10 +336,7 @@ func TestE2E_Testnet_SC_BLS_Verify_SomeValidatorsRemoved(t *testing.T) {
 
 	t.Logf("\n\nAltered: \n%s\n\n", data)
 
-	isValid, err = callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, data)
 }
 
 func TestE2E_Testnet_SC_BLS_Verify_ReplaceWithWrongSignature(t *testing.T) {
@@ -394,10 +348,7 @@ func TestE2E_Testnet_SC_BLS_Verify_ReplaceWithWrongSignature(t *testing.T) {
 	data, err := testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.True(t, isValid)
+	requireBLSVerifyBothValid(t, data)
 
 	key, err := bn256.GeneratePrivateKey()
 	require.NoError(t, err)
@@ -416,10 +367,7 @@ func TestE2E_Testnet_SC_BLS_Verify_ReplaceWithWrongSignature(t *testing.T) {
 	data, err = testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err = callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, data)
 }
 
 func TestE2E_Testnet_SC_BLS_Verify_WrongSignatureAddedToStart(t *testing.T) {
@@ -431,10 +379,7 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongSignatureAddedToStart(t *testing.T) {
 	data, err := testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.True(t, isValid)
+	requireBLSVerifyBothValid(t, data)
 
 	key, err := bn256.GeneratePrivateKey()
 	require.NoError(t, err)
@@ -453,10 +398,7 @@ func TestE2E_Testnet_SC_BLS_Verify_WrongSignatureAddedToStart(t *testing.T) {
 	data, err = testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err = callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, data)
 }
 
 func TestE2E_Testnet_SC_BLS_Verify_SomeSignaturesRemoved(t *testing.T) {
@@ -468,10 +410,7 @@ func TestE2E_Testnet_SC_BLS_Verify_SomeSignaturesRemoved(t *testing.T) {
 	data, err := testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.True(t, isValid)
+	requireBLSVerifyBothValid(t, data)
 
 	t.Logf("Removing first 2 signatures from the start\n")
 
@@ -482,10 +421,7 @@ func TestE2E_Testnet_SC_BLS_Verify_SomeSignaturesRemoved(t *testing.T) {
 	data, err = testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err = callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, data)
 }
 
 func TestE2E_Testnet_SC_BLS_Verify_QuorumCheck_1(t *testing.T) {
@@ -497,10 +433,7 @@ func TestE2E_Testnet_SC_BLS_Verify_QuorumCheck_1(t *testing.T) {
 	data, err := testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.True(t, isValid)
+	requireBLSVerifyBothValid(t, data)
 
 	t.Logf("Removing the first signature from the start and setting the bitmap accordingly\n")
 
@@ -512,10 +445,7 @@ func TestE2E_Testnet_SC_BLS_Verify_QuorumCheck_1(t *testing.T) {
 	data, err = testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err = callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, data)
 }
 
 func TestE2E_Testnet_SC_BLS_Verify_QuorumCheck_2(t *testing.T) {
@@ -527,10 +457,7 @@ func TestE2E_Testnet_SC_BLS_Verify_QuorumCheck_2(t *testing.T) {
 	data, err := testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.True(t, isValid)
+	requireBLSVerifyBothValid(t, data)
 
 	t.Logf("Replacing the signatures with just the first signature and setting the bitmap accordingly\n")
 
@@ -542,16 +469,18 @@ func TestE2E_Testnet_SC_BLS_Verify_QuorumCheck_2(t *testing.T) {
 	data, err = testCase.ToSCData()
 	require.NoError(t, err)
 
-	isValid, err = callBLSVerifySC(rpcURL, contractAddrStr, data)
-
-	require.NoError(t, err)
-	require.False(t, isValid)
+	requireBLSVerifyBothInvalid(t, data)
 }
 
+// generateTestCase generates a test case signed with the DOMAIN_APEX_BRIDGE_EVM domain,
+// which is the domain baked into the precompile, so the generated data can be verified
+// through both the Solidity SC and the precompile
 func generateTestCase(totalValCnt uint32) (*blsVerifyTestCase, error) {
-	msg := crypto.Keccak256([]byte(randomString(20)))
+	return generateTestCaseWithDomain(totalValCnt, signer.DomainApexBridgeEVMString)
+}
 
-	domainStr := randomString(10)
+func generateTestCaseWithDomain(totalValCnt uint32, domainStr string) (*blsVerifyTestCase, error) {
+	msg := crypto.Keccak256([]byte(randomString(20)))
 
 	domain := crypto.Keccak256([]byte(domainStr))
 
@@ -842,6 +771,129 @@ func callBLSVerifySC(rpcURL string, contractAddrStr string, data *blsVerifySCDat
 	}
 
 	return res.BitLen() > 0, nil
+}
+
+// apexBLSPrecompileInputABIType is the input type of the multi (aggregated) mode of the
+// apex BLS verification precompile: (hash, signature, blsPublicKeys, bitmap)
+var apexBLSPrecompileInputABIType = abi.MustNewType("tuple(bytes32, bytes, uint256[4][], uint256)")
+
+// valueBitmapToPrecompileBitmap re-encodes a validator participation bitmap so
+// the same set of validators is selected by both the Solidity contract and the
+// precompile.
+//
+// The contract treats the bitmap as a plain integer: bit i of the number means
+// validator i participated.
+//
+// The precompile instead takes big.Int.Bytes() and interprets that byte slice as
+// a bitmap.Bitmap, where the first byte holds validators 0-7, the second byte
+// validators 8-15, and so on. For values that fit in one byte the two views
+// match; for wider bitmaps the big-endian Bytes() layout no longer lines up
+// with those validator indices, so this helper reads the integer bit indices
+// and writes them back via bitmap.Set into the layout the precompile expects.
+func valueBitmapToPrecompileBitmap(value *big.Int) *big.Int {
+	bmp := bitmap.Bitmap{}
+
+	for i := 0; i < value.BitLen(); i++ {
+		if value.Bit(i) == 1 {
+			bmp.Set(uint64(i))
+		}
+	}
+
+	return new(big.Int).SetBytes(bmp)
+}
+
+// callBLSVerifyPrecompile calls the apex BLS verification precompile (0x2060) directly
+// via eth_call, using the same test data as the Solidity SC call. Note that, unlike the
+// SC, the precompile does not accept a domain parameter - the domain is fixed in the
+// node to keccak256("DOMAIN_APEX_BRIDGE_EVM"), so data.domain is ignored here.
+func callBLSVerifyPrecompile(rpcURL string, data *blsVerifySCData) (bool, error) {
+	clt, err := jsonrpc.NewEthClient(rpcURL)
+	if err != nil {
+		return false, fmt.Errorf("failed to create new eth client: %w", err)
+	}
+
+	msgBytes, err := hex.DecodeString(data.message)
+	if err != nil {
+		return false, fmt.Errorf("failed to decode message hex: %w", err)
+	}
+
+	sigBytes, err := hex.DecodeString(data.signature)
+	if err != nil {
+		return false, fmt.Errorf("failed to decode signature hex: %w", err)
+	}
+
+	publicKeys := make([][4]*big.Int, len(data.validators))
+	for i, v := range data.validators {
+		publicKeys[i] = v.Key
+	}
+
+	encoded, err := abi.Encode([]interface{}{
+		msgBytes,
+		sigBytes,
+		publicKeys,
+		valueBitmapToPrecompileBitmap(data.bitmap),
+	}, apexBLSPrecompileInputABIType)
+	if err != nil {
+		return false, fmt.Errorf("failed to encode precompile input: %w", err)
+	}
+
+	// first byte 1 denotes the multi (aggregated signature) input type
+	input := append([]byte{1}, encoded...)
+
+	precompileAddr := contracts.ApexBLSSignaturesVerificationPrecompile
+
+	outHex, err := clt.Call(&jsonrpc.CallMsg{
+		To:   &precompileAddr,
+		Data: input,
+	}, jsonrpc.LatestBlockNumber, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to call the precompile: %w", err)
+	}
+
+	res, err := common.ParseUint256orHex(&outHex)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse the precompile call output: %w", err)
+	}
+
+	return res.BitLen() > 0, nil
+}
+
+// requireBLSVerifyBothValid asserts that both the Solidity SC and the precompile
+// successfully verify the given data
+func requireBLSVerifyBothValid(t *testing.T, data *blsVerifySCData) {
+	t.Helper()
+
+	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
+
+	require.NoError(t, err)
+	require.True(t, isValid, "SC verification expected to succeed")
+
+	isValid, err = callBLSVerifyPrecompile(rpcURL, data)
+
+	require.NoError(t, err)
+	require.True(t, isValid, "precompile verification expected to succeed")
+}
+
+// requireBLSVerifyBothInvalid asserts that both the Solidity SC and the precompile
+// reject the given data. The SC always returns false for invalid data, while the
+// precompile returns an error (reverts) for malformed input or when the quorum is
+// not reached, so an error from the precompile is also treated as a rejection.
+func requireBLSVerifyBothInvalid(t *testing.T, data *blsVerifySCData) {
+	t.Helper()
+
+	isValid, err := callBLSVerifySC(rpcURL, contractAddrStr, data)
+
+	require.NoError(t, err)
+	require.False(t, isValid, "SC verification expected to fail")
+
+	isValid, err = callBLSVerifyPrecompile(rpcURL, data)
+	if err != nil {
+		t.Logf("precompile call returned an error (treated as a rejection): %v\n", err)
+
+		return
+	}
+
+	require.False(t, isValid, "precompile verification expected to fail")
 }
 
 const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
