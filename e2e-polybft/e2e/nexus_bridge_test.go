@@ -1731,6 +1731,13 @@ func TestE2E_ApexBridgeWithNexus_NexusGoesDownAndThenUp(t *testing.T) {
 	// start nexus chain again
 	require.NoError(t, nexusChainServer.Start())
 
+	// give some time to nexus to start
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(10 * time.Second):
+	}
+
 	// wait for tx on destination
 	expectedAmountDfm := new(big.Int).Add(prevAmountNexusDfm, sendAmountDfm)
 

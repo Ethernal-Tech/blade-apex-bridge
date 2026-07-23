@@ -470,7 +470,7 @@ func WaitForBatchState(
 	apiKey string, breakIfFailed bool, failAtLeastOnce bool, batchState string, otherGoodBatchStates ...string,
 ) (int, bool) {
 	failedToExecuteCount := 0
-	err := WaitForRequestStateGeneric(ctx, apex, chainID, txHash, apiKey, time.Second*400, func(status string) bool {
+	err := WaitForRequestStateGeneric(ctx, apex, chainID, txHash, apiKey, time.Second*500, func(status string) bool {
 		if status == BatchStateFailedToExecute {
 			failedToExecuteCount++
 
