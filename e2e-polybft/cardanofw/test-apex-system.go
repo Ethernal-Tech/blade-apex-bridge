@@ -2137,8 +2137,9 @@ func (a *ApexSystem) RedistributeTokens(
 }
 
 func IsRetryableSubmitTx(err error) bool {
-	// receipt polling failures must not trigger a full resubmit (tx may already be on-chain)
-	if errors.Is(err, txrelayer.ErrFailedToRetrieveTxReceipt) {
+	// receipt polling failures must not trigger a full resubmit (tx may already be on-chain),
+	// except in situations where the error is specified as retryable
+	if errors.Is(err, txrelayer.ErrFailedToRetrieveTxReceipt) && !infracommon.IsRetryableError(err) {
 		return false
 	}
 
