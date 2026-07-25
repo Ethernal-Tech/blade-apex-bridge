@@ -179,8 +179,6 @@ func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 	t.Helper()
 
 	networkName := ec.config.ChainID
-	ogmiosLogsFilePath := filepath.Join("..", "..", "e2e-logs-cardano",
-		fmt.Sprintf("ogmios-%s-%s.log", networkName, strings.ReplaceAll(t.Name(), "/", "_")))
 
 	cluster, err := NewCardanoTestCluster(
 		WithID(ec.config.ID+1),
@@ -192,6 +190,13 @@ func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 		WithNetworkMagic(ec.config.NetworkMagic),
 		WithConfigGenesisDir(networkName),
 		WithInitialFunds(ec.config.PreminesAddresses, ec.config.PremineAmount),
+		WithStdOutWritterFactory(func(id int, instanceType, dir string) io.Writer {
+			if instanceType == cardanoNode {
+				return nil
+			}
+
+			return GetLogsFile(t, filepath.Join(dir, fmt.Sprintf("%s-%d.log", instanceType, id)), false)
+		}),
 	)
 	if err != nil {
 		return err
@@ -205,7 +210,7 @@ func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 		return err
 	}
 
-	if err := cluster.StartOgmios(ec.config.ID, GetLogsFile(t, ogmiosLogsFilePath, false)); err != nil {
+	if err := cluster.StartOgmios(ec.config.ID); err != nil {
 		return err
 	}
 

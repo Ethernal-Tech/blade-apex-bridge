@@ -20,10 +20,16 @@ import (
 	"github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 )
 
+type StdOutWritterFactory func(id int, instanceType, dir string) io.Writer
+
 //go:embed genesis-configuration/*
 var cardanoFiles embed.FS
 
-const hostIP = "127.0.0.1"
+const (
+	hostIP      = "127.0.0.1"
+	cardanoNode = "cardano-node"
+	ogmios      = "ogmios"
+)
 
 type TestCardanoClusterConfig struct {
 	ID             int
@@ -43,6 +49,8 @@ type TestCardanoClusterConfig struct {
 
 	InitialFundsKeys   []string
 	InitialFundsAmount uint64
+
+	stdOutWritterFactory StdOutWritterFactory
 }
 
 func (c *TestCardanoClusterConfig) Dir(name string) string {
@@ -128,6 +136,12 @@ func WithInitialFunds(initialFundsKeys []string, initialFundsAmount uint64) Card
 	}
 }
 
+func WithStdOutWritterFactory(f StdOutWritterFactory) CardanoClusterOption {
+	return func(h *TestCardanoClusterConfig) {
+		h.stdOutWritterFactory = f
+	}
+}
+
 func NewCardanoTestCluster(opts ...CardanoClusterOption) (cluster *TestCardanoCluster, err error) {
 	config := &TestCardanoClusterConfig{
 		NetworkType:    wallet.TestNetNetwork,
@@ -138,6 +152,8 @@ func NewCardanoTestCluster(opts ...CardanoClusterOption) (cluster *TestCardanoCl
 		BlockTimeMilis: 2000,
 		Port:           3000,
 		OgmiosPort:     1337,
+
+		stdOutWritterFactory: func(id int, instanceType, dir string) io.Writer { return nil },
 	}
 
 	for _, opt := range opts {
@@ -191,9 +207,9 @@ func NewCardanoTestCluster(opts ...CardanoClusterOption) (cluster *TestCardanoCl
 
 func (c *TestCardanoCluster) NewTestServer(id int, port int) error {
 	srv, err := NewCardanoTestServer(&TestCardanoServerConfig{
-		ID:   id,
-		Port: port,
-		//StdOut:       c.Config.GetStdout(fmt.Sprintf("node-%d", id)),
+		ID:           id,
+		Port:         port,
+		StdOut:       c.Config.stdOutWritterFactory(id, cardanoNode, c.Config.TmpDir),
 		ConfigFile:   c.Config.Dir("configuration.yaml"),
 		NodeDir:      c.Config.Dir(fmt.Sprintf("node-spo%d", id)),
 		NetworkMagic: c.Config.NetworkMagic,
@@ -413,14 +429,14 @@ func (c *TestCardanoCluster) WaitForBlockWithState(
 	})
 }
 
-func (c *TestCardanoCluster) StartOgmios(id int, stdOut io.Writer) error {
+func (c *TestCardanoCluster) StartOgmios(id int) error {
 	srv, err := NewOgmiosTestServer(&TestOgmiosServerConfig{
 		ID:         id,
 		ConfigFile: c.Servers[0].config.ConfigFile,
 		NetworkID:  c.Config.NetworkType,
 		Port:       c.Config.OgmiosPort,
 		SocketPath: c.Servers[0].SocketPath(),
-		StdOut:     stdOut,
+		StdOut:     c.Config.stdOutWritterFactory(id, ogmios, c.Config.TmpDir),
 	})
 	if err != nil {
 		return err
