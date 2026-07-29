@@ -73,7 +73,8 @@ func isRetryableRPCError(err error) bool {
 
 	return strings.Contains(msg, "status code is 408") || // evm request timeout on the free tier
 		strings.Contains(msg, "408 request timeout") || // evm request timeout on the free tier
-		strings.Contains(msg, "request timeout on the free plan, please upgrade to paid plan") || // evm request timeout on the free tier
+		strings.Contains(msg,
+			"request timeout on the free plan, please upgrade to paid plan") || // evm request timeout on the free tier
 		strings.Contains(msg, "status code 429") ||
 		strings.Contains(msg, "status code is 429") ||
 		strings.Contains(msg, "error code: 1015") ||
