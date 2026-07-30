@@ -71,10 +71,15 @@ func isRetryableRPCError(err error) bool {
 
 	msg := strings.ToLower(err.Error())
 
-	return strings.Contains(msg, "status code 429") ||
+	return strings.Contains(msg, "status code is 408") || // evm request timeout on the free tier
+		strings.Contains(msg, "408 request timeout") || // evm request timeout on the free tier
+		strings.Contains(msg,
+			"request timeout on the free plan, please upgrade to paid plan") || // evm request timeout on the free tier
+		strings.Contains(msg, "status code 429") ||
 		strings.Contains(msg, "status code is 429") ||
 		strings.Contains(msg, "error code: 1015") ||
 		strings.Contains(msg, "i/o timeout") ||
+		strings.Contains(msg, "status code is 500") ||
 		strings.Contains(msg, "connection reset")
 }
 
@@ -486,7 +491,7 @@ func (t *TxRelayerImpl) waitForReceipt(hash types.Hash) (*ethgo.Receipt, error) 
 		case <-ticker.C:
 			receipt, err := t.client.GetTransactionReceipt(hash)
 			if err != nil {
-				if err.Error() != "not found" {
+				if err.Error() != "not found" && !isRetryableRPCError(err) {
 					return nil, fmt.Errorf("%w: %w", ErrFailedToRetrieveTxReceipt, err)
 				}
 			}
