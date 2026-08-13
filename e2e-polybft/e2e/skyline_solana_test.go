@@ -224,7 +224,7 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Println("nexus user NS balance: ", userBalance)
 
-	solanaReceivers := make([]*cardanofw.TestApexUser, 4)
+	solanaReceivers := make([]*cardanofw.TestApexUser, 12)
 	for i := range len(solanaReceivers) {
 		solanaReceivers[i], err = cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypes(cardanofw.ApexNetworkTypesParams{
 			PrimeConfig:   primeConfig,
@@ -241,7 +241,7 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 		SolanaAddress:   apex.SolanaInfo.RelayerAddress,
 	}
 
-	for range 3 {
+	for i := range 3 {
 		t.Run("TEST SOLANA BRIDGING", func(t *testing.T) {
 			wg := sync.WaitGroup{}
 			wg.Add(4)
@@ -249,10 +249,12 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 			relayerBalance, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
 			require.NoError(t, err)
 
+			offset := i * 4
+
 			go func() {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
-					t, ctx, apex, apex.Users[0], solanaReceivers[0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
+					t, ctx, apex, apex.Users[0], solanaReceivers[offset+0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
 					cardanofw.VSTokenID, false, e2ehelper.WithTimeoutConfig(
 						e2ehelper.NewTimeoutConfig(
 							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
@@ -264,7 +266,7 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
-					t, ctx, apex, apex.Users[1], solanaReceivers[1], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
+					t, ctx, apex, apex.Users[1], solanaReceivers[offset+1], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
 					cardanofw.AP3XTokenID, false, e2ehelper.WithTimeoutConfig(
 						e2ehelper.NewTimeoutConfig(
 							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
@@ -276,7 +278,7 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
-					t, ctx, apex, apex.Users[0], solanaReceivers[2], cardanofw.ChainIDNexus, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
+					t, ctx, apex, apex.Users[0], solanaReceivers[offset+2], cardanofw.ChainIDNexus, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
 					cardanofw.NSTokenID, false, e2ehelper.WithTimeoutConfig(
 						e2ehelper.NewTimeoutConfig(
 							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
@@ -288,7 +290,7 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
-					t, ctx, apex, apex.Users[0], solanaReceivers[3], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
+					t, ctx, apex, apex.Users[0], solanaReceivers[offset+3], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
 					cardanofw.ASOLTokenID, false, e2ehelper.WithTimeoutConfig(
 						e2ehelper.NewTimeoutConfig(
 							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
