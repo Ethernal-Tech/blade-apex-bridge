@@ -212,7 +212,7 @@ func buildState(allocs map[types.Address]*chain.GenesisAccount) (state.State, st
 		return nil, nil, types.ZeroHash, err
 	}
 
-	snap, root, err := snap.Commit(objs)
+	snap, root, _, err := snap.Commit(objs)
 
 	return s, snap, types.BytesToHash(root), err
 }

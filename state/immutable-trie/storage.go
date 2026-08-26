@@ -40,6 +40,7 @@ type Storage interface {
 	GetCode(hash types.Hash) ([]byte, bool)
 	Stat(property string) (string, error)
 	Compact(start []byte, limit []byte) error
+	Size() uint64
 
 	Close() error
 }
@@ -124,6 +125,10 @@ func (kv *KVStorage) Stat(property string) (string, error) {
 // will compact entire data store.
 func (kv *KVStorage) Compact(start []byte, limit []byte) error {
 	return kv.db.CompactRange(util.Range{Start: start, Limit: limit})
+}
+
+func (kv *KVStorage) Size() uint64 {
+	return uint64(0)
 }
 
 func (kv *KVStorage) Close() error {
@@ -217,6 +222,10 @@ func (m *memStorage) Batch() Batch {
 
 func (m *memStorage) Close() error {
 	return nil
+}
+
+func (m *memStorage) Size() uint64 {
+	return uint64(0)
 }
 
 func (m *memBatch) Put(p, v []byte) {

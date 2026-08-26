@@ -51,8 +51,12 @@ func (m *mockSnapshot) GetRootHash() types.Hash {
 	return emptyStateHash
 }
 
-func (m *mockSnapshot) Commit(objs []*Object) (Snapshot, []byte, error) {
-	return nil, nil, nil
+func (m *mockSnapshot) Commit(objs []*Object) (Snapshot, []byte, uint64, error) {
+	return nil, nil, 0, nil
+}
+
+func (m *mockSnapshot) Size() uint64 {
+	return 0
 }
 
 func newStateWithPreState(preState map[types.Address]*PreState) Snapshot {

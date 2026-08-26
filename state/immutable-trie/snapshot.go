@@ -85,11 +85,13 @@ func (s *Snapshot) GetRootHash() types.Hash {
 	return types.BytesToHash(res)
 }
 
-func (s *Snapshot) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
+func (s *Snapshot) Commit(objs []*state.Object) (state.Snapshot, []byte, uint64, error) {
 	batch := s.state.storage.Batch()
 
 	tt := s.trie.Txn(s.state.storage)
 	tt.batch = batch
+
+	dbSizeBeforeCommit := s.state.storage.Size()
 
 	arena := stateArenaPool.Get()
 	defer stateArenaPool.Put(arena)
@@ -108,7 +110,7 @@ func (s *Snapshot) Commit(objs []*state.Object) (state.Snapshot, []byte, error) 
 			if len(obj.Storage) != 0 {
 				trie, err := s.state.newTrieAt(obj.Root)
 				if err != nil {
-					return nil, types.ZeroHash[:], fmt.Errorf("snapshot commit failed to create trie: %w", err)
+					return nil, types.ZeroHash[:], 0, fmt.Errorf("snapshot commit failed to create trie: %w", err)
 				}
 
 				localTxn := trie.Txn(s.state.storage)
@@ -147,17 +149,19 @@ func (s *Snapshot) Commit(objs []*state.Object) (state.Snapshot, []byte, error) 
 
 	root, err := tt.Hash()
 	if err != nil {
-		return nil, types.ZeroHash[:], fmt.Errorf("snapshot commit can not retrieve hash: %w", err)
+		return nil, types.ZeroHash[:], 0, fmt.Errorf("snapshot commit can not retrieve hash: %w", err)
 	}
 
 	nTrie := tt.Commit()
 
 	// Write all the entries to db
 	if err := batch.Write(); err != nil {
-		return nil, types.ZeroHash[:], fmt.Errorf("snapshot commit db write error: %w", err)
+		return nil, types.ZeroHash[:], 0, fmt.Errorf("snapshot commit db write error: %w", err)
 	}
+
+	dbSizeAfterCommit := s.state.storage.Size()
 
 	s.state.AddState(types.BytesToHash(root), nTrie)
 
-	return &Snapshot{trie: nTrie, state: s.state}, root, nil
+	return &Snapshot{trie: nTrie, state: s.state}, root, dbSizeAfterCommit - dbSizeBeforeCommit, nil
 }
