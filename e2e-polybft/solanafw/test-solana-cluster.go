@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	DefaultPort     = 8899
-	DefaultWSPort   = 8900
-	DefaultSlotTime = 64
+	DefaultPort   = 8899
+	DefaultWSPort = 8900
+	// ticks per slot where 1 tick = 6,25ms, so 26 ticks = ~166ms
+	DefaultSlotTime = 26
 )
 
 type TestSolanaClusterConfig struct {
