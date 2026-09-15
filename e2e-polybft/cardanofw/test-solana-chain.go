@@ -1033,6 +1033,7 @@ func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexVal
 		"--alt-public-key", sc.altPublicKey,
 		// "--sol-tracker-start-block", fmt.Sprintf("%d:%d", 300, 300), // slot:blockNum
 		"--sol-confirmation-timeout", "60000000000",
+		"--slot-rounding-threshold", "25",
 	}
 
 	if sc.config.DisableTrackRateLimiting {
