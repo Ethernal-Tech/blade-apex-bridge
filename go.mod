@@ -9,7 +9,7 @@ require (
 	github.com/0xPolygon/go-ibft v0.4.1-0.20240621090555-e81a63ff50d7
 	github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20240628125004-67308570b6e2
 	github.com/Ethernal-Tech/bn256 v0.0.0-20260512092402-9d67137eba57
-	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20260904095550-df7578bc2925
+	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20260915080204-4accd053dac8
 	github.com/Ethernal-Tech/ethgo v0.0.0-20240801172627-47215d9e504c
 	github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04
 	github.com/Ethernal-Tech/solana-infrastructure v0.0.0-20260908120016-3dc4684058e8
