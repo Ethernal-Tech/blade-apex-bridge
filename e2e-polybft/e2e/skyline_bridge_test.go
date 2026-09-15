@@ -1369,6 +1369,70 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 	wg.Wait()
 }
 
+func TestE2E_SkylineBridge_VectorRegisteredButMissingFromConfig(t *testing.T) {
+	const apiKey = "test_api_key"
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	cardanoConfig.FundTokenAmount = 1_000_000_000
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithUserCnt(1),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
+		cardanofw.WithCustomConfigHandlers(
+			func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				delete(cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains"), cardanofw.ChainIDVector)
+			},
+			func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+				delete(cardanofw.GetMapFromInterfaceKey(mp, "chains"), cardanofw.ChainIDVector)
+			},
+			nil, nil,
+		),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+	sendAmount := cardanofw.DfmToWei(big.NewInt(1_500_000))
+
+	t.Run("1. prime -> cardano", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, user, user,
+			cardanofw.ChainIDPrime, cardanofw.ChainIDCardano,
+			sendAmount, cardanofw.AP3XTokenID, true)
+	})
+
+	t.Run("2. cardano -> vector is refunded", func(t *testing.T) {
+		const (
+			maxWaitTimeSec = 600
+			retryDelaySec  = 5
+		)
+
+		config := newTestConfig(
+			t, apex, apex.Config.CardanoConfig, &apex.CardanoInfo,
+			cardanofw.ChainIDVector, cardanofw.ADATokenID)
+
+		receivers := createReceivers(apex, 1, config.dstChainID, defaultSendAmount, config.tokenID)
+		operationFee := apex.GetMinOperationFee(config.srcChainID)
+
+		metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
+			apex.GetMinBridgingFee(config.srcChainID, !config.isCurrency),
+			operationFee, user, receivers, config.isCurrency)
+
+		defaultAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(
+			t, config, feeAmount, operationFee)
+
+		submitMismatchAndWait(t, ctx, apex, config, user, metadata, defaultAmount, sentTokenAmount, waitForAmount,
+			WaitRefundEnabled, maxWaitTimeSec, retryDelaySec, 0, operationFee, true)
+	})
+}
+
 func TestE2E_SkylineBridge_UTxOConsolidationBothDirectionsWithCurrencyAndTokens(t *testing.T) {
 	if cardanofw.ShouldSkipE2RRedundantTests() {
 		t.Skip()
