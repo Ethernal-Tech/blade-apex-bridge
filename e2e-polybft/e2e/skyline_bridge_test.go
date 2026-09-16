@@ -1370,12 +1370,16 @@ func TestE2E_SkylineBridge_Over_Max_Tokens_Allowed_To_Bridge(t *testing.T) {
 }
 
 func TestE2E_SkylineBridge_VectorRegisteredButMissingFromConfig(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
 	const apiKey = "test_api_key"
 
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	primeConfig, cardanoConfig, nexusConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true), cardanofw.NewNexusChainConfig(true)
 	cardanoConfig.FundTokenAmount = 1_000_000_000
 
 	apex := cardanofw.SetupAndRunSkylineBridge(
@@ -1384,13 +1388,16 @@ func TestE2E_SkylineBridge_VectorRegisteredButMissingFromConfig(t *testing.T) {
 		cardanofw.WithUserCnt(1),
 		cardanofw.WithCardanoConfig(cardanoConfig),
 		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
 		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
 		cardanofw.WithCustomConfigHandlers(
 			func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				delete(cardanofw.GetMapFromInterfaceKey(mp, "cardanoChains"), cardanofw.ChainIDVector)
+				delete(cardanofw.GetMapFromInterfaceKey(mp, "evmChains"), cardanofw.ChainIDNexus)
 			},
 			func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
 				delete(cardanofw.GetMapFromInterfaceKey(mp, "chains"), cardanofw.ChainIDVector)
+				delete(cardanofw.GetMapFromInterfaceKey(mp, "chains"), cardanofw.ChainIDNexus)
 			},
 			nil, nil,
 		),
