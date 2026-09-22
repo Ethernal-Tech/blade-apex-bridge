@@ -17,6 +17,9 @@ import (
 
 // To run solana tests be sure to have necessary tools installed:
 // https://solana.com/docs/intro/installation
+//
+// For v1 solana transactions we need higher version of solana-test-validator
+// update with: curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash
 
 func Test_SkylineSolana_AllDirections(t *testing.T) {
 	const (
@@ -213,6 +216,11 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 		cardanofw.ApexToWei(big.NewInt(500_000_000)), cardanofw.ApexToWei(big.NewInt(1)), cardanofw.ApexToWei(big.NewInt(500_000_000)))
 	require.NoError(t, err)
 
+	_, err = cardanofw.FundUserWithToken(ctx, apex, cardanofw.ChainIDVector,
+		apex.VectorInfo.GenesisWallet, apex.Users[0], cardanofw.VS1TokenName,
+		cardanofw.ApexToWei(big.NewInt(500_000_000)), cardanofw.ApexToWei(big.NewInt(1)), cardanofw.ApexToWei(big.NewInt(500_000_000)))
+	require.NoError(t, err)
+
 	nexusChain := apex.GetChainMust(t, cardanofw.ChainIDNexus).(*cardanofw.TestEVMChain)
 	err = nexusChain.FundUsersWithToken(apex.Users[0].GetAddress(cardanofw.ChainIDNexus), cardanofw.DfmToWei(big.NewInt(500_000_000)), cardanofw.NSTokenID)
 	require.NoError(t, err)
@@ -224,7 +232,9 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Println("nexus user NS balance: ", userBalance)
 
-	solanaReceivers := make([]*cardanofw.TestApexUser, 12)
+	bridgingsCount := 5
+
+	solanaReceivers := make([]*cardanofw.TestApexUser, 3*bridgingsCount)
 	for i := range len(solanaReceivers) {
 		solanaReceivers[i], err = cardanofw.NewTestApexUser(cardanofw.NewApexNetworkTypes(cardanofw.ApexNetworkTypesParams{
 			PrimeConfig:   primeConfig,
@@ -244,12 +254,13 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 	for i := range 3 {
 		t.Run("TEST SOLANA BRIDGING", func(t *testing.T) {
 			wg := sync.WaitGroup{}
-			wg.Add(4)
+
+			wg.Add(bridgingsCount)
 
 			relayerBalance, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
 			require.NoError(t, err)
 
-			offset := i * 4
+			offset := i * bridgingsCount
 
 			go func() {
 				defer wg.Done()
@@ -266,7 +277,19 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
-					t, ctx, apex, apex.Users[1], solanaReceivers[offset+1], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
+					t, ctx, apex, apex.Users[0], solanaReceivers[offset+1], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
+					cardanofw.VS1TokenID, false, e2ehelper.WithTimeoutConfig(
+						e2ehelper.NewTimeoutConfig(
+							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
+							e2ehelper.WithBridgingNumRetries(150),
+						)),
+				)
+			}()
+
+			go func() {
+				defer wg.Done()
+				e2ehelper.ExecuteSingleBridging(
+					t, ctx, apex, apex.Users[1], solanaReceivers[offset+2], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
 					cardanofw.AP3XTokenID, false, e2ehelper.WithTimeoutConfig(
 						e2ehelper.NewTimeoutConfig(
 							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
@@ -278,7 +301,7 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
-					t, ctx, apex, apex.Users[0], solanaReceivers[offset+2], cardanofw.ChainIDNexus, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
+					t, ctx, apex, apex.Users[0], solanaReceivers[offset+3], cardanofw.ChainIDNexus, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
 					cardanofw.NSTokenID, false, e2ehelper.WithTimeoutConfig(
 						e2ehelper.NewTimeoutConfig(
 							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
@@ -290,7 +313,7 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				e2ehelper.ExecuteSingleBridging(
-					t, ctx, apex, apex.Users[0], solanaReceivers[offset+3], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
+					t, ctx, apex, apex.Users[0], solanaReceivers[offset+4], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.SolanaToWei(big.NewInt(1)),
 					cardanofw.ASOLTokenID, false, e2ehelper.WithTimeoutConfig(
 						e2ehelper.NewTimeoutConfig(
 							e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
@@ -305,7 +328,7 @@ func Test_SkylineSolana_ForceFullBatch(t *testing.T) {
 			require.NoError(t, err)
 
 			diff := new(big.Int).Sub(relayerBalanceAfter["lovelace"], relayerBalance["lovelace"])
-			fee := new(big.Int).Sub(cardanofw.LamportToWei(big.NewInt(6_000_000*4)), diff)
+			fee := new(big.Int).Sub(cardanofw.LamportToWei(big.NewInt(6_000_000*int64(bridgingsCount))), diff)
 			fmt.Println("diff: ", cardanofw.WeiToLamport(diff))
 			fmt.Println("fee: ", cardanofw.WeiToLamport(fee))
 		})
@@ -640,6 +663,70 @@ func Test_SkylineSolana_LockUnlockTokenFlow(t *testing.T) {
 			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDNexus, cardanofw.ApexToWei(big.NewInt(1)),
 			cardanofw.SAP3XTokenID, true)
 	})
+}
+
+func Test_SkylineSolana_ZeroFeeForRelayerBridging(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		apiKey = "test_api_key"
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{
+		cardanofw.ASOLTokenID:  cardanofw.ASOLTokenName,
+		cardanofw.USDTTokenID:  cardanofw.USDTTokenName,
+		cardanofw.SAP3XTokenID: cardanofw.SAP3XTokenName,
+	})
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
+
+	solanaConfig := cardanofw.NewSolanaChainConfig(true)
+	solanaConfig.MinFeeForBriding = big.NewInt(0)
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithSolanaConfig(solanaConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithUserCnt(1),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	relayerUser := &cardanofw.TestApexUser{
+		HasSolanaWallet: true,
+		SolanaAddress:   apex.SolanaInfo.RelayerAddress,
+	}
+
+	relayerBalance, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
+	require.NoError(t, err)
+
+	fmt.Println("relayer balance before bridging: ", relayerBalance)
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDVector, cardanofw.ChainIDSolana, cardanofw.ApexToWei(big.NewInt(1)),
+		cardanofw.AP3XTokenID, true, e2ehelper.WithTimeoutConfig(
+			e2ehelper.NewTimeoutConfig(
+				e2ehelper.WithBridgingRetryWaitTime(10*time.Second),
+				e2ehelper.WithBridgingNumRetries(150),
+			),
+		))
+
+	relayerBalanceAfter, err := apex.GetBalance(ctx, relayerUser, cardanofw.ChainIDSolana)
+	require.NoError(t, err)
+	require.NoError(t, err)
+
+	fmt.Println("relayer balance after bridging: ", relayerBalanceAfter)
+
+	require.Greater(t, relayerBalance["lovelace"].Uint64(), relayerBalanceAfter["lovelace"].Uint64())
 }
 
 func Test_SkylineSolana_ValidScenarios(t *testing.T) {

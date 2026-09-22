@@ -71,6 +71,7 @@ const (
 	SAP3XTokenID uint16 = 33
 	VSTokenID    uint16 = 34
 	NSTokenID    uint16 = 35
+	VS1TokenID   uint16 = 36
 )
 
 // Human readable token names
@@ -105,6 +106,7 @@ const (
 	SAP3XTokenName   = "sAP3X"
 	VSTokenName      = "VS"
 	NSTokenName      = "NS"
+	VS1TokenName     = "VS1"
 	WSOLMintAddress  = "So11111111111111111111111111111111111111112"
 )
 

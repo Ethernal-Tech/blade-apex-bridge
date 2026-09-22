@@ -59,6 +59,7 @@ type TestSolanaChainConfig struct {
 	MinBridgingAmount      *big.Int
 	MinTokenBridgingAmount *big.Int
 	MinOperationFee        *big.Int
+	MinFeeForBriding       *big.Int
 	CurrencyID             uint16
 
 	TreasuryAddress solana.PublicKey
@@ -86,6 +87,7 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 		MinBridgingAmount:      big.NewInt(1000),    // 0.000001 SOL
 		MinTokenBridgingAmount: big.NewInt(1000),    // 0.000001 SOL
 		MinOperationFee:        big.NewInt(1500000), // 0.0015 SOL
+		MinFeeForBriding:       big.NewInt(6000000), // 0.006 SOL
 		CurrencyID:             WSOLTokenID,
 		TreasuryAddress:        solana.MustPublicKeyFromBase58(TreasuryAddress),
 		TokensMint: map[uint16]string{
@@ -101,6 +103,7 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 		MintableTokens: map[uint16]string{
 			SAP3XTokenID: SAP3XTokenName,
 			VSTokenID:    VSTokenName,
+			VS1TokenID:   VS1TokenName,
 			NSTokenID:    NSTokenName,
 		},
 
@@ -1024,6 +1027,7 @@ func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexVal
 		"--sol-tracked-program", sc.programID,
 		"--sol-min-fee-for-bridging", sc.config.MinBridgingFee.String(),
 		"--sol-min-operation-fee", sc.config.MinOperationFee.String(),
+		"--sol-fee-addr-bridging-amount", sc.config.MinFeeForBriding.String(),
 		"--output-dir", validator.GetBridgingConfigsDir(),
 		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
 		"--output-relayer-file-name", RelayerConfigFileName,

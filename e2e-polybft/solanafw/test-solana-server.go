@@ -12,6 +12,13 @@ import (
 
 const hostIP = "127.0.0.1"
 
+// sbpfV0V1V2DeploymentDisabledFeature is the SIMD-0500 feature gate ("Disable deployment of
+// SBPF v0, v1 and v2 programs"). solana-test-validator activates every known feature by default,
+// so without deactivating it only SBPFv3 binaries can be deployed locally, while devnet/mainnet
+// still accept older ones. Deactivating it keeps the local validator in line with the clusters
+// and lets the upgrade tests deploy an older program build before upgrading to the latest one.
+const sbpfV0V1V2DeploymentDisabledFeature = "B8JJXCy5amZyWG9r7EnUYLwzXSXTxG7GZ1qZ1qggo83g"
+
 // ValidatorLogFileName is the name of the file where solana-test-validator logs are written when LogsDir is set.
 const ValidatorLogFileName = "validator.log"
 
@@ -84,6 +91,7 @@ func (t *TestSolanaServer) Start() error {
 		"--bind-address", hostIP,
 		"--bpf-program", metaplexProgramID, metadataProgramSoPath,
 		"--limit-ledger-size", "200000000", // ensure no cleanup is done on ledger
+		"--deactivate-feature", sbpfV0V1V2DeploymentDisabledFeature,
 		"--log", // stream validator log to stdout (we redirect to file when LogsDir is set)
 	}
 

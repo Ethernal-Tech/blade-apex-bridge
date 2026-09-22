@@ -897,6 +897,11 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					a.VectorInfo.GenesisWallet.VerificationKey, VSTokenName)
 				require.NoError(t, err)
 
+				vs1Token, _, err := GetTokenAndPolicyForVerificationKey(
+					a.Config.VectorConfig.ChainType, a.Config.VectorConfig.NetworkType,
+					a.VectorInfo.GenesisWallet.VerificationKey, VS1TokenName)
+				require.NoError(t, err)
+
 				a.SolanaInfo.DestChain = map[ChainID][]Direction{
 					ChainIDVector: {
 						{
@@ -914,6 +919,12 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						{
 							SourceTokenID:      VSTokenID,
 							DestinationTokenID: VSTokenID,
+							TrackSource:        false,
+							TrackDestination:   false,
+						},
+						{
+							SourceTokenID:      VS1TokenID,
+							DestinationTokenID: VS1TokenID,
 							TrackSource:        false,
 							TrackDestination:   false,
 						},
@@ -941,6 +952,11 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						LockUnlock:        false,
 						IsWrappedCurrency: false,
 					},
+					VS1TokenID: {
+						ChainSpecific:     "",
+						LockUnlock:        false,
+						IsWrappedCurrency: false,
+					},
 				}
 
 				a.VectorInfo.DestChain[ChainIDSolana] = []Direction{
@@ -962,6 +978,12 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						TrackSource:        false,
 						TrackDestination:   false,
 					},
+					{
+						SourceTokenID:      VS1TokenID,
+						DestinationTokenID: VS1TokenID,
+						TrackSource:        false,
+						TrackDestination:   false,
+					},
 				}
 
 				a.VectorInfo.Tokens[ASOLTokenID] = Token{
@@ -976,11 +998,18 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					IsWrappedCurrency: false,
 				}
 
+				a.VectorInfo.Tokens[VS1TokenID] = Token{
+					ChainSpecific:     vs1Token.String(),
+					LockUnlock:        true,
+					IsWrappedCurrency: false,
+				}
+
 				a.EcosystemTokens[WSOLTokenID] = WSOLANATokenName
 				a.EcosystemTokens[SOLTokenID] = cardanowallet.AdaTokenName
 				a.EcosystemTokens[ASOLTokenID] = ASOLTokenName
 				a.EcosystemTokens[SAP3XTokenID] = SAP3XTokenName
 				a.EcosystemTokens[VSTokenID] = VSTokenName
+				a.EcosystemTokens[VS1TokenID] = VS1TokenName
 			}
 
 			if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
@@ -1151,7 +1180,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 	a.InitTxSendChainConfiguration()
 
 	if a.Config.SolanaConfig != nil && a.Config.SolanaConfig.IsEnabled {
-		err := a.UpdateChainMaxNumberOfTransactions(ChainIDSolana, 3)
+		err := a.UpdateChainMaxNumberOfTransactions(ChainIDSolana, 5)
 		if err != nil {
 			return err
 		}
