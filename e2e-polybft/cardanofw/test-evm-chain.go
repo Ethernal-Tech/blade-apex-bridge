@@ -46,6 +46,9 @@ const (
 
 	initContractsTryCount      = 3
 	initContractsRetryWaitTime = time.Second * 5
+
+	ConfirmationStrategyNumBlockConfirmations = "numBlockConfirmations"
+	ConfirmationStrategyFinalized             = "finalized"
 )
 
 type EVMTokenInfo struct {
@@ -73,6 +76,7 @@ type TestEVMChainConfig struct {
 	MinTokenBridgingAmount *big.Int
 	MinOperationFee        *big.Int
 	FeeAddrBridging        *big.Int
+	ConfirmationStrategy   string
 	CurrencyID             uint16
 
 	TreasuryAddress string
@@ -1088,6 +1092,7 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 		"--relayer-data-dir", validator.server.DataDir(),
 		"--evm-min-fee-for-bridging", ec.config.MinBridgingFee.String(),
 		"--min-operation-fee", ec.config.MinOperationFee.String(),
+		"--evm-confirmation-strategy", ec.confirmationStrategy(),
 	}
 
 	if ec.config.FeeAddrBridging != nil {
@@ -1098,6 +1103,14 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
+}
+
+func (ec *TestEVMChain) confirmationStrategy() string {
+	if ec.config.ConfirmationStrategy == "" {
+		return ConfirmationStrategyNumBlockConfirmations
+	}
+
+	return ec.config.ConfirmationStrategy
 }
 
 func (ec *TestEVMChain) PopulateApexSystem(t *testing.T, apexSystem *ApexSystem) error {
