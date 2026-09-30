@@ -83,11 +83,11 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 		StartingPort:           8899,
 		InitialHotWalletAmount: SolanaToWei(big.NewInt(1000)),
 		FundAmount:             LamportToWei(SolanaToLamport(big.NewInt(100000))),
-		MinBridgingFee:         big.NewInt(6000000), // 0.006 SOL
+		MinBridgingFee:         big.NewInt(7000000), // 0.007 SOL
 		MinBridgingAmount:      big.NewInt(1000),    // 0.000001 SOL
 		MinTokenBridgingAmount: big.NewInt(1000),    // 0.000001 SOL
 		MinOperationFee:        big.NewInt(1500000), // 0.0015 SOL
-		MinFeeForBriding:       big.NewInt(6000000), // 0.006 SOL
+		MinFeeForBriding:       big.NewInt(3500000), // 0.0035 SOL
 		CurrencyID:             WSOLTokenID,
 		TreasuryAddress:        solana.MustPublicKeyFromBase58(TreasuryAddress),
 		TokensMint: map[uint16]string{
