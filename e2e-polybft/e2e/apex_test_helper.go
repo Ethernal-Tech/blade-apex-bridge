@@ -358,3 +358,77 @@ func createReceivers(
 
 	return receivers
 }
+
+// executeBridgingWithAuxDataVariant submits a bridging request whose metadata json and
+// whose built transaction are each passed through an optional hook, then requires it to
+// bridge through successfully.
+//
+// The point of every caller is the same: what rides alongside the bridging request in
+// auxiliary_data - which of the three envelopes babbage accepts wraps it, native
+// scripts, other metadata labels - must not decide whether the request is readable. The
+// oracle sees the auxiliary_data cbor exactly as it sits in the block, so a decoder
+// stricter than the ledger silently drops requests the chain accepted.
+func executeBridgingWithAuxDataVariant(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig,
+	user *cardanofw.TestApexUser, maxWaitTimeSec, retryIntervalSec uint,
+	mutateMetadata func(metadataJSON []byte) ([]byte, error),
+	mutateRawTx func(txRaw []byte) ([]byte, error),
+) {
+	t.Helper()
+
+	receivers := createReceivers(apex, 1, config.dstChainID, defaultLovelaceAmount)
+	receiver := apex.Users[len(apex.Users)-1]
+
+	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee,
+		user, receivers)
+
+	if mutateMetadata != nil {
+		var err error
+
+		metadata, err = mutateMetadata(metadata)
+		require.NoError(t, err)
+	}
+
+	balanceBefore, err := apex.GetBalance(ctx, receiver, config.dstChainID)
+	require.NoError(t, err)
+
+	lovelaceAmount := new(big.Int).SetUint64(defaultLovelaceAmount + feeAmount)
+
+	// the envelope the oracle will have to read is decided here, after the tx is built
+	var submittedAuxData []byte
+
+	rewrite := mutateRawTx
+	if rewrite != nil {
+		rewrite = func(txRaw []byte) ([]byte, error) {
+			rewritten, err := mutateRawTx(txRaw)
+			if err != nil {
+				return nil, err
+			}
+
+			if submittedAuxData, err = cardanofw.TxAuxiliaryData(rewritten); err != nil {
+				return nil, err
+			}
+
+			return rewritten, nil
+		}
+	}
+
+	txHash, err := apex.SubmitTxWithRawTxMutator(
+		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
+		lovelaceAmount, nil, metadata, rewrite)
+	require.NoError(t, err)
+
+	if submittedAuxData != nil {
+		fmt.Printf("Tx sent. hash: %s, auxiliary_data envelope: %s\n",
+			txHash, cardanofw.AuxiliaryDataEnvelopeName(submittedAuxData))
+	} else {
+		fmt.Printf("Tx sent. hash: %s\n", txHash)
+	}
+
+	expectedAmount := new(big.Int).Add(balanceBefore, new(big.Int).SetUint64(defaultLovelaceAmount))
+
+	numRetries := max(1, int(maxWaitTimeSec/retryIntervalSec))
+
+	require.NoError(t, apex.WaitForExactAmount(ctx, receiver, config.dstChainID, expectedAmount,
+		numRetries, time.Second*time.Duration(retryIntervalSec)))
+}

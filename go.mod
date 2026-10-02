@@ -22,6 +22,7 @@ require (
 	github.com/docker/go-connections v0.5.0
 	github.com/envoyproxy/protoc-gen-validate v1.2.1
 	github.com/erigontech/mdbx-go v0.39.3
+	github.com/fxamacker/cbor/v2 v2.7.0
 	github.com/golang/protobuf v1.5.4
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
@@ -69,7 +70,6 @@ require (
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/blinklabs-io/gouroboros v0.103.1 // indirect
-	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/utxorpc/go-codegen v0.11.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
