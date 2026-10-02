@@ -2149,6 +2149,25 @@ func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
 	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
 ) (string, error) {
+	return a.submitTx(ctx, sourceChain, sender, receiverAddr, amount, nativeTokens, data, opFee, nil)
+}
+
+// SubmitTxWithRawTxMutator is SubmitTx with a hook that rewrites the built transaction
+// before it is signed, so a test can submit transactions cardano-cli cannot build.
+// Only cardano chains support it.
+func (a *ApexSystem) SubmitTxWithRawTxMutator(
+	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
+	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
+	mutate func(txRaw []byte) ([]byte, error),
+) (string, error) {
+	return a.submitTx(ctx, sourceChain, sender, receiverAddr, amount, nativeTokens, data, opFee, mutate)
+}
+
+func (a *ApexSystem) submitTx(
+	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
+	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
+	mutate func(txRaw []byte) ([]byte, error),
+) (string, error) {
 	const (
 		numRetries = 5
 		waitTime   = time.Second * 10
@@ -2180,8 +2199,21 @@ func (a *ApexSystem) SubmitTx(
 		},
 	}
 
+	sendTx := func(ctx context.Context) (string, error) {
+		if mutate == nil {
+			return chain.SendTx(ctx, privateKey, data, receivers, operationFee)
+		}
+
+		cardanoChain, ok := chain.(*TestCardanoChain)
+		if !ok {
+			return "", fmt.Errorf("chain %s does not support rewriting the raw tx", sourceChain)
+		}
+
+		return cardanoChain.SendTxWithRawTxMutator(ctx, privateKey, data, receivers, operationFee, mutate)
+	}
+
 	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
-		txHash, err := chain.SendTx(ctx, privateKey, data, receivers, operationFee)
+		txHash, err := sendTx(ctx)
 		if err != nil {
 			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
 				return "", infracommon.ErrRetryTryAgain
