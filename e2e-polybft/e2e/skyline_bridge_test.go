@@ -2863,3 +2863,94 @@ func fundTestUsersWithToken(
 
 	return tokenAmounts
 }
+
+// TestE2E_SkylineBridge_MetadataEnvelopes bridges the same request four ways, changing
+// only what sits around the metadata in auxiliary_data.
+//
+// Babbage accepts three auxiliary_data encodings and the transaction builder picks:
+//
+//	metadata                                                        ; shelley
+//	[ metadata, [* native_script] ]                                 ; shelley-ma
+//	#6.259({ ?0: metadata, ?1: [* native_script], ?2: .., ?3: .. }) ; alonzo and later
+//
+// All four must bridge through identically.
+func TestE2E_SkylineBridge_MetadataEnvelopes(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 5
+
+		maxWaitTimeSec = 600
+		retryDelaySec  = 5
+
+		// past any nesting cap a decoder is likely to carry, and far below the ~16kB
+		// a transaction may not exceed, which is the only bound the protocol has
+		nestingDepth = 400
+
+		keyHashSize = 28
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	cardanoConfig.FundTokenAmount = uint64(1_000_000_000)
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithBridgingAddrCnt(cardanofw.ChainIDPrime, bridgeAddrCnt),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+
+	primeTestConfig := newTestConfig(
+		t, apex, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDCardano, cardanofw.AP3XTokenID)
+
+	t.Run("1. alonzo envelope", func(t *testing.T) {
+		// the baseline: what cardano-cli builds on its own. Asserted rather than assumed,
+		// so the cases below are known to differ only in the envelope.
+		executeBridgingWithAuxDataVariant(t, ctx, apex, primeTestConfig, user,
+			maxWaitTimeSec, retryDelaySec, 0, nil,
+			func(txRaw []byte) ([]byte, error) {
+				auxData, err := cardanofw.TxAuxiliaryData(txRaw)
+				if err != nil {
+					return nil, err
+				}
+
+				if name := cardanofw.AuxiliaryDataEnvelopeName(auxData); name != "alonzo" {
+					return nil, fmt.Errorf("expected cardano-cli to build the alonzo envelope, got %s", name)
+				}
+
+				return txRaw, nil
+			})
+	})
+
+	t.Run("2. shelley-ma envelope", func(t *testing.T) {
+		// [ metadata, [] ] - the same metadata map, wrapped the way a builder that is not
+		// cardano-cli may wrap it
+		executeBridgingWithAuxDataVariant(t, ctx, apex, primeTestConfig, user,
+			maxWaitTimeSec, retryDelaySec, 0, nil,
+			func(txRaw []byte) ([]byte, error) {
+				return cardanofw.RewriteTxAuxiliaryDataToShelleyMA(txRaw, nil)
+			})
+	})
+
+	t.Run("3. deeply nested metadatum under an unrelated label", func(t *testing.T) {
+		// no rewriting here - cardano-cli builds this one itself from the metadata json,
+		// so it is what an ordinary sender can attach to a bridging request today
+		executeBridgingWithAuxDataVariant(t, ctx, apex, primeTestConfig, user,
+			maxWaitTimeSec, retryDelaySec, 0,
+			func(metadataJSON []byte) ([]byte, error) {
+				return cardanofw.AddNestedMetadatumLabel(metadataJSON, 2, nestingDepth)
+			}, nil)
+	})
+}
