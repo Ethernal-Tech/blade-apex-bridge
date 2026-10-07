@@ -290,6 +290,12 @@ func GetOracleState(ctx context.Context, requestURL string, apiKey string) (
 	return GetAPIRequestGeneric[*OracleStateResponse](ctx, requestURL, apiKey)
 }
 
+func GetHasTxFailed(ctx context.Context, requestURL string, apiKey string) (
+	*HasTxFailedResponse, error,
+) {
+	return GetAPIRequestGeneric[*HasTxFailedResponse](ctx, requestURL, apiKey)
+}
+
 func GetAPIRequestGeneric[T any](ctx context.Context, requestURL string, apiKey string) (t T, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
@@ -384,6 +390,10 @@ type OracleStateResponse struct {
 	Utxos     []CardanoChainConfigUtxo `json:"utxos"`
 	BlockSlot uint64                   `json:"slot"`
 	BlockHash string                   `json:"hash"`
+}
+
+type HasTxFailedResponse struct {
+	Failed bool `json:"failed"`
 }
 
 func GetAddress(networkType wallet.CardanoNetworkType, cardanoWallet *wallet.Wallet) (*wallet.CardanoAddress, error) {

@@ -2163,6 +2163,62 @@ func (a *ApexSystem) SubmitTxWithRawTxMutator(
 	return a.submitTx(ctx, sourceChain, sender, receiverAddr, amount, nativeTokens, data, opFee, mutate)
 }
 
+// SubmitScriptTx is SubmitTx for a transaction that also mints through a plutus policy,
+// so that phase-2 script validation decides whether it goes through - see ScriptTxConfig.
+// Only cardano chains support it.
+func (a *ApexSystem) SubmitScriptTx(
+	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
+	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
+	config ScriptTxConfig,
+) (*ScriptTxInfo, error) {
+	const (
+		numRetries = 5
+		waitTime   = time.Second * 10
+	)
+
+	privateKey, err := sender.GetPrivateKey(sourceChain)
+	if err != nil {
+		return nil, err
+	}
+
+	chain, err := a.getChain(sourceChain)
+	if err != nil {
+		return nil, err
+	}
+
+	cardanoChain, ok := chain.(*TestCardanoChain)
+	if !ok {
+		return nil, fmt.Errorf("chain %s does not support script txs", sourceChain)
+	}
+
+	var operationFee uint64
+	if opFee != nil {
+		operationFee = WeiToDfm(opFee).Uint64()
+	}
+
+	receivers := []GenericTxReceiver{
+		{
+			Addr:         receiverAddr,
+			Amount:       amount,
+			NativeTokens: nativeTokens,
+		},
+	}
+
+	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*ScriptTxInfo, error) {
+		info, err := cardanoChain.SendScriptTx(ctx, privateKey, data, receivers, operationFee, config)
+		if err != nil {
+			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
+				return nil, infracommon.ErrRetryTryAgain
+			}
+
+			return nil, err
+		}
+
+		return info, nil
+	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime),
+		infracommon.WithIsRetryableError(IsRetryableSubmitTx))
+}
+
 func (a *ApexSystem) submitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
 	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
