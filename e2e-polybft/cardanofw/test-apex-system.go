@@ -670,6 +670,56 @@ func (a *ApexSystem) SubmitTxWithRawTxMutator(
 	return a.submitTx(ctx, sourceChain, sender, receiverAddr, dfmAmount, nativeTokens, data, mutate)
 }
 
+// SubmitScriptTx is SubmitTx for a transaction that also mints through a plutus policy,
+// so that phase-2 script validation decides whether it goes through - see ScriptTxConfig.
+// Only cardano chains support it.
+func (a *ApexSystem) SubmitScriptTx(
+	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
+	receiverAddr string, dfmAmount *big.Int, nativeTokens []cardanowallet.TokenAmount, data []byte,
+	config ScriptTxConfig,
+) (*ScriptTxInfo, error) {
+	const (
+		numRetries = 5
+		waitTime   = time.Second * 10
+	)
+
+	privateKey, err := sender.GetPrivateKey(sourceChain)
+	if err != nil {
+		return nil, err
+	}
+
+	chain, err := a.getChain(sourceChain)
+	if err != nil {
+		return nil, err
+	}
+
+	cardanoChain, ok := chain.(*TestCardanoChain)
+	if !ok {
+		return nil, fmt.Errorf("chain %s does not support script txs", sourceChain)
+	}
+
+	receivers := []GenericTxReceiver{
+		{
+			Addr:         receiverAddr,
+			Amount:       DfmToChainNativeTokenAmount(sourceChain, dfmAmount),
+			NativeTokens: nativeTokens,
+		},
+	}
+
+	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*ScriptTxInfo, error) {
+		info, err := cardanoChain.SendScriptTx(ctx, privateKey, data, receivers, config)
+		if err != nil {
+			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
+				return nil, infracommon.ErrRetryTryAgain
+			}
+
+			return nil, err
+		}
+
+		return info, nil
+	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime))
+}
+
 func (a *ApexSystem) submitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
 	receiverAddr string, dfmAmount *big.Int, nativeTokens []cardanowallet.TokenAmount, data []byte,

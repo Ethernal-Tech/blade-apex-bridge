@@ -2493,3 +2493,62 @@ func TestE2E_ApexBridge_MetadataEnvelopes(t *testing.T) {
 			}, nil)
 	})
 }
+
+// TestE2E_ApexBridge_Phase2InvalidTxs sends the bridging addresses of prime and vector
+// transactions whose plutus script fails phase-2 validation, carrying every kind of
+// metadata the oracle routes somewhere.
+//
+// Such a transaction is on chain - the ledger collects its collateral - but its inputs
+// stay unspent and the outputs it declares never exist. Read like any other transaction
+// it is a deposit nobody made: depending on its metadata the bridge would pay it out on
+// the destination, refund it to its sender, credit it to the hot wallet, or spend its
+// outputs in a batch. The bridge must act as if it had never been sent.
+//
+// Afterwards each source chain sends the same transaction with a policy that succeeds,
+// which must bridge normally. That shows the failed transactions differ from a valid
+// request in their script alone and, coming after all of them, that the oracle has
+// processed past them by the time the checks run.
+func TestE2E_ApexBridge_Phase2InvalidTxs(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		apiKey  = "test_api_key"
+		userCnt = 4
+
+		maxWaitTimeSec = 600
+		retryDelaySec  = 5
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	apex := cardanofw.SetupAndRunApexBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		// every validator indexes the chains on its own, so every one of them is checked
+		cardanofw.WithAPIValidatorID(-1),
+		cardanofw.WithUserCnt(userCnt),
+		cardanofw.WithPrimeConfig(cardanofw.NewPrimeChainConfig()),
+		cardanofw.WithVectorConfig(cardanofw.NewVectorChainConfig(true)),
+		cardanofw.WithCustomConfigHandlers(func(_ *cardanofw.ApexSystem, mp map[string]interface{}) {
+			// on by default, set anyway: refunds are where a misread failed tx pays its own sender
+			mp["refundEnabled"] = true
+		}, nil),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	attacker, victim, controlSender, controlReceiver := apex.Users[0], apex.Users[1], apex.Users[2], apex.Users[3]
+
+	sources := []*testConfig{
+		newTestConfig(t, apex.Config.PrimeConfig, &apex.PrimeInfo, cardanofw.ChainIDVector,
+			apex.Config.PrimeConfig.MinBridgingFee),
+		newTestConfig(t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDPrime,
+			apex.Config.VectorConfig.MinBridgingFee),
+	}
+
+	executePhase2InvalidTxs(t, ctx, apex, sources, attacker, victim, controlSender, controlReceiver,
+		maxWaitTimeSec, retryDelaySec)
+}
