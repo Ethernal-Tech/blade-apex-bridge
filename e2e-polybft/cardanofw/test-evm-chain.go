@@ -47,8 +47,8 @@ const (
 	initContractsTryCount      = 3
 	initContractsRetryWaitTime = time.Second * 5
 
-	ConfirmationStrategyNumBlockConfirmations = "numBlockConfirmations"
-	ConfirmationStrategyFinalized             = "finalized"
+	ConfirmationStrategyLatest    = "latest"
+	ConfirmationStrategyFinalized = "finalized"
 )
 
 type EVMTokenInfo struct {
@@ -1107,7 +1107,8 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 
 func (ec *TestEVMChain) confirmationStrategy() string {
 	if ec.config.ConfirmationStrategy == "" {
-		return ConfirmationStrategyNumBlockConfirmations
+		// blade resolves the finalized tag to the latest block, since it has instant finality
+		return ConfirmationStrategyFinalized
 	}
 
 	return ec.config.ConfirmationStrategy
