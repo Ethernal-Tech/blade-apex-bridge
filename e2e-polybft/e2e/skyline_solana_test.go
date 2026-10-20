@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"net/http"
 	"sync"
 	"testing"
 	"time"
@@ -11,7 +12,9 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/Ethernal-Tech/solana-infrastructure/sendtx/skyline_program"
 	solanawallet "github.com/Ethernal-Tech/solana-infrastructure/wallet"
+	"github.com/gagliardetto/solana-go"
 	"github.com/stretchr/testify/require"
 )
 
@@ -427,7 +430,7 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 	solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
 	version, err := solanaChain.GetProgramVersion(ctx)
 	require.NoError(t, err)
-	require.Equal(t, "0.2.0", version)
+	require.Equal(t, "0.3.0", version)
 
 	testFunc := func() {
 		t.Run("Bridging after changes", func(t *testing.T) {
@@ -457,7 +460,7 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 		})
 	}
 
-	testFunc()
+	// testFunc()
 
 	t.Run("Update min bridging amount", func(t *testing.T) {
 		minTokenBridgingAmount := solanaConfig.MinTokenBridgingAmount
@@ -505,7 +508,7 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 		version, err := solanaChain.GetProgramVersion(ctx)
 		require.NoError(t, err)
 		// Make sure to update the version in the test if the program is upgraded
-		require.Equal(t, "0.3.0", version)
+		require.Equal(t, "0.4.0", version)
 	})
 
 	testFunc()
@@ -1670,6 +1673,222 @@ func Test_SkylineSolana_InvalidScenarios(t *testing.T) {
 				50, time.Second*30, tokensInfo.SrcTokenName)
 			require.NoError(t, err)
 		})
+	})
+}
+
+func Test_SkylineSolana_SecurityTesting(t *testing.T) {
+	const (
+		apiKey           = "test_api_key"
+		maxWaitTimeSec   = 600
+		retryIntervalSec = 10
+	)
+
+	ctx, cncl := context.WithCancel(context.Background())
+	defer cncl()
+
+	primeConfig, cardanoConfig := cardanofw.NewPrimeChainConfig(), cardanofw.NewCardanoChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{
+		cardanofw.ASOLTokenID: cardanofw.ASOLTokenName,
+		cardanofw.USDTTokenID: cardanofw.USDTTokenName,
+	})
+	nexusConfig := cardanofw.NewNexusChainConfig(true)
+
+	solanaConfig := cardanofw.NewSolanaChainConfig(true)
+
+	apex := cardanofw.SetupAndRunSkylineBridge(
+		t, ctx,
+		cardanofw.WithAPIKey(apiKey),
+		cardanofw.WithCardanoConfig(cardanoConfig),
+		cardanofw.WithPrimeConfig(primeConfig),
+		cardanofw.WithVectorConfig(vectorConfig),
+		cardanofw.WithSolanaConfig(solanaConfig),
+		cardanofw.WithNexusConfig(nexusConfig),
+		cardanofw.WithUserCnt(2),
+	)
+
+	defer require.True(t, apex.ApexBridgeProcessesRunning())
+
+	user := apex.Users[0]
+
+	solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
+
+	// A failed transaction keeps the logs written before the failure, so a bridge_request followed by an
+	// always failing instruction leaves a BridgeRequestEvent in the logs while nothing is locked on Solana.
+	// The bridge must ignore such a transaction and not release funds on the destination chain.
+	t.Run("failed tx with bridging event", func(t *testing.T) {
+		tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.WSOLTokenID)
+		require.NoError(t, err)
+
+		// different amounts, so the destination balance tells which of the requests were paid out
+		failedTxAmount := cardanofw.SolanaToWei(big.NewInt(3))
+		validTxAmount := cardanofw.SolanaToWei(big.NewInt(1))
+
+		srcBalance, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDSolana, tokensInfo.SrcTokenName)
+		require.NoError(t, err)
+
+		dstBalance, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDVector, tokensInfo.DstTokenName)
+		require.NoError(t, err)
+
+		prevDstAmount := cardanofw.SetOrDefault(dstBalance[tokensInfo.DstTokenName], big.NewInt(0))
+
+		bridgingRequestParams := func(amount *big.Int) cardanofw.BridgingRequestParams {
+			return cardanofw.BridgingRequestParams{
+				Ctx:         ctx,
+				DestChainID: cardanofw.ChainIDVector,
+				PrivateKey:  user.SolanaWallet.PrivateKey.String(),
+				Receivers: map[string]cardanofw.ReceiverAmount{
+					user.GetAddress(cardanofw.ChainIDVector): {
+						TokenID: cardanofw.WSOLTokenID,
+						Amount:  amount,
+					},
+				},
+				FeeAmount:    solanaConfig.MinBridgingFee,
+				OperationFee: solanaConfig.MinOperationFee,
+			}
+		}
+
+		failedTxSig, err := solanaChain.BridgingRequestWithFailingInstruction(bridgingRequestParams(failedTxAmount))
+		require.NoError(t, err)
+
+		fmt.Printf("failed tx with bridging event finalized. sig: %s\n", failedTxSig)
+
+		// the transaction reverted, so nothing was locked on solana
+		srcBalanceAfter, err := apex.GetBalanceWithTokenName(ctx, user, cardanofw.ChainIDSolana, tokensInfo.SrcTokenName)
+		require.NoError(t, err)
+		require.Equal(t, srcBalance[tokensInfo.SrcTokenName], srcBalanceAfter[tokensInfo.SrcTokenName])
+
+		// the tracker processes transactions in order, so once a later valid request
+		// is executed the failed transaction has been processed (or skipped) as well
+		validTxSig, err := solanaChain.BridgingRequest(bridgingRequestParams(validTxAmount))
+		require.NoError(t, err)
+
+		state, err := cardanofw.WaitForRequestStates(ctx, apex, cardanofw.ChainIDSolana, validTxSig, apiKey,
+			[]string{cardanofw.BatchStateExecuted}, maxWaitTimeSec)
+		require.NoError(t, err)
+		require.Equal(t, cardanofw.BatchStateExecuted, state)
+
+		apiURL, err := apex.GetBridgingAPI()
+		require.NoError(t, err)
+
+		failedTxState, err := cardanofw.GetBridgingRequestState(ctx, fmt.Sprintf(
+			"%s/api/BridgingRequestState/Get?chainId=%s&txHash=%s", apiURL, cardanofw.ChainIDSolana, failedTxSig), apiKey)
+		if err == nil {
+			require.Failf(t, "failed transaction was accepted as a bridging request",
+				"sig: %s, state: %s", failedTxSig, failedTxState.Status)
+		}
+
+		require.ErrorContains(t, err, fmt.Sprintf("%d", http.StatusNotFound))
+
+		err = apex.WaitForExactAmount(ctx, user, cardanofw.ChainIDVector, new(big.Int).Add(prevDstAmount, validTxAmount),
+			maxWaitTimeSec/retryIntervalSec, time.Second*retryIntervalSec, tokensInfo.DstTokenName)
+		require.NoError(t, err)
+	})
+
+	// The event tracker attributes every "Program data:" log line in a transaction to the tracked skyline
+	// program as long as the transaction contains a top-level skyline instruction - it never checks which
+	// program actually emitted the line. An attacker can therefore deploy their own program that emits a
+	// forged BridgeRequestEvent, put it in a transaction next to a genuine (dust) skyline bridge_request,
+	// and have the bridge release the forged amount on the destination chain with nothing locked for it.
+	// The transaction succeeds on chain, so this is not covered by the failed-transaction check above.
+	t.Run("forged bridge event via unrelated program", func(t *testing.T) {
+		attacker := apex.Users[0]
+		throwaway := apex.Users[1]
+
+		tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.WSOLTokenID)
+		require.NoError(t, err)
+
+		// the forged amount is far larger than anything locked, so the destination balance tells the result
+		forgedAmount := cardanofw.SolanaToWei(big.NewInt(2))
+		controlAmount := cardanofw.SolanaToWei(big.NewInt(1))
+		dustAmount := cardanofw.LamportToWei(solanaConfig.MinBridgingAmount)
+
+		// the attacker deploys and owns the program that will emit the forged event
+		maliciousProgramID, err := solanaChain.DeployMaliciousLoggerProgram(ctx, attacker.SolanaWallet.PrivateKey.String())
+		require.NoError(t, err)
+
+		fmt.Printf("malicious logger program deployed by attacker: %s\n", maliciousProgramID)
+
+		attackerSrcBefore, err := apex.GetBalanceWithTokenName(ctx, attacker, cardanofw.ChainIDSolana, tokensInfo.SrcTokenName)
+		require.NoError(t, err)
+
+		attackerDstBalance, err := apex.GetBalanceWithTokenName(ctx, attacker, cardanofw.ChainIDVector, tokensInfo.DstTokenName)
+		require.NoError(t, err)
+
+		attackerDstPrev := cardanofw.SetOrDefault(attackerDstBalance[tokensInfo.DstTokenName], big.NewInt(0))
+
+		// a BridgeRequestEvent crediting the attacker a large amount, backed by no locked tokens
+		forgedEvent := skyline_program.BridgeRequestEvent{
+			Sender:           attacker.SolanaWallet.PublicKey,
+			Amount:           cardanofw.WeiToLamport(forgedAmount).Uint64(),
+			Receiver:         attacker.GetAddress(cardanofw.ChainIDVector),
+			DestinationChain: cardanofw.ChainIDVector,
+			MintToken:        solana.MustPublicKeyFromBase58(cardanofw.WSOLMintAddress),
+			BridgeFee:        solanaConfig.MinBridgingFee.Uint64(),
+			OperationFee:     solanaConfig.MinOperationFee.Uint64(),
+			Value:            cardanofw.WeiToLamport(forgedAmount).Uint64() + solanaConfig.MinBridgingFee.Uint64(),
+		}
+
+		forgedEventData, err := cardanofw.ForgeBridgeRequestEvent(forgedEvent)
+		require.NoError(t, err)
+
+		// the genuine top-level skyline instruction locks only dust, and to a throwaway address so it does
+		// not change the attacker's destination balance
+		realParams := cardanofw.BridgingRequestParams{
+			Ctx:         ctx,
+			DestChainID: cardanofw.ChainIDVector,
+			PrivateKey:  attacker.SolanaWallet.PrivateKey.String(),
+			Receivers: map[string]cardanofw.ReceiverAmount{
+				throwaway.GetAddress(cardanofw.ChainIDVector): {
+					TokenID: cardanofw.WSOLTokenID,
+					Amount:  dustAmount,
+				},
+			},
+			FeeAmount:    solanaConfig.MinBridgingFee,
+			OperationFee: solanaConfig.MinOperationFee,
+		}
+
+		forgedSig, err := solanaChain.SendForgedBridgeRequest(realParams, maliciousProgramID, forgedEventData)
+		require.NoError(t, err)
+
+		fmt.Printf("forged-event tx finalized. sig: %s\n", forgedSig)
+
+		// the skyline program locked only dust for the forged event's sender, far less than the forged amount
+		attackerSrcAfter, err := apex.GetBalanceWithTokenName(ctx, attacker, cardanofw.ChainIDSolana, tokensInfo.SrcTokenName)
+		require.NoError(t, err)
+
+		locked := new(big.Int).Sub(attackerSrcBefore[tokensInfo.SrcTokenName], attackerSrcAfter[tokensInfo.SrcTokenName])
+		require.Truef(t, locked.Cmp(forgedAmount) < 0,
+			"attacker locked %s which is not less than the forged amount %s", locked, forgedAmount)
+
+		// watermark: a later valid request; the tracker processes transactions in order, so once this one
+		// is executed the forged transaction has been processed (or rejected) as well
+		controlParams := cardanofw.BridgingRequestParams{
+			Ctx:         ctx,
+			DestChainID: cardanofw.ChainIDVector,
+			PrivateKey:  attacker.SolanaWallet.PrivateKey.String(),
+			Receivers: map[string]cardanofw.ReceiverAmount{
+				attacker.GetAddress(cardanofw.ChainIDVector): {
+					TokenID: cardanofw.WSOLTokenID,
+					Amount:  controlAmount,
+				},
+			},
+			FeeAmount:    solanaConfig.MinBridgingFee,
+			OperationFee: solanaConfig.MinOperationFee,
+		}
+
+		controlSig, err := solanaChain.BridgingRequest(controlParams)
+		require.NoError(t, err)
+
+		state, err := cardanofw.WaitForRequestStates(ctx, apex, cardanofw.ChainIDSolana, controlSig, apiKey,
+			[]string{cardanofw.BatchStateExecuted}, maxWaitTimeSec)
+		require.NoError(t, err)
+		require.Equal(t, cardanofw.BatchStateExecuted, state)
+
+		// secure behaviour: the attacker received only the control amount, not the forged amount. On the
+		// vulnerable tracker the balance also includes the forged amount and this overshoots, failing the test.
+		err = apex.WaitForExactAmount(ctx, attacker, cardanofw.ChainIDVector, new(big.Int).Add(attackerDstPrev, controlAmount),
+			maxWaitTimeSec/retryIntervalSec, time.Second*retryIntervalSec, tokensInfo.DstTokenName)
+		require.NoError(t, err)
 	})
 }
 

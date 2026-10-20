@@ -3,8 +3,10 @@ package cardanofw
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -23,7 +25,9 @@ import (
 	solsendtx "github.com/Ethernal-Tech/solana-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/solana-infrastructure/sendtx/skyline_program"
 	solanawallet "github.com/Ethernal-Tech/solana-infrastructure/wallet"
+	binary "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
+	"github.com/gagliardetto/solana-go/programs/system"
 	"github.com/gagliardetto/solana-go/rpc"
 
 	"github.com/stretchr/testify/require"
@@ -37,6 +41,11 @@ const (
 	solanaProgramBuildPath   = "program_build/skyline_program_latest.so"
 	solanaProgramKeypairPath = "program_build/skyline_program-keypair.json"
 	solanaProgramUpgradePath = "program_build/skyline_program_prev.so"
+
+	// Security-test fixture: an attacker-owned program that emits its instruction data as a
+	// "Program data:" log line (see e2e-polybft/solanafw/malicious-logger-src).
+	maliciousLoggerSOPath      = "malicious_logger.so"
+	maliciousLoggerKeypairPath = "malicious_logger-keypair.json"
 
 	TreasuryAddress = "AXXWYCH6PNm6AGjaasPG1maarfQvRedSw18wj91Nem1F"
 
@@ -231,43 +240,7 @@ func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string
 		TreasuryAddress: sc.config.TreasuryAddress,
 	})
 
-	txReceivers := make([]solsendtx.BridgingTxReceiver, 0, len(params.Receivers))
-	for addr, amount := range params.Receivers {
-		txReceivers = append(txReceivers, solsendtx.BridgingTxReceiver{
-			Address: addr,
-			TokenAmount: solanawallet.TokenAmount{
-				TokenID: amount.TokenID,
-				Amount:  WeiToLamport(amount.Amount).Uint64(),
-			},
-		})
-	}
-
-	senderWallet, err := solanawallet.NewWalletFromPrivateKey(params.PrivateKey)
-	if err != nil {
-		return "", err
-	}
-
-	txDto := solsendtx.BridgeRequestDto{
-		Ctx:          params.Ctx,
-		ProgramID:    solana.MustPublicKeyFromBase58(sc.programID),
-		DstChainID:   params.DestChainID,
-		SenderAddr:   senderWallet.PublicKey.String(),
-		Receivers:    txReceivers,
-		BridgingFee:  params.FeeAmount.Uint64(),
-		OperationFee: params.OperationFee.Uint64(),
-	}
-
-	recentBlockhash, err := txProvider.GetLatestBlockhash(params.Ctx)
-	if err != nil {
-		return "", err
-	}
-
-	tx, err := txSender.CreateTx(
-		params.Ctx, senderWallet.PublicKey,
-		solsendtx.InstructionTypeBridgingRequest,
-		recentBlockhash,
-		txDto,
-	)
+	tx, senderWallet, err := sc.createBridgingRequestTx(params, txProvider, txSender)
 	if err != nil {
 		return "", err
 	}
@@ -289,6 +262,322 @@ func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string
 	}
 
 	return sig.String(), nil
+}
+
+// BridgingRequestWithFailingInstruction sends a bridging request followed by an instruction that always fails.
+// The whole transaction reverts on chain (nothing is locked), but its log messages still contain the
+// BridgeRequestEvent emitted by bridge_request before the failure. Preflight is skipped so the failed
+// transaction lands on chain. Returns the signature once the failed transaction is finalized.
+func (sc *TestSolanaChain) BridgingRequestWithFailingInstruction(params BridgingRequestParams) (string, error) {
+	txProvider, err := sc.GetTxProvider()
+	if err != nil {
+		return "", err
+	}
+
+	txSender := solsendtx.NewTxSender(txProvider, &solsendtx.ChainConfig{
+		TreasuryAddress: sc.config.TreasuryAddress,
+	})
+
+	bridgingTx, senderWallet, err := sc.createBridgingRequestTx(params, txProvider, txSender)
+	if err != nil {
+		return "", err
+	}
+
+	instructions := make([]solana.Instruction, 0, len(bridgingTx.Message.Instructions)+1)
+
+	for _, compiled := range bridgingTx.Message.Instructions {
+		programID, err := bridgingTx.Message.Program(compiled.ProgramIDIndex)
+		if err != nil {
+			return "", fmt.Errorf("resolve program id: %w", err)
+		}
+
+		accounts, err := compiled.ResolveInstructionAccounts(&bridgingTx.Message)
+		if err != nil {
+			return "", fmt.Errorf("resolve instruction accounts: %w", err)
+		}
+
+		instructions = append(instructions, solana.NewInstruction(programID, accounts, compiled.Data))
+	}
+
+	// transferring more lamports than the sender can ever have always fails
+	instructions = append(instructions, system.NewTransferInstruction(
+		math.MaxUint64, senderWallet.PublicKey, solana.NewWallet().PublicKey()).Build())
+
+	tx, err := solana.NewTransaction(instructions, bridgingTx.Message.RecentBlockhash,
+		solana.TransactionPayer(senderWallet.PublicKey))
+	if err != nil {
+		return "", fmt.Errorf("build transaction: %w", err)
+	}
+
+	_, err = tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+		return &senderWallet.PrivateKey
+	})
+	if err != nil {
+		return "", fmt.Errorf("sign instruction: %w", err)
+	}
+
+	rpcClient := rpc.New(sc.jsonRPCAddr)
+
+	sig, err := rpcClient.SendTransactionWithOpts(params.Ctx, tx, rpc.TransactionOpts{
+		SkipPreflight: true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("send transaction: %w", err)
+	}
+
+	maxSupportedTxVersion := uint64(0)
+	timeout := time.After(MaxConfirmationWaitTime)
+
+	for {
+		txResult, err := rpcClient.GetTransaction(params.Ctx, sig, &rpc.GetTransactionOpts{
+			Commitment:                     rpc.CommitmentFinalized,
+			MaxSupportedTransactionVersion: &maxSupportedTxVersion,
+		})
+		if err == nil && txResult != nil && txResult.Meta != nil {
+			if txResult.Meta.Err == nil {
+				return "", fmt.Errorf("transaction %s was expected to fail but succeeded", sig)
+			}
+
+			for _, log := range txResult.Meta.LogMessages {
+				if strings.Contains(log, "Program data: ") {
+					return sig.String(), nil
+				}
+			}
+
+			return "", fmt.Errorf("failed transaction %s has no event in logs: %v", sig, txResult.Meta.LogMessages)
+		} else if err != nil && !errors.Is(err, rpc.ErrNotFound) {
+			return "", fmt.Errorf("get transaction %s: %w", sig, err)
+		}
+
+		select {
+		case <-params.Ctx.Done():
+			return "", params.Ctx.Err()
+		case <-timeout:
+			return "", fmt.Errorf("timeout while waiting for transaction: %s", sig)
+		case <-time.After(time.Second):
+		}
+	}
+}
+
+// DeployMaliciousLoggerProgram deploys the security-test fixture program (solanafw/malicious_logger.so)
+// with the given wallet as both fee payer and upgrade authority, i.e. a program owned by the attacker.
+// Its single instruction emits its instruction data verbatim as a "Program data:" log line. It returns
+// the deployed program id.
+func (sc *TestSolanaChain) DeployMaliciousLoggerProgram(ctx context.Context, feePayerPrivKey string) (string, error) {
+	wallet, err := solanawallet.NewWalletFromPrivateKey(feePayerPrivKey)
+	if err != nil {
+		return "", err
+	}
+
+	keyFile, err := writeSolanaKeypairFile(wallet.PrivateKey)
+	if err != nil {
+		return "", err
+	}
+
+	defer os.Remove(keyFile)
+
+	args := []string{
+		"program", "deploy", filepath.Join("..", "solanafw", maliciousLoggerSOPath),
+		"--url", sc.jsonRPCAddr,
+		"--keypair", keyFile,
+		"--program-id", filepath.Join("..", "solanafw", maliciousLoggerKeypairPath),
+		"--upgrade-authority", keyFile,
+		"--commitment", "finalized",
+	}
+
+	var b bytes.Buffer
+
+	if err := RunCommandContext(ctx, "solana", args, io.MultiWriter(os.Stdout, &b)); err != nil {
+		return "", fmt.Errorf("deploy malicious logger program: %w", err)
+	}
+
+	match := regexp.MustCompile(`Program Id:\s*(\S+)`).FindStringSubmatch(b.String())
+	if match == nil {
+		return "", fmt.Errorf("program id not found in deploy output: %s", b.String())
+	}
+
+	return match[1], nil
+}
+
+// writeSolanaKeypairFile writes a solana private key to a temp file as the JSON uint8 array the solana
+// CLI expects, and returns its path. The caller is responsible for removing it.
+func writeSolanaKeypairFile(pk solana.PrivateKey) (string, error) {
+	f, err := os.CreateTemp(os.TempDir(), "sol-key-*.json")
+	if err != nil {
+		return "", err
+	}
+
+	defer f.Close()
+
+	content := strings.ReplaceAll(fmt.Sprintf("%v", []byte(pk)), " ", ",")
+	if _, err := f.Write([]byte(content)); err != nil {
+		return "", err
+	}
+
+	return f.Name(), nil
+}
+
+// ForgeBridgeRequestEvent encodes a skyline BridgeRequestEvent exactly as the program's emit! would put
+// it into a "Program data:" log line: the 8-byte event discriminator followed by the borsh-serialized
+// event. The bytes are meant to be emitted by an unrelated (attacker) program so the tracker, which does
+// not check which program wrote the line, mis-attributes them to the skyline program.
+func ForgeBridgeRequestEvent(event skyline_program.BridgeRequestEvent) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	encoder := binary.NewBorshEncoder(buf)
+
+	disc := skyline_program.Event_BridgeRequestEvent
+	if err := encoder.WriteBytes(disc[:], false); err != nil {
+		return nil, fmt.Errorf("write discriminator: %w", err)
+	}
+
+	if err := event.MarshalWithEncoder(encoder); err != nil {
+		return nil, fmt.Errorf("marshal forged event: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// SendForgedBridgeRequest sends one transaction that (1) makes a genuine, successful skyline
+// bridge_request described by realParams, so the transaction carries a top-level skyline instruction,
+// and (2) invokes the attacker-owned maliciousProgramID with forgedEventData, which the program emits
+// verbatim as a "Program data:" log line. The transaction succeeds on chain and the skyline program
+// never emitted the forged event. Preflight is skipped. It returns the signature once finalized.
+func (sc *TestSolanaChain) SendForgedBridgeRequest(
+	realParams BridgingRequestParams, maliciousProgramID string, forgedEventData []byte,
+) (string, error) {
+	txProvider, err := sc.GetTxProvider()
+	if err != nil {
+		return "", err
+	}
+
+	txSender := solsendtx.NewTxSender(txProvider, &solsendtx.ChainConfig{
+		TreasuryAddress: sc.config.TreasuryAddress,
+	})
+
+	bridgingTx, senderWallet, err := sc.createBridgingRequestTx(realParams, txProvider, txSender)
+	if err != nil {
+		return "", err
+	}
+
+	instructions := make([]solana.Instruction, 0, len(bridgingTx.Message.Instructions)+1)
+
+	for _, compiled := range bridgingTx.Message.Instructions {
+		programID, err := bridgingTx.Message.Program(compiled.ProgramIDIndex)
+		if err != nil {
+			return "", fmt.Errorf("resolve program id: %w", err)
+		}
+
+		accounts, err := compiled.ResolveInstructionAccounts(&bridgingTx.Message)
+		if err != nil {
+			return "", fmt.Errorf("resolve instruction accounts: %w", err)
+		}
+
+		instructions = append(instructions, solana.NewInstruction(programID, accounts, compiled.Data))
+	}
+
+	maliciousPubKey, err := solana.PublicKeyFromBase58(maliciousProgramID)
+	if err != nil {
+		return "", fmt.Errorf("parse malicious program id: %w", err)
+	}
+
+	// The attacker program emits the forged BridgeRequestEvent bytes as a "Program data:" log line.
+	instructions = append(instructions,
+		solana.NewInstruction(maliciousPubKey, solana.AccountMetaSlice{}, forgedEventData))
+
+	tx, err := solana.NewTransaction(instructions, bridgingTx.Message.RecentBlockhash,
+		solana.TransactionPayer(senderWallet.PublicKey))
+	if err != nil {
+		return "", fmt.Errorf("build transaction: %w", err)
+	}
+
+	if _, err := tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+		return &senderWallet.PrivateKey
+	}); err != nil {
+		return "", fmt.Errorf("sign instruction: %w", err)
+	}
+
+	rpcClient := rpc.New(sc.jsonRPCAddr)
+
+	sig, err := rpcClient.SendTransactionWithOpts(realParams.Ctx, tx, rpc.TransactionOpts{
+		SkipPreflight: true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("send transaction: %w", err)
+	}
+
+	maxSupportedTxVersion := uint64(0)
+	timeout := time.After(MaxConfirmationWaitTime)
+
+	for {
+		txResult, err := rpcClient.GetTransaction(realParams.Ctx, sig, &rpc.GetTransactionOpts{
+			Commitment:                     rpc.CommitmentFinalized,
+			MaxSupportedTransactionVersion: &maxSupportedTxVersion,
+		})
+		if err == nil && txResult != nil && txResult.Meta != nil {
+			if txResult.Meta.Err != nil {
+				return "", fmt.Errorf("forged-event transaction %s failed on chain: %v", sig, txResult.Meta.Err)
+			}
+
+			return sig.String(), nil
+		} else if err != nil && !errors.Is(err, rpc.ErrNotFound) {
+			return "", fmt.Errorf("get transaction %s: %w", sig, err)
+		}
+
+		select {
+		case <-realParams.Ctx.Done():
+			return "", realParams.Ctx.Err()
+		case <-timeout:
+			return "", fmt.Errorf("timeout while waiting for transaction: %s", sig)
+		case <-time.After(time.Second):
+		}
+	}
+}
+
+func (sc *TestSolanaChain) createBridgingRequestTx(
+	params BridgingRequestParams, txProvider *solanawallet.Provider, txSender *solsendtx.TxSender,
+) (*solana.Transaction, *solanawallet.Wallet, error) {
+	txReceivers := make([]solsendtx.BridgingTxReceiver, 0, len(params.Receivers))
+	for addr, amount := range params.Receivers {
+		txReceivers = append(txReceivers, solsendtx.BridgingTxReceiver{
+			Address: addr,
+			TokenAmount: solanawallet.TokenAmount{
+				TokenID: amount.TokenID,
+				Amount:  WeiToLamport(amount.Amount).Uint64(),
+			},
+		})
+	}
+
+	senderWallet, err := solanawallet.NewWalletFromPrivateKey(params.PrivateKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	txDto := solsendtx.BridgeRequestDto{
+		Ctx:          params.Ctx,
+		ProgramID:    solana.MustPublicKeyFromBase58(sc.programID),
+		DstChainID:   params.DestChainID,
+		SenderAddr:   senderWallet.PublicKey.String(),
+		Receivers:    txReceivers,
+		BridgingFee:  params.FeeAmount.Uint64(),
+		OperationFee: params.OperationFee.Uint64(),
+	}
+
+	recentBlockhash, err := txProvider.GetLatestBlockhash(params.Ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tx, err := txSender.CreateTx(
+		params.Ctx, senderWallet.PublicKey,
+		solsendtx.InstructionTypeBridgingRequest,
+		recentBlockhash,
+		txDto,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return tx, senderWallet, nil
 }
 
 // ChainID implements ITestApexChain.
