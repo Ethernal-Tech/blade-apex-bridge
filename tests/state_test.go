@@ -190,7 +190,7 @@ func runSpecificTestCase(t *testing.T, file string, c testCase, fc *forkConfig, 
 		return err
 	}
 
-	_, root, err := snapshot.Commit(objs)
+	_, root, _, err := snapshot.Commit(objs)
 	if err != nil {
 		return err
 	}

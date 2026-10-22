@@ -107,7 +107,7 @@ func (e *Executor) WriteGenesis(
 		return types.Hash{}, err
 	}
 
-	_, root, err := snap.Commit(objs)
+	_, root, _, err := snap.Commit(objs)
 	if err != nil {
 		return types.Hash{}, err
 	}
@@ -452,10 +452,12 @@ func (t *Transition) Commit() (Snapshot, types.Hash, error) {
 		return nil, types.ZeroHash, err
 	}
 
-	s2, root, err := t.snap.Commit(objs)
+	s2, root, dbSizeDiff, err := t.snap.Commit(objs)
 	if err != nil {
 		return nil, types.ZeroHash, err
 	}
+
+	t.logger.Debug("Trie snapshot committed", "block number", t.ctx.Number, "dbSizeIncreaseBytes", dbSizeDiff)
 
 	return s2, types.BytesToHash(root), nil
 }

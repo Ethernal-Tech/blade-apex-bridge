@@ -113,6 +113,10 @@ func (ps *pebbleStorage) Compact(start []byte, limit []byte) error {
 	return ps.db.Compact(start, limit, true)
 }
 
+func (ps *pebbleStorage) Size() uint64 {
+	return ps.db.Metrics().WAL.PhysicalSize
+}
+
 func (ps *pebbleStorage) Close() error {
 	return ps.db.Close()
 }
