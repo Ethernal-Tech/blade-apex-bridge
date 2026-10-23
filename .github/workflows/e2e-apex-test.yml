@@ -30,7 +30,7 @@ on: # yamllint disable-line rule:truthy
 jobs:
   e2e_apex_bridge:
     name: Run E2E ApexBridge Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       E2E_TESTS: true
       E2E_LOGS: true
