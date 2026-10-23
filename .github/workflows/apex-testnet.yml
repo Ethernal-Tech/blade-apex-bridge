@@ -34,7 +34,7 @@ jobs:
       blade_apex_bridge_ref: develop
   inputs_check:
     name: Inputs Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       run_blade_apex_bridge_internal: ${{ steps.internal_input_check.outputs.run_blade_apex_bridge_internal }}
       run_blade_apex_bridge_partner: ${{ steps.partner_input_check.outputs.run_blade_apex_bridge_partner }}

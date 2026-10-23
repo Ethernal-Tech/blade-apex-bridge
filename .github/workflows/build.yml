@@ -15,7 +15,7 @@ on: # yamllint disable-line rule:truthy
 jobs:
   go_build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       build_output_failure: ${{ steps.blade_build_failure.outputs.build_output }}
     steps:
@@ -44,7 +44,7 @@ jobs:
           retention-days: 3
   go_build_reproducibility:
     name: Verify Build Reproducibility
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     continue-on-error: true
     steps:
       - name: Checkout code
