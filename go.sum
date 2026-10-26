@@ -59,8 +59,8 @@ github.com/DataDog/sketches-go v1.4.5 h1:ki7VfeNz7IcNafq7yI/j5U/YCkO3LJiMDtXz9OM
 github.com/DataDog/sketches-go v1.4.5/go.mod h1:7Y8GN8Jf66DLyDhc94zuWA3uHEt/7ttt8jHOBWWrSOg=
 github.com/DataDog/zstd v1.5.5 h1:oWf5W7GtOLgp6bciQYDmhHHjdhYkALu6S/5Ni9ZgSvQ=
 github.com/DataDog/zstd v1.5.5/go.mod h1:g4AWEaM3yOg3HYfnJ3YIawPnVdXJh9QME85blwSAmyw=
-github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20261023113908-ed976452bc2d h1:yJp+jYFHGiPrFf8EmjI/kJOg5SrQ8peW6JDO86sLDKI=
-github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20261023113908-ed976452bc2d/go.mod h1:PVyFIDYImtT8fzpX5Q9xLi0TqAVENf5oif0uxvBQbXU=
+github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20240628125004-67308570b6e2 h1:e+M6bfHqydzpBWxKYnQB0WaNdYdXmVtbX9AFxpnpq+0=
+github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20240628125004-67308570b6e2/go.mod h1:csuByxgtqkcFqtzU650asqwZIg+gBHBtLjr1BikQLSc=
 github.com/Ethernal-Tech/bn256 v0.0.0-20260512092402-9d67137eba57 h1:gh7FDr8fxmKeQcN88Pm+qfA4WZSHuMzfcv7B9/NdKr0=
 github.com/Ethernal-Tech/bn256 v0.0.0-20260512092402-9d67137eba57/go.mod h1:zd37/zj345zDhF4+N6LeKk79PCaEKbPKWmieFKG8R+o=
 github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20261022131430-c1ab64eea8bc h1:x5HmwlDtWarfrjytZQ0VH1U7VOgXeLODt7Jv3xnhovg=

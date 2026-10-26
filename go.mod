@@ -5,7 +5,7 @@ go 1.23.6
 require (
 	cloud.google.com/go/secretmanager v1.14.5
 	github.com/0xPolygon/go-ibft v0.4.1-0.20240621090555-e81a63ff50d7
-	github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20261023113908-ed976452bc2d
+	github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20240628125004-67308570b6e2
 	github.com/Ethernal-Tech/bn256 v0.0.0-20260512092402-9d67137eba57
 	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20261022131430-c1ab64eea8bc
 	github.com/Ethernal-Tech/ethgo v0.0.0-20240902085129-307ec04e3e94
