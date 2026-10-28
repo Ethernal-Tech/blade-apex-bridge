@@ -91,7 +91,7 @@ func UpdateJSONFile(fn1 string, fn2 string, callback func(mp map[string]interfac
 		os.Remove(fn1)
 	}
 
-	return os.WriteFile(fn2, bytes, 0600)
+	return os.WriteFile(fn2, bytes, 0600) //nolint:gosec // e2e framework writes to local test config paths
 }
 
 func getMapFromInterfaceKey(mp map[string]interface{}, key string) map[string]interface{} {

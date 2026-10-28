@@ -20,7 +20,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/helper/tests"
 	txpoolOp "github.com/0xPolygon/polygon-edge/txpool/proto"
 	"github.com/0xPolygon/polygon-edge/types"
-	"github.com/golang/protobuf/ptypes/any"
+	anypb "github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -73,7 +73,7 @@ func generateTx(params generateTxReqParams) *types.Transaction {
 
 func generateReq(params generateTxReqParams) *txpoolOp.AddTxnReq {
 	msg := &txpoolOp.AddTxnReq{
-		Raw: &any.Any{
+		Raw: &anypb.Any{
 			Value: generateTx(params).MarshalRLP(),
 		},
 		From: types.ZeroAddress.String(),
@@ -287,7 +287,7 @@ func TestTxPool_RecoverableError(t *testing.T) {
 		assert.NoError(t, err)
 
 		response, err := operator.AddTxn(context.Background(), &txpoolOp.AddTxnReq{
-			Raw: &any.Any{
+			Raw: &anypb.Any{
 				Value: signedTx.MarshalRLP(),
 			},
 			From: types.ZeroAddress.String(),
@@ -361,7 +361,7 @@ func TestTxPool_GetPendingTx(t *testing.T) {
 
 	// Add the transaction
 	response, err := operator.AddTxn(context.Background(), &txpoolOp.AddTxnReq{
-		Raw: &any.Any{
+		Raw: &anypb.Any{
 			Value: signedTx.MarshalRLP(),
 		},
 		From: types.ZeroAddress.String(),

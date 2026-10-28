@@ -247,12 +247,12 @@ func (ec *TestCardanoChain) CreateAddresses(
 
 	args := []string{
 		"create-address",
-		"--network-id", fmt.Sprint(ec.config.NetworkType),
-		"--testnet-magic", fmt.Sprint(ec.config.NetworkMagic),
-		"--bridge-url", bridgeURL,
-		"--bridge-addr", contracts.Bridge.String(),
+		networkIDFlag, fmt.Sprint(ec.config.NetworkType),
+		testnetMagicFlag, fmt.Sprint(ec.config.NetworkMagic),
+		bridgeURLFlag, bridgeURL,
+		bridgeAddrFlag, contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
-		"--chain", ec.config.ChainID,
+		chainFlag, ec.config.ChainID,
 	}
 
 	var outb bytes.Buffer
@@ -373,7 +373,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 		"--chain-id", ec.ChainID(),
 		"--network-address", server.NetworkAddress(),
 		"--network-magic", fmt.Sprint(ec.config.NetworkMagic),
-		"--network-id", fmt.Sprint(ec.config.NetworkType),
+		networkIDFlag, fmt.Sprint(ec.config.NetworkType),
 		"--ogmios-url", ec.ogmiosURL,
 		"--utxo-min-amount", strconv.FormatUint(MinUTxODefaultValue, 10),
 		"--output-dir", validator.GetBridgingConfigsDir(),

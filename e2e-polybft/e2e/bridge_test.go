@@ -666,7 +666,7 @@ func TestE2E_Bridge_ChildchainTokensTransfer(t *testing.T) {
 
 	// init private keys and amounts
 	depositorKeys := make([]string, transfersCount)
-	depositors := make([]types.Address, transfersCount)
+	depositors := make([]types.Address, transfersCount, transfersCount+1)
 	amounts := make([]string, transfersCount)
 	funds := make([]*big.Int, transfersCount)
 	singleToken := ethgo.Ether(1)
@@ -697,7 +697,7 @@ func TestE2E_Bridge_ChildchainTokensTransfer(t *testing.T) {
 		framework.WithEpochSize(epochSize),
 		framework.WithBridge(),
 		framework.WithBridgeBlockListAdmin(adminAddr),
-		framework.WithPremine(append(depositors, adminAddr)...)) //nolint:makezero
+		framework.WithPremine(append(depositors, adminAddr)...))
 	defer cluster.Stop()
 
 	polybftCfg, err := polybft.LoadPolyBFTConfig(path.Join(cluster.Config.TmpDir, chainConfigFileName))

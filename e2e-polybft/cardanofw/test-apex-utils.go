@@ -45,6 +45,16 @@ const (
 	DefaultTokenMintAmount = uint64(1_000_000_000)
 
 	splitStringLength = 40
+
+	configFlag           = "--config"
+	bridgeURLFlag        = "--bridge-url"
+	bridgeAddrFlag       = "--bridge-addr"
+	chainFlag            = "--chain"
+	keyFlag              = "--key"
+	testnetMagicFlag     = "--testnet-magic"
+	validatorDataDirFlag = "--validator-data-dir"
+	networkIDFlag        = "--network-id"
+	genesisCommand       = "genesis"
 )
 
 func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
@@ -108,7 +118,7 @@ func runCommand(cmd *exec.Cmd, stdout io.Writer, envVariables ...string) error {
 }
 
 func LoadJSON[TReturn any](path string) (*TReturn, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // e2e framework reads local test config paths
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %v. error: %w", path, err)
 	}
@@ -343,7 +353,7 @@ func GetTestNetMagicArgs(testnetMagic uint) []string {
 		return []string{"--mainnet"}
 	}
 
-	return []string{"--testnet-magic", strconv.FormatUint(uint64(testnetMagic), 10)}
+	return []string{testnetMagicFlag, strconv.FormatUint(uint64(testnetMagic), 10)}
 }
 
 type BridgingRequestMetadataTransaction struct {

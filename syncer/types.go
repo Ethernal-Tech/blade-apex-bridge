@@ -16,7 +16,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const syncerMetrics = "syncer"
+const (
+	syncerMetrics = "syncer"
+
+	// badBlockMetric is the name of the counter of blocks that failed verification
+	badBlockMetric = "bad_block"
+)
 
 type Blockchain interface {
 	// SubscribeEvents subscribes new blockchain event
