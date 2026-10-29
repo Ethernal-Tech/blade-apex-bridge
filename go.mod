@@ -7,10 +7,10 @@ require (
 	github.com/0xPolygon/go-ibft v0.4.1-0.20240621090555-e81a63ff50d7
 	github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20240628125004-67308570b6e2
 	github.com/Ethernal-Tech/bn256 v0.0.0-20260512092402-9d67137eba57
-	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20261028130403-40a15da394cb
+	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20261029153920-d1bdcb028b9e
 	github.com/Ethernal-Tech/ethgo v0.0.0-20240801172627-47215d9e504c
 	github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04
-	github.com/Ethernal-Tech/solana-infrastructure v0.0.0-20261028131259-b7b9a9190a20
+	github.com/Ethernal-Tech/solana-infrastructure v0.0.0-20261029153924-f659a86863cc
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.10
 	github.com/alibabacloud-go/oos-20190601/v4 v4.4.2
 	github.com/alibabacloud-go/tea v1.3.2
