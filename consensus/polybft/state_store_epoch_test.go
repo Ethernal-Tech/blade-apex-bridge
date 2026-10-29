@@ -13,6 +13,8 @@ import (
 	"github.com/0xPolygon/polygon-edge/types"
 )
 
+const testNodeID = "NODE_1"
+
 func TestState_insertAndGetValidatorSnapshot(t *testing.T) {
 	t.Parallel()
 
@@ -143,7 +145,7 @@ func TestState_Insert_And_Cleanup(t *testing.T) {
 		assert.NoError(t, err)
 
 		_, _ = state.StateSyncStore.insertMessageVote(epoch, hash1, &MessageSignature{
-			From:      "NODE_1",
+			From:      testNodeID,
 			Signature: []byte{1, 2},
 		}, nil)
 	}
@@ -173,7 +175,7 @@ func TestState_Insert_And_Cleanup(t *testing.T) {
 		assert.NoError(t, err)
 
 		_, _ = state.StateSyncStore.insertMessageVote(epoch, hash1, &MessageSignature{
-			From:      "NODE_1",
+			From:      testNodeID,
 			Signature: []byte{1, 2},
 		}, nil)
 	}

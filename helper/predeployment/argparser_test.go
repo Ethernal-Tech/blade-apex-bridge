@@ -6,6 +6,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	testArgument1 = "argument 1"
+	testArgument2 = "argument 2"
+)
+
 func TestParseArguments_validInput(t *testing.T) {
 	t.Parallel()
 
@@ -26,12 +31,12 @@ func TestParseArguments_validInput(t *testing.T) {
 		{
 			"array of simple type arguments",
 			[]string{
-				"argument 1",
-				"argument 2",
+				testArgument1,
+				testArgument2,
 			},
 			[]interface{}{
-				"argument 1",
-				"argument 2",
+				testArgument1,
+				testArgument2,
 			},
 		},
 		{
@@ -41,7 +46,7 @@ func TestParseArguments_validInput(t *testing.T) {
 			},
 			[]interface{}{
 				[]interface{}{
-					"argument 1",
+					testArgument1,
 				},
 			},
 		},
@@ -49,13 +54,13 @@ func TestParseArguments_validInput(t *testing.T) {
 			"structure with regular types",
 			[]string{
 				`["argument 1"]`,
-				"argument 2",
+				testArgument2,
 			},
 			[]interface{}{
 				[]interface{}{
-					"argument 1",
+					testArgument1,
 				},
-				"argument 2",
+				testArgument2,
 			},
 		},
 		{

@@ -1,13 +1,13 @@
 module github.com/0xPolygon/polygon-edge
 
-go 1.23.6
+go 1.27.3
 
 require (
 	cloud.google.com/go/secretmanager v1.14.5
 	github.com/0xPolygon/go-ibft v0.4.1-0.20240621090555-e81a63ff50d7
 	github.com/Ethernal-Tech/blockchain-event-tracker v0.0.0-20240628125004-67308570b6e2
 	github.com/Ethernal-Tech/bn256 v0.0.0-20260512092402-9d67137eba57
-	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20261022131430-c1ab64eea8bc
+	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20261028130415-2496de61a5ed
 	github.com/Ethernal-Tech/ethgo v0.0.0-20240902085129-307ec04e3e94
 	github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.10
@@ -18,6 +18,7 @@ require (
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/cockroachdb/pebble v1.1.4
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/docker/docker v28.0.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/envoyproxy/protoc-gen-validate v1.2.1
@@ -39,6 +40,7 @@ require (
 	github.com/libp2p/go-libp2p v0.41.0
 	github.com/libp2p/go-libp2p-kbucket v0.6.5
 	github.com/libp2p/go-libp2p-pubsub v0.13.0
+	github.com/mitchellh/mapstructure v1.5.1-0.20231216201459-8508981c8b6c
 	github.com/multiformats/go-multiaddr v0.15.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/prometheus/client_golang v1.21.0
@@ -52,11 +54,12 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d
 	github.com/trailofbits/go-fuzz-utils v0.0.0-20210901195358-9657fcfd256c
 	github.com/umbracle/fastrlp v0.1.1-0.20230504065717-58a1b8a9929d
+	github.com/valyala/fasthttp v1.59.0
 	github.com/valyala/fastjson v1.6.4
 	go.etcd.io/bbolt v1.4.0
-	golang.org/x/crypto v0.35.0
-	golang.org/x/sync v0.11.0
-	golang.org/x/tools v0.30.0
+	golang.org/x/crypto v0.58.0
+	golang.org/x/sync v0.24.0
+	golang.org/x/tools v0.52.0
 	google.golang.org/genproto v0.0.0-20250122153221-138b5a5a4fd4
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5
@@ -67,19 +70,11 @@ require (
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
-	github.com/blinklabs-io/gouroboros v0.103.1 // indirect
-	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
-	github.com/jinzhu/copier v0.4.0 // indirect
-	github.com/utxorpc/go-codegen v0.11.0 // indirect
-	github.com/x448/float16 v0.8.4 // indirect
-)
-
-require (
 	cloud.google.com/go/auth v0.14.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
 	cloud.google.com/go/iam v1.3.1 // indirect
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/DataDog/appsec-internal-go v1.9.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/obfuscate v0.58.0 // indirect
@@ -108,6 +103,7 @@ require (
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/blinklabs-io/gouroboros v0.103.1 // indirect
 	github.com/btcsuite/btcd v0.24.2 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.5 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
@@ -125,7 +121,6 @@ require (
 	github.com/containerd/continuity v0.4.3 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/distribution/reference v0.5.0 // indirect
@@ -139,6 +134,7 @@ require (
 	github.com/flynn/noise v1.1.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
+	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
@@ -173,6 +169,7 @@ require (
 	github.com/ipfs/go-log/v2 v2.5.1 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-temp-err-catcher v0.1.0 // indirect
+	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
@@ -198,7 +195,6 @@ require (
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/mitchellh/mapstructure v1.5.1-0.20231216201459-8508981c8b6c
 	github.com/mitchellh/pointerstructure v1.2.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/term v0.5.0 // indirect
@@ -273,9 +269,10 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
+	github.com/utxorpc/go-codegen v0.11.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.59.0
 	github.com/wlynxg/anet v0.0.5 // indirect
+	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/collector/component v0.104.0 // indirect
@@ -296,12 +293,13 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/exp v0.0.0-20250228200357-dead58393ab7 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20240213143201-ec583247a57a // indirect
-	golang.org/x/mod v0.23.0 // indirect
-	golang.org/x/net v0.36.0 // indirect
+	golang.org/x/mod v0.42.0 // indirect
+	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/oauth2 v0.25.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/term v0.29.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/telemetry v0.0.0-20261009151841-97e8ea77aa2a // indirect
+	golang.org/x/term v0.47.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/api v0.220.0 // indirect

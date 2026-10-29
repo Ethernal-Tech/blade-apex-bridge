@@ -1202,6 +1202,6 @@ func CopyDir(source, destination string) error {
 			return err
 		}
 
-		return os.WriteFile(filepath.Join(destination, relPath), data, 0600)
+		return os.WriteFile(filepath.Join(destination, relPath), data, 0600) //nolint:gosec // local test dirs
 	})
 }

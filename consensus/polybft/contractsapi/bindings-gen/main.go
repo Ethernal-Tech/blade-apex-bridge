@@ -22,6 +22,17 @@ const (
 	abiTypeNameFormat  = "var %sABIType = abi.MustNewType(\"%s\")"
 	eventNameFormat    = "%sEvent"
 	functionNameFormat = "%sFn"
+
+	initializeMethod      = "initialize"
+	balanceOfMethod       = "balanceOf"
+	withdrawBatchMethod   = "withdrawBatch"
+	setDependenciesMethod = "setDependencies"
+
+	sigKey          = "Sig"
+	nameKey         = "Name"
+	tNameKey        = "TName"
+	structsKey      = "Structs"
+	contractNameKey = "ContractName"
 )
 
 var (
@@ -81,7 +92,7 @@ func main() {
 			true,
 			[]string{
 				"submit",
-				"initialize",
+				initializeMethod,
 				"getCheckpointBlock",
 			},
 			[]string{
@@ -93,7 +104,7 @@ func main() {
 			gensc.ExitHelper,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 				"exit",
 				"batchExit",
 			},
@@ -106,7 +117,7 @@ func main() {
 			gensc.ChildERC20Predicate,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 				"withdrawTo",
 			},
 			[]string{},
@@ -126,7 +137,7 @@ func main() {
 			gensc.RootMintableERC20Predicate,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 			},
 			[]string{},
 		},
@@ -135,7 +146,7 @@ func main() {
 			gensc.RootMintableERC20PredicateACL,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 			},
 			[]string{},
 		},
@@ -144,7 +155,7 @@ func main() {
 			gensc.NativeERC20,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 			},
 			[]string{},
 		},
@@ -153,7 +164,7 @@ func main() {
 			gensc.NativeERC20Mintable,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 				"approve",
 			},
 			[]string{},
@@ -163,7 +174,7 @@ func main() {
 			gensc.RootERC20Predicate,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 				"depositTo",
 			},
 			[]string{
@@ -175,7 +186,7 @@ func main() {
 			gensc.ChildMintableERC20Predicate,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 			},
 			[]string{
 				"MintableTokenMapped",
@@ -186,7 +197,7 @@ func main() {
 			gensc.RootERC20,
 			false,
 			[]string{
-				"balanceOf",
+				balanceOfMethod,
 				"approve",
 				"mint",
 			},
@@ -197,7 +208,7 @@ func main() {
 			gensc.RootERC1155Predicate,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 				"depositBatch",
 			},
 			[]string{},
@@ -207,7 +218,7 @@ func main() {
 			gensc.ChildMintableERC1155Predicate,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 			},
 			[]string{},
 		},
@@ -218,7 +229,7 @@ func main() {
 			[]string{
 				"setApprovalForAll",
 				"mintBatch",
-				"balanceOf",
+				balanceOfMethod,
 			},
 			[]string{},
 		},
@@ -227,8 +238,8 @@ func main() {
 			gensc.ChildERC1155Predicate,
 			false,
 			[]string{
-				"initialize",
-				"withdrawBatch",
+				initializeMethod,
+				withdrawBatchMethod,
 			},
 			[]string{},
 		},
@@ -237,8 +248,8 @@ func main() {
 			gensc.ChildERC1155PredicateACL,
 			false,
 			[]string{
-				"initialize",
-				"withdrawBatch",
+				initializeMethod,
+				withdrawBatchMethod,
 			},
 			[]string{},
 		},
@@ -247,7 +258,7 @@ func main() {
 			gensc.RootMintableERC1155Predicate,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 			},
 			[]string{},
 		},
@@ -256,7 +267,7 @@ func main() {
 			gensc.RootMintableERC1155PredicateACL,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 			},
 			[]string{
 				"L2MintableTokenMapped",
@@ -267,8 +278,8 @@ func main() {
 			gensc.ChildERC1155,
 			false,
 			[]string{
-				"initialize",
-				"balanceOf",
+				initializeMethod,
+				balanceOfMethod,
 			},
 			[]string{},
 		},
@@ -277,7 +288,7 @@ func main() {
 			gensc.RootERC721Predicate,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 				"depositBatch",
 			},
 			[]string{},
@@ -287,7 +298,7 @@ func main() {
 			gensc.ChildMintableERC721Predicate,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 			},
 			[]string{},
 		},
@@ -306,8 +317,8 @@ func main() {
 			gensc.ChildERC721Predicate,
 			false,
 			[]string{
-				"initialize",
-				"withdrawBatch",
+				initializeMethod,
+				withdrawBatchMethod,
 			},
 			[]string{},
 		},
@@ -316,8 +327,8 @@ func main() {
 			gensc.ChildERC721PredicateACL,
 			false,
 			[]string{
-				"initialize",
-				"withdrawBatch",
+				initializeMethod,
+				withdrawBatchMethod,
 			},
 			[]string{},
 		},
@@ -326,7 +337,7 @@ func main() {
 			gensc.RootMintableERC721Predicate,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 			},
 			[]string{},
 		},
@@ -335,7 +346,7 @@ func main() {
 			gensc.RootMintableERC721PredicateACL,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 			},
 			[]string{},
 		},
@@ -344,7 +355,7 @@ func main() {
 			gensc.ChildERC721,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 				"ownerOf",
 			},
 			[]string{},
@@ -354,7 +365,7 @@ func main() {
 			gensc.StakeManager,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 				"stake",
 				"stakeOf",
 				"withdraw",
@@ -378,7 +389,7 @@ func main() {
 			false,
 			[]string{
 				"commitEpoch",
-				"initialize",
+				initializeMethod,
 				"distributeRewardFor",
 			},
 			[]string{},
@@ -388,7 +399,7 @@ func main() {
 			gensc.EIP1559Burn,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 			},
 			[]string{},
 		},
@@ -397,7 +408,7 @@ func main() {
 			gensc.BladeManager,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 				"addGenesisBalance",
 			},
 			[]string{},
@@ -424,7 +435,7 @@ func main() {
 			gensc.NetworkParams,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 				"setNewEpochSize",
 				"setNewSprintSize",
 				"setNewBaseFeeChangeDenom",
@@ -454,7 +465,7 @@ func main() {
 			gensc.ForkParams,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 			},
 			[]string{
 				"NewFeature",
@@ -466,7 +477,7 @@ func main() {
 			gensc.ChildGovernor,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 				"propose",
 				"execute",
 				"castVote",
@@ -483,7 +494,7 @@ func main() {
 			gensc.ChildTimelock,
 			false,
 			[]string{
-				"initialize",
+				initializeMethod,
 			},
 			[]string{},
 		},
@@ -588,8 +599,8 @@ import (
 			gensc.ApexBridgeContracts.Bridge,
 			false,
 			[]string{
-				"initialize",
-				"setDependencies",
+				initializeMethod,
+				setDependenciesMethod,
 				"submitNewValidatorSet",
 				"validatorSetUpdated",
 				"isNewValidatorSetPending",
@@ -601,8 +612,8 @@ import (
 			gensc.ApexBridgeContracts.ClaimsHelper,
 			false,
 			[]string{
-				"initialize",
-				"setDependencies",
+				initializeMethod,
+				setDependenciesMethod,
 			},
 			[]string{},
 		},
@@ -611,8 +622,8 @@ import (
 			gensc.ApexBridgeContracts.Claims,
 			false,
 			[]string{
-				"initialize",
-				"setDependencies",
+				initializeMethod,
+				setDependenciesMethod,
 			},
 			[]string{},
 		},
@@ -621,8 +632,8 @@ import (
 			gensc.ApexBridgeContracts.SignedBatches,
 			false,
 			[]string{
-				"initialize",
-				"setDependencies",
+				initializeMethod,
+				setDependenciesMethod,
 			},
 			[]string{},
 		},
@@ -631,8 +642,8 @@ import (
 			gensc.ApexBridgeContracts.Slots,
 			false,
 			[]string{
-				"initialize",
-				"setDependencies",
+				initializeMethod,
+				setDependenciesMethod,
 			},
 			[]string{},
 		},
@@ -641,8 +652,8 @@ import (
 			gensc.ApexBridgeContracts.Validators,
 			false,
 			[]string{
-				"initialize",
-				"setDependencies",
+				initializeMethod,
+				setDependenciesMethod,
 			},
 			[]string{},
 		},
@@ -651,8 +662,8 @@ import (
 			gensc.ApexBridgeContracts.Admin,
 			false,
 			[]string{
-				"initialize",
-				"setDependencies",
+				initializeMethod,
+				setDependenciesMethod,
 			},
 			[]string{},
 		},
@@ -840,9 +851,9 @@ func generateAbiFuncsForNestedType(name string) (string, error) {
 	title := strings.Title(name)
 
 	inputs := map[string]interface{}{
-		"Sig":   strings.ToLower(string(name[0])),
-		"Name":  title,
-		"TName": title,
+		sigKey:   strings.ToLower(string(name[0])),
+		nameKey:  title,
+		tNameKey: title,
 	}
 
 	return renderTmpl(tmpl, inputs)
@@ -886,11 +897,11 @@ func ({{.Sig}} *{{.TName}}) Decode(input []byte) error {
 `
 
 	inputs := map[string]interface{}{
-		"Structs":      res,
-		"Sig":          strings.ToLower(string(name[0])),
-		"Name":         event.Name,
-		"TName":        strings.Title(name),
-		"ContractName": contractName,
+		structsKey:      res,
+		sigKey:          strings.ToLower(string(name[0])),
+		nameKey:         event.Name,
+		tNameKey:        strings.Title(name),
+		contractNameKey: contractName,
 	}
 
 	renderedString, err := renderTmpl(tmplStr, inputs)
@@ -934,10 +945,10 @@ func ({{.Sig}} *{{.TName}}) DecodeAbi(buf []byte) error {
 }`
 
 	inputs := map[string]interface{}{
-		"Structs":      res,
-		"Sig":          strings.ToLower(string(methodName[0])),
-		"ContractName": contractName,
-		"TName":        strings.Title(methodName),
+		structsKey:      res,
+		sigKey:          strings.ToLower(string(methodName[0])),
+		contractNameKey: contractName,
+		tNameKey:        strings.Title(methodName),
 	}
 
 	renderedString, err := renderTmpl(tmplStr, inputs)
@@ -987,16 +998,16 @@ func generateFunction(generatedData *generatedData, contractName string,
 	}
 
 	inputs := map[string]interface{}{
-		"Structs":      res,
-		"Sig":          strings.ToLower(string(methodName[0])),
-		"Name":         method.Name,
-		"ContractName": contractName,
-		"TName":        strings.Title(methodName),
-		"MethodGetter": methodGetter,
+		structsKey:      res,
+		sigKey:          strings.ToLower(string(methodName[0])),
+		nameKey:         method.Name,
+		contractNameKey: contractName,
+		tNameKey:        strings.Title(methodName),
+		"MethodGetter":  methodGetter,
 	}
 
 	if fnSigResolution {
-		inputs["Name"] = method.Sig()
+		inputs[nameKey] = method.Sig()
 	}
 
 	renderedString, err := renderTmpl(tmplString, inputs)

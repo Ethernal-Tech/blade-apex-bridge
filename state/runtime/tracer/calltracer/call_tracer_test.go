@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const callTypeName = "CALL"
+
 func TestCallTracer_Cancel(t *testing.T) {
 	t.Parallel()
 
@@ -61,7 +63,7 @@ func TestCallTracer_CallStart(t *testing.T) {
 		c.CallStart(depth, from, to, callType, gas, value, input)
 
 		expectedCall := &Call{
-			Type:     "CALL",
+			Type:     callTypeName,
 			From:     from.String(),
 			To:       to.String(),
 			Value:    "0x64",
@@ -92,7 +94,7 @@ func TestCallTracer_CallStart(t *testing.T) {
 		)
 
 		parentCall := &Call{
-			Type:     "CALL",
+			Type:     callTypeName,
 			From:     from.String(),
 			To:       to.String(),
 			Value:    "0x64",
@@ -108,7 +110,7 @@ func TestCallTracer_CallStart(t *testing.T) {
 		c.CallStart(depth, from, to, callType, gas, value, input)
 
 		expectedCall := &Call{
-			Type:     "CALL",
+			Type:     callTypeName,
 			From:     from.String(),
 			To:       to.String(),
 			Value:    "0x64",
@@ -141,7 +143,7 @@ func TestCallTracer_CallStart(t *testing.T) {
 		c.CallStart(depth, from, to, callType, gas, nil, nil)
 
 		expectedCall := &Call{
-			Type:     "CALL",
+			Type:     callTypeName,
 			From:     from.String(),
 			To:       to.String(),
 			Value:    "0x0",

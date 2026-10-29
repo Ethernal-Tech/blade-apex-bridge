@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const blockPtrString = "blockPtr"
+
 var (
 	oneEther = ethgo.Ether(1)
 )
@@ -270,17 +272,17 @@ func TestDispatcherFuncDecode(t *testing.T) {
 		res interface{}
 	}{
 		{
-			"block",
+			blockString,
 			`["earliest"]`,
 			EarliestBlockNumber,
 		},
 		{
-			"block",
+			blockString,
 			`["latest"]`,
 			LatestBlockNumber,
 		},
 		{
-			"block",
+			blockString,
 			`["0x1"]`,
 			BlockNumber(1),
 		},
@@ -290,12 +292,12 @@ func TestDispatcherFuncDecode(t *testing.T) {
 			addr1,
 		},
 		{
-			"blockPtr",
+			blockPtrString,
 			`["a"]`,
 			nil,
 		},
 		{
-			"blockPtr",
+			blockPtrString,
 			`["a", "latest"]`,
 			LatestBlockNumber,
 		},

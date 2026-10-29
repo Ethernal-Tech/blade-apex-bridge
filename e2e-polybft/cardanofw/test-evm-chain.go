@@ -232,9 +232,9 @@ func (ec *TestEVMChain) InitContracts(
 	params := []string{
 		"deploy-evm",
 		"--url", ec.jsonRPCAddr,
-		"--key", hex.EncodeToString(pk),
-		"--bridge-url", bridgeURL,
-		"--bridge-addr", contracts.Bridge.String(),
+		keyFlag, hex.EncodeToString(pk),
+		bridgeURLFlag, bridgeURL,
+		bridgeAddrFlag, contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
 		"--dir", workingDirectory,
 		"--clone",
@@ -303,7 +303,8 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
 
-	args := []string{
+	args := make([]string, 0, 16+2*len(ec.config.AllowedDirections))
+	args = append(args,
 		"generate-configs", "evm-chain",
 		"--chain-id", ec.ChainID(),
 		"--evm-node-url", server.JSONRPCAddr(),
@@ -312,7 +313,7 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 		"--output-relayer-file-name", RelayerConfigFileName,
 		"--dbs-path", dbsPath,
 		"--relayer-data-dir", validator.server.DataDir(),
-	}
+	)
 
 	for _, direction := range ec.config.AllowedDirections {
 		args = append(args, "--allowed-directions", direction)
@@ -380,16 +381,17 @@ func (ec *TestEVMChain) CreateMetadata(
 func (ec *TestEVMChain) BridgingRequest(
 	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
 ) (string, error) {
-	params := []string{
+	params := make([]string, 0, 15+2*len(receivers))
+	params = append(params,
 		"sendtx",
 		"--tx-type", "evm",
 		"--gateway-addr", ec.gatewayAddr.String(),
 		fmt.Sprintf("--%s-url", ec.config.ChainID), ec.jsonRPCAddr,
-		"--key", privateKey,
+		keyFlag, privateKey,
 		"--chain-src", ec.config.ChainID,
 		"--chain-dst", destChainID,
 		"--fee", feeAmount.String(),
-	}
+	)
 
 	for addr, amount := range receivers {
 		params = append(params,
