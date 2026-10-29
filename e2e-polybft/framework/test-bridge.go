@@ -48,7 +48,7 @@ func NewTestBridge(t *testing.T, clusterConfig *TestClusterConfig) (*TestBridge,
 func (t *TestBridge) Start() error {
 	// Build arguments
 	args := []string{
-		"bridge",
+		bridgeCommand,
 		"server",
 		"--data-dir", t.clusterConfig.Dir("test-rootchain"),
 	}
@@ -128,7 +128,7 @@ func (t *TestBridge) Deposit(token bridgeCommon.TokenType, rootTokenAddr, rootPr
 		}
 
 		args = append(args,
-			"bridge",
+			bridgeCommand,
 			"deposit-erc20",
 			"--root-token", rootTokenAddr.String(),
 			"--root-predicate", rootPredicateAddr.String(),
@@ -136,7 +136,7 @@ func (t *TestBridge) Deposit(token bridgeCommon.TokenType, rootTokenAddr, rootPr
 			"--amounts", amounts,
 			"--sender-key", senderKey,
 			"--minter-key", minterKey,
-			"--jsonrpc", jsonRPCAddr)
+			jsonRPCFlag, jsonRPCAddr)
 
 		if childChainMintable {
 			args = append(args, "--child-chain-mintable")
@@ -148,7 +148,7 @@ func (t *TestBridge) Deposit(token bridgeCommon.TokenType, rootTokenAddr, rootPr
 		}
 
 		args = append(args,
-			"bridge",
+			bridgeCommand,
 			"deposit-erc721",
 			"--root-token", rootTokenAddr.String(),
 			"--root-predicate", rootPredicateAddr.String(),
@@ -156,7 +156,7 @@ func (t *TestBridge) Deposit(token bridgeCommon.TokenType, rootTokenAddr, rootPr
 			"--token-ids", tokenIDs,
 			"--sender-key", senderKey,
 			"--minter-key", minterKey,
-			"--jsonrpc", jsonRPCAddr)
+			jsonRPCFlag, jsonRPCAddr)
 
 		if childChainMintable {
 			args = append(args, "--child-chain-mintable")
@@ -172,7 +172,7 @@ func (t *TestBridge) Deposit(token bridgeCommon.TokenType, rootTokenAddr, rootPr
 		}
 
 		args = append(args,
-			"bridge",
+			bridgeCommand,
 			"deposit-erc1155",
 			"--root-token", rootTokenAddr.String(),
 			"--root-predicate", rootPredicateAddr.String(),
@@ -181,7 +181,7 @@ func (t *TestBridge) Deposit(token bridgeCommon.TokenType, rootTokenAddr, rootPr
 			"--token-ids", tokenIDs,
 			"--sender-key", senderKey,
 			"--minter-key", minterKey,
-			"--jsonrpc", jsonRPCAddr)
+			jsonRPCFlag, jsonRPCAddr)
 
 		if childChainMintable {
 			args = append(args, "--child-chain-mintable")
@@ -221,14 +221,14 @@ func (t *TestBridge) Withdraw(token bridgeCommon.TokenType,
 		}
 
 		args = append(args,
-			"bridge",
+			bridgeCommand,
 			"withdraw-erc20",
 			"--child-predicate", childPredicate.String(),
 			"--child-token", childToken.String(),
 			"--sender-key", senderKey,
 			"--receivers", receivers,
 			"--amounts", amounts,
-			"--jsonrpc", jsonRPCAddr)
+			jsonRPCFlag, jsonRPCAddr)
 
 		if childChainMintable {
 			args = append(args, "--child-chain-mintable")
@@ -240,14 +240,14 @@ func (t *TestBridge) Withdraw(token bridgeCommon.TokenType,
 		}
 
 		args = append(args,
-			"bridge",
+			bridgeCommand,
 			"withdraw-erc721",
 			"--child-predicate", childPredicate.String(),
 			"--child-token", childToken.String(),
 			"--sender-key", senderKey,
 			"--receivers", receivers,
 			"--token-ids", tokenIDs,
-			"--jsonrpc", jsonRPCAddr)
+			jsonRPCFlag, jsonRPCAddr)
 
 		if childChainMintable {
 			args = append(args, "--child-chain-mintable")
@@ -263,7 +263,7 @@ func (t *TestBridge) Withdraw(token bridgeCommon.TokenType,
 		}
 
 		args = append(args,
-			"bridge",
+			bridgeCommand,
 			"withdraw-erc1155",
 			"--child-predicate", childPredicate.String(),
 			"--child-token", childToken.String(),
@@ -271,7 +271,7 @@ func (t *TestBridge) Withdraw(token bridgeCommon.TokenType,
 			"--receivers", receivers,
 			"--amounts", amounts,
 			"--token-ids", tokenIDs,
-			"--jsonrpc", jsonRPCAddr)
+			jsonRPCFlag, jsonRPCAddr)
 
 		if childChainMintable {
 			args = append(args, "--child-chain-mintable")
@@ -288,7 +288,7 @@ func (t *TestBridge) SendExitTransaction(exitHelper types.Address, exitID uint64
 	}
 
 	return t.cmdRun(
-		"bridge",
+		bridgeCommand,
 		"exit",
 		"--exit-helper", exitHelper.String(),
 		"--exit-id", strconv.FormatUint(exitID, 10),
@@ -305,7 +305,7 @@ func (t *TestBridge) cmdRun(args ...string) error {
 // deployRootchainContracts deploys and initializes rootchain contracts
 func (t *TestBridge) deployRootchainContracts(genesisPath string) error {
 	args := []string{
-		"bridge",
+		bridgeCommand,
 		"deploy",
 		"--proxy-contracts-admin", t.clusterConfig.GetProxyContractsAdmin(),
 		"--genesis", genesisPath,
@@ -348,7 +348,7 @@ func (t *TestBridge) fundAddressesOnRoot(polybftConfig polybft.PolyBFTConfig) er
 
 	// non-validator addresses don't need to mint stake token,
 	// they only need to be funded with root token
-	args := []string{"bridge", "fund"}
+	args := []string{bridgeCommand, fundCommand}
 
 	for _, premineRaw := range t.clusterConfig.Premine {
 		premineInfo, err := cmdHelper.ParsePremineInfo(premineRaw)
@@ -373,7 +373,7 @@ func (t *TestBridge) FundValidators(secretsPaths []string, amounts []*big.Int) e
 		return errors.New("expected the same length of secrets paths and amounts")
 	}
 
-	args := []string{"bridge", "fund"}
+	args := []string{bridgeCommand, fundCommand}
 
 	for i := 0; i < len(secretsPaths); i++ {
 		secretsManager, err := polybftsecrets.GetSecretsManager(secretsPaths[i], "", true)
@@ -410,8 +410,8 @@ func (t *TestBridge) mintNativeRootToken(validatorAddresses []types.Address, tok
 	// to validators and other provided addresses
 	args := []string{
 		"mint-erc20",
-		"--jsonrpc", t.JSONRPCAddr(),
-		"--erc20-token", polybftConfig.Bridge.RootNativeERC20Addr.String(),
+		jsonRPCFlag, t.JSONRPCAddr(),
+		erc20TokenFlag, polybftConfig.Bridge.RootNativeERC20Addr.String(),
 	}
 
 	// mint something for every validator
@@ -457,19 +457,19 @@ func (t *TestBridge) premineNativeRootToken(tokenConfig *polybft.TokenConfig,
 
 	premineCmdArgs := func(secret, key string, premineAmount, stakedAmount *big.Int) error {
 		args := []string{
-			"bridge",
+			bridgeCommand,
 			"premine",
-			"--jsonrpc", t.JSONRPCAddr(),
+			jsonRPCFlag, t.JSONRPCAddr(),
 			"--premine-amount", premineAmount.String(),
 			"--stake-amount", stakedAmount.String(),
-			"--erc20-token", polybftConfig.Bridge.RootNativeERC20Addr.String(),
+			erc20TokenFlag, polybftConfig.Bridge.RootNativeERC20Addr.String(),
 			"--blade-manager", polybftConfig.Bridge.BladeManagerAddr.String(),
 		}
 
 		if secret != "" {
 			args = append(args, "--"+polybftsecrets.AccountDirFlag, path.Join(t.clusterConfig.TmpDir, secret))
 		} else {
-			args = append(args, "--private-key", key)
+			args = append(args, privateKeyFlag, key)
 		}
 
 		return t.cmdRun(args...)
@@ -544,10 +544,10 @@ func (t *TestBridge) finalizeGenesis(genesisPath string,
 	}
 
 	args := []string{
-		"bridge",
+		bridgeCommand,
 		"finalize-bridge",
-		"--jsonrpc", t.JSONRPCAddr(),
-		"--private-key", bridgeHelper.TestAccountPrivKey,
+		jsonRPCFlag, t.JSONRPCAddr(),
+		privateKeyFlag, bridgeHelper.TestAccountPrivKey,
 		"--genesis", genesisPath,
 		"--blade-manager", polybftConfig.Bridge.BladeManagerAddr.String(),
 	}

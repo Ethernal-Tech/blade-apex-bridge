@@ -1129,7 +1129,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios_NexusSrc(t *testing.T) {
 			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDVector),
 			sender:     user,
 			receivers: map[string]cardanofw.ReceiverAmount{
-				"addr_test1invalidaddress": {
+				invalidCardanoAddr: {
 					TokenID: cardanofw.USDTTokenID,
 					Amount:  sendAmount,
 				},
@@ -1257,7 +1257,7 @@ func TestE2E_SkylineTestnetBridge_InvalidScenarios_NexusSrc(t *testing.T) {
 			dstChainID: cardanofw.ChainIDToInt(cardanofw.ChainIDPolygon),
 			sender:     user,
 			receivers: map[string]cardanofw.ReceiverAmount{
-				"addr_test1invalidaddress": {
+				invalidCardanoAddr: {
 					TokenID: cardanofw.XPOLTokenID,
 					Amount:  sendAmount,
 				},

@@ -74,10 +74,10 @@ func AppendNewTestheadersWithSeed(headers []*types.Header, n int, seed uint64) [
 	// We do +1 because the first header will be the genesis we supplied
 	newHeaders := NewTestHeadersWithSeed(headers[len(headers)-1], n+1, seed)
 
-	preHeaders := make([]*types.Header, len(headers))
+	preHeaders := make([]*types.Header, len(headers), len(headers)+len(newHeaders)-1)
 	copy(preHeaders, headers)
 
-	return append(preHeaders, newHeaders[1:]...) //nolint:makezero
+	return append(preHeaders, newHeaders[1:]...)
 }
 
 func HeadersToBlocks(headers []*types.Header) []*types.Block {

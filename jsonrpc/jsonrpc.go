@@ -350,7 +350,7 @@ func (j *JSONRPC) handle(w http.ResponseWriter, req *http.Request) {
 	case "OPTIONS":
 		// nothing to return
 	default:
-		_, _ = w.Write([]byte("method " + req.Method + " not allowed"))
+		_, _ = w.Write([]byte("method " + req.Method + " not allowed")) //nolint:gosec // Content-Type is JSON, not HTML
 	}
 }
 

@@ -254,6 +254,21 @@ type mockCall struct {
 	args map[string]interface{}
 }
 
+const (
+	captureStateCall   = "CaptureState"
+	executeStateCall   = "ExecuteState"
+	argMemory          = "memory"
+	argStack           = "stack"
+	argOpCode          = "opCode"
+	argContractAddress = "contractAddress"
+	argOpcode          = "opcode"
+	argAvailableGas    = "availableGas"
+	argCost            = "cost"
+	argLastReturnData  = "lastReturnData"
+	argDepth           = "depth"
+	argErr             = "err"
+)
+
 type mockTracer struct {
 	calls []mockCall
 }
@@ -268,13 +283,13 @@ func (m *mockTracer) CaptureState(
 	_state tracer.VMState,
 ) {
 	m.calls = append(m.calls, mockCall{
-		name: "CaptureState",
+		name: captureStateCall,
 		args: map[string]interface{}{
-			"memory":          memory,
-			"stack":           stack,
-			"opCode":          opCode,
-			"contractAddress": contractAddress,
-			"sp":              sp,
+			argMemory:          memory,
+			argStack:           stack,
+			argOpCode:          opCode,
+			argContractAddress: contractAddress,
+			"sp":               sp,
 		},
 	})
 }
@@ -291,16 +306,16 @@ func (m *mockTracer) ExecuteState(
 	_host tracer.RuntimeHost,
 ) {
 	m.calls = append(m.calls, mockCall{
-		name: "ExecuteState",
+		name: executeStateCall,
 		args: map[string]interface{}{
-			"contractAddress": contractAddress,
-			"ip":              ip,
-			"opcode":          opcode,
-			"availableGas":    availableGas,
-			"cost":            cost,
-			"lastReturnData":  lastReturnData,
-			"depth":           depth,
-			"err":             err,
+			argContractAddress: contractAddress,
+			"ip":               ip,
+			argOpcode:          opcode,
+			argAvailableGas:    availableGas,
+			argCost:            cost,
+			argLastReturnData:  lastReturnData,
+			argDepth:           depth,
+			argErr:             err,
 		},
 	})
 }
@@ -328,38 +343,38 @@ func TestRunWithTracer(t *testing.T) {
 			},
 			expected: []mockCall{
 				{
-					name: "CaptureState",
+					name: captureStateCall,
 					args: map[string]interface{}{
-						"memory":          []byte{},
-						"stack":           []uint256.Int{},
-						"opCode":          int(PUSH1),
-						"contractAddress": contractAddress,
-						"sp":              0,
+						argMemory:          []byte{},
+						argStack:           []uint256.Int{},
+						argOpCode:          int(PUSH1),
+						argContractAddress: contractAddress,
+						"sp":               0,
 					},
 				},
 				{
-					name: "ExecuteState",
+					name: executeStateCall,
 					args: map[string]interface{}{
-						"contractAddress": contractAddress,
-						"ip":              uint64(0),
-						"opcode":          opCodeToString[PUSH1],
-						"availableGas":    uint64(5000),
-						"cost":            uint64(3),
-						"lastReturnData":  []byte{},
-						"depth":           1,
-						"err":             (error)(nil),
+						argContractAddress: contractAddress,
+						"ip":               uint64(0),
+						argOpcode:          opCodeToString[PUSH1],
+						argAvailableGas:    uint64(5000),
+						argCost:            uint64(3),
+						argLastReturnData:  []byte{},
+						argDepth:           1,
+						argErr:             (error)(nil),
 					},
 				},
 				{
-					name: "CaptureState",
+					name: captureStateCall,
 					args: map[string]interface{}{
-						"memory": []byte{},
-						"stack": []uint256.Int{
+						argMemory: []byte{},
+						argStack: []uint256.Int{
 							*uint256.NewInt(1),
 						},
-						"opCode":          int(0),
-						"contractAddress": contractAddress,
-						"sp":              1,
+						argOpCode:          int(0),
+						argContractAddress: contractAddress,
+						"sp":               1,
 					},
 				},
 			},
@@ -373,26 +388,26 @@ func TestRunWithTracer(t *testing.T) {
 			},
 			expected: []mockCall{
 				{
-					name: "CaptureState",
+					name: captureStateCall,
 					args: map[string]interface{}{
-						"memory":          []byte{},
-						"stack":           []uint256.Int{},
-						"opCode":          int(POP),
-						"contractAddress": contractAddress,
-						"sp":              0,
+						argMemory:          []byte{},
+						argStack:           []uint256.Int{},
+						argOpCode:          int(POP),
+						argContractAddress: contractAddress,
+						"sp":               0,
 					},
 				},
 				{
-					name: "ExecuteState",
+					name: executeStateCall,
 					args: map[string]interface{}{
-						"contractAddress": contractAddress,
-						"ip":              uint64(0),
-						"opcode":          opCodeToString[POP],
-						"availableGas":    uint64(5000),
-						"cost":            uint64(2),
-						"lastReturnData":  []byte{},
-						"depth":           1,
-						"err":             &runtime.StackUnderflowError{StackLen: 0, Required: 1},
+						argContractAddress: contractAddress,
+						"ip":               uint64(0),
+						argOpcode:          opCodeToString[POP],
+						argAvailableGas:    uint64(5000),
+						argCost:            uint64(2),
+						argLastReturnData:  []byte{},
+						argDepth:           1,
+						argErr:             &runtime.StackUnderflowError{StackLen: 0, Required: 1},
 					},
 				},
 			},
