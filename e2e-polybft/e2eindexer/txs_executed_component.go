@@ -263,7 +263,6 @@ func (b *TxsExecutedComponentCardano) RollForward(
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	//nolint:prealloc
 	var txs []string
 
 	for _, txFromBlock := range allRetrievedTxs {

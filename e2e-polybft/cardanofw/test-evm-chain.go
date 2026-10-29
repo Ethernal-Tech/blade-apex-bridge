@@ -603,7 +603,7 @@ func NewTestEVMChain(config *TestEVMChainConfig) (ITestApexChain, error) {
 		}
 
 		return NewTestApexChainDummy([]string{
-			getFlag("node-url"), "http://localhost:5500",
+			getFlag("node-url"), localhostURL,
 		}), nil
 	}
 
@@ -734,17 +734,17 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context, chainIDsConfi
 			token, tokenAddr, ec.ChainID())
 
 		params := []string{
-			"bridge-admin",
+			bridgeAdminCommand,
 			"register-gateway-token",
-			"--chain", ec.ChainID(),
-			"--chain-ids-config", chainIDsConfig,
+			chainFlag, ec.ChainID(),
+			chainIDsConfigFlag, chainIDsConfig,
 			"--node-url", ec.jsonRPCAddr,
-			"--key", hex.EncodeToString(pk),
-			"--gateway-addr", ec.gatewayAddr.String(),
+			keyFlag, hex.EncodeToString(pk),
+			gatewayAddrFlag, ec.gatewayAddr.String(),
 			"--token-sc-addr", tokenAddr.String(),
-			"--token-id", fmt.Sprint(token.ID),
-			"--token-name", token.Name,
-			"--token-symbol", token.Symbol,
+			tokenIDFlag, fmt.Sprint(token.ID),
+			tokenNameFlag, token.Name,
+			tokenSymbolFlag, token.Symbol,
 		}
 
 		if err := retry(ctx, "", func() error {
@@ -760,17 +760,17 @@ func (ec *TestEVMChain) DeployMintingContract(ctx context.Context, chainIDsConfi
 
 	for _, token := range ec.config.MintTokens {
 		params := []string{
-			"bridge-admin",
+			bridgeAdminCommand,
 			"register-gateway-token",
-			"--chain", ec.ChainID(),
+			chainFlag, ec.ChainID(),
 			"--node-url", ec.jsonRPCAddr,
-			"--chain-ids-config", chainIDsConfig,
-			"--key", hex.EncodeToString(pk),
-			"--gateway-addr", ec.gatewayAddr.String(),
+			chainIDsConfigFlag, chainIDsConfig,
+			keyFlag, hex.EncodeToString(pk),
+			gatewayAddrFlag, ec.gatewayAddr.String(),
 			"--token-sc-addr", "0x0000000000000000000000000000000000000000",
-			"--token-id", fmt.Sprint(token.ID),
-			"--token-name", token.Name,
-			"--token-symbol", token.Symbol,
+			tokenIDFlag, fmt.Sprint(token.ID),
+			tokenNameFlag, token.Name,
+			tokenSymbolFlag, token.Symbol,
 		}
 
 		if err := retry(ctx, "", func() error {
@@ -897,7 +897,7 @@ func (ec *TestEVMChain) FundUsersWithToken(address string, amount *big.Int, toke
 	}
 
 	// Encode mint(address, uint256) call
-	mintMethod := contractsapi.SimpleERC20.Abi.Methods["mint"]
+	mintMethod := contractsapi.SimpleERC20.Abi.Methods[mintName]
 	if mintMethod == nil {
 		return fmt.Errorf("mint method not found in SimpleERC20 ABI")
 	}
@@ -1013,19 +1013,19 @@ func (ec *TestEVMChain) InitContracts(
 	workingDirectory := filepath.Join(os.TempDir(), "deploy-apex-bridge-evm-gateway")
 
 	params := []string{
-		"deploy-evm",
-		"--url", ec.jsonRPCAddr,
-		"--key", hex.EncodeToString(pk),
-		"--chain", ec.ChainID(),
-		"--chain-ids-config", chainIDsConfig,
-		"--bridge-url", bridgeURL,
-		"--bridge-addr", contracts.Bridge.String(),
+		deployEvmCommand,
+		urlFlag, ec.jsonRPCAddr,
+		keyFlag, hex.EncodeToString(pk),
+		chainFlag, ec.ChainID(),
+		chainIDsConfigFlag, chainIDsConfig,
+		bridgeURLFlag, bridgeURL,
+		bridgeAddrFlag, contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
 		"--dir", workingDirectory,
 		"--min-fee", ec.config.MinBridgingFee.String(),
-		"--min-bridging-amount", ec.config.MinBridgingAmount.String(),
+		minBridgingAmountFlag, ec.config.MinBridgingAmount.String(),
 		"--min-token-bridging-amount", ec.config.MinTokenBridgingAmount.String(),
-		"--min-operation-fee", ec.config.MinOperationFee.String(),
+		minOperationFeeFlag, ec.config.MinOperationFee.String(),
 		"--currency-token-id", fmt.Sprint(ec.config.CurrencyID),
 		"--treasury-addr", ec.config.TreasuryAddress,
 		"--clone",
@@ -1082,16 +1082,16 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
 
 	args := []string{
-		"generate-configs", "evm-chain",
-		"--chain-id", ec.ChainID(),
+		generateConfigsCommand, "evm-chain",
+		chainIDFlag, ec.ChainID(),
 		"--evm-node-url", server.JSONRPCAddr(),
-		"--output-dir", validator.GetBridgingConfigsDir(),
-		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
-		"--output-relayer-file-name", RelayerConfigFileName,
-		"--dbs-path", dbsPath,
+		outputDirFlag, validator.GetBridgingConfigsDir(),
+		outputValidatorComponentsFileNameFlag, ValidatorComponentsConfigFileName,
+		outputRelayerFileNameFlag, RelayerConfigFileName,
+		dbsPathFlag, dbsPath,
 		"--relayer-data-dir", validator.server.DataDir(),
 		"--evm-min-fee-for-bridging", ec.config.MinBridgingFee.String(),
-		"--min-operation-fee", ec.config.MinOperationFee.String(),
+		minOperationFeeFlag, ec.config.MinOperationFee.String(),
 		"--evm-confirmation-strategy", ec.confirmationStrategy(),
 	}
 
@@ -1239,10 +1239,10 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 		params = []string{
 			"sendtx",
 			"--tx-type", "evm",
-			"--chain-ids-config", brParams.ChainIDsConfig,
-			"--gateway-addr", ec.gatewayAddr.String(),
+			chainIDsConfigFlag, brParams.ChainIDsConfig,
+			gatewayAddrFlag, ec.gatewayAddr.String(),
 			"--rpc-url", ec.jsonRPCAddr,
-			"--key", brParams.PrivateKey,
+			keyFlag, brParams.PrivateKey,
 			"--chain-src", ec.config.ChainID,
 			"--chain-dst", brParams.DestChainID,
 			"--fee", brParams.FeeAmount.String(),
@@ -1250,7 +1250,7 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 		}
 
 		if IsCardanoTypeChain(brParams.DestChainID) {
-			params = append(params, "--cardano-cli-binary-name", ResolveCardanoCliBinary(brParams.DestChainID))
+			params = append(params, cardanoCliBinaryNameFlag, ResolveCardanoCliBinary(brParams.DestChainID))
 		}
 	} else {
 		receiverTokenID := uint16(0)
@@ -1274,10 +1274,10 @@ func (ec *TestEVMChain) BridgingRequest(brParams BridgingRequestParams) (string,
 			"sendtx",
 			"skyline",
 			"evm",
-			"--chain-ids-config", brParams.ChainIDsConfig,
-			"--gateway-addr", ec.gatewayAddr.String(),
+			chainIDsConfigFlag, brParams.ChainIDsConfig,
+			gatewayAddrFlag, ec.gatewayAddr.String(),
 			"--rpc-url", ec.jsonRPCAddr,
-			"--key", brParams.PrivateKey,
+			keyFlag, brParams.PrivateKey,
 			"--chain-src", ec.config.ChainID,
 			"--chain-dst", brParams.DestChainID,
 			"--fee", brParams.FeeAmount.String(),

@@ -391,7 +391,7 @@ func blockStreamToChannel(stream proto.SyncPeer_GetBlocksClient) (<-chan *types.
 
 			block, err := fromProto(protoBlock)
 			if err != nil {
-				metrics.IncrCounter([]string{syncerMetrics, "bad_block"}, 1)
+				metrics.IncrCounter([]string{syncerMetrics, badBlockMetric}, 1)
 				errorCh <- err
 
 				break

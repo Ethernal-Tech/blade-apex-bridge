@@ -45,15 +45,15 @@ func FuzzDispatcherFuncDecode(f *testing.F) {
 		msg string
 	}{
 		{
-			"block",
+			blockString,
 			`["earliest"]`,
 		},
 		{
-			"block",
+			blockString,
 			`["latest"]`,
 		},
 		{
-			"block",
+			blockString,
 			`["0x1"]`,
 		},
 		{
@@ -61,11 +61,11 @@ func FuzzDispatcherFuncDecode(f *testing.F) {
 			`["` + addr1.String() + `"]`,
 		},
 		{
-			"blockPtr",
+			blockPtrString,
 			`["a"]`,
 		},
 		{
-			"blockPtr",
+			blockPtrString,
 			`["a", "latest"]`,
 		},
 		{
@@ -73,15 +73,15 @@ func FuzzDispatcherFuncDecode(f *testing.F) {
 			`[{"fromBlock": "pending", "toBlock": "earliest"}]`,
 		},
 		{
-			"block",
+			blockString,
 			"[\"8\"]",
 		},
 		{
-			"block",
+			blockString,
 			"[\"009\"]",
 		},
 		{
-			"block",
+			blockString,
 			"10",
 		},
 	}

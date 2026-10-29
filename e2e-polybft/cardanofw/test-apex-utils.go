@@ -45,6 +45,55 @@ const (
 
 	MintNFTTokenName = "custodial_nft_token"
 	MintNFTAmount    = uint64(1)
+
+	configFlag                            = "--config"
+	bridgeURLFlag                         = "--bridge-url"
+	bridgeAddrFlag                        = "--bridge-addr"
+	chainFlag                             = "--chain"
+	keyFlag                               = "--key"
+	testnetMagicFlag                      = "--testnet-magic"
+	validatorDataDirFlag                  = "--validator-data-dir"
+	networkIDFlag                         = "--network-id"
+	chainIDsConfigFlag                    = "--chain-ids-config"
+	chainIDFlag                           = "--chain-id"
+	outputDirFlag                         = "--output-dir"
+	outputValidatorComponentsFileNameFlag = "--output-validator-components-file-name"
+	outputRelayerFileNameFlag             = "--output-relayer-file-name"
+	dbsPathFlag                           = "--dbs-path"
+	urlFlag                               = "--url"
+	tokenNameFlag                         = "--token-name"
+	tokenSymbolFlag                       = "--token-symbol"
+	tokenIDFlag                           = "--token-id"
+	amountFlag                            = "--amount"
+	ownerFlag                             = "--owner"
+	typeFlag                              = "--type"
+	minOperationFeeFlag                   = "--min-operation-fee"
+	minFeeForBridgingFlag                 = "--min-fee-for-bridging"
+	minBridgingAmountFlag                 = "--min-bridging-amount"
+	cardanoCliBinaryNameFlag              = "--cardano-cli-binary-name"
+	treasuryAddressFlag                   = "--treasury-address"
+	showPkFlag                            = "--show-pk"
+	programIDFlag                         = "--program-id"
+	gatewayAddrFlag                       = "--gateway-addr"
+	feePayerFlag                          = "--fee-payer"
+	adminKeyFlag                          = "--admin-key"
+	confirmationTimeoutSecondsFlag        = "--confirmation-timeout-seconds"
+
+	genesisCommand         = "genesis"
+	generateConfigsCommand = "generate-configs"
+	bridgeAdminCommand     = "bridge-admin"
+	deployEvmCommand       = "deploy-evm"
+	deploySolanaCommand    = "deploy-solana"
+	walletCreateCommand    = "wallet-create"
+
+	setAdditionalDependenciesAndSyncMethod = "setAdditionalDependenciesAndSync"
+	mintName                               = "mint"
+	trueValue                              = "true"
+
+	localhostURL          = "http://localhost:5500"
+	primeTestnetRelayAddr = "relay-0.prime.testnet.apexfusion.org:5521"
+	primeTestnetOgmiosURL = "http://ogmios.prime.testnet.apexfusion.org:1337"
+	nexusTestnetRPCURL    = "https://rpc.nexus.testnet.apexfusion.org"
 )
 
 var (
@@ -165,7 +214,7 @@ func runCommand(cmd *exec.Cmd, stdout io.Writer, envVariables ...string) error {
 }
 
 func LoadJSON[TReturn any](path string) (*TReturn, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // e2e framework reads local test config paths
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %v. error: %w", path, err)
 	}
@@ -400,7 +449,7 @@ func GetTestNetMagicArgs(testnetMagic uint) []string {
 		return []string{"--mainnet"}
 	}
 
-	return []string{"--testnet-magic", strconv.FormatUint(uint64(testnetMagic), 10)}
+	return []string{testnetMagicFlag, strconv.FormatUint(uint64(testnetMagic), 10)}
 }
 
 func tryResolveFromEnv(env, name string) string {
@@ -441,7 +490,7 @@ func GetLogsFile(t *testing.T, filePath string, withStdout bool) io.Writer {
 }
 
 func IsEnvVarTrue(name string) bool {
-	return strings.ToLower(os.Getenv(name)) == "true"
+	return strings.ToLower(os.Getenv(name)) == trueValue
 }
 
 func ShouldSkipE2RRedundantTests() bool {
@@ -833,14 +882,14 @@ func MintToken(
 	chain *TestCardanoChain, minterWallet *wallet.Wallet, tokenName string, mintDfmAmount *big.Int,
 ) error {
 	args := []string{
-		"bridge-admin", "mint-native-token",
-		"--key", hex.EncodeToString(minterWallet.SigningKey),
+		bridgeAdminCommand, "mint-native-token",
+		keyFlag, hex.EncodeToString(minterWallet.SigningKey),
 		"--ogmios", chain.ogmiosURL,
 		"--network-id", fmt.Sprintf("%v", chain.config.NetworkType),
 		"--testnet-magic", fmt.Sprintf("%v", chain.config.NetworkMagic),
-		"--token-name", tokenName,
-		"--amount", mintDfmAmount.String(),
-		"--cardano-cli-binary-name", ResolveCardanoCliBinary(chain.ChainID()),
+		tokenNameFlag, tokenName,
+		amountFlag, mintDfmAmount.String(),
+		cardanoCliBinaryNameFlag, ResolveCardanoCliBinary(chain.ChainID()),
 	}
 
 	if len(minterWallet.StakeSigningKey) > 0 {

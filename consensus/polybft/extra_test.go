@@ -376,7 +376,7 @@ func TestSignature_Verify(t *testing.T) {
 		validatorsMetadata := vals.GetPublicIdentities()
 		validatorSet := vals.ToValidatorSet()
 
-		var signatures bn256.Signatures
+		signatures := make(bn256.Signatures, 0, len(vals.GetValidators()))
 
 		bitmap := bitmap.Bitmap{}
 		signers := make(map[types.Address]struct{}, len(validatorsMetadata))
@@ -461,10 +461,9 @@ func TestSignature_VerifyRandom(t *testing.T) {
 	vals := validator.NewTestValidators(t, numValidators)
 	msgHash := types.Hash{0x1}
 
-	var signature bn256.Signatures
-
 	bitmap := bitmap.Bitmap{}
 	valIndxsRnd := mrand.Perm(numValidators)[:numValidators*2/3+1]
+	signature := make(bn256.Signatures, 0, len(valIndxsRnd))
 
 	accounts := vals.GetValidators()
 
