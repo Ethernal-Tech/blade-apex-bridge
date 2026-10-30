@@ -1969,7 +1969,7 @@ func (sc *TestSolanaChain) UpgradeProgram(ctx context.Context) error {
 		"--key", filepath.Join("..", "..", solanaProgramDir, solanaProgramKeypairPath),
 		"--build-path", filepath.Join("..", "..", solanaProgramDir, solanaProgramBuildPath),
 		"--program-id", sc.programID,
-		"--upgrade-program-version", "0.3.0",
+		"--upgrade-program-version", "0.4.0",
 		"--admin-key", adminPkFile.Name(),
 		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 		"--commitment", "finalized",
