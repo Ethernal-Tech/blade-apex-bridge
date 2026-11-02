@@ -54,6 +54,10 @@ const (
 	solanaFixedSupplyMintAmount = "1000000000000000"
 )
 
+// anchorEventIxTag is Anchor's EVENT_IX_TAG (0x1d9acb512ea545e4) in little-endian, the prefix of the
+// instruction data of the self-CPI through which emit_cpi! emits an event.
+var anchorEventIxTag = []byte{0xe4, 0x45, 0xa5, 0x2e, 0x51, 0xcb, 0x9a, 0x1d}
+
 type TestSolanaChainConfig struct {
 	ChainID             string
 	IsEnabled           bool
@@ -265,9 +269,10 @@ func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string
 }
 
 // BridgingRequestWithFailingInstruction sends a bridging request followed by an instruction that always fails.
-// The whole transaction reverts on chain (nothing is locked), but its log messages still contain the
-// BridgeRequestEvent emitted by bridge_request before the failure. Preflight is skipped so the failed
-// transaction lands on chain. Returns the signature once the failed transaction is finalized.
+// The whole transaction reverts on chain (nothing is locked), but its inner instructions still contain the
+// emit_cpi! self-CPI carrying the BridgeRequestEvent emitted by bridge_request before the failure. Preflight
+// is skipped so the failed transaction lands on chain. Returns the signature once the failed transaction is
+// finalized.
 func (sc *TestSolanaChain) BridgingRequestWithFailingInstruction(params BridgingRequestParams) (string, error) {
 	txProvider, err := sc.GetTxProvider()
 	if err != nil {
@@ -338,13 +343,17 @@ func (sc *TestSolanaChain) BridgingRequestWithFailingInstruction(params Bridging
 				return "", fmt.Errorf("transaction %s was expected to fail but succeeded", sig)
 			}
 
-			for _, log := range txResult.Meta.LogMessages {
-				if strings.Contains(log, "Program data: ") {
-					return sig.String(), nil
-				}
+			hasEvent, err := sc.hasEmitCPIEvent(txResult)
+			if err != nil {
+				return "", fmt.Errorf("read events of transaction %s: %w", sig, err)
 			}
 
-			return "", fmt.Errorf("failed transaction %s has no event in logs: %v", sig, txResult.Meta.LogMessages)
+			if hasEvent {
+				return sig.String(), nil
+			}
+
+			return "", fmt.Errorf("failed transaction %s has no event in inner instructions: %v",
+				sig, txResult.Meta.LogMessages)
 		} else if err != nil && !errors.Is(err, rpc.ErrNotFound) {
 			return "", fmt.Errorf("get transaction %s: %w", sig, err)
 		}
@@ -357,6 +366,33 @@ func (sc *TestSolanaChain) BridgingRequestWithFailingInstruction(params Bridging
 		case <-time.After(time.Second):
 		}
 	}
+}
+
+// hasEmitCPIEvent reports whether the transaction's inner instructions contain an emit_cpi! self-CPI of the
+// bridge program, i.e. an event the tracker would read.
+func (sc *TestSolanaChain) hasEmitCPIEvent(txResult *rpc.GetTransactionResult) (bool, error) {
+	tx, err := txResult.Transaction.GetTransaction()
+	if err != nil {
+		return false, fmt.Errorf("decode transaction: %w", err)
+	}
+
+	programID, err := solana.PublicKeyFromBase58(sc.programID)
+	if err != nil {
+		return false, fmt.Errorf("parse program id: %w", err)
+	}
+
+	keys := tx.Message.AccountKeys
+
+	for _, group := range txResult.Meta.InnerInstructions {
+		for _, ix := range group.Instructions {
+			if int(ix.ProgramIDIndex) < len(keys) && keys[ix.ProgramIDIndex].Equals(programID) &&
+				bytes.HasPrefix(ix.Data, anchorEventIxTag) {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
 }
 
 // DeployMaliciousLoggerProgram deploys the security-test fixture program (solanafw/malicious_logger.so)

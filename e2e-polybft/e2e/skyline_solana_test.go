@@ -1717,8 +1717,9 @@ func Test_SkylineSolana_SecurityTesting(t *testing.T) {
 
 	solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
 
-	// A failed transaction keeps the logs written before the failure, so a bridge_request followed by an
-	// always failing instruction leaves a BridgeRequestEvent in the logs while nothing is locked on Solana.
+	// A failed transaction keeps the inner instructions executed before the failure, so a bridge_request
+	// followed by an always failing instruction leaves the emit_cpi! BridgeRequestEvent in its metadata
+	// while nothing is locked on Solana.
 	// The bridge must ignore such a transaction and not release funds on the destination chain.
 	t.Run("failed tx with bridging event", func(t *testing.T) {
 		tokensInfo, err := apex.GetBridgingTokensInfo(cardanofw.ChainIDSolana, cardanofw.ChainIDVector, cardanofw.WSOLTokenID)
