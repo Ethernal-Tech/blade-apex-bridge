@@ -332,7 +332,7 @@ func NewTestCardanoChain(config *TestCardanoChainConfig) ITestApexChain {
 			getFlag("network-address"), "localhost:1000",
 			getFlag("network-magic"), fmt.Sprint(config.NetworkMagic),
 			getFlag("network-id"), fmt.Sprint(config.NetworkType),
-			getFlag("ogmios-url"), "http://localhost:5500",
+			getFlag("ogmios-url"), localhostURL,
 		})
 	}
 
@@ -438,15 +438,15 @@ func (ec *TestCardanoChain) DeployMintingContract(_ context.Context, _ string) e
 	}
 
 	args := []string{
-		"bridge-admin", "deploy-cardano-script",
-		"--key", hex.EncodeToString(minterWallet.SigningKey),
+		bridgeAdminCommand, "deploy-cardano-script",
+		keyFlag, hex.EncodeToString(minterWallet.SigningKey),
 		"--ogmios", ec.ogmiosURL,
 		"--network-id", fmt.Sprint(ec.config.NetworkType),
 		"--testnet-magic", fmt.Sprint(ec.config.NetworkMagic),
 		"--nft-policy-id", custodialNFT.PolicyID,
 		"--nft-name-hex", hex.EncodeToString([]byte(custodialNFT.Name)),
 		"--plutus-script-dir", filepath.Join("..", "..", cardanoSmartContractDir),
-		"--cardano-cli-binary-name", ResolveCardanoCliBinary(ec.ChainID()),
+		cardanoCliBinaryNameFlag, ResolveCardanoCliBinary(ec.ChainID()),
 	}
 
 	var outb bytes.Buffer
@@ -512,14 +512,14 @@ func (ec *TestCardanoChain) CreateAddresses(
 
 	args := []string{
 		"create-addresses",
-		"--chain-ids-config", chainIDsConfig,
-		"--network-id", fmt.Sprint(ec.config.NetworkType),
-		"--testnet-magic", fmt.Sprint(ec.config.NetworkMagic),
-		"--bridge-url", bridgeURL,
-		"--bridge-addr", contracts.Bridge.String(),
+		chainIDsConfigFlag, chainIDsConfig,
+		networkIDFlag, fmt.Sprint(ec.config.NetworkType),
+		testnetMagicFlag, fmt.Sprint(ec.config.NetworkMagic),
+		bridgeURLFlag, bridgeURL,
+		bridgeAddrFlag, contracts.Bridge.String(),
 		"--bridge-key", hex.EncodeToString(bridgeAdminPk),
-		"--chain", ec.ChainID(),
-		"--cardano-cli-binary-name", ResolveCardanoCliBinary(ec.ChainID()),
+		chainFlag, ec.ChainID(),
+		cardanoCliBinaryNameFlag, ResolveCardanoCliBinary(ec.ChainID()),
 	}
 
 	if custodialAddressGeneration {
@@ -699,20 +699,20 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
 
 	args := []string{
-		"generate-configs", "cardano-chain",
-		"--chain-id", ec.ChainID(),
+		generateConfigsCommand, "cardano-chain",
+		chainIDFlag, ec.ChainID(),
 		"--network-address", server.NetworkAddress(),
 		"--network-magic", fmt.Sprint(ec.config.NetworkMagic),
-		"--network-id", fmt.Sprint(ec.config.NetworkType),
+		networkIDFlag, fmt.Sprint(ec.config.NetworkType),
 		"--ogmios-url", ec.ogmiosURL,
 		"--utxo-min-amount", WeiToDfm(MinUTxODefaultValue).String(),
-		"--output-dir", validator.GetBridgingConfigsDir(),
-		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
-		"--output-relayer-file-name", RelayerConfigFileName,
-		"--dbs-path", dbsPath,
-		"--min-fee-for-bridging", fmt.Sprint(ec.config.DefaultMinBridgingFee),
-		"--min-operation-fee", fmt.Sprint(ec.config.MinOperationFee),
-		"--cardano-cli-binary-name", ResolveCardanoCliBinary(ec.ChainID()),
+		outputDirFlag, validator.GetBridgingConfigsDir(),
+		outputValidatorComponentsFileNameFlag, ValidatorComponentsConfigFileName,
+		outputRelayerFileNameFlag, RelayerConfigFileName,
+		dbsPathFlag, dbsPath,
+		minFeeForBridgingFlag, fmt.Sprint(ec.config.DefaultMinBridgingFee),
+		minOperationFeeFlag, fmt.Sprint(ec.config.MinOperationFee),
+		cardanoCliBinaryNameFlag, ResolveCardanoCliBinary(ec.ChainID()),
 	}
 
 	if ec.config.CustodialNFT != nil {
@@ -747,7 +747,7 @@ func (ec *TestCardanoChain) GenerateChainConfigs(
 	}
 
 	if ec.config.TreasuryAddress != "" {
-		args = append(args, "--treasury-address", ec.config.TreasuryAddress)
+		args = append(args, treasuryAddressFlag, ec.config.TreasuryAddress)
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)

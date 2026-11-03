@@ -27,6 +27,19 @@ import (
 	"google.golang.org/grpc"
 )
 
+const (
+	amountFlag        = "--amount"
+	descriptionFlag   = "--description"
+	jsonRPCFlag       = "--jsonrpc"
+	jsonRPCHyphenFlag = "--json-rpc"
+	erc20TokenFlag    = "--erc20-token" //nolint:gosec // CLI flag name, not a credential
+	privateKeyFlag    = "--private-key"
+	bridgeCommand     = "bridge"
+	fundCommand       = "fund"
+	validatorCommand  = "validator"
+	proposalCommand   = "proposal"
+)
+
 type TestServerConfig struct {
 	Name                  string
 	JSONRPCPort           int64
@@ -170,7 +183,7 @@ func (t *TestServer) Start() error {
 		// grpc port
 		"--grpc-address", fmt.Sprintf("localhost:%d", config.GRPCPort),
 		// enable jsonrpc
-		"--jsonrpc", fmt.Sprintf(":%d", config.JSONRPCPort),
+		jsonRPCFlag, fmt.Sprintf(":%d", config.JSONRPCPort),
 		// minimal number of child blocks required for the parent block to be considered final
 		"--num-block-confirmations", strconv.FormatUint(config.NumBlockConfirmations, 10),
 		// TLS certificate file
@@ -237,9 +250,9 @@ func (t *TestServer) RootchainFundFor(accounts []types.Address, amounts []*big.I
 	}
 
 	args := []string{
-		"bridge",
-		"fund",
-		"--jsonrpc", t.BridgeJSONRPCAddr(),
+		bridgeCommand,
+		fundCommand,
+		jsonRPCFlag, t.BridgeJSONRPCAddr(),
 	}
 
 	for i := 0; i < len(accounts); i++ {
@@ -262,11 +275,11 @@ func (t *TestServer) RootchainFundFor(accounts []types.Address, amounts []*big.I
 // Stake stakes given amount to validator account encapsulated by given server instance
 func (t *TestServer) Stake(stakeTokenAddr types.Address, amount *big.Int) error {
 	args := []string{
-		"validator",
+		validatorCommand,
 		"stake",
-		"--jsonrpc", t.JSONRPCAddr(),
+		jsonRPCFlag, t.JSONRPCAddr(),
 		"--" + polybftsecrets.AccountDirFlag, t.config.DataDir,
-		"--amount", amount.String(),
+		amountFlag, amount.String(),
 	}
 
 	if stakeTokenAddr != types.ZeroAddress {
@@ -279,11 +292,11 @@ func (t *TestServer) Stake(stakeTokenAddr types.Address, amount *big.Int) error 
 // Unstake unstakes given amount from validator account encapsulated by given server instance
 func (t *TestServer) Unstake(amount *big.Int) error {
 	args := []string{
-		"validator",
+		validatorCommand,
 		"unstake",
 		"--" + polybftsecrets.AccountDirFlag, t.config.DataDir,
-		"--jsonrpc", t.JSONRPCAddr(),
-		"--amount", amount.String(),
+		jsonRPCFlag, t.JSONRPCAddr(),
+		amountFlag, amount.String(),
 	}
 
 	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("unstake"))
@@ -292,11 +305,11 @@ func (t *TestServer) Unstake(amount *big.Int) error {
 // RegisterValidator is a wrapper function which registers new validator
 func (t *TestServer) RegisterValidatorWithStake(amount *big.Int) error {
 	args := []string{
-		"validator",
+		validatorCommand,
 		"register-validator",
 		"--" + polybftsecrets.AccountDirFlag, t.DataDir(),
-		"--jsonrpc", t.JSONRPCAddr(),
-		"--amount", amount.String(),
+		jsonRPCFlag, t.JSONRPCAddr(),
+		amountFlag, amount.String(),
 	}
 
 	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("validator"))
@@ -304,12 +317,14 @@ func (t *TestServer) RegisterValidatorWithStake(amount *big.Int) error {
 
 // WhitelistValidators invokes whitelist-validators helper CLI command that whitelists validators
 func (t *TestServer) WhitelistValidators(addresses []string) error {
-	args := []string{
-		"validator",
+	args := make([]string, 0, 6+2*len(addresses))
+	args = append(args,
+		validatorCommand,
 		"whitelist-validators",
-		"--" + polybftsecrets.AccountDirFlag, t.config.DataDir,
-		"--jsonrpc", t.JSONRPCAddr(),
-	}
+		"--"+polybftsecrets.AccountDirFlag, t.config.DataDir,
+		jsonRPCFlag, t.JSONRPCAddr(),
+	)
+
 	for _, addr := range addresses {
 		args = append(args, "--addresses", addr)
 	}
@@ -331,9 +346,9 @@ func (t *TestServer) MintERC20Token(addresses []string, amounts []*big.Int, erc2
 
 	args := []string{
 		"mint-erc20",
-		"--jsonrpc", t.JSONRPCAddr(),
-		"--erc20-token", erc20Token.String(),
-		"--private-key", hex.EncodeToString(rawKey),
+		jsonRPCFlag, t.JSONRPCAddr(),
+		erc20TokenFlag, erc20Token.String(),
+		privateKeyFlag, hex.EncodeToString(rawKey),
 	}
 
 	for _, addr := range addresses {
@@ -350,10 +365,10 @@ func (t *TestServer) MintERC20Token(addresses []string, amounts []*big.Int, erc2
 // WitdhrawStake withdraws given amount of stake back to the validator address
 func (t *TestServer) WitdhrawStake() error {
 	args := []string{
-		"validator",
+		validatorCommand,
 		"withdraw",
 		"--" + polybftsecrets.AccountDirFlag, t.config.DataDir,
-		"--jsonrpc", t.JSONRPCAddr(),
+		jsonRPCFlag, t.JSONRPCAddr(),
 	}
 
 	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("withdraw"))
@@ -362,10 +377,10 @@ func (t *TestServer) WitdhrawStake() error {
 // WithdrawRewards withdraws pending rewards for given validator on RewardPool contract
 func (t *TestServer) WithdrawRewards() error {
 	args := []string{
-		"validator",
+		validatorCommand,
 		"withdraw-rewards",
 		"--" + polybftsecrets.AccountDirFlag, t.config.DataDir,
-		"--jsonrpc", t.JSONRPCAddr(),
+		jsonRPCFlag, t.JSONRPCAddr(),
 	}
 
 	return runCommand(t.clusterConfig.Binary, args, t.clusterConfig.GetStdout("withdraw-rewards"))

@@ -26,7 +26,7 @@ func (g *slotGauge) read() uint64 {
 // increase increases the height of the gauge by the specified slots amount.
 func (g *slotGauge) increase(slots uint64) {
 	newHeight := atomic.AddUint64(&g.height, slots)
-	metrics.SetGauge([]string{txPoolMetrics, "slots_used"}, float32(newHeight))
+	metrics.SetGauge([]string{txPoolMetrics, slotsUsedMetric}, float32(newHeight))
 }
 
 // increaseWithinLimit increases the height of the gauge by the specified slots amount only if the increased height is
@@ -41,7 +41,7 @@ func (g *slotGauge) increaseWithinLimit(slots uint64) (updated bool) {
 		}
 
 		if atomic.CompareAndSwapUint64(&g.height, old, newHeight) {
-			metrics.SetGauge([]string{txPoolMetrics, "slots_used"}, float32(newHeight))
+			metrics.SetGauge([]string{txPoolMetrics, slotsUsedMetric}, float32(newHeight))
 
 			return true
 		}
@@ -51,7 +51,7 @@ func (g *slotGauge) increaseWithinLimit(slots uint64) (updated bool) {
 // decrease decreases the height of the gauge by the specified slots amount.
 func (g *slotGauge) decrease(slots uint64) {
 	newHeight := atomic.AddUint64(&g.height, ^(slots - 1))
-	metrics.SetGauge([]string{txPoolMetrics, "slots_used"}, float32(newHeight))
+	metrics.SetGauge([]string{txPoolMetrics, slotsUsedMetric}, float32(newHeight))
 }
 
 // highPressure checks if the gauge level

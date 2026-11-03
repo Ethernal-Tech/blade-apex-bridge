@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/any"
+	anypb "github.com/golang/protobuf/ptypes/any"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-metrics"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -37,6 +37,12 @@ const (
 
 	// txPoolMetrics is a prefix used for txpool-related metrics
 	txPoolMetrics = "txpool"
+
+	// underpricedTxMetric is the name of the counter of rejected underpriced transactions
+	underpricedTxMetric = "underpriced_tx"
+
+	// slotsUsedMetric is the name of the gauge of occupied slots in the pool
+	slotsUsedMetric = "slots_used"
 )
 
 // errors
@@ -317,7 +323,7 @@ func (p *TxPool) gossipBatcher() {
 func (p *TxPool) publish(batch *[]*types.Transaction) {
 	txs := types.Transactions(*batch)
 	tx := &proto.Txn{
-		Raw: &any.Any{
+		Raw: &anypb.Any{
 			Value: txs.MarshalRLPTo(nil),
 		},
 	}
@@ -691,7 +697,7 @@ func (p *TxPool) validateTx(tx *types.Transaction) error {
 
 		// Check if the given tx is not underpriced (same as Legacy approach)
 		if tx.GetGasPrice(baseFee).Cmp(big.NewInt(0).SetUint64(p.priceLimit)) < 0 {
-			metrics.IncrCounter([]string{txPoolMetrics, "underpriced_tx"}, 1)
+			metrics.IncrCounter([]string{txPoolMetrics, underpricedTxMetric}, 1)
 			p.logger.Debug("access list tx is undepriced",
 				"gasPrice", tx.GetGasPrice(baseFee).String(),
 				"baseFee", baseFee,
@@ -710,7 +716,7 @@ func (p *TxPool) validateTx(tx *types.Transaction) error {
 
 		// Check EIP-1559-related fields and ensure they are correct
 		if tx.GasFeeCap() == nil || tx.GasTipCap() == nil {
-			metrics.IncrCounter([]string{txPoolMetrics, "underpriced_tx"}, 1)
+			metrics.IncrCounter([]string{txPoolMetrics, underpricedTxMetric}, 1)
 			p.logger.Debug("dynamic tx is undepriced because no fee cap or tip cap is set",
 				"baseFee", baseFee,
 				"priceLimit", p.priceLimit)
@@ -738,7 +744,7 @@ func (p *TxPool) validateTx(tx *types.Transaction) error {
 
 		// Reject underpriced transactions
 		if tx.GasFeeCap().Cmp(new(big.Int).SetUint64(baseFee)) < 0 {
-			metrics.IncrCounter([]string{txPoolMetrics, "underpriced_tx"}, 1)
+			metrics.IncrCounter([]string{txPoolMetrics, underpricedTxMetric}, 1)
 			p.logger.Debug("dynamic tx is undepriced",
 				"gasFeeCap", tx.GasFeeCap().String(),
 				"baseFee", baseFee,
@@ -750,7 +756,7 @@ func (p *TxPool) validateTx(tx *types.Transaction) error {
 	default:
 		// Legacy approach to check if the given tx is not underpriced when london hardfork is enabled
 		if forks.London && tx.GasPrice().Cmp(new(big.Int).SetUint64(baseFee)) < 0 {
-			metrics.IncrCounter([]string{txPoolMetrics, "underpriced_tx"}, 1)
+			metrics.IncrCounter([]string{txPoolMetrics, underpricedTxMetric}, 1)
 			p.logger.Debug("legacy tx is undepriced on london fork",
 				"gasPrice", tx.GasPrice().String(),
 				"baseFee", baseFee,
@@ -762,7 +768,7 @@ func (p *TxPool) validateTx(tx *types.Transaction) error {
 
 	if tx.GetGasPrice(baseFee).Cmp(new(big.Int).SetUint64(p.priceLimit)) < 0 {
 		// Make sure that the transaction is not underpriced
-		metrics.IncrCounter([]string{txPoolMetrics, "underpriced_tx"}, 1)
+		metrics.IncrCounter([]string{txPoolMetrics, underpricedTxMetric}, 1)
 
 		p.logger.Debug("tx is undepriced in regards to price limit",
 			"gasPrice", tx.GetGasPrice(baseFee).String(),
@@ -933,7 +939,7 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 		} else if oldTxWithSameNonce.GetGasPrice(p.baseFee).Cmp(
 			tx.GetGasPrice(p.baseFee)) >= 0 {
 			// if tx with same nonce does exist and has same or better gas price -> return error
-			metrics.IncrCounter([]string{txPoolMetrics, "underpriced_tx"}, 1)
+			metrics.IncrCounter([]string{txPoolMetrics, underpricedTxMetric}, 1)
 
 			return ErrReplacementUnderpriced
 		}

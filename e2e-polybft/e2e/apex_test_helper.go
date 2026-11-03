@@ -28,6 +28,8 @@ const (
 const (
 	bridgingMetaDataType sendtx.BridgingRequestType = "bridge"
 	metadataMapKey       int                        = 1
+
+	invalidCardanoAddr = "addr_test1invalidaddress"
 )
 
 type colCoinInvalidOpts struct {

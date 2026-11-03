@@ -15,7 +15,7 @@ on: # yamllint disable-line rule:truthy
 jobs:
   golangci_lint:
     name: Run Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       lint_output_failure: ${{ steps.lint_failure.outputs.lint_output }}
     steps:
@@ -30,9 +30,10 @@ jobs:
           go-version: ${{ vars.GOLANG_VERSION }}
           cache: false
       - name: Lint
-        uses: golangci/golangci-lint-action@v6.1.1
+        uses: golangci/golangci-lint-action@v9.3.0
         with:
-          args: --timeout 10m --verbose
+          version: v2.15.0
+          args: --timeout=10m --verbose
       - name: Lint Failed
         if: failure()
         id: lint_failure

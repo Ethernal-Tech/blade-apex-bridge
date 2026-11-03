@@ -26,7 +26,7 @@ on: # yamllint disable-line rule:truthy
 jobs:
   e2e_refund_skyline_bridge:
     name: Run E2E Refund-Skyline Bridge Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       E2E_TESTS: true
       E2E_LOGS: true
