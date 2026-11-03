@@ -434,7 +434,7 @@ func (s *Server) Peers() []*PeerConnInfo {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
-	peers := make([]*PeerConnInfo, 0)
+	peers := make([]*PeerConnInfo, 0, len(s.peers))
 	for _, connectionInfo := range s.peers {
 		peers = append(peers, connectionInfo)
 	}

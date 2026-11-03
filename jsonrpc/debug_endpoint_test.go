@@ -17,6 +17,16 @@ import (
 	"github.com/0xPolygon/polygon-edge/types"
 )
 
+const (
+	errNotFoundMsg          = "not found"
+	blockNotFoundCaseName   = "should return error if block not found"
+	headerNotFoundCase      = "HeaderNotFound"
+	blockNotFoundCase       = "BlockNotFound"
+	successCase             = "Success"
+	resultsValidCase        = "resultsValid"
+	blockByHashNotFoundCase = "BlockByHashNotFound"
+)
+
 type debugEndpointMockStore struct {
 	headerFn              func() *types.Header
 	getHeaderByNumberFn   func(uint64) (*types.Header, bool)
@@ -389,7 +399,7 @@ func TestPrintBlock(t *testing.T) {
 					return nil, false
 				},
 			},
-			returnErr: "not found",
+			returnErr: errNotFoundMsg,
 			result:    nil,
 			err:       true,
 		},
@@ -689,7 +699,7 @@ func TestTraceTransaction(t *testing.T) {
 			err:    true,
 		},
 		{
-			name:   "should return error if block not found",
+			name:   blockNotFoundCaseName,
 			txHash: testTxHash1,
 			config: &TraceConfig{},
 			store: &debugEndpointMockStore{
@@ -858,7 +868,7 @@ func TestTraceCall(t *testing.T) {
 			err:    false,
 		},
 		{
-			name: "should return error if block not found",
+			name: blockNotFoundCaseName,
 			arg:  txArg,
 			filter: BlockNumberOrHash{
 				BlockHash: &testHeader10.Hash,
@@ -936,7 +946,7 @@ func TestGetRawBlock(t *testing.T) {
 		err    bool
 	}{
 		{
-			name:   "HeaderNotFound",
+			name:   headerNotFoundCase,
 			filter: BlockNumberOrHash{},
 			store: &debugEndpointMockStore{
 				headerFn: func() *types.Header {
@@ -950,7 +960,7 @@ func TestGetRawBlock(t *testing.T) {
 			err:    true,
 		},
 		{
-			name:   "BlockNotFound",
+			name:   blockNotFoundCase,
 			filter: LatestBlockNumberOrHash,
 
 			store: &debugEndpointMockStore{
@@ -966,7 +976,7 @@ func TestGetRawBlock(t *testing.T) {
 			err:    true,
 		},
 		{
-			name:   "Success",
+			name:   successCase,
 			filter: LatestBlockNumberOrHash,
 			store: &debugEndpointMockStore{
 				headerFn: func() *types.Header {
@@ -1013,7 +1023,7 @@ func TestGetRawHeader(t *testing.T) {
 		err    bool
 	}{
 		{
-			name:   "HeaderNotFound",
+			name:   headerNotFoundCase,
 			filter: BlockNumberOrHash{BlockHash: &hash1},
 			store: &debugEndpointMockStore{
 				getBlockByHashFn: func(hash types.Hash, full bool) (*types.Block, bool) {
@@ -1024,7 +1034,7 @@ func TestGetRawHeader(t *testing.T) {
 			err:    true,
 		},
 		{
-			name:   "Success",
+			name:   successCase,
 			filter: LatestBlockNumberOrHash,
 			store: &debugEndpointMockStore{
 				headerFn: func() *types.Header {
@@ -1108,7 +1118,7 @@ func TestGetRawTransaction(t *testing.T) {
 			result: nil,
 		},
 		{
-			name:   "should return error if block not found",
+			name:   blockNotFoundCaseName,
 			txHash: testTxHash1,
 			store: &debugEndpointMockStore{
 				readTxLookupFn: func(hash types.Hash) (uint64, bool) {
@@ -1206,7 +1216,7 @@ func TestGetRawReceipts(t *testing.T) {
 		err       bool
 	}{
 		{
-			name:   "HeaderNotFound",
+			name:   headerNotFoundCase,
 			filter: EarliestBlockNumberOrHash,
 			store: &debugEndpointMockStore{
 				getHeaderByNumberFn: func(num uint64) (*types.Header, bool) {
@@ -1241,7 +1251,7 @@ func TestGetRawReceipts(t *testing.T) {
 			err:       true,
 		},
 		{
-			name:   "Success",
+			name:   successCase,
 			filter: LatestBlockNumberOrHash,
 			store: &debugEndpointMockStore{
 				headerFn: func() *types.Header {
@@ -1301,7 +1311,7 @@ func TestAccountRange(t *testing.T) {
 		err       bool
 	}{
 		{
-			name:   "HeaderNotFound",
+			name:   headerNotFoundCase,
 			filter: EarliestBlockNumberOrHash,
 			store: &debugEndpointMockStore{
 				getHeaderByNumberFn: func(num uint64) (*types.Header, bool) {
@@ -1316,7 +1326,7 @@ func TestAccountRange(t *testing.T) {
 			err:       true,
 		},
 		{
-			name:   "BlockNotFound",
+			name:   blockNotFoundCase,
 			filter: LatestBlockNumberOrHash,
 
 			store: &debugEndpointMockStore{
@@ -1424,7 +1434,7 @@ func TestDumpBlock(t *testing.T) {
 			err:         true,
 		},
 		{
-			name:        "BlockNotFound",
+			name:        blockNotFoundCase,
 			blockNumber: *LatestBlockNumberOrHash.BlockNumber,
 
 			store: &debugEndpointMockStore{
@@ -1551,7 +1561,7 @@ func TestGetAccessibleState(t *testing.T) {
 			err:       true,
 		},
 		{
-			name:  "HeaderNotFound",
+			name:  headerNotFoundCase,
 			start: *LatestBlockNumberOrHash.BlockNumber,
 			end:   BlockNumber(testHeader10.Number),
 
@@ -1594,7 +1604,7 @@ func TestGetAccessibleState(t *testing.T) {
 		},
 
 		{
-			name:  "resultsValid",
+			name:  resultsValidCase,
 			start: *LatestBlockNumberOrHash.BlockNumber,
 			end:   BlockNumber(testHeader10.Number),
 
@@ -1652,7 +1662,7 @@ func TestIntermediateRoots(t *testing.T) {
 		err       bool
 	}{
 		{
-			name:      "BlockByHashNotFound",
+			name:      blockByHashNotFoundCase,
 			blockHash: testLatestBlock.Hash(),
 			config:    &TraceConfig{},
 			store: &debugEndpointMockStore{
@@ -1664,7 +1674,7 @@ func TestIntermediateRoots(t *testing.T) {
 				},
 			},
 
-			returnErr: "not found",
+			returnErr: errNotFoundMsg,
 			result:    nil,
 			err:       true,
 		},
@@ -1690,7 +1700,7 @@ func TestIntermediateRoots(t *testing.T) {
 		},
 
 		{
-			name:      "resultsValid",
+			name:      resultsValidCase,
 			blockHash: testLatestBlock.Hash(),
 			config:    &TraceConfig{},
 			store: &debugEndpointMockStore{
@@ -1742,7 +1752,7 @@ func TestStorageRangeAt(t *testing.T) {
 		err                bool
 	}{
 		{
-			name:      "BlockByHashNotFound",
+			name:      blockByHashNotFoundCase,
 			blockHash: testLatestBlock.Hash(),
 			store: &debugEndpointMockStore{
 				getBlockByHashFn: func(hash types.Hash, full bool) (*types.Block, bool) {
@@ -1753,7 +1763,7 @@ func TestStorageRangeAt(t *testing.T) {
 				},
 			},
 
-			returnErr: "not found",
+			returnErr: errNotFoundMsg,
 			result:    nil,
 			err:       true,
 		},
@@ -1779,7 +1789,7 @@ func TestStorageRangeAt(t *testing.T) {
 		},
 
 		{
-			name:               "resultsValid",
+			name:               resultsValidCase,
 			blockHash:          testLatestBlock.Hash(),
 			storageRangeResult: state.StorageRangeResult{},
 			store: &debugEndpointMockStore{
@@ -1832,7 +1842,7 @@ func TestGetModifiedAccountsByHash(t *testing.T) {
 		err            bool
 	}{
 		{
-			name:           "BlockByHashNotFound",
+			name:           blockByHashNotFoundCase,
 			startblockHash: hash,
 			store: &debugEndpointMockStore{
 				getBlockByHashFn: func(hash types.Hash, full bool) (*types.Block, bool) {
@@ -1843,7 +1853,7 @@ func TestGetModifiedAccountsByHash(t *testing.T) {
 				},
 			},
 
-			returnErr: "not found",
+			returnErr: errNotFoundMsg,
 			result:    nil,
 			err:       true,
 		},
@@ -1933,7 +1943,7 @@ func TestGetModifiedAccountsByNumber(t *testing.T) {
 				},
 			},
 
-			returnErr: "not found",
+			returnErr: errNotFoundMsg,
 			result:    nil,
 			err:       true,
 		},

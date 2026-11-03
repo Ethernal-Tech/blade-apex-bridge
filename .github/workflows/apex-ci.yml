@@ -149,7 +149,7 @@ on: # yamllint disable-line rule:truthy
 jobs:
   inputs_check:
     name: Inputs Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       skip_redundant_tests: ${{ steps.redudant_test_input_check.outputs.skip_redundant_tests }}
       apex_bridge_ref: ${{ steps.apex_bridge_ref_input_check.outputs.apex_bridge_ref }}

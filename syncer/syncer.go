@@ -196,8 +196,8 @@ func (s *syncer) Sync(callback func(*types.FullBlock) bool) error {
 
 		// pick one best peer
 		bestPeer := s.peerMap.BestPeer(skipList)
-		if bestPeer == nil {
-			// Empty skipList map if there are no best peers
+		if bestPeer == nil || (localLatest >= 2 && bestPeer.Number <= localLatest-2) {
+			// Empty skipList map if there are no best peers or if the best peer is behind multiple blocks
 			skipList = make(map[peer.ID]bool)
 
 			continue
@@ -276,13 +276,13 @@ func (s *syncer) bulkSyncWithPeer(peerID peer.ID, peerLatestBlock uint64,
 
 			fullBlock, err := s.blockchain.VerifyFinalizedBlock(block)
 			if err != nil {
-				metrics.IncrCounter([]string{syncerMetrics, "bad_block"}, 1)
+				metrics.IncrCounter([]string{syncerMetrics, badBlockMetric}, 1)
 
 				return lastReceivedNumber, false, fmt.Errorf("unable to verify block, %w", err)
 			}
 
 			if err := s.blockchain.WriteFullBlock(fullBlock, syncerName); err != nil {
-				metrics.IncrCounter([]string{syncerMetrics, "bad_block"}, 1)
+				metrics.IncrCounter([]string{syncerMetrics, badBlockMetric}, 1)
 
 				return lastReceivedNumber, false, fmt.Errorf("failed to write block while bulk syncing: %w", err)
 			}

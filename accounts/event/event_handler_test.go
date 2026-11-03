@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	topic = "testTopic"
+	topic         = "testTopic"
+	testEventData = "testEvent"
 
 	TestEventType EventType = 0xff
 )
@@ -32,7 +33,7 @@ func TestSubscribeAndPublish(t *testing.T) {
 
 	ps.Subscribe(topic, eventChan)
 
-	event := TestEvent{Data: "testEvent"}
+	event := TestEvent{Data: testEventData}
 
 	ps.Publish(topic, event)
 
@@ -57,7 +58,7 @@ func TestUnsubscribe(t *testing.T) {
 
 	ps.Unsubscribe(topic, eventChan)
 
-	ps.Publish(topic, TestEvent{Data: "testEvent"})
+	ps.Publish(topic, TestEvent{Data: testEventData})
 
 	select {
 	case _, ok = <-eventChan:
@@ -80,7 +81,7 @@ func TestConcurrentAccess(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		ps.Publish(topic, TestEvent{Data: "testEvent"})
+		ps.Publish(topic, TestEvent{Data: testEventData})
 	}()
 
 	go func() {
@@ -113,7 +114,7 @@ func TestMultipleSubscribers(t *testing.T) {
 		ps.Subscribe(topic, channels[i])
 	}
 
-	event := TestEvent{Data: "testEvent"}
+	event := TestEvent{Data: testEventData}
 
 	ps.Publish(topic, event)
 

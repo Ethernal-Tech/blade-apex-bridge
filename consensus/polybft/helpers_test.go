@@ -39,7 +39,7 @@ func createRandomTestKeys(t *testing.T, numberOfKeys int) []*wallet.Key {
 func createSignature(t *testing.T, accounts []*wallet.Account, hash types.Hash, domain []byte) *Signature {
 	t.Helper()
 
-	var signatures bn256.Signatures
+	signatures := make(bn256.Signatures, 0, len(accounts))
 
 	var bmp bitmap.Bitmap
 	for i, x := range accounts {
