@@ -106,14 +106,15 @@ Code generation:
 
 Languages: Go.
 
-- Go 1.24.1 (toolchain go1.24.2)
+- Go 1.27.3 (per go.mod)
 
 ## Verification
 
 - Before a push: `make lint` (the fast gate).
 - Before a PR: `make lint build` (the full gate).
-- Build (go): `go vet ./...` (or `golangci-lint run`), `go test ./...` and `govulncheck ./...`,
-  each with `GOTOOLCHAIN=local`.
+- Tests: `make unit-test` (`go test -race -shuffle=on` over non-e2e packages); needs `solc`
+  0.5.5 as installed by `setup-ci.sh`, and cardano-node for the Cardano tests (see
+  `.github/workflows/unit-test.yml`).
 - Then ask Claude to run its verify skill: a Scenario, Layer, Outcome table from real output.
 - Results come from real output; anything not run is reported as not run.
 
@@ -121,8 +122,9 @@ Languages: Go.
 
 - Conventional commits, `<type>(<scope>): <summary>`. Why: the squash commit takes the PR
   title, and a readable history is the project's record of changes.
-- Claude verifies a task, then leaves its changes unstaged and names the files; the engineer
-  commits them. Why: the engineer owns every commit.
+- In local sessions, Claude verifies a task, then leaves its changes unstaged and names the
+  files; the engineer commits them (the `@claude` GitHub workflow may commit to the PR branch).
+  Why: the engineer owns every commit.
 - New environment variables go into `.env.example` with a name and no value. Why: secrets stay
   out of git and out of the model's context.
 - Adopt the newest stable release of a dependency; fix the code instead of pinning back. Why:
