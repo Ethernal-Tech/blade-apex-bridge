@@ -78,6 +78,7 @@ const (
 	feePayerFlag                          = "--fee-payer"
 	adminKeyFlag                          = "--admin-key"
 	confirmationTimeoutSecondsFlag        = "--confirmation-timeout-seconds"
+	commitmentFlag                        = "--commitment"
 
 	genesisCommand         = "genesis"
 	generateConfigsCommand = "generate-configs"

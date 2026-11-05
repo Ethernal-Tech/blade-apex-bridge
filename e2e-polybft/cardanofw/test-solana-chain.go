@@ -418,7 +418,7 @@ func (sc *TestSolanaChain) DeployMaliciousLoggerProgram(ctx context.Context, fee
 		"--keypair", keyFile,
 		"--program-id", filepath.Join("..", "solanafw", maliciousLoggerKeypairPath),
 		"--upgrade-authority", keyFile,
-		"--commitment", "finalized",
+		commitmentFlag, ConfirmationStrategyFinalized,
 	}
 
 	var b bytes.Buffer
@@ -689,7 +689,7 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 		keyFlag, filepath.Join("..", "..", solanaProgramDir, solanaProgramKeypairPath),
 		programIDFlag, skyline_program.ProgramID.String(),
 		"--build-path", buildPath,
-		"--commitment", "finalized",
+		commitmentFlag, ConfirmationStrategyFinalized,
 		adminKeyFlag, adminPkFile.Name(),
 		bridgeURLFlag, sc.bridgeURL,
 		"--bridge-addr", contracts.Bridge.String(),
@@ -2008,7 +2008,7 @@ func (sc *TestSolanaChain) UpgradeProgram(ctx context.Context) error {
 		"--upgrade-program-version", "0.4.0",
 		adminKeyFlag, adminPkFile.Name(),
 		confirmationTimeoutSecondsFlag, strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
-		"--commitment", "finalized",
+		commitmentFlag, ConfirmationStrategyFinalized,
 	}
 
 	var b bytes.Buffer
