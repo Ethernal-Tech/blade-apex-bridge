@@ -10,7 +10,7 @@ require (
 	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20261029153920-d1bdcb028b9e
 	github.com/Ethernal-Tech/ethgo v0.0.0-20240801172627-47215d9e504c
 	github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04
-	github.com/Ethernal-Tech/solana-infrastructure v0.0.0-20261029153924-f659a86863cc
+	github.com/Ethernal-Tech/solana-infrastructure v0.0.0-20261105101704-aedaac4babfa
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.10
 	github.com/alibabacloud-go/oos-20190601/v4 v4.4.2
 	github.com/alibabacloud-go/tea v1.3.2
@@ -24,6 +24,7 @@ require (
 	github.com/docker/go-connections v0.5.0
 	github.com/envoyproxy/protoc-gen-validate v1.3.0
 	github.com/erigontech/mdbx-go v0.39.3
+	github.com/gagliardetto/binary v0.8.0
 	github.com/gagliardetto/solana-go v1.23.0
 	github.com/golang/protobuf v1.5.4
 	github.com/google/uuid v1.6.0
@@ -138,7 +139,6 @@ require (
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/gagliardetto/anchor-go v1.0.0 // indirect
-	github.com/gagliardetto/binary v0.8.0 // indirect
 	github.com/gagliardetto/treeout v0.1.4 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
