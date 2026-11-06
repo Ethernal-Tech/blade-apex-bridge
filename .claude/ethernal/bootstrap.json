@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "renderedWith": "0.5.0",
+  "renderedWith": "0.10.1",
   "answers": {
     "tier": "harness",
     "plugins": [
