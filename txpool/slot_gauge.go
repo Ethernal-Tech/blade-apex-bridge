@@ -49,9 +49,28 @@ func (g *slotGauge) increaseWithinLimit(slots uint64) (updated bool) {
 }
 
 // decrease decreases the height of the gauge by the specified slots amount.
+// The height never goes below zero: a decrease larger than the current height
+// (an accounting mismatch) is clamped to 0 and counted in the slots_underflow
+// metric, instead of wrapping to 2^64-1 and making the pool permanently full.
 func (g *slotGauge) decrease(slots uint64) {
-	newHeight := atomic.AddUint64(&g.height, ^(slots - 1))
-	metrics.SetGauge([]string{txPoolMetrics, slotsUsedMetric}, float32(newHeight))
+	for {
+		old := g.read()
+
+		newHeight := uint64(0)
+		if old >= slots {
+			newHeight = old - slots
+		}
+
+		if atomic.CompareAndSwapUint64(&g.height, old, newHeight) {
+			if old < slots {
+				metrics.IncrCounter([]string{txPoolMetrics, slotsUnderflowMetric}, 1)
+			}
+
+			metrics.SetGauge([]string{txPoolMetrics, slotsUsedMetric}, float32(newHeight))
+
+			return
+		}
+	}
 }
 
 // highPressure checks if the gauge level
