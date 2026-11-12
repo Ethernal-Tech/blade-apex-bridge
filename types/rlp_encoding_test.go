@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const gasPriceField = "GasPrice"
+
 type codec interface {
 	RLPMarshaler
 	RLPUnmarshaler
@@ -261,20 +263,20 @@ func TestRLPMarshall_Unmarshall_Missing_Data(t *testing.T) {
 				name:        fmt.Sprintf("[%s] Insufficient params", txType),
 				expectedErr: true,
 				omittedValues: map[string]bool{
-					"Nonce":    true,
-					"GasPrice": true,
+					"Nonce":       true,
+					gasPriceField: true,
 				},
 			},
 			{
 				name:        fmt.Sprintf("[%s] Missing From", txType),
 				expectedErr: false,
 				omittedValues: map[string]bool{
-					"ChainID":    txType != DynamicFeeTxType,
-					"GasTipCap":  txType != DynamicFeeTxType,
-					"GasFeeCap":  txType != DynamicFeeTxType,
-					"GasPrice":   txType == DynamicFeeTxType,
-					"AccessList": txType != DynamicFeeTxType,
-					"From":       txType != StateTxType,
+					"ChainID":     txType != DynamicFeeTxType,
+					"GasTipCap":   txType != DynamicFeeTxType,
+					"GasFeeCap":   txType != DynamicFeeTxType,
+					gasPriceField: txType == DynamicFeeTxType,
+					"AccessList":  txType != DynamicFeeTxType,
+					"From":        txType != StateTxType,
 				},
 				fromAddrSet: txType == StateTxType,
 			},
@@ -282,12 +284,12 @@ func TestRLPMarshall_Unmarshall_Missing_Data(t *testing.T) {
 				name:        fmt.Sprintf("[%s] Address set for state tx only", txType),
 				expectedErr: false,
 				omittedValues: map[string]bool{
-					"ChainID":    txType != DynamicFeeTxType,
-					"GasTipCap":  txType != DynamicFeeTxType,
-					"GasFeeCap":  txType != DynamicFeeTxType,
-					"GasPrice":   txType == DynamicFeeTxType,
-					"AccessList": txType != DynamicFeeTxType,
-					"From":       txType != StateTxType,
+					"ChainID":     txType != DynamicFeeTxType,
+					"GasTipCap":   txType != DynamicFeeTxType,
+					"GasFeeCap":   txType != DynamicFeeTxType,
+					gasPriceField: txType == DynamicFeeTxType,
+					"AccessList":  txType != DynamicFeeTxType,
+					"From":        txType != StateTxType,
 				},
 				fromAddrSet: txType == StateTxType,
 			},
@@ -380,7 +382,7 @@ func testRLPData(arena *fastrlp.Arena, omitValues map[string]bool) []byte {
 		vv.Set(arena.NewBigInt(big.NewInt(11)))
 	}
 
-	if omit := omitValues["GasPrice"]; !omit {
+	if omit := omitValues[gasPriceField]; !omit {
 		vv.Set(arena.NewBigInt(big.NewInt(11)))
 	}
 

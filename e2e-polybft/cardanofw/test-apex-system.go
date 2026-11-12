@@ -897,6 +897,11 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					a.VectorInfo.GenesisWallet.VerificationKey, VSTokenName)
 				require.NoError(t, err)
 
+				vs1Token, _, err := GetTokenAndPolicyForVerificationKey(
+					a.Config.VectorConfig.ChainType, a.Config.VectorConfig.NetworkType,
+					a.VectorInfo.GenesisWallet.VerificationKey, VS1TokenName)
+				require.NoError(t, err)
+
 				a.SolanaInfo.DestChain = map[ChainID][]Direction{
 					ChainIDVector: {
 						{
@@ -914,6 +919,12 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						{
 							SourceTokenID:      VSTokenID,
 							DestinationTokenID: VSTokenID,
+							TrackSource:        false,
+							TrackDestination:   false,
+						},
+						{
+							SourceTokenID:      VS1TokenID,
+							DestinationTokenID: VS1TokenID,
 							TrackSource:        false,
 							TrackDestination:   false,
 						},
@@ -941,6 +952,11 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						LockUnlock:        false,
 						IsWrappedCurrency: false,
 					},
+					VS1TokenID: {
+						ChainSpecific:     "",
+						LockUnlock:        false,
+						IsWrappedCurrency: false,
+					},
 				}
 
 				a.VectorInfo.DestChain[ChainIDSolana] = []Direction{
@@ -962,6 +978,12 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 						TrackSource:        false,
 						TrackDestination:   false,
 					},
+					{
+						SourceTokenID:      VS1TokenID,
+						DestinationTokenID: VS1TokenID,
+						TrackSource:        false,
+						TrackDestination:   false,
+					},
 				}
 
 				a.VectorInfo.Tokens[ASOLTokenID] = Token{
@@ -976,11 +998,18 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 					IsWrappedCurrency: false,
 				}
 
+				a.VectorInfo.Tokens[VS1TokenID] = Token{
+					ChainSpecific:     vs1Token.String(),
+					LockUnlock:        true,
+					IsWrappedCurrency: false,
+				}
+
 				a.EcosystemTokens[WSOLTokenID] = WSOLANATokenName
 				a.EcosystemTokens[SOLTokenID] = cardanowallet.AdaTokenName
 				a.EcosystemTokens[ASOLTokenID] = ASOLTokenName
 				a.EcosystemTokens[SAP3XTokenID] = SAP3XTokenName
 				a.EcosystemTokens[VSTokenID] = VSTokenName
+				a.EcosystemTokens[VS1TokenID] = VS1TokenName
 			}
 
 			if a.Config.NexusConfig != nil && a.Config.NexusConfig.IsEnabled {
@@ -1151,7 +1180,7 @@ func (a *ApexSystem) FinishConfiguring(t *testing.T) error {
 	a.InitTxSendChainConfiguration()
 
 	if a.Config.SolanaConfig != nil && a.Config.SolanaConfig.IsEnabled {
-		err := a.UpdateChainMaxNumberOfTransactions(ChainIDSolana, 3)
+		err := a.UpdateChainMaxNumberOfTransactions(ChainIDSolana, 5)
 		if err != nil {
 			return err
 		}
@@ -1640,8 +1669,8 @@ func (a *ApexSystem) StartRelayer(ctx context.Context) (err error) {
 
 		a.relayerNode, err = framework.NewNodeWithContext(ctx, ResolveApexBridgeBinary(), []string{
 			"run-relayer",
-			"--config", validator.GetRelayerConfig(),
-			"--chain-ids-config", validator.GetChainIDsConfig(),
+			configFlag, validator.GetRelayerConfig(),
+			chainIDsConfigFlag, validator.GetChainIDsConfig(),
 		}, os.Stdout)
 		if err != nil {
 			return err
@@ -1936,12 +1965,12 @@ func (a *ApexSystem) UpdateChainTokenQuantity(
 	pk := hex.EncodeToString(pkBytes)
 
 	args := []string{
-		"bridge-admin", "update-chain-token-quantity",
-		"--chain-ids-config", a.GetChainIDsConfig(),
-		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
-		"--chain", chain,
-		"--amount", amount.String(),
-		"--key", pk,
+		bridgeAdminCommand, "update-chain-token-quantity",
+		chainIDsConfigFlag, a.GetChainIDsConfig(),
+		bridgeURLFlag, a.GetBridgeDefaultJSONRPCAddr(),
+		chainFlag, chain,
+		amountFlag, amount.String(),
+		keyFlag, pk,
 	}
 
 	if isWrappedToken {
@@ -1963,12 +1992,12 @@ func (a *ApexSystem) UpdateChainMaxNumberOfTransactions(
 	pk := hex.EncodeToString(pkBytes)
 
 	return RunCommand(ResolveApexBridgeBinary(), []string{
-		"bridge-admin", "update-chain-max-number-of-transactions",
-		"--chain", chain,
+		bridgeAdminCommand, "update-chain-max-number-of-transactions",
+		chainFlag, chain,
 		"--max-number-of-transactions", fmt.Sprint(maxNumberOfTransactions),
-		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
-		"--key", pk,
-		"--chain-ids-config", a.GetChainIDsConfig(),
+		bridgeURLFlag, a.GetBridgeDefaultJSONRPCAddr(),
+		keyFlag, pk,
+		chainIDsConfigFlag, a.GetChainIDsConfig(),
 	}, os.Stdout)
 }
 
@@ -1983,13 +2012,13 @@ func (a *ApexSystem) DefundHotWallet(
 	pk := hex.EncodeToString(pkBytes)
 
 	return RunCommand(ResolveApexBridgeBinary(), []string{
-		"bridge-admin", "defund",
-		"--chain-ids-config", a.GetChainIDsConfig(),
-		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
-		"--chain", chain,
-		"--amount", defundAmount.String(),
+		bridgeAdminCommand, "defund",
+		chainIDsConfigFlag, a.GetChainIDsConfig(),
+		bridgeURLFlag, a.GetBridgeDefaultJSONRPCAddr(),
+		chainFlag, chain,
+		amountFlag, defundAmount.String(),
 		"--native-token-amount", defundNativeTokenAmount.String(),
-		"--key", pk,
+		keyFlag, pk,
 		"--addr", defundReceiverAddress,
 	}, os.Stdout)
 }
@@ -2006,11 +2035,11 @@ func (a *ApexSystem) UpdateBridgingAddressCount(
 	pk := hex.EncodeToString(pkBytes)
 
 	return RunCommand(ResolveApexBridgeBinary(), []string{
-		"bridge-admin", "update-bridging-addrs-count",
-		"--chain-ids-config", a.GetChainIDsConfig(),
-		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
-		"--chain", sourceChain,
-		"--key", pk,
+		bridgeAdminCommand, "update-bridging-addrs-count",
+		chainIDsConfigFlag, a.GetChainIDsConfig(),
+		bridgeURLFlag, a.GetBridgeDefaultJSONRPCAddr(),
+		chainFlag, sourceChain,
+		keyFlag, pk,
 		"--bridging-addresses-count", fmt.Sprintf("%d", addressCount),
 	}, os.Stdout)
 }
@@ -2070,11 +2099,11 @@ func (a *ApexSystem) DelegateStakeAddress(
 	}
 
 	cmnd := []string{
-		"bridge-admin", "delegate-address-to-stake-pool",
-		"--chain-ids-config", a.GetChainIDsConfig(),
-		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
-		"--chain", chain.ChainID(),
-		"--key", pk,
+		bridgeAdminCommand, "delegate-address-to-stake-pool",
+		chainIDsConfigFlag, a.GetChainIDsConfig(),
+		bridgeURLFlag, a.GetBridgeDefaultJSONRPCAddr(),
+		chainFlag, chain.ChainID(),
+		keyFlag, pk,
 		"--stake-pool", stakePoolID,
 		"--bridge-address-index", fmt.Sprintf("%d", bridgeAddressIndex),
 	}
@@ -2103,11 +2132,11 @@ func (a *ApexSystem) DeregisterStakeAddress(
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), []string{
-		"bridge-admin", "deregister-stake-address",
-		"--chain-ids-config", a.GetChainIDsConfig(),
-		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
-		"--chain", chain.ChainID(),
-		"--key", pk,
+		bridgeAdminCommand, "deregister-stake-address",
+		chainIDsConfigFlag, a.GetChainIDsConfig(),
+		bridgeURLFlag, a.GetBridgeDefaultJSONRPCAddr(),
+		chainFlag, chain.ChainID(),
+		keyFlag, pk,
 		"--bridge-address-index", fmt.Sprintf("%d", bridgeAddressIndex),
 	}, os.Stdout)
 }
@@ -2128,11 +2157,11 @@ func (a *ApexSystem) RedistributeTokens(
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), []string{
-		"bridge-admin", "redistribute-bridging-addresses-tokens",
-		"--chain-ids-config", a.GetChainIDsConfig(),
-		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
-		"--chain", chain.ChainID(),
-		"--key", pk,
+		bridgeAdminCommand, "redistribute-bridging-addresses-tokens",
+		chainIDsConfigFlag, a.GetChainIDsConfig(),
+		bridgeURLFlag, a.GetBridgeDefaultJSONRPCAddr(),
+		chainFlag, chain.ChainID(),
+		keyFlag, pk,
 	}, os.Stdout)
 }
 
@@ -2773,13 +2802,13 @@ func (a *ApexSystem) DeploySmartContract(
 	var stdoutBuf bytes.Buffer
 
 	err = RunCommand(ResolveApexBridgeBinary(), []string{
-		"deploy-evm", "deploy-contract",
+		deployEvmCommand, "deploy-contract",
 		"--contract-dir", contractsDir,
 		"--contract-name", contractName,
 		"--dependencies", strings.Join(addressesOfDependencies, ";"),
-		"--key", hex.EncodeToString(pkBytes),
-		"--url", a.GetBridgeDefaultJSONRPCAddr(),
-		"--owner", a.GetBridgeAdmin().Address().String(),
+		keyFlag, hex.EncodeToString(pkBytes),
+		urlFlag, a.GetBridgeDefaultJSONRPCAddr(),
+		ownerFlag, a.GetBridgeAdmin().Address().String(),
 		"--upgrade-admin", a.GetBridgeProxyAdmin().Address().String(),
 	}, &stdoutBuf)
 
@@ -2806,10 +2835,10 @@ func (a *ApexSystem) UpgradeSmartContract(upgradeParams *UpgradeSCParams) error 
 	}
 
 	cmnd := []string{
-		"deploy-evm", "upgrade",
+		deployEvmCommand, "upgrade",
 		"--dir", upgradeParams.contractsDir,
-		"--key", hex.EncodeToString(pkBytes),
-		"--url", a.GetBridgeDefaultJSONRPCAddr(),
+		keyFlag, hex.EncodeToString(pkBytes),
+		urlFlag, a.GetBridgeDefaultJSONRPCAddr(),
 	}
 
 	for _, contactParams := range upgradeParams.contractParams {
@@ -2840,13 +2869,13 @@ func (a *ApexSystem) SetDependencies(upgradeParams *SetDependenciesSCParams) err
 	}
 
 	cmnd := []string{
-		"deploy-evm", "set-dependencies",
+		deployEvmCommand, "set-dependencies",
 		"--contract-dir", upgradeParams.contractsDir,
 		"--contract-name", upgradeParams.contractName,
 		"--proxy-addr", upgradeParams.proxyAddress,
 		"--dependencies", strings.Join(upgradeParams.dependencies, ";"),
-		"--key", hex.EncodeToString(pkBytes),
-		"--url", a.GetBridgeDefaultJSONRPCAddr(),
+		keyFlag, hex.EncodeToString(pkBytes),
+		urlFlag, a.GetBridgeDefaultJSONRPCAddr(),
 	}
 
 	if upgradeParams.gasLimit > 0 {

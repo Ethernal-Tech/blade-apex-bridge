@@ -70,7 +70,7 @@ func (t *TestCardanoServer) Start() error {
 	// Build arguments
 	args := []string{
 		"run",
-		"--config", t.config.ConfigFile,
+		configFlag, t.config.ConfigFile,
 		"--topology", fmt.Sprintf("%s/topology.json", t.config.NodeDir),
 		"--database-path", fmt.Sprintf("%s/db", t.config.NodeDir),
 		"--socket-path", t.SocketPath(),

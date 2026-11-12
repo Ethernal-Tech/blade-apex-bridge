@@ -155,7 +155,8 @@ func runRootchain(ctx context.Context, outputter command.OutputFormatter, closeC
 	}
 
 	// create the client
-	args := []string{"--dev"}
+	args := make([]string, 0, 15)
+	args = append(args, "--dev")
 
 	// add period of 2 seconds
 	args = append(args, "--dev.period", "2")

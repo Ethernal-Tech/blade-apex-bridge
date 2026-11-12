@@ -32,6 +32,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	urlFlag = "--url"
+	keyFlag = "--key"
+	dirFlag = "--dir"
+)
+
 // Download Cardano executables from https://github.com/IntersectMBO/cardano-node/releases/tag/8.7.3 and unpack tar.gz file
 // Add directory where unpacked files are located to the $PATH (in example bellow `~/Apps/cardano`)
 // eq add line `export PATH=$PATH:~/Apps/cardano` to  `~/.bashrc`
@@ -206,9 +212,9 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 	// first upgrade just to clone repository
 	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
 		"deploy-evm", "upgrade",
-		"--url", apex.GetBridgeDefaultJSONRPCAddr(),
-		"--key", hex.EncodeToString(privateKeyRaw),
-		"--dir", tmpPath,
+		urlFlag, apex.GetBridgeDefaultJSONRPCAddr(),
+		keyFlag, hex.EncodeToString(privateKeyRaw),
+		dirFlag, tmpPath,
 		"--clone",
 		"--branch", branchName,
 		"--repo", "https://github.com/Ethernal-Tech/apex-bridge-smartcontracts",
@@ -237,9 +243,9 @@ func TestE2E_ApexBridge_UpdateApexBridgeSmartContract(t *testing.T) {
 	// second upgrade upgrades changed contract
 	require.NoError(t, cardanofw.RunCommand(cardanofw.ResolveApexBridgeBinary(), []string{
 		"deploy-evm", "upgrade",
-		"--url", apex.GetBridgeDefaultJSONRPCAddr(),
-		"--key", hex.EncodeToString(privateKeyRaw),
-		"--dir", tmpPath,
+		urlFlag, apex.GetBridgeDefaultJSONRPCAddr(),
+		keyFlag, hex.EncodeToString(privateKeyRaw),
+		dirFlag, tmpPath,
 		"--contract", "Bridge:" + contracts.Bridge.String(),
 	}, os.Stdout))
 

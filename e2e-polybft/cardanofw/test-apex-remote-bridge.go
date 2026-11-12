@@ -68,8 +68,8 @@ func GetInternalTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 		CardanoChains: map[string]RemoteCardanoChainConfig{
 			ChainIDPrime: {
 				Info: CardanoChainInfo{
-					NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
-					OgmiosURL:      "http://ogmios.prime.testnet.apexfusion.org:1337",
+					NetworkAddress: primeTestnetRelayAddr,
+					OgmiosURL:      primeTestnetOgmiosURL,
 					MultisigAddr:   []string{"addr_test1wrz24vv4tvfqsywkxn36rv5zagys2d7euafcgt50gmpgqpq4ju9uv"},
 					FeeAddr:        "addr_test1wq5dw0g9mpmjy0xd6g58kncapdf6vgcka9el4llhzwy5vhqz80tcq",
 				},
@@ -81,7 +81,7 @@ func GetInternalTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 			ChainIDNexus: {
 				Info: EVMChainInfo{
 					GatewayAddress: types.StringToAddress("0xc68221AD72397d85084f2D5C7089e4e9487c118c"),
-					JSONRPCAddr:    "https://rpc.nexus.testnet.apexfusion.org",
+					JSONRPCAddr:    nexusTestnetRPCURL,
 				},
 				MinBridgingFee: DfmToWei(big.NewInt(1_000_010)),
 			},
@@ -98,8 +98,8 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 		CardanoChains: map[string]RemoteCardanoChainConfig{
 			ChainIDPrime: {
 				Info: CardanoChainInfo{
-					NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
-					OgmiosURL:      "http://ogmios.prime.testnet.apexfusion.org:1337",
+					NetworkAddress: primeTestnetRelayAddr,
+					OgmiosURL:      primeTestnetOgmiosURL,
 					MultisigAddr:   []string{"addr_test1wr44r7qudqwrpsgfs3m4t47x7xmw55dk4k96faak0w4aeqqxxwlvt"},
 					FeeAddr:        "addr_test1wzct9v2gj9j9rmwx6atkjhcesglf3zcpz6c4y99u3nvg9ksfjj3zd",
 				},
@@ -121,7 +121,7 @@ func GetPartnerTestnetApexBridgeConfig() *RemoteApexBridgeConfig {
 			ChainIDNexus: {
 				Info: EVMChainInfo{
 					GatewayAddress: types.StringToAddress("0x43Bca3122Efa14C68F9d385e3b4Da8847eca32Ba"),
-					JSONRPCAddr:    "https://rpc.nexus.testnet.apexfusion.org",
+					JSONRPCAddr:    nexusTestnetRPCURL,
 				},
 				MinBridgingFee: DfmToWei(big.NewInt(1_000_010)),
 			},
@@ -142,8 +142,8 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 		CardanoChains: map[string]RemoteCardanoChainConfig{
 			ChainIDPrime: {
 				Info: CardanoChainInfo{
-					NetworkAddress: "relay-0.prime.testnet.apexfusion.org:5521",
-					OgmiosURL:      "http://ogmios.prime.testnet.apexfusion.org:1337",
+					NetworkAddress: primeTestnetRelayAddr,
+					OgmiosURL:      primeTestnetOgmiosURL,
 					MultisigAddr: []string{
 						"addr_test1xzg90aa683qrmp7nplcpvjrh33wj0l77wmuzl9fyeljzjwnu8600uw5fkfran3y3knsvvaleyf0u73xdn5gytsqmu9gqjjclpu",
 						"addr_test1xr7qm59ynky87nc984an30mvs4mwgc00sndm5l0kn87qx7vze83rmtk58nqqpnfu0jhrey5c5h76w4p88k8p67zvnpns5u600w",
@@ -405,7 +405,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 				Info: EVMChainInfo{
 					GatewayAddress:           types.StringToAddress("0x53F9124643E3D15f8d753733C5d908CD6aA65178"),
 					NativeTokenWalletAddress: types.StringToAddress("0x55f32E6DbDC141fd395555a4238bD15FDC386F8D"),
-					JSONRPCAddr:              "https://rpc.nexus.testnet.apexfusion.org",
+					JSONRPCAddr:              nexusTestnetRPCURL,
 					Tokens: map[uint16]Token{
 						AP3XTokenID: {
 							ChainSpecific:     cardanowallet.AdaTokenName,

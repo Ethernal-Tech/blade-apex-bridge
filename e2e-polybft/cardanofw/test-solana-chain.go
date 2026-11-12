@@ -3,8 +3,10 @@ package cardanofw
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -23,7 +25,9 @@ import (
 	solsendtx "github.com/Ethernal-Tech/solana-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/solana-infrastructure/sendtx/skyline_program"
 	solanawallet "github.com/Ethernal-Tech/solana-infrastructure/wallet"
+	binary "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
+	"github.com/gagliardetto/solana-go/programs/system"
 	"github.com/gagliardetto/solana-go/rpc"
 
 	"github.com/stretchr/testify/require"
@@ -38,12 +42,21 @@ const (
 	solanaProgramKeypairPath = "program_build/skyline_program-keypair.json"
 	solanaProgramUpgradePath = "program_build/skyline_program_prev.so"
 
+	// Security-test fixture: an attacker-owned program that emits its instruction data as a
+	// "Program data:" log line (see e2e-polybft/solanafw/malicious-logger-src).
+	maliciousLoggerSOPath      = "malicious_logger.so"
+	maliciousLoggerKeypairPath = "malicious_logger-keypair.json"
+
 	TreasuryAddress = "AXXWYCH6PNm6AGjaasPG1maarfQvRedSw18wj91Nem1F"
 
 	MaxConfirmationWaitTime = 3 * time.Minute
 
 	solanaFixedSupplyMintAmount = "1000000000000000"
 )
+
+// anchorEventIxTag is Anchor's EVENT_IX_TAG (0x1d9acb512ea545e4) in little-endian, the prefix of the
+// instruction data of the self-CPI through which emit_cpi! emits an event.
+var anchorEventIxTag = []byte{0xe4, 0x45, 0xa5, 0x2e, 0x51, 0xcb, 0x9a, 0x1d}
 
 type TestSolanaChainConfig struct {
 	ChainID             string
@@ -59,6 +72,7 @@ type TestSolanaChainConfig struct {
 	MinBridgingAmount      *big.Int
 	MinTokenBridgingAmount *big.Int
 	MinOperationFee        *big.Int
+	MinFeeForBriding       *big.Int
 	CurrencyID             uint16
 
 	TreasuryAddress solana.PublicKey
@@ -82,10 +96,11 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 		StartingPort:           8899,
 		InitialHotWalletAmount: SolanaToWei(big.NewInt(1000)),
 		FundAmount:             LamportToWei(SolanaToLamport(big.NewInt(100000))),
-		MinBridgingFee:         big.NewInt(6000000), // 0.006 SOL
+		MinBridgingFee:         big.NewInt(7000000), // 0.007 SOL
 		MinBridgingAmount:      big.NewInt(1000),    // 0.000001 SOL
 		MinTokenBridgingAmount: big.NewInt(1000),    // 0.000001 SOL
 		MinOperationFee:        big.NewInt(1500000), // 0.0015 SOL
+		MinFeeForBriding:       big.NewInt(3500000), // 0.0035 SOL
 		CurrencyID:             WSOLTokenID,
 		TreasuryAddress:        solana.MustPublicKeyFromBase58(TreasuryAddress),
 		TokensMint: map[uint16]string{
@@ -101,6 +116,7 @@ func NewSolanaChainConfig(enabled bool) *TestSolanaChainConfig {
 		MintableTokens: map[uint16]string{
 			SAP3XTokenID: SAP3XTokenName,
 			VSTokenID:    VSTokenName,
+			VS1TokenID:   VS1TokenName,
 			NSTokenID:    NSTokenName,
 		},
 
@@ -153,7 +169,7 @@ func NewTestSolanaChain(config *TestSolanaChainConfig) (ITestApexChain, error) {
 		}
 
 		return NewTestApexChainDummy([]string{
-			getFlag("node-url"), "http://localhost:5500",
+			getFlag("node-url"), localhostURL,
 		}), nil
 	}
 
@@ -228,43 +244,7 @@ func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string
 		TreasuryAddress: sc.config.TreasuryAddress,
 	})
 
-	txReceivers := make([]solsendtx.BridgingTxReceiver, 0, len(params.Receivers))
-	for addr, amount := range params.Receivers {
-		txReceivers = append(txReceivers, solsendtx.BridgingTxReceiver{
-			Address: addr,
-			TokenAmount: solanawallet.TokenAmount{
-				TokenID: amount.TokenID,
-				Amount:  WeiToLamport(amount.Amount).Uint64(),
-			},
-		})
-	}
-
-	senderWallet, err := solanawallet.NewWalletFromPrivateKey(params.PrivateKey)
-	if err != nil {
-		return "", err
-	}
-
-	txDto := solsendtx.BridgeRequestDto{
-		Ctx:          params.Ctx,
-		ProgramID:    solana.MustPublicKeyFromBase58(sc.programID),
-		DstChainID:   params.DestChainID,
-		SenderAddr:   senderWallet.PublicKey.String(),
-		Receivers:    txReceivers,
-		BridgingFee:  params.FeeAmount.Uint64(),
-		OperationFee: params.OperationFee.Uint64(),
-	}
-
-	recentBlockhash, err := txProvider.GetLatestBlockhash(params.Ctx)
-	if err != nil {
-		return "", err
-	}
-
-	tx, err := txSender.CreateTx(
-		params.Ctx, senderWallet.PublicKey,
-		solsendtx.InstructionTypeBridgingRequest,
-		recentBlockhash,
-		txDto,
-	)
+	tx, senderWallet, err := sc.createBridgingRequestTx(params, txProvider, txSender)
 	if err != nil {
 		return "", err
 	}
@@ -286,6 +266,354 @@ func (sc *TestSolanaChain) BridgingRequest(params BridgingRequestParams) (string
 	}
 
 	return sig.String(), nil
+}
+
+// BridgingRequestWithFailingInstruction sends a bridging request followed by an instruction that always fails.
+// The whole transaction reverts on chain (nothing is locked), but its inner instructions still contain the
+// emit_cpi! self-CPI carrying the BridgeRequestEvent emitted by bridge_request before the failure. Preflight
+// is skipped so the failed transaction lands on chain. Returns the signature once the failed transaction is
+// finalized.
+func (sc *TestSolanaChain) BridgingRequestWithFailingInstruction(params BridgingRequestParams) (string, error) {
+	txProvider, err := sc.GetTxProvider()
+	if err != nil {
+		return "", err
+	}
+
+	txSender := solsendtx.NewTxSender(txProvider, &solsendtx.ChainConfig{
+		TreasuryAddress: sc.config.TreasuryAddress,
+	})
+
+	bridgingTx, senderWallet, err := sc.createBridgingRequestTx(params, txProvider, txSender)
+	if err != nil {
+		return "", err
+	}
+
+	instructions := make([]solana.Instruction, 0, len(bridgingTx.Message.Instructions)+1)
+
+	for _, compiled := range bridgingTx.Message.Instructions {
+		programID, err := bridgingTx.Message.Program(compiled.ProgramIDIndex)
+		if err != nil {
+			return "", fmt.Errorf("resolve program id: %w", err)
+		}
+
+		accounts, err := compiled.ResolveInstructionAccounts(&bridgingTx.Message)
+		if err != nil {
+			return "", fmt.Errorf("resolve instruction accounts: %w", err)
+		}
+
+		instructions = append(instructions, solana.NewInstruction(programID, accounts, compiled.Data))
+	}
+
+	// transferring more lamports than the sender can ever have always fails
+	instructions = append(instructions, system.NewTransferInstruction(
+		math.MaxUint64, senderWallet.PublicKey, solana.NewWallet().PublicKey()).Build())
+
+	tx, err := solana.NewTransaction(instructions, bridgingTx.Message.RecentBlockhash,
+		solana.TransactionPayer(senderWallet.PublicKey))
+	if err != nil {
+		return "", fmt.Errorf("build transaction: %w", err)
+	}
+
+	_, err = tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+		return &senderWallet.PrivateKey
+	})
+	if err != nil {
+		return "", fmt.Errorf("sign instruction: %w", err)
+	}
+
+	rpcClient := rpc.New(sc.jsonRPCAddr)
+
+	sig, err := rpcClient.SendTransactionWithOpts(params.Ctx, tx, rpc.TransactionOpts{
+		SkipPreflight: true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("send transaction: %w", err)
+	}
+
+	maxSupportedTxVersion := uint64(0)
+	timeout := time.After(MaxConfirmationWaitTime)
+
+	for {
+		txResult, err := rpcClient.GetTransaction(params.Ctx, sig, &rpc.GetTransactionOpts{
+			Commitment:                     rpc.CommitmentFinalized,
+			MaxSupportedTransactionVersion: &maxSupportedTxVersion,
+		})
+		if err == nil && txResult != nil && txResult.Meta != nil {
+			if txResult.Meta.Err == nil {
+				return "", fmt.Errorf("transaction %s was expected to fail but succeeded", sig)
+			}
+
+			hasEvent, err := sc.hasEmitCPIEvent(txResult)
+			if err != nil {
+				return "", fmt.Errorf("read events of transaction %s: %w", sig, err)
+			}
+
+			if hasEvent {
+				return sig.String(), nil
+			}
+
+			return "", fmt.Errorf("failed transaction %s has no event in inner instructions: %v",
+				sig, txResult.Meta.LogMessages)
+		} else if err != nil && !errors.Is(err, rpc.ErrNotFound) {
+			return "", fmt.Errorf("get transaction %s: %w", sig, err)
+		}
+
+		select {
+		case <-params.Ctx.Done():
+			return "", params.Ctx.Err()
+		case <-timeout:
+			return "", fmt.Errorf("timeout while waiting for transaction: %s", sig)
+		case <-time.After(time.Second):
+		}
+	}
+}
+
+// hasEmitCPIEvent reports whether the transaction's inner instructions contain an emit_cpi! self-CPI of the
+// bridge program, i.e. an event the tracker would read.
+func (sc *TestSolanaChain) hasEmitCPIEvent(txResult *rpc.GetTransactionResult) (bool, error) {
+	tx, err := txResult.Transaction.GetTransaction()
+	if err != nil {
+		return false, fmt.Errorf("decode transaction: %w", err)
+	}
+
+	programID, err := solana.PublicKeyFromBase58(sc.programID)
+	if err != nil {
+		return false, fmt.Errorf("parse program id: %w", err)
+	}
+
+	keys := tx.Message.AccountKeys
+
+	for _, group := range txResult.Meta.InnerInstructions {
+		for _, ix := range group.Instructions {
+			if int(ix.ProgramIDIndex) < len(keys) && keys[ix.ProgramIDIndex].Equals(programID) &&
+				bytes.HasPrefix(ix.Data, anchorEventIxTag) {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
+// DeployMaliciousLoggerProgram deploys the security-test fixture program (solanafw/malicious_logger.so)
+// with the given wallet as both fee payer and upgrade authority, i.e. a program owned by the attacker.
+// Its single instruction emits its instruction data verbatim as a "Program data:" log line. It returns
+// the deployed program id.
+func (sc *TestSolanaChain) DeployMaliciousLoggerProgram(ctx context.Context, feePayerPrivKey string) (string, error) {
+	wallet, err := solanawallet.NewWalletFromPrivateKey(feePayerPrivKey)
+	if err != nil {
+		return "", err
+	}
+
+	keyFile, err := writeSolanaKeypairFile(wallet.PrivateKey)
+	if err != nil {
+		return "", err
+	}
+
+	defer os.Remove(keyFile)
+
+	args := []string{
+		"program", "deploy", filepath.Join("..", "solanafw", maliciousLoggerSOPath),
+		"--url", sc.jsonRPCAddr,
+		"--keypair", keyFile,
+		"--program-id", filepath.Join("..", "solanafw", maliciousLoggerKeypairPath),
+		"--upgrade-authority", keyFile,
+		commitmentFlag, ConfirmationStrategyFinalized,
+	}
+
+	var b bytes.Buffer
+
+	if err := RunCommandContext(ctx, "solana", args, io.MultiWriter(os.Stdout, &b)); err != nil {
+		return "", fmt.Errorf("deploy malicious logger program: %w", err)
+	}
+
+	match := regexp.MustCompile(`Program Id:\s*(\S+)`).FindStringSubmatch(b.String())
+	if match == nil {
+		return "", fmt.Errorf("program id not found in deploy output: %s", b.String())
+	}
+
+	return match[1], nil
+}
+
+// writeSolanaKeypairFile writes a solana private key to a temp file as the JSON uint8 array the solana
+// CLI expects, and returns its path. The caller is responsible for removing it.
+func writeSolanaKeypairFile(pk solana.PrivateKey) (string, error) {
+	f, err := os.CreateTemp(os.TempDir(), "sol-key-*.json")
+	if err != nil {
+		return "", err
+	}
+
+	defer f.Close()
+
+	content := strings.ReplaceAll(fmt.Sprintf("%v", []byte(pk)), " ", ",")
+	if _, err := f.Write([]byte(content)); err != nil {
+		return "", err
+	}
+
+	return f.Name(), nil
+}
+
+// ForgeBridgeRequestEvent encodes a skyline BridgeRequestEvent exactly as the program's emit! would put
+// it into a "Program data:" log line: the 8-byte event discriminator followed by the borsh-serialized
+// event. The bytes are meant to be emitted by an unrelated (attacker) program so the tracker, which does
+// not check which program wrote the line, mis-attributes them to the skyline program.
+func ForgeBridgeRequestEvent(event skyline_program.BridgeRequestEvent) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	encoder := binary.NewBorshEncoder(buf)
+
+	disc := skyline_program.Event_BridgeRequestEvent
+	if err := encoder.WriteBytes(disc[:], false); err != nil {
+		return nil, fmt.Errorf("write discriminator: %w", err)
+	}
+
+	if err := event.MarshalWithEncoder(encoder); err != nil {
+		return nil, fmt.Errorf("marshal forged event: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// SendForgedBridgeRequest sends one transaction that (1) makes a genuine, successful skyline
+// bridge_request described by realParams, so the transaction carries a top-level skyline instruction,
+// and (2) invokes the attacker-owned maliciousProgramID with forgedEventData, which the program emits
+// verbatim as a "Program data:" log line. The transaction succeeds on chain and the skyline program
+// never emitted the forged event. Preflight is skipped. It returns the signature once finalized.
+func (sc *TestSolanaChain) SendForgedBridgeRequest(
+	realParams BridgingRequestParams, maliciousProgramID string, forgedEventData []byte,
+) (string, error) {
+	txProvider, err := sc.GetTxProvider()
+	if err != nil {
+		return "", err
+	}
+
+	txSender := solsendtx.NewTxSender(txProvider, &solsendtx.ChainConfig{
+		TreasuryAddress: sc.config.TreasuryAddress,
+	})
+
+	bridgingTx, senderWallet, err := sc.createBridgingRequestTx(realParams, txProvider, txSender)
+	if err != nil {
+		return "", err
+	}
+
+	instructions := make([]solana.Instruction, 0, len(bridgingTx.Message.Instructions)+1)
+
+	for _, compiled := range bridgingTx.Message.Instructions {
+		programID, err := bridgingTx.Message.Program(compiled.ProgramIDIndex)
+		if err != nil {
+			return "", fmt.Errorf("resolve program id: %w", err)
+		}
+
+		accounts, err := compiled.ResolveInstructionAccounts(&bridgingTx.Message)
+		if err != nil {
+			return "", fmt.Errorf("resolve instruction accounts: %w", err)
+		}
+
+		instructions = append(instructions, solana.NewInstruction(programID, accounts, compiled.Data))
+	}
+
+	maliciousPubKey, err := solana.PublicKeyFromBase58(maliciousProgramID)
+	if err != nil {
+		return "", fmt.Errorf("parse malicious program id: %w", err)
+	}
+
+	// The attacker program emits the forged BridgeRequestEvent bytes as a "Program data:" log line.
+	instructions = append(instructions,
+		solana.NewInstruction(maliciousPubKey, solana.AccountMetaSlice{}, forgedEventData))
+
+	tx, err := solana.NewTransaction(instructions, bridgingTx.Message.RecentBlockhash,
+		solana.TransactionPayer(senderWallet.PublicKey))
+	if err != nil {
+		return "", fmt.Errorf("build transaction: %w", err)
+	}
+
+	if _, err := tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+		return &senderWallet.PrivateKey
+	}); err != nil {
+		return "", fmt.Errorf("sign instruction: %w", err)
+	}
+
+	rpcClient := rpc.New(sc.jsonRPCAddr)
+
+	sig, err := rpcClient.SendTransactionWithOpts(realParams.Ctx, tx, rpc.TransactionOpts{
+		SkipPreflight: true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("send transaction: %w", err)
+	}
+
+	maxSupportedTxVersion := uint64(0)
+	timeout := time.After(MaxConfirmationWaitTime)
+
+	for {
+		txResult, err := rpcClient.GetTransaction(realParams.Ctx, sig, &rpc.GetTransactionOpts{
+			Commitment:                     rpc.CommitmentFinalized,
+			MaxSupportedTransactionVersion: &maxSupportedTxVersion,
+		})
+		if err == nil && txResult != nil && txResult.Meta != nil {
+			if txResult.Meta.Err != nil {
+				return "", fmt.Errorf("forged-event transaction %s failed on chain: %v", sig, txResult.Meta.Err)
+			}
+
+			return sig.String(), nil
+		} else if err != nil && !errors.Is(err, rpc.ErrNotFound) {
+			return "", fmt.Errorf("get transaction %s: %w", sig, err)
+		}
+
+		select {
+		case <-realParams.Ctx.Done():
+			return "", realParams.Ctx.Err()
+		case <-timeout:
+			return "", fmt.Errorf("timeout while waiting for transaction: %s", sig)
+		case <-time.After(time.Second):
+		}
+	}
+}
+
+func (sc *TestSolanaChain) createBridgingRequestTx(
+	params BridgingRequestParams, txProvider *solanawallet.Provider, txSender *solsendtx.TxSender,
+) (*solana.Transaction, *solanawallet.Wallet, error) {
+	txReceivers := make([]solsendtx.BridgingTxReceiver, 0, len(params.Receivers))
+	for addr, amount := range params.Receivers {
+		txReceivers = append(txReceivers, solsendtx.BridgingTxReceiver{
+			Address: addr,
+			TokenAmount: solanawallet.TokenAmount{
+				TokenID: amount.TokenID,
+				Amount:  WeiToLamport(amount.Amount).Uint64(),
+			},
+		})
+	}
+
+	senderWallet, err := solanawallet.NewWalletFromPrivateKey(params.PrivateKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	txDto := solsendtx.BridgeRequestDto{
+		Ctx:          params.Ctx,
+		ProgramID:    solana.MustPublicKeyFromBase58(sc.programID),
+		DstChainID:   params.DestChainID,
+		SenderAddr:   senderWallet.PublicKey.String(),
+		Receivers:    txReceivers,
+		BridgingFee:  params.FeeAmount.Uint64(),
+		OperationFee: params.OperationFee.Uint64(),
+	}
+
+	recentBlockhash, err := txProvider.GetLatestBlockhash(params.Ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tx, err := txSender.CreateTx(
+		params.Ctx, senderWallet.PublicKey,
+		solsendtx.InstructionTypeBridgingRequest,
+		recentBlockhash,
+		txDto,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return tx, senderWallet, nil
 }
 
 // ChainID implements ITestApexChain.
@@ -354,24 +682,24 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 	}
 
 	params := []string{
-		"deploy-solana",
+		deploySolanaCommand,
 		"deploy-program",
-		"--url", sc.jsonRPCAddr,
-		"--fee-payer", adminPkFile.Name(),
-		"--key", filepath.Join("..", "..", solanaProgramDir, solanaProgramKeypairPath),
-		"--program-id", skyline_program.ProgramID.String(),
+		urlFlag, sc.jsonRPCAddr,
+		feePayerFlag, adminPkFile.Name(),
+		keyFlag, filepath.Join("..", "..", solanaProgramDir, solanaProgramKeypairPath),
+		programIDFlag, skyline_program.ProgramID.String(),
 		"--build-path", buildPath,
-		"--commitment", "finalized",
-		"--admin-key", adminPkFile.Name(),
-		"--bridge-url", sc.bridgeURL,
+		commitmentFlag, ConfirmationStrategyFinalized,
+		adminKeyFlag, adminPkFile.Name(),
+		bridgeURLFlag, sc.bridgeURL,
 		"--bridge-addr", contracts.Bridge.String(),
-		"--chain-ids-config", chainIDsConfig,
+		chainIDsConfigFlag, chainIDsConfig,
 		"--last-id", "0",
-		"--min-operation-fee", strconv.Itoa(int(sc.config.MinOperationFee.Uint64())),
-		"--min-fee-for-bridging", strconv.Itoa(int(sc.config.MinBridgingFee.Uint64())),
+		minOperationFeeFlag, strconv.Itoa(int(sc.config.MinOperationFee.Uint64())),
+		minFeeForBridgingFlag, strconv.Itoa(int(sc.config.MinBridgingFee.Uint64())),
 		"--min-amount-to-bridge", strconv.Itoa(int(sc.config.MinTokenBridgingAmount.Uint64())),
-		"--treasury-address", sc.config.TreasuryAddress.String(),
-		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
+		treasuryAddressFlag, sc.config.TreasuryAddress.String(),
+		confirmationTimeoutSecondsFlag, strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 	}
 
 	var b bytes.Buffer
@@ -455,13 +783,13 @@ func (sc *TestSolanaChain) hotWalletIncrementFunding(ctx context.Context) error 
 		}
 
 		hotWalletIncrementParams := []string{
-			"deploy-solana",
+			deploySolanaCommand,
 			"hot-wallet-increment",
-			"--url", sc.jsonRPCAddr,
-			"--key", adminPkFile.Name(),
+			urlFlag, sc.jsonRPCAddr,
+			keyFlag, adminPkFile.Name(),
 			"--mint", sc.config.TokensMint[tokenID],
-			"--program-id", sc.programID,
-			"--amount", strconv.Itoa(int(WeiToLamport(sc.config.InitialHotWalletAmount).Uint64())),
+			programIDFlag, sc.programID,
+			amountFlag, strconv.Itoa(int(WeiToLamport(sc.config.InitialHotWalletAmount).Uint64())),
 		}
 
 		var b bytes.Buffer
@@ -530,9 +858,9 @@ func (sc *TestSolanaChain) createSPLToken(
 	// 1. Create SPL token
 	createTokenArgs := []string{
 		"create-token",
-		"--url", sc.jsonRPCAddr,
-		"--fee-payer", adminPkFile.Name(),
-		"--owner", adminPkFile.Name(),
+		urlFlag, sc.jsonRPCAddr,
+		feePayerFlag, adminPkFile.Name(),
+		ownerFlag, adminPkFile.Name(),
 		"--decimals", strconv.Itoa(int(solana.SolDecimals)),
 	}
 
@@ -564,19 +892,19 @@ func (sc *TestSolanaChain) createSPLToken(
 
 	createAccountArgs := []string{
 		"create-account", mintAddress,
-		"--url", sc.jsonRPCAddr,
-		"--fee-payer", adminPkFile.Name(),
-		"--owner", sc.admin.PublicKey.String(),
+		urlFlag, sc.jsonRPCAddr,
+		feePayerFlag, adminPkFile.Name(),
+		ownerFlag, sc.admin.PublicKey.String(),
 	}
 	if _, err := sc.runSPLTokenCommandAndWait(ctx, provider, createAccountArgs...); err != nil {
 		return "", fmt.Errorf("create admin token account: %w", err)
 	}
 
 	mintArgs := []string{
-		"mint", mintAddress, solanaFixedSupplyMintAmount, adminATA.String(),
-		"--url", sc.jsonRPCAddr,
-		"--fee-payer", adminPkFile.Name(),
-		"--owner", adminPkFile.Name(),
+		mintName, mintAddress, solanaFixedSupplyMintAmount, adminATA.String(),
+		urlFlag, sc.jsonRPCAddr,
+		feePayerFlag, adminPkFile.Name(),
+		ownerFlag, adminPkFile.Name(),
 	}
 	if _, err := sc.runSPLTokenCommandAndWait(ctx, provider, mintArgs...); err != nil {
 		return "", fmt.Errorf("mint fixed supply: %w", err)
@@ -584,10 +912,10 @@ func (sc *TestSolanaChain) createSPLToken(
 
 	// 3. Disable mint authority
 	disableMintAuthorityArgs := []string{
-		"authorize", mintAddress, "mint", "--disable",
-		"--url", sc.jsonRPCAddr,
-		"--fee-payer", adminPkFile.Name(),
-		"--owner", adminPkFile.Name(),
+		"authorize", mintAddress, mintName, "--disable",
+		urlFlag, sc.jsonRPCAddr,
+		feePayerFlag, adminPkFile.Name(),
+		ownerFlag, adminPkFile.Name(),
 	}
 	if _, err := sc.runSPLTokenCommandAndWait(ctx, provider, disableMintAuthorityArgs...); err != nil {
 		return "", fmt.Errorf("disable mint authority: %w", err)
@@ -708,16 +1036,16 @@ func (sc *TestSolanaChain) registerTokens() error {
 		}
 
 		params := []string{
-			"deploy-solana",
+			deploySolanaCommand,
 			"register-lock-unlock-token",
-			"--url", sc.jsonRPCAddr,
-			"--program-id", sc.programID,
-			"--admin-key", adminPkFile.Name(),
-			"--treasury-address", sc.config.TreasuryAddress.String(),
-			"--token-id", strconv.Itoa(int(tokenID)),
+			urlFlag, sc.jsonRPCAddr,
+			programIDFlag, sc.programID,
+			adminKeyFlag, adminPkFile.Name(),
+			treasuryAddressFlag, sc.config.TreasuryAddress.String(),
+			tokenIDFlag, strconv.Itoa(int(tokenID)),
 			"--token-mint", tokenMint,
-			"--min-bridging-amount", strconv.Itoa(int(sc.config.MinTokenBridgingAmount.Uint64())),
-			"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
+			minBridgingAmountFlag, strconv.Itoa(int(sc.config.MinTokenBridgingAmount.Uint64())),
+			confirmationTimeoutSecondsFlag, strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 		}
 
 		var b bytes.Buffer
@@ -731,19 +1059,19 @@ func (sc *TestSolanaChain) registerTokens() error {
 
 	for tokenID, tokenName := range sc.config.MintableTokens {
 		params := []string{
-			"deploy-solana",
+			deploySolanaCommand,
 			"register-mint-burn-token",
-			"--url", sc.jsonRPCAddr,
-			"--program-id", sc.programID,
-			"--admin-key", adminPkFile.Name(),
-			"--treasury-address", sc.config.TreasuryAddress.String(),
-			"--token-id", strconv.Itoa(int(tokenID)),
-			"--token-name", tokenName,
-			"--token-symbol", tokenName,
+			urlFlag, sc.jsonRPCAddr,
+			programIDFlag, sc.programID,
+			adminKeyFlag, adminPkFile.Name(),
+			treasuryAddressFlag, sc.config.TreasuryAddress.String(),
+			tokenIDFlag, strconv.Itoa(int(tokenID)),
+			tokenNameFlag, tokenName,
+			tokenSymbolFlag, tokenName,
 			"--token-uri", "",
 			"--token-decimals", strconv.Itoa(int(solana.SolDecimals)),
-			"--min-bridging-amount", strconv.Itoa(int(sc.config.MinTokenBridgingAmount.Uint64())),
-			"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
+			minBridgingAmountFlag, strconv.Itoa(int(sc.config.MinTokenBridgingAmount.Uint64())),
+			confirmationTimeoutSecondsFlag, strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 		}
 
 		var b bytes.Buffer
@@ -789,12 +1117,12 @@ func (sc *TestSolanaChain) initializeALT() error {
 	defer adminPkFile.Close()
 
 	createALTParams := []string{
-		"deploy-solana",
+		deploySolanaCommand,
 		"create-alt",
-		"--url", sc.jsonRPCAddr,
-		"--program-id", sc.programID,
-		"--admin-key", adminPkFile.Name(),
-		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
+		urlFlag, sc.jsonRPCAddr,
+		programIDFlag, sc.programID,
+		adminKeyFlag, adminPkFile.Name(),
+		confirmationTimeoutSecondsFlag, strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 	}
 
 	var createOut bytes.Buffer
@@ -825,13 +1153,13 @@ func (sc *TestSolanaChain) initializeALT() error {
 	// 2. Extend ALT
 
 	extendALTParams := []string{
-		"deploy-solana",
+		deploySolanaCommand,
 		"extend-alt",
-		"--url", sc.jsonRPCAddr,
-		"--program-id", sc.programID,
-		"--admin-key", adminPkFile.Name(),
+		urlFlag, sc.jsonRPCAddr,
+		programIDFlag, sc.programID,
+		adminKeyFlag, adminPkFile.Name(),
 		"--alt-address", sc.altPublicKey,
-		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
+		confirmationTimeoutSecondsFlag, strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 	}
 
 	for tokenID, tokenMint := range sc.config.TokensMint {
@@ -985,8 +1313,8 @@ func (sc *TestSolanaChain) wrapSOL(
 		"wrap",
 		strconv.FormatUint(solAmount, 10),
 		keypairFile.Name(),
-		"--url", sc.jsonRPCAddr,
-		"--fee-payer", keypairFile.Name(),
+		urlFlag, sc.jsonRPCAddr,
+		feePayerFlag, keypairFile.Name(),
 	}
 
 	var b bytes.Buffer
@@ -1018,18 +1346,19 @@ func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexVal
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
 
 	args := []string{
-		"generate-configs", "solana-chain",
-		"--chain-id", sc.ChainID(),
+		generateConfigsCommand, "solana-chain",
+		chainIDFlag, sc.ChainID(),
 		"--sol-node-url", sc.jsonRPCAddr,
 		"--sol-tracked-program", sc.programID,
 		"--sol-min-fee-for-bridging", sc.config.MinBridgingFee.String(),
 		"--sol-min-operation-fee", sc.config.MinOperationFee.String(),
-		"--output-dir", validator.GetBridgingConfigsDir(),
-		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
-		"--output-relayer-file-name", RelayerConfigFileName,
+		"--sol-fee-addr-bridging-amount", sc.config.MinFeeForBriding.String(),
+		outputDirFlag, validator.GetBridgingConfigsDir(),
+		outputValidatorComponentsFileNameFlag, ValidatorComponentsConfigFileName,
+		outputRelayerFileNameFlag, RelayerConfigFileName,
 		"--relayer-data-dir", validator.GetRelayerDataDir(),
-		"--dbs-path", dbsPath,
-		"--treasury-address", sc.config.TreasuryAddress.String(),
+		dbsPathFlag, dbsPath,
+		treasuryAddressFlag, sc.config.TreasuryAddress.String(),
 		"--alt-public-key", sc.altPublicKey,
 		// "--sol-tracker-start-block", fmt.Sprintf("%d:%d", 300, 300), // slot:blockNum
 		"--sol-confirmation-timeout", "60000000000",
@@ -1408,10 +1737,10 @@ func (sc *TestSolanaChain) FundUserWithToken(
 		}
 
 		args := []string{
-			"mint", tokenMint, lamportAmount.String(), receiverATA.String(),
-			"--url", sc.jsonRPCAddr,
-			"--fee-payer", adminPkFile.Name(),
-			"--owner", adminPkFile.Name(),
+			mintName, tokenMint, lamportAmount.String(), receiverATA.String(),
+			urlFlag, sc.jsonRPCAddr,
+			feePayerFlag, adminPkFile.Name(),
+			ownerFlag, adminPkFile.Name(),
 		}
 		if _, err := sc.runSPLTokenCommandAndWait(ctx, provider, args...); err != nil {
 			return fmt.Errorf("mint token %d to %s: %w", tokenID, address, err)
@@ -1669,17 +1998,17 @@ func (sc *TestSolanaChain) UpgradeProgram(ctx context.Context) error {
 	}
 
 	params := []string{
-		"deploy-solana",
+		deploySolanaCommand,
 		"upgrade-program",
-		"--url", sc.jsonRPCAddr,
-		"--fee-payer", adminPkFile.Name(),
-		"--key", filepath.Join("..", "..", solanaProgramDir, solanaProgramKeypairPath),
+		urlFlag, sc.jsonRPCAddr,
+		feePayerFlag, adminPkFile.Name(),
+		keyFlag, filepath.Join("..", "..", solanaProgramDir, solanaProgramKeypairPath),
 		"--build-path", filepath.Join("..", "..", solanaProgramDir, solanaProgramBuildPath),
-		"--program-id", sc.programID,
-		"--upgrade-program-version", "0.3.0",
-		"--admin-key", adminPkFile.Name(),
-		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
-		"--commitment", "finalized",
+		programIDFlag, sc.programID,
+		"--upgrade-program-version", "0.4.0",
+		adminKeyFlag, adminPkFile.Name(),
+		confirmationTimeoutSecondsFlag, strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
+		commitmentFlag, ConfirmationStrategyFinalized,
 	}
 
 	var b bytes.Buffer
@@ -1715,18 +2044,18 @@ func (sc *TestSolanaChain) UpdateFeeConfig(ctx context.Context, feeConfig Update
 	}
 
 	params := []string{
-		"deploy-solana",
+		deploySolanaCommand,
 		"update-fee-config",
-		"--url", sc.jsonRPCAddr,
-		"--admin-key", adminPkFile.Name(),
-		"--program-id", sc.programID,
-		"--min-operation-fee", strconv.Itoa(int(feeConfig.MinOperationFee.Uint64())),
-		"--min-fee-for-bridging", strconv.Itoa(int(feeConfig.BridgeFee.Uint64())),
-		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
+		urlFlag, sc.jsonRPCAddr,
+		adminKeyFlag, adminPkFile.Name(),
+		programIDFlag, sc.programID,
+		minOperationFeeFlag, strconv.Itoa(int(feeConfig.MinOperationFee.Uint64())),
+		minFeeForBridgingFlag, strconv.Itoa(int(feeConfig.BridgeFee.Uint64())),
+		confirmationTimeoutSecondsFlag, strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 	}
 
 	if feeConfig.UpdateTreasury {
-		params = append(params, "--update-treasury", "true")
+		params = append(params, "--update-treasury", trueValue)
 		params = append(params, "--new-treasury-address", feeConfig.TreasuryAddress)
 	}
 
@@ -1767,14 +2096,14 @@ func (sc *TestSolanaChain) UpdateMinBridgingAmount(
 	}
 
 	params := []string{
-		"deploy-solana",
+		deploySolanaCommand,
 		"update-min-bridging-amount",
-		"--url", sc.jsonRPCAddr,
-		"--admin-key", adminPkFile.Name(),
-		"--program-id", sc.programID,
-		"--token-id", strconv.Itoa(int(tokenID)),
-		"--min-bridging-amount", strconv.Itoa(int(minBridgingAmount.Uint64())),
-		"--confirmation-timeout-seconds", strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
+		urlFlag, sc.jsonRPCAddr,
+		adminKeyFlag, adminPkFile.Name(),
+		programIDFlag, sc.programID,
+		tokenIDFlag, strconv.Itoa(int(tokenID)),
+		minBridgingAmountFlag, strconv.Itoa(int(minBridgingAmount.Uint64())),
+		confirmationTimeoutSecondsFlag, strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 	}
 
 	var b bytes.Buffer

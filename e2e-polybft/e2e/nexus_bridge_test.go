@@ -1860,8 +1860,8 @@ func misconfiguredMinAmounts(url, key, contractAddr string, minBridgingFee, minB
 	args := []string{
 		"bridge-admin",
 		"set-min-amounts",
-		"--url", url,
-		"--key", key,
+		urlFlag, url,
+		keyFlag, key,
 		"--contract-addr", contractAddr,
 	}
 

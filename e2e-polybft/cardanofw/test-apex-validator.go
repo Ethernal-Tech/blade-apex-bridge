@@ -93,14 +93,14 @@ func (cv *TestApexValidator) GetNexusTestDir() string {
 
 func (cv *TestApexValidator) CardanoWalletCreate(chain ChainID, walletType string) error {
 	args := []string{
-		"wallet-create",
-		"--chain", chain,
-		"--validator-data-dir", cv.server.DataDir(),
-		"--show-pk",
+		walletCreateCommand,
+		chainFlag, chain,
+		validatorDataDirFlag, cv.server.DataDir(),
+		showPkFlag,
 	}
 
 	if walletType != "" {
-		args = append(args, "--type", walletType)
+		args = append(args, typeFlag, walletType)
 	}
 
 	return RunCommand(ResolveApexBridgeBinary(), args, os.Stdout)
@@ -108,11 +108,11 @@ func (cv *TestApexValidator) CardanoWalletCreate(chain ChainID, walletType strin
 
 func (cv *TestApexValidator) SolanaWalletCreate(chain ChainID) (string, error) {
 	args := []string{
-		"wallet-create",
-		"--chain", chain,
-		"--validator-data-dir", cv.server.DataDir(),
-		"--show-pk",
-		"--type", "batcher-solana",
+		walletCreateCommand,
+		chainFlag, chain,
+		validatorDataDirFlag, cv.server.DataDir(),
+		showPkFlag,
+		typeFlag, "batcher-solana",
 	}
 
 	var outb bytes.Buffer
@@ -143,17 +143,17 @@ func (cv *TestApexValidator) SolanaWalletCreate(chain ChainID) (string, error) {
 
 func (cv *TestApexValidator) RelayerWalletCreate(chain ChainID) (string, error) {
 	args := []string{
-		"wallet-create",
-		"--chain", chain,
-		"--validator-data-dir", cv.GetRelayerDataDir(),
-		"--show-pk",
+		walletCreateCommand,
+		chainFlag, chain,
+		validatorDataDirFlag, cv.GetRelayerDataDir(),
+		showPkFlag,
 	}
 
 	switch chain {
 	case ChainIDCardano, ChainIDPrime, ChainIDVector:
-		args = append(args, "--type", "relayer-cardano")
+		args = append(args, typeFlag, "relayer-cardano")
 	case ChainIDSolana:
-		args = append(args, "--type", "relayer-solana")
+		args = append(args, typeFlag, "relayer-solana")
 	}
 
 	var outb bytes.Buffer
@@ -185,14 +185,14 @@ func (cv *TestApexValidator) RegisterChain(
 ) error {
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"register-chain",
-		"--chain", chain,
-		"--chain-ids-config", cv.GetChainIDsConfig(),
-		"--type", fmt.Sprint(chainType),
-		"--validator-data-dir", cv.server.DataDir(),
+		chainFlag, chain,
+		chainIDsConfigFlag, cv.GetChainIDsConfig(),
+		typeFlag, fmt.Sprint(chainType),
+		validatorDataDirFlag, cv.server.DataDir(),
 		"--token-supply", fmt.Sprint(tokenSupply),
 		"--wrapped-token-supply", fmt.Sprint(nativeTokenSupply),
-		"--bridge-url", cv.server.JSONRPCAddr(),
-		"--bridge-addr", contracts.Bridge.String(),
+		bridgeURLFlag, cv.server.JSONRPCAddr(),
+		bridgeAddrFlag, contracts.Bridge.String(),
 	}, os.Stdout)
 }
 
@@ -206,15 +206,15 @@ func (cv *TestApexValidator) GenerateConfigs(
 	dbsPath := filepath.Join(cv.dataDirPath, BridgingDBsDir)
 
 	args := []string{
-		"generate-configs",
-		"--validator-data-dir", cv.server.DataDir(),
-		"--output-dir", cv.GetBridgingConfigsDir(),
-		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
-		"--output-relayer-file-name", RelayerConfigFileName,
+		generateConfigsCommand,
+		validatorDataDirFlag, cv.server.DataDir(),
+		outputDirFlag, cv.GetBridgingConfigsDir(),
+		outputValidatorComponentsFileNameFlag, ValidatorComponentsConfigFileName,
+		outputRelayerFileNameFlag, RelayerConfigFileName,
 		"--bridge-node-url", cv.server.JSONRPCAddr(),
 		"--bridge-sc-address", contracts.Bridge.String(),
 		"--logs-path", logsPath,
-		"--dbs-path", dbsPath,
+		dbsPathFlag, dbsPath,
 		"--api-port", fmt.Sprint(apiPort),
 		"--api-keys", apiKey,
 		"--telemetry", telemetryConfig,
@@ -279,15 +279,15 @@ func (cv *TestApexValidator) GenerateSkylineConfigs(
 	dbsPath := filepath.Join(cv.dataDirPath, BridgingDBsDir)
 
 	args := []string{
-		"generate-configs", "skyline",
-		"--validator-data-dir", cv.server.DataDir(),
-		"--output-dir", cv.GetBridgingConfigsDir(),
-		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
-		"--output-relayer-file-name", RelayerConfigFileName,
+		generateConfigsCommand, "skyline",
+		validatorDataDirFlag, cv.server.DataDir(),
+		outputDirFlag, cv.GetBridgingConfigsDir(),
+		outputValidatorComponentsFileNameFlag, ValidatorComponentsConfigFileName,
+		outputRelayerFileNameFlag, RelayerConfigFileName,
 		"--bridge-node-url", cv.server.JSONRPCAddr(),
 		"--bridge-sc-address", contracts.Bridge.String(),
 		"--logs-path", logsPath,
-		"--dbs-path", dbsPath,
+		dbsPathFlag, dbsPath,
 		"--api-port", fmt.Sprint(apiPort),
 		"--api-keys", apiKey,
 		"--telemetry", telemetryConfig,
@@ -307,9 +307,9 @@ func (cv *TestApexValidator) GenerateSkylineConfigs(
 func (cv *TestApexValidator) Start(ctx context.Context, runAPI bool) (err error) {
 	args := []string{
 		"run-validator-components",
-		"--config", cv.GetValidatorComponentsConfig(),
+		configFlag, cv.GetValidatorComponentsConfig(),
 		"--direction-config", cv.GetDirectionsConfig(),
-		"--chain-ids-config", cv.GetChainIDsConfig(),
+		chainIDsConfigFlag, cv.GetChainIDsConfig(),
 	}
 
 	if runAPI {
@@ -331,10 +331,10 @@ func (cv *TestApexValidator) Stop() error {
 
 func (cv *TestApexValidator) createEvmSpecificWallet(chainID, walletType string) error {
 	return RunCommand(ResolveApexBridgeBinary(), []string{
-		"wallet-create",
-		"--chain", chainID,
-		"--validator-data-dir", cv.server.DataDir(),
-		"--type", walletType,
+		walletCreateCommand,
+		chainFlag, chainID,
+		validatorDataDirFlag, cv.server.DataDir(),
+		typeFlag, walletType,
 	}, os.Stdout)
 }
 
