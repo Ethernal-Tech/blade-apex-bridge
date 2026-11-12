@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 
 	sm "cloud.google.com/go/secretmanager/apiv1"
-	smpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
+	smpb "cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 )
 
 type GCPSecretsManager struct {
