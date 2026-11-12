@@ -55,6 +55,8 @@ const (
 	scriptTxMinCollateralUtxo = 2_000_000
 
 	scriptTxTTLSlotInc = 500
+
+	cardanoCliFeeFlag = "--fee"
 )
 
 // ScriptTxConfig decides on which side of phase-2 a script tx lands.
@@ -217,7 +219,7 @@ func (ec *TestCardanoChain) SendScriptTx(
 		args := []string{
 			infrawallet.DefaultEra, "transaction", "build-raw",
 			"--protocol-params-file", ppFilePath,
-			"--fee", strconv.FormatUint(fee, 10),
+			cardanoCliFeeFlag, strconv.FormatUint(fee, 10),
 			"--invalid-hereafter", strconv.FormatUint(ttl, 10),
 			"--out-file", txFilePath,
 		}
