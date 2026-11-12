@@ -1010,7 +1010,7 @@ func TestFSM_VerifyStateTransaction_Commitments(t *testing.T) {
 		hash, err := commitmentMessageSigned.Hash()
 		require.NoError(t, err)
 
-		var txns []*types.Transaction
+		txns := make([]*types.Transaction, 0, 2)
 
 		signature := createSignature(t, validators.GetPrivateIdentities("A", "B", "C", "D", "E"), hash, signer.DomainStateReceiver)
 		commitmentMessageSigned.AggSignature = *signature
@@ -1745,7 +1745,7 @@ func TestFSM_VerifyStateTransaction_InvalidTypeOfStateTransactions(t *testing.T)
 		isEndOfSprint: true,
 	}
 
-	var txns []*types.Transaction
+	txns := make([]*types.Transaction, 0, 1)
 	txns = append(txns,
 		createStateTransactionWithData(contracts.StateReceiverContract, []byte{9, 3, 1, 1}))
 
@@ -1862,7 +1862,7 @@ func createTestCommitment(t *testing.T, accounts []*wallet.Account) *CommitmentM
 	hash, err := commitment.Hash()
 	require.NoError(t, err)
 
-	var signatures bn256.Signatures
+	signatures := make(bn256.Signatures, 0, len(accounts))
 
 	for _, a := range accounts {
 		signature, err := a.Bls.Sign(hash.Bytes(), signer.DomainStateReceiver)

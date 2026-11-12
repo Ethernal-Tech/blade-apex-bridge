@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const vOutOfRangeName = "should be invalid if v is out of range"
+
 func TestKeyEncoding(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		priv, _ := GenerateECDSAPrivateKey()
@@ -170,15 +172,15 @@ func TestValidateSignatureValues(t *testing.T) {
 		},
 		// incorrect v, correct r, s.
 		{
-			name:      "should be invalid if v is out of range",
+			name:      vOutOfRangeName,
 			homestead: true, v: two, r: one, s: one, res: false,
 		},
 		{
-			name:      "should be invalid if v is out of range",
+			name:      vOutOfRangeName,
 			homestead: true, v: big.NewInt(-10), r: one, s: one, res: false,
 		},
 		{
-			name:      "should be invalid if v is out of range",
+			name:      vOutOfRangeName,
 			homestead: true, v: big.NewInt(10), r: one, s: one, res: false,
 		},
 		// incorrect v, incorrect/correct r, s.

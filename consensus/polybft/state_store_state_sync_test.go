@@ -42,7 +42,7 @@ func TestState_Insert_And_Get_MessageVotes(t *testing.T) {
 
 	hash := []byte{1, 2}
 	_, err := state.StateSyncStore.insertMessageVote(1, hash, &MessageSignature{
-		From:      "NODE_1",
+		From:      testNodeID,
 		Signature: []byte{1, 2},
 	}, nil)
 
@@ -51,7 +51,7 @@ func TestState_Insert_And_Get_MessageVotes(t *testing.T) {
 	votes, err := state.StateSyncStore.getMessageVotes(epoch, hash)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(votes))
-	assert.Equal(t, "NODE_1", votes[0].From)
+	assert.Equal(t, testNodeID, votes[0].From)
 	assert.True(t, bytes.Equal([]byte{1, 2}, votes[0].Signature))
 }
 

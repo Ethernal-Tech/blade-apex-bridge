@@ -453,7 +453,7 @@ func (c *TestCardanoCluster) InitGenesis(startTime int64, genesisDir string) err
 	}
 
 	args := []string{
-		"byron", "genesis", "genesis",
+		"byron", genesisCommand, genesisCommand,
 		"--protocol-magic", strconv.FormatUint(uint64(c.Config.NetworkMagic), 10),
 		"--start-time", strconv.FormatInt(startTime, 10),
 		"--k", strconv.Itoa(c.Config.SecurityParam),
@@ -631,7 +631,7 @@ func (c *TestCardanoCluster) GenesisCreateStaked(startTime time.Time) error {
 		c.Config.NodesCount, c.Config.NodesCount, c.Config.NodesCount, c.Config.NodesCount, c.Config.NodesCount)
 
 	args := append([]string{
-		"latest", "genesis", "create-staked",
+		"latest", genesisCommand, "create-staked",
 		"--genesis-dir", c.Config.Dir(""),
 		"--start-time", startTime.Format("2006-01-02T15:04:05Z"),
 		"--supply", "2000000000000",

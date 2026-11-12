@@ -114,10 +114,10 @@ func MintToken(
 ) error {
 	args := []string{
 		"bridge-admin", "mint-native-token",
-		"--key", hex.EncodeToString(minterWallet.SigningKey),
+		keyFlag, hex.EncodeToString(minterWallet.SigningKey),
 		"--ogmios", chain.ogmiosURL,
-		"--network-id", fmt.Sprintf("%v", chain.config.NetworkType),
-		"--testnet-magic", fmt.Sprintf("%v", chain.config.NetworkMagic),
+		networkIDFlag, fmt.Sprintf("%v", chain.config.NetworkType),
+		testnetMagicFlag, fmt.Sprintf("%v", chain.config.NetworkMagic),
 		"--token-name", tokenName,
 		"--amount", fmt.Sprintf("%v", mintAmount),
 	}

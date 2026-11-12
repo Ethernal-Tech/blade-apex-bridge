@@ -72,8 +72,8 @@ func (cv *TestApexValidator) GetNexusTestDir() string {
 func (cv *TestApexValidator) CardanoWalletCreate(chain ChainID, walletType string) error {
 	args := []string{
 		"wallet-create",
-		"--chain", chain,
-		"--validator-data-dir", cv.server.DataDir(),
+		chainFlag, chain,
+		validatorDataDirFlag, cv.server.DataDir(),
 		"--show-pk",
 	}
 
@@ -91,12 +91,12 @@ func (cv *TestApexValidator) RegisterChain(
 ) error {
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"register-chain",
-		"--chain", chain,
+		chainFlag, chain,
 		"--type", fmt.Sprint(chainType),
-		"--validator-data-dir", cv.server.DataDir(),
+		validatorDataDirFlag, cv.server.DataDir(),
 		"--token-supply", fmt.Sprint(tokenSupply),
-		"--bridge-url", cv.server.JSONRPCAddr(),
-		"--bridge-addr", contracts.Bridge.String(),
+		bridgeURLFlag, cv.server.JSONRPCAddr(),
+		bridgeAddrFlag, contracts.Bridge.String(),
 	}, os.Stdout)
 }
 
@@ -111,7 +111,7 @@ func (cv *TestApexValidator) GenerateConfigs(
 
 	args := []string{
 		"generate-configs",
-		"--validator-data-dir", cv.server.DataDir(),
+		validatorDataDirFlag, cv.server.DataDir(),
 		"--output-dir", cv.GetBridgingConfigsDir(),
 		"--output-validator-components-file-name", ValidatorComponentsConfigFileName,
 		"--output-relayer-file-name", RelayerConfigFileName,
@@ -139,7 +139,7 @@ func (cv *TestApexValidator) GenerateConfigs(
 func (cv *TestApexValidator) Start(ctx context.Context, runAPI bool) (err error) {
 	args := []string{
 		"run-validator-components",
-		"--config", cv.GetValidatorComponentsConfig(),
+		configFlag, cv.GetValidatorComponentsConfig(),
 	}
 
 	if runAPI {
@@ -162,8 +162,8 @@ func (cv *TestApexValidator) Stop() error {
 func (cv *TestApexValidator) createEvmSpecificWallet(walletType string) error {
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"wallet-create",
-		"--chain", ChainIDNexus,
-		"--validator-data-dir", cv.server.DataDir(),
+		chainFlag, ChainIDNexus,
+		validatorDataDirFlag, cv.server.DataDir(),
 		"--type", walletType,
 	}, os.Stdout)
 }

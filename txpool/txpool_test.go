@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/any"
+	anypb "github.com/golang/protobuf/ptypes/any"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
@@ -34,6 +34,9 @@ const (
 	defaultMaxAccountEnqueued uint64 = 128
 	validGasLimit             uint64 = 4712350
 	accountNumber             uint64 = 25
+
+	pruneAllLowNonceCaseName = "prune all txs with low nonce"
+	noLowNonceToPruneName    = "no low nonce txs to prune"
 )
 
 // addresses used in tests
@@ -723,7 +726,7 @@ func TestAddGossipTx(t *testing.T) {
 		txs := types.Transactions(batch)
 
 		return &proto.Txn{
-			Raw: &any.Any{
+			Raw: &anypb.Any{
 				Value: txs.MarshalRLPTo(nil),
 			},
 		}
@@ -1534,7 +1537,7 @@ func TestResetAccount(t *testing.T) {
 			expected result
 		}{
 			{
-				name: "prune all txs with low nonce",
+				name: pruneAllLowNonceCaseName,
 				txs: []*types.Transaction{
 					newTx(addr1, 0, 1, types.LegacyTxType),
 					newTx(addr1, 1, 1, types.LegacyTxType),
@@ -1553,7 +1556,7 @@ func TestResetAccount(t *testing.T) {
 				},
 			},
 			{
-				name: "no low nonce txs to prune",
+				name: noLowNonceToPruneName,
 				txs: []*types.Transaction{
 					newTx(addr1, 2, 1, types.LegacyTxType),
 					newTx(addr1, 3, 1, types.LegacyTxType),
@@ -1653,7 +1656,7 @@ func TestResetAccount(t *testing.T) {
 			signal   bool // flag indicating whether reset will cause a promotion
 		}{
 			{
-				name: "prune all txs with low nonce",
+				name: pruneAllLowNonceCaseName,
 				txs: []*types.Transaction{
 					newTx(addr1, 5, 1, types.LegacyTxType),
 					newTx(addr1, 6, 1, types.LegacyTxType),
@@ -1671,7 +1674,7 @@ func TestResetAccount(t *testing.T) {
 				},
 			},
 			{
-				name: "no low nonce txs to prune",
+				name: noLowNonceToPruneName,
 				txs: []*types.Transaction{
 					newTx(addr1, 2, 1, types.LegacyTxType),
 					newTx(addr1, 3, 1, types.LegacyTxType),
@@ -1789,7 +1792,7 @@ func TestResetAccount(t *testing.T) {
 			signal   bool // flag indicating whether reset will cause a promotion
 		}{
 			{
-				name: "prune all txs with low nonce",
+				name: pruneAllLowNonceCaseName,
 				txs: []*types.Transaction{
 					// promoted
 					newTx(addr1, 0, 1, types.LegacyTxType),
@@ -1813,7 +1816,7 @@ func TestResetAccount(t *testing.T) {
 				},
 			},
 			{
-				name: "no low nonce txs to prune",
+				name: noLowNonceToPruneName,
 				txs: []*types.Transaction{
 					// promoted
 					newTx(addr1, 5, 1, types.LegacyTxType),

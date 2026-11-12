@@ -481,7 +481,7 @@ func (a *ApexSystem) StartRelayer(ctx context.Context) (err error) {
 
 		a.relayerNode, err = framework.NewNodeWithContext(ctx, ResolveApexBridgeBinary(), []string{
 			"run-relayer",
-			"--config", validator.GetRelayerConfig(),
+			configFlag, validator.GetRelayerConfig(),
 		}, os.Stdout)
 		if err != nil {
 			return err
@@ -644,10 +644,10 @@ func (a *ApexSystem) DefundHotWallet(
 
 	return RunCommand(ResolveApexBridgeBinary(), []string{
 		"bridge-admin", "defund",
-		"--bridge-url", a.GetBridgeDefaultJSONRPCAddr(),
-		"--chain", chain,
+		bridgeURLFlag, a.GetBridgeDefaultJSONRPCAddr(),
+		chainFlag, chain,
 		"--amount", defundDfm.String(),
-		"--key", pk,
+		keyFlag, pk,
 		"--addr", defundReceiverAddress,
 	}, os.Stdout)
 }

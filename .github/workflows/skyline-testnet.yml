@@ -31,7 +31,7 @@ on: # yamllint disable-line rule:truthy
 jobs:
   inputs_check:
     name: Inputs Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       blade_apex_bridge_ref: ${{ steps.blade_apex_bridge_ref_input_check.outputs.blade_apex_bridge_ref }}
       run_blade_apex_bridge_partner: ${{ steps.partner_input_check.outputs.run_blade_apex_bridge_partner }}

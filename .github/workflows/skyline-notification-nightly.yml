@@ -62,7 +62,7 @@ on: # yamllint disable-line rule:truthy
 jobs:
   notification:
     name: Notification
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: ${{ inputs.environment }}
     steps:
       - name: Checkout code
