@@ -2178,6 +2178,81 @@ func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
 	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
 ) (string, error) {
+	return a.submitTx(ctx, sourceChain, sender, receiverAddr, amount, nativeTokens, data, opFee, nil)
+}
+
+// SubmitTxWithRawTxMutator is SubmitTx with a hook that rewrites the built transaction
+// before it is signed, so a test can submit transactions cardano-cli cannot build.
+// Only cardano chains support it.
+func (a *ApexSystem) SubmitTxWithRawTxMutator(
+	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
+	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
+	mutate func(txRaw []byte) ([]byte, error),
+) (string, error) {
+	return a.submitTx(ctx, sourceChain, sender, receiverAddr, amount, nativeTokens, data, opFee, mutate)
+}
+
+// SubmitScriptTx is SubmitTx for a transaction that also mints through a plutus policy,
+// so that phase-2 script validation decides whether it goes through - see ScriptTxConfig.
+// Only cardano chains support it.
+func (a *ApexSystem) SubmitScriptTx(
+	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
+	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
+	config ScriptTxConfig,
+) (*ScriptTxInfo, error) {
+	const (
+		numRetries = 5
+		waitTime   = time.Second * 10
+	)
+
+	privateKey, err := sender.GetPrivateKey(sourceChain)
+	if err != nil {
+		return nil, err
+	}
+
+	chain, err := a.getChain(sourceChain)
+	if err != nil {
+		return nil, err
+	}
+
+	cardanoChain, ok := chain.(*TestCardanoChain)
+	if !ok {
+		return nil, fmt.Errorf("chain %s does not support script txs", sourceChain)
+	}
+
+	var operationFee uint64
+	if opFee != nil {
+		operationFee = WeiToDfm(opFee).Uint64()
+	}
+
+	receivers := []GenericTxReceiver{
+		{
+			Addr:         receiverAddr,
+			Amount:       amount,
+			NativeTokens: nativeTokens,
+		},
+	}
+
+	return infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (*ScriptTxInfo, error) {
+		info, err := cardanoChain.SendScriptTx(ctx, privateKey, data, receivers, operationFee, config)
+		if err != nil {
+			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
+				return nil, infracommon.ErrRetryTryAgain
+			}
+
+			return nil, err
+		}
+
+		return info, nil
+	}, infracommon.WithRetryCount(numRetries), infracommon.WithRetryWaitTime(waitTime),
+		infracommon.WithIsRetryableError(IsRetryableSubmitTx))
+}
+
+func (a *ApexSystem) submitTx(
+	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
+	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
+	mutate func(txRaw []byte) ([]byte, error),
+) (string, error) {
 	const (
 		numRetries = 5
 		waitTime   = time.Second * 10
@@ -2209,8 +2284,21 @@ func (a *ApexSystem) SubmitTx(
 		},
 	}
 
+	sendTx := func(ctx context.Context) (string, error) {
+		if mutate == nil {
+			return chain.SendTx(ctx, privateKey, data, receivers, operationFee)
+		}
+
+		cardanoChain, ok := chain.(*TestCardanoChain)
+		if !ok {
+			return "", fmt.Errorf("chain %s does not support rewriting the raw tx", sourceChain)
+		}
+
+		return cardanoChain.SendTxWithRawTxMutator(ctx, privateKey, data, receivers, operationFee, mutate)
+	}
+
 	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
-		txHash, err := chain.SendTx(ctx, privateKey, data, receivers, operationFee)
+		txHash, err := sendTx(ctx)
 		if err != nil {
 			if strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs") {
 				return "", infracommon.ErrRetryTryAgain
