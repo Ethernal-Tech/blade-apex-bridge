@@ -145,16 +145,15 @@ func NewRemoteSolanaChainConfig(
 }
 
 type TestSolanaChain struct {
-	config       *TestSolanaChainConfig
-	provider     *solanawallet.Provider
-	relayerAddr  string
-	cluster      *solanafw.TestSolanaCluster
-	admin        *solanawallet.Wallet
-	jsonRPCAddr  string
-	gatewayAddr  string
-	indexer      e2eindexer.TxsExecutedComponent
-	programID    string
-	altPublicKey string
+	config      *TestSolanaChainConfig
+	provider    *solanawallet.Provider
+	relayerAddr string
+	cluster     *solanafw.TestSolanaCluster
+	admin       *solanawallet.Wallet
+	jsonRPCAddr string
+	gatewayAddr string
+	indexer     e2eindexer.TxsExecutedComponent
+	programID   string
 
 	bridgeURL      string
 	chainIDsConfig string
@@ -738,10 +737,6 @@ func (sc *TestSolanaChain) DeployMintingContract(ctx context.Context, chainIDsCo
 		return fmt.Errorf("register tokens: %w", err)
 	}
 
-	if err := sc.initializeALT(); err != nil {
-		return fmt.Errorf("initialize ALT: %w", err)
-	}
-
 	if err := sc.hotWalletIncrementFunding(ctx); err != nil {
 		return fmt.Errorf("increment hot wallet funding: %w", err)
 	}
@@ -1100,85 +1095,6 @@ func (sc *TestSolanaChain) registerTokens() error {
 	return nil
 }
 
-func (sc *TestSolanaChain) initializeALT() error {
-	// 1. Create ALT
-	adminPkFile, err := os.CreateTemp(os.TempDir(), "admin-pk-*.json")
-	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
-	}
-
-	pkString := fmt.Sprintf("%v", []byte(sc.admin.PrivateKey))
-	pkString = strings.ReplaceAll(pkString, " ", ",")
-
-	if _, err := adminPkFile.Write([]byte(pkString)); err != nil {
-		return fmt.Errorf("write admin private key: %w", err)
-	}
-
-	defer adminPkFile.Close()
-
-	createALTParams := []string{
-		deploySolanaCommand,
-		"create-alt",
-		urlFlag, sc.jsonRPCAddr,
-		programIDFlag, sc.programID,
-		adminKeyFlag, adminPkFile.Name(),
-		confirmationTimeoutSecondsFlag, strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
-	}
-
-	var createOut bytes.Buffer
-
-	if err := RunCommand(
-		ResolveApexBridgeBinary(),
-		createALTParams,
-		io.MultiWriter(os.Stdout, &createOut),
-	); err != nil {
-		return err
-	}
-
-	createOutString := createOut.String()
-
-	reALTPubKey := regexp.MustCompile(`ALT created:\s*(\S+)`)
-
-	altPubKeyMatch := reALTPubKey.FindStringSubmatch(createOutString)
-	if altPubKeyMatch == nil {
-		return fmt.Errorf("ALT address not found in output: %s", createOutString)
-	}
-
-	altPubKeyStr := altPubKeyMatch[1]
-
-	fmt.Printf("created ALT with public key: %s\n", altPubKeyStr)
-
-	sc.altPublicKey = altPubKeyStr
-
-	// 2. Extend ALT
-
-	extendALTParams := []string{
-		deploySolanaCommand,
-		"extend-alt",
-		urlFlag, sc.jsonRPCAddr,
-		programIDFlag, sc.programID,
-		adminKeyFlag, adminPkFile.Name(),
-		"--alt-address", sc.altPublicKey,
-		confirmationTimeoutSecondsFlag, strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
-	}
-
-	for tokenID, tokenMint := range sc.config.TokensMint {
-		extendALTParams = append(extendALTParams, "--token-id-and-mint", fmt.Sprintf("%d:%s", tokenID, tokenMint))
-	}
-
-	var extendOut bytes.Buffer
-
-	if err := RunCommand(
-		ResolveApexBridgeBinary(),
-		extendALTParams,
-		io.MultiWriter(os.Stdout, &extendOut),
-	); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (sc *TestSolanaChain) FundWallets(ctx context.Context) error {
 	if sc.jsonRPCAddr == "" {
 		return nil
@@ -1359,7 +1275,6 @@ func (sc *TestSolanaChain) GenerateChainConfigs(indx int, validator *TestApexVal
 		"--relayer-data-dir", validator.GetRelayerDataDir(),
 		dbsPathFlag, dbsPath,
 		treasuryAddressFlag, sc.config.TreasuryAddress.String(),
-		"--alt-public-key", sc.altPublicKey,
 		// "--sol-tracker-start-block", fmt.Sprintf("%d:%d", 300, 300), // slot:blockNum
 		"--sol-confirmation-timeout", "60000000000",
 		"--slot-rounding-threshold", "25",
