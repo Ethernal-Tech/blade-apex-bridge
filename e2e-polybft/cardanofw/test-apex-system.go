@@ -115,7 +115,6 @@ type SolanaChainInfo struct {
 	RelayerAddress string
 	JSONRPCAddr    string
 	ProgramID      string
-	AltPublicKey   string
 }
 
 type ApexSystem struct {
