@@ -475,7 +475,7 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 				Info: EVMChainInfo{
 					GatewayAddress:           types.StringToAddress("0xb21565df525a795e18C12d49d710766774dAEaDe"),
 					NativeTokenWalletAddress: types.StringToAddress("0x55A1A578fCc44A9E403E6F411CFb2B61A7eef5b2"),
-					JSONRPCAddr:              "https://polygon-amoy.drpc.org",
+					JSONRPCAddr:              "https://polygon-amoy-bor-rpc.publicnode.com",
 					Tokens: map[uint16]Token{
 						POLTokenID: {
 							ChainSpecific:     cardanowallet.AdaTokenName,
@@ -719,7 +719,6 @@ func GetPartnerTestnetSkylineBridgeConfig() *RemoteApexBridgeConfig {
 					RelayerAddress: "7bP47jShWo1xn1gVX4Be5oNNwcwLCKKmCt7aX2W2go8c",
 					JSONRPCAddr:    "https://api.devnet.solana.com",
 					ProgramID:      "6R9GdZEpwBFTicsZCqN7e7P4gqoKDTdiDQSceJz5pGHY",
-					AltPublicKey:   "9Xf3VFhcs1ZW55NBuSqhDaSX3Jb1PbNHLwrtgh6j4TJG",
 				},
 				MinBridgingFee:  big.NewInt(6000000),
 				MinOperationFee: big.NewInt(0),
@@ -1041,12 +1040,11 @@ func SetupSkylineRemoteBridge(
 	}
 
 	solanaChain := &TestSolanaChain{
-		config:       apexConfig.SolanaConfig,
-		relayerAddr:  solanaRemoteConfig.Info.RelayerAddress,
-		jsonRPCAddr:  solanaRemoteConfig.Info.JSONRPCAddr,
-		indexer:      e2eindexer.NewTxsExecutedComponentDummy(),
-		programID:    solanaRemoteConfig.Info.ProgramID,
-		altPublicKey: solanaRemoteConfig.Info.AltPublicKey,
+		config:      apexConfig.SolanaConfig,
+		relayerAddr: solanaRemoteConfig.Info.RelayerAddress,
+		jsonRPCAddr: solanaRemoteConfig.Info.JSONRPCAddr,
+		indexer:     e2eindexer.NewTxsExecutedComponentDummy(),
+		programID:   solanaRemoteConfig.Info.ProgramID,
 	}
 
 	usersData, err := GetTestnetApexUsers(
