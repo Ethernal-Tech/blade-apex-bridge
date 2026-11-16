@@ -134,13 +134,9 @@ jobs:
     name: Defund Skyline Partner Testnet
     uses: ./.github/workflows/skyline-e2e-testnet-test.yml
     needs: [fund_skyline_partner_testnet, e2e_skyline_partner_testnet_test, e2e_skyline_solana_partner_testnet_test, inputs_check]
-    if: |
-      always() &&
-      needs.inputs_check.outputs.run_blade_apex_bridge_partner == 'true' &&
-      needs.fund_skyline_partner_testnet.result == 'success' &&
-      (needs.e2e_skyline_partner_testnet_test.result == 'success' || needs.e2e_skyline_partner_testnet_test.result == 'skipped' || needs.e2e_skyline_partner_testnet_test.result == 'failure') &&
-      (needs.e2e_skyline_solana_partner_testnet_test.result == 'success' || needs.e2e_skyline_solana_partner_testnet_test.result == 'skipped' || needs.e2e_skyline_solana_partner_testnet_test.result == 'failure') &&
-      !cancelled()
+    # Always defund once fund and tests are finished, whatever their result
+    # (including a failed or partial fund), so test wallets never keep funds.
+    if: always() && needs.inputs_check.outputs.run_blade_apex_bridge_partner == 'true'
     with:
       blade_apex_bridge_ref: ${{ needs.inputs_check.outputs.blade_apex_bridge_ref }}
       blade_apex_bridge_version: partner
