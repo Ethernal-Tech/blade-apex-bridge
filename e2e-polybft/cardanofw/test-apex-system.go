@@ -2177,7 +2177,17 @@ func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
 	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
 ) (string, error) {
-	return a.submitTx(ctx, sourceChain, sender, receiverAddr, amount, nativeTokens, data, opFee, nil)
+	return a.submitTx(ctx, sourceChain, sender,
+		newSingleTxReceiver(receiverAddr, amount, nativeTokens), data, opFee, nil)
+}
+
+// SubmitTxWithReceivers is SubmitTx for a transaction with several outputs, e.g. a single
+// transaction that sends multiple UTxOs to bridging addresses.
+func (a *ApexSystem) SubmitTxWithReceivers(
+	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
+	receivers []GenericTxReceiver, data []byte, opFee *big.Int,
+) (string, error) {
+	return a.submitTx(ctx, sourceChain, sender, receivers, data, opFee, nil)
 }
 
 // SubmitTxWithRawTxMutator is SubmitTx with a hook that rewrites the built transaction
@@ -2188,7 +2198,8 @@ func (a *ApexSystem) SubmitTxWithRawTxMutator(
 	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
 	mutate func(txRaw []byte) ([]byte, error),
 ) (string, error) {
-	return a.submitTx(ctx, sourceChain, sender, receiverAddr, amount, nativeTokens, data, opFee, mutate)
+	return a.submitTx(ctx, sourceChain, sender,
+		newSingleTxReceiver(receiverAddr, amount, nativeTokens), data, opFee, mutate)
 }
 
 // SubmitScriptTx is SubmitTx for a transaction that also mints through a plutus policy,
@@ -2247,9 +2258,21 @@ func (a *ApexSystem) SubmitScriptTx(
 		infracommon.WithIsRetryableError(IsRetryableSubmitTx))
 }
 
+func newSingleTxReceiver(
+	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount,
+) []GenericTxReceiver {
+	return []GenericTxReceiver{
+		{
+			Addr:         receiverAddr,
+			Amount:       amount,
+			NativeTokens: nativeTokens,
+		},
+	}
+}
+
 func (a *ApexSystem) submitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
-	receiverAddr string, amount *big.Int, nativeTokens []GenericTokenAmount, data []byte, opFee *big.Int,
+	receivers []GenericTxReceiver, data []byte, opFee *big.Int,
 	mutate func(txRaw []byte) ([]byte, error),
 ) (string, error) {
 	const (
@@ -2273,14 +2296,6 @@ func (a *ApexSystem) submitTx(
 		operationFee = 0
 	} else {
 		operationFee = WeiToDfm(opFee).Uint64()
-	}
-
-	receivers := []GenericTxReceiver{
-		{
-			Addr:         receiverAddr,
-			Amount:       amount,
-			NativeTokens: nativeTokens,
-		},
 	}
 
 	sendTx := func(ctx context.Context) (string, error) {
