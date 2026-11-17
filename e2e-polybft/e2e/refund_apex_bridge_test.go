@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math/big"
@@ -12,6 +13,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/Ethernal-Tech/cardano-infrastructure/wallet/bech32"
 	"github.com/stretchr/testify/require"
 )
 
@@ -160,6 +162,16 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 		err = apex.WaitForAmountInRange(ctx, brSubmitterUser, cardanofw.ChainIDPrime, lowerBoundaryDfm, beforeSendingAmountDfm,
 			20, time.Second*30)
 		require.NoError(t, err)
+	})
+
+	vectorTestConfig := newTestConfig(t, apex.Config.VectorConfig, &apex.VectorInfo, cardanofw.ChainIDPrime, feeAmount)
+
+	t.Run("Prime -> Vector - Non-canonical receiver address", func(t *testing.T) {
+		executeNonCanonicalReceiverAddress(t, ctx, apex, primeTestConfig, user, requestStateTimeoutSec, retryDelaySec)
+	})
+
+	t.Run("Vector -> Prime - Non-canonical receiver address", func(t *testing.T) {
+		executeNonCanonicalReceiverAddress(t, ctx, apex, vectorTestConfig, user, requestStateTimeoutSec, retryDelaySec)
 	})
 }
 
@@ -657,4 +669,75 @@ func TestE2E_ApexRefund_ComplexScenarios_BothBridgingDirectionsSimulation(t *tes
 	fmt.Printf("\nAll defund users received their funds...\n")
 
 	wgWithFund.Wait()
+}
+
+// nonCanonicalBaseAddress builds a base address from the payment key hash of addr and appends
+// a trailing byte. The cardano-infrastructure parser only checks a minimum length for base
+// addresses, so it still accepts the result, while cardano-cli and the ledger reject it.
+func nonCanonicalBaseAddress(t *testing.T, addr string) string {
+	t.Helper()
+
+	cardanoAddr, err := infrawallet.NewCardanoAddressFromString(addr)
+	require.NoError(t, err)
+
+	info := cardanoAddr.GetInfo()
+
+	baseAddr, err := infrawallet.CardanoAddressInfo{
+		AddressType: infrawallet.BaseAddress,
+		Network:     info.Network,
+		Payment:     info.Payment,
+		Stake:       &infrawallet.CardanoAddressPayload{Payload: info.Payment.Payload},
+	}.ToCardanoAddress()
+	require.NoError(t, err)
+
+	raw := append(bytes.Clone(baseAddr.GetBytes()), 0)
+
+	nonCanonical, err := bech32.EncodeFromBase256(info.Network.GetPrefix(), raw)
+	require.NoError(t, err)
+
+	// the parser must accept it, otherwise the request is rejected before the canonical check
+	_, err = infrawallet.NewCardanoAddressFromString(nonCanonical)
+	require.NoError(t, err)
+
+	return nonCanonical
+}
+
+// executeNonCanonicalReceiverAddress submits a bridging request whose receiver is a non-canonical
+// address on the destination chain. The oracle must reject it and refund the sender: if it were
+// accepted, cardano-cli would fail to build every batch paying to it and block the destination
+// chain, so the follow-up valid bridging into the destination chain would never execute.
+func executeNonCanonicalReceiverAddress(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig,
+	user *cardanofw.TestApexUser, maxWaitTimeSec, retryIntervalSec uint,
+) {
+	t.Helper()
+
+	receiverAddr := nonCanonicalBaseAddress(t, user.GetAddress(config.dstChainID))
+	fmt.Printf("non-canonical receiver address: %s\n", receiverAddr)
+
+	receivers := []sendtx.BridgingTxReceiver{
+		{
+			Addr:   receiverAddr,
+			Amount: defaultLovelaceAmount,
+		},
+	}
+
+	metadata, _ := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID, config.bridgingFee,
+		user, receivers)
+
+	beforeSendingAmountDfm, err := apex.GetBalance(ctx, user, config.srcChainID)
+	require.NoError(t, err)
+
+	lovelaceAmount, waitForAmount := getDefaultSendAmounts(t, config)
+
+	txHash, err := apex.SubmitTx(
+		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr,
+		lovelaceAmount, nil, metadata)
+	require.NoError(t, err)
+
+	WaitForTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmountDfm, waitForAmount,
+		true, maxWaitTimeSec, retryIntervalSec)
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, user, user, config.srcChainID, config.dstChainID, new(big.Int).SetUint64(defaultLovelaceAmount))
 }
