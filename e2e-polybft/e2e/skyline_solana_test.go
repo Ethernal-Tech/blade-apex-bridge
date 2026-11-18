@@ -430,7 +430,7 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 	solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
 	version, err := solanaChain.GetProgramVersion(ctx)
 	require.NoError(t, err)
-	require.Equal(t, "0.3.0", version)
+	require.Equal(t, "0.4.0", version)
 
 	testFunc := func() {
 		t.Run("Bridging after changes", func(t *testing.T) {
@@ -460,14 +460,9 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 		})
 	}
 
-	// testFunc()
+	testFunc()
 
 	t.Run("Update min bridging amount", func(t *testing.T) {
-		// Since the braking chnage was introduced in the way we process events
-		// from the solana program, we need to skip this test for now
-		// until next release of the solana program
-		t.Skip()
-
 		minTokenBridgingAmount := solanaConfig.MinTokenBridgingAmount
 		newMinTokenBridgingAmount := big.NewInt(2000)
 
@@ -513,7 +508,7 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 		version, err := solanaChain.GetProgramVersion(ctx)
 		require.NoError(t, err)
 		// Make sure to update the version in the test if the program is upgraded
-		require.Equal(t, "0.4.0", version)
+		require.Equal(t, cardanofw.SolanaProgramUpgradeVersion, version)
 	})
 
 	testFunc()
@@ -608,6 +603,242 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, treasuryBalanceAfter["lovelace"].Cmp(cardanofw.LamportToWei(newOpFee)) == 0)
 	})
+
+	// Bridge admin (set_authority: FeeConfig and ProgramConfig authority) and program upgrade
+	// authority (BPF loader) are separate roles; both start as the deployer's admin key.
+	solanaKeyFundAmount := big.NewInt(50_000_000_000) // 50 SOL, enough for a program upgrade
+
+	newFundedWallet := func(t *testing.T) *solanawallet.Wallet {
+		t.Helper()
+
+		wallet, err := solanawallet.NewWallet()
+		require.NoError(t, err)
+		require.NoError(t, solanaChain.FundAddress(ctx, wallet.PublicKey.String(), solanaKeyFundAmount))
+
+		return wallet
+	}
+
+	requireAdmin := func(t *testing.T, want solana.PublicKey) {
+		t.Helper()
+
+		programConfigAuthority, feeConfigAuthority, err := solanaChain.GetAuthorities(ctx)
+		require.NoError(t, err)
+		require.Equal(t, want, programConfigAuthority)
+		require.Equal(t, want, feeConfigAuthority)
+	}
+
+	requireUpgradeAuthority := func(t *testing.T, want solana.PublicKey) {
+		t.Helper()
+
+		upgradeAuthority, err := solanaChain.GetUpgradeAuthority(ctx)
+		require.NoError(t, err)
+		require.Equal(t, want, upgradeAuthority)
+	}
+
+	oldAdmin := solanaChain.GetAdminWallet()
+	newAdmin := newFundedWallet(t)
+
+	requireAdmin(t, oldAdmin.PublicKey)
+	requireUpgradeAuthority(t, solanaChain.GetUpgradeAuthorityWallet().PublicKey)
+
+	t.Run("Set authority - invalid", func(t *testing.T) {
+		t.Run("signer is not the admin", func(t *testing.T) {
+			err := solanaChain.SendSetAuthorityTx(ctx, cardanofw.SetAuthorityTxParams{
+				Authority:          newFundedWallet(t),
+				NewAuthority:       newAdmin.PublicKey,
+				NewAuthoritySigner: newAdmin,
+			})
+			require.ErrorContains(t, err, "Unauthorized")
+			requireAdmin(t, oldAdmin.PublicKey)
+		})
+
+		t.Run("new authority does not co-sign", func(t *testing.T) {
+			err := solanaChain.SendSetAuthorityTx(ctx, cardanofw.SetAuthorityTxParams{
+				Authority:                 oldAdmin,
+				NewAuthority:              newAdmin.PublicKey,
+				NewAuthoritySigner:        newAdmin,
+				SkipNewAuthoritySignature: true,
+			})
+			require.ErrorContains(t, err, "AccountNotSigner")
+			requireAdmin(t, oldAdmin.PublicKey)
+		})
+
+		t.Run("co-signer differs from the new authority", func(t *testing.T) {
+			otherWallet, err := solanawallet.NewWallet()
+			require.NoError(t, err)
+
+			err = solanaChain.SendSetAuthorityTx(ctx, cardanofw.SetAuthorityTxParams{
+				Authority:          oldAdmin,
+				NewAuthority:       newAdmin.PublicKey,
+				NewAuthoritySigner: otherWallet,
+			})
+			require.ErrorContains(t, err, "InvalidNewAuthority")
+			requireAdmin(t, oldAdmin.PublicKey)
+		})
+
+		t.Run("new authority is the current admin", func(t *testing.T) {
+			err := solanaChain.SendSetAuthorityTx(ctx, cardanofw.SetAuthorityTxParams{
+				Authority:          oldAdmin,
+				NewAuthority:       oldAdmin.PublicKey,
+				NewAuthoritySigner: oldAdmin,
+			})
+			require.ErrorContains(t, err, "InvalidNewAuthority")
+			requireAdmin(t, oldAdmin.PublicKey)
+		})
+
+		t.Run("new authority is the default key", func(t *testing.T) {
+			err := solanaChain.SendSetAuthorityTx(ctx, cardanofw.SetAuthorityTxParams{
+				Authority:          oldAdmin,
+				NewAuthority:       solana.PublicKey{},
+				NewAuthoritySigner: newAdmin,
+			})
+			require.ErrorContains(t, err, "InvalidNewAuthority")
+			requireAdmin(t, oldAdmin.PublicKey)
+		})
+
+		t.Run("CLI with a non-admin key", func(t *testing.T) {
+			err := solanaChain.SetAuthority(ctx, newFundedWallet(t), newAdmin)
+			require.ErrorContains(t, err, "does not match program config authority")
+			requireAdmin(t, oldAdmin.PublicKey)
+			require.Equal(t, oldAdmin.PublicKey, solanaChain.GetAdminWallet().PublicKey)
+		})
+	})
+
+	t.Run("Set authority - rotate admin", func(t *testing.T) {
+		require.NoError(t, solanaChain.SetAuthority(ctx, oldAdmin, newAdmin))
+		requireAdmin(t, newAdmin.PublicKey)
+		// the program upgrade authority does not follow the bridge admin
+		requireUpgradeAuthority(t, oldAdmin.PublicKey)
+	})
+
+	t.Run("Set authority - previous admin is rejected", func(t *testing.T) {
+		err := solanaChain.UpdateFeeConfigWithAdmin(ctx, oldAdmin, cardanofw.UpdateFeeConfigDto{
+			MinOperationFee: newOpFee,
+			BridgeFee:       newBridgeFee,
+		})
+		require.ErrorContains(t, err, "Unauthorized")
+
+		err = solanaChain.UpdateMinBridgingAmountWithAdmin(ctx, oldAdmin, cardanofw.WSOLTokenID, big.NewInt(3000))
+		require.ErrorContains(t, err, "Unauthorized")
+
+		err = solanaChain.UpgradeProgramWithKeys(ctx, oldAdmin, oldAdmin)
+		require.ErrorContains(t, err, "does not match program config authority")
+
+		// the previous admin cannot take the role back
+		err = solanaChain.SendSetAuthorityTx(ctx, cardanofw.SetAuthorityTxParams{
+			Authority:          oldAdmin,
+			NewAuthority:       oldAdmin.PublicKey,
+			NewAuthoritySigner: oldAdmin,
+		})
+		require.ErrorContains(t, err, "Unauthorized")
+
+		requireAdmin(t, newAdmin.PublicKey)
+	})
+
+	t.Run("Set authority - new admin manages the bridge", func(t *testing.T) {
+		newMinTokenBridgingAmount := big.NewInt(3000)
+
+		require.NoError(t, solanaChain.UpdateMinBridgingAmount(ctx, cardanofw.WSOLTokenID, newMinTokenBridgingAmount))
+
+		_, err := solanaChain.BridgingRequest(cardanofw.BridgingRequestParams{
+			Ctx:         ctx,
+			DestChainID: cardanofw.ChainIDVector,
+			PrivateKey:  apex.Users[0].SolanaWallet.PrivateKey.String(),
+			Receivers: map[string]cardanofw.ReceiverAmount{
+				apex.Users[0].GetAddress(cardanofw.ChainIDVector): {
+					TokenID: cardanofw.WSOLTokenID,
+					Amount:  cardanofw.LamportToWei(big.NewInt(2000)),
+				},
+			},
+			FeeAmount:    newBridgeFee,
+			OperationFee: newOpFee,
+		})
+		require.ErrorContains(t, err, "BridgingAmountTooLow")
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector,
+			cardanofw.LamportToWei(newMinTokenBridgingAmount),
+			cardanofw.WSOLTokenID, true)
+
+		adminOpFee := new(big.Int).Add(newOpFee, big.NewInt(10_000_000))
+
+		require.NoError(t, solanaChain.UpdateFeeConfig(ctx, cardanofw.UpdateFeeConfigDto{
+			MinOperationFee: adminOpFee,
+			BridgeFee:       newBridgeFee,
+		}))
+
+		treasuryUser := &cardanofw.TestApexUser{
+			HasSolanaWallet: true,
+			SolanaAddress:   solanaChain.GetTreasuryAddress(),
+		}
+		treasuryBalance, err := apex.GetBalance(ctx, treasuryUser, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+
+		e2ehelper.ExecuteSingleBridging(
+			t, ctx, apex, apex.Users[0], apex.Users[0], cardanofw.ChainIDSolana, cardanofw.ChainIDVector,
+			cardanofw.SolanaToWei(big.NewInt(1)), cardanofw.WSOLTokenID, true)
+
+		treasuryBalanceAfter, err := apex.GetBalance(ctx, treasuryUser, cardanofw.ChainIDSolana)
+		require.NoError(t, err)
+
+		diff := new(big.Int).Sub(treasuryBalanceAfter["lovelace"], treasuryBalance["lovelace"])
+		require.Zero(t, diff.Cmp(cardanofw.LamportToWei(adminOpFee)))
+	})
+
+	t.Run("Set authority - new admin upgrades with the unchanged upgrade authority", func(t *testing.T) {
+		require.NoError(t, solanaChain.UpgradeProgramWithKeys(ctx, newAdmin, oldAdmin))
+
+		version, err := solanaChain.GetProgramVersion(ctx)
+		require.NoError(t, err)
+		require.Equal(t, cardanofw.SolanaProgramUpgradeVersion, version)
+		requireAdmin(t, newAdmin.PublicKey)
+	})
+
+	newUpgradeAuthority := newFundedWallet(t)
+
+	t.Run("Set upgrade authority - invalid", func(t *testing.T) {
+		t.Run("signer is not the upgrade authority", func(t *testing.T) {
+			err := solanaChain.SetUpgradeAuthority(ctx, newFundedWallet(t), newUpgradeAuthority)
+			require.Error(t, err)
+			requireUpgradeAuthority(t, oldAdmin.PublicKey)
+		})
+
+		t.Run("bridge admin is not the upgrade authority", func(t *testing.T) {
+			err := solanaChain.SetUpgradeAuthority(ctx, newAdmin, newUpgradeAuthority)
+			require.Error(t, err)
+			requireUpgradeAuthority(t, oldAdmin.PublicKey)
+		})
+
+		require.Equal(t, oldAdmin.PublicKey, solanaChain.GetUpgradeAuthorityWallet().PublicKey)
+	})
+
+	t.Run("Set upgrade authority - rotate upgrade authority", func(t *testing.T) {
+		require.NoError(t, solanaChain.SetUpgradeAuthority(ctx, oldAdmin, newUpgradeAuthority))
+		requireUpgradeAuthority(t, newUpgradeAuthority.PublicKey)
+		// the bridge admin does not follow the upgrade authority
+		requireAdmin(t, newAdmin.PublicKey)
+	})
+
+	t.Run("Set upgrade authority - previous upgrade authority is rejected", func(t *testing.T) {
+		err := solanaChain.UpgradeProgramWithKeys(ctx, newAdmin, oldAdmin)
+		require.Error(t, err)
+
+		err = solanaChain.SetUpgradeAuthority(ctx, oldAdmin, newFundedWallet(t))
+		require.Error(t, err)
+
+		requireUpgradeAuthority(t, newUpgradeAuthority.PublicKey)
+	})
+
+	t.Run("Set upgrade authority - new upgrade authority upgrades the program", func(t *testing.T) {
+		require.NoError(t, solanaChain.UpgradeProgramWithKeys(ctx, newAdmin, newUpgradeAuthority))
+
+		version, err := solanaChain.GetProgramVersion(ctx)
+		require.NoError(t, err)
+		require.Equal(t, cardanofw.SolanaProgramUpgradeVersion, version)
+		requireUpgradeAuthority(t, newUpgradeAuthority.PublicKey)
+	})
+
+	testFunc()
 }
 
 func Test_SkylineSolana_LockUnlockTokenFlow(t *testing.T) {
