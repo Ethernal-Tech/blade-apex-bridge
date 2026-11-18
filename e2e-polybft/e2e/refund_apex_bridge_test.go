@@ -138,8 +138,11 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 
 		primeTestChain := apex.GetChainMust(t, cardanofw.ChainIDPrime)
 
+		// The refund goes to the metadata sender, so it must be brSubmitterUser.
+		// Using the shared user would land the refund in its wallet while later
+		// subtests are checking that wallet's balance.
 		metadata, err := primeTestChain.CreateMetadata(
-			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
+			brSubmitterUser.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
 			[]sendtx.BridgingTxReceiver{
 				{
 					Addr:   user.GetAddress(cardanofw.ChainIDVector),
@@ -155,7 +158,10 @@ func TestE2E_ApexRefund_ValidScenarios(t *testing.T) {
 			new(big.Int).SetUint64(sendAmount), []infrawallet.TokenAmount{*tokensFunded}, metadata)
 		require.NoError(t, err)
 
-		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount+feeAmount))
+		// Right after submission the balance is before - sendAmount - txFee, which is
+		// below this boundary. It enters the range only after the refund
+		// (sendAmount - refundFee) returns, so the wait proves the refund happened.
+		lowerBoundaryDfm := new(big.Int).Sub(beforeSendingAmountDfm, new(big.Int).SetUint64(sendAmount-feeAmount))
 
 		fmt.Printf("Tx sent. hash: %s, lowerBoundaryDfm: %d, higherBoundaryDfm: %d\n", txHash, lowerBoundaryDfm, beforeSendingAmountDfm)
 
