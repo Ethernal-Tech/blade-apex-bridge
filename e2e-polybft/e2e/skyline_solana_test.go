@@ -500,7 +500,7 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 			cardanofw.WSOLTokenID, true)
 	})
 
-	t.Run("Upgrade program", func(t *testing.T) {
+	upgraded := t.Run("Upgrade program", func(t *testing.T) {
 		solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
 		err := solanaChain.UpgradeProgram(ctx)
 		require.NoError(t, err)
@@ -606,6 +606,9 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 
 	// Bridge admin (set_authority: FeeConfig and ProgramConfig authority) and program upgrade
 	// authority (BPF loader) are separate roles; both start as the deployer's admin key.
+	// set_authority exists only in the upgraded program, so every check below needs the upgrade.
+	require.True(t, upgraded, "Upgrade program failed; the authority subtests need the upgraded program")
+
 	solanaKeyFundAmount := big.NewInt(50_000_000_000) // 50 SOL, enough for a program upgrade
 
 	newFundedWallet := func(t *testing.T) *solanawallet.Wallet {
@@ -704,12 +707,13 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 		})
 	})
 
-	t.Run("Set authority - rotate admin", func(t *testing.T) {
+	// the subtests below assume newAdmin holds the role
+	require.True(t, t.Run("Set authority - rotate admin", func(t *testing.T) {
 		require.NoError(t, solanaChain.SetAuthority(ctx, oldAdmin, newAdmin))
 		requireAdmin(t, newAdmin.PublicKey)
 		// the program upgrade authority does not follow the bridge admin
 		requireUpgradeAuthority(t, oldAdmin.PublicKey)
-	})
+	}), "Set authority - rotate admin failed")
 
 	t.Run("Set authority - previous admin is rejected", func(t *testing.T) {
 		err := solanaChain.UpdateFeeConfigWithAdmin(ctx, oldAdmin, cardanofw.UpdateFeeConfigDto{
@@ -736,9 +740,14 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 	})
 
 	t.Run("Set authority - new admin manages the bridge", func(t *testing.T) {
+		// sign with newAdmin explicitly, not the chain's tracked admin key, so this cannot pass
+		// with the old admin if the rotation did not happen
+		requireAdmin(t, newAdmin.PublicKey)
+
 		newMinTokenBridgingAmount := big.NewInt(3000)
 
-		require.NoError(t, solanaChain.UpdateMinBridgingAmount(ctx, cardanofw.WSOLTokenID, newMinTokenBridgingAmount))
+		require.NoError(t, solanaChain.UpdateMinBridgingAmountWithAdmin(
+			ctx, newAdmin, cardanofw.WSOLTokenID, newMinTokenBridgingAmount))
 
 		_, err := solanaChain.BridgingRequest(cardanofw.BridgingRequestParams{
 			Ctx:         ctx,
@@ -762,7 +771,7 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 
 		adminOpFee := new(big.Int).Add(newOpFee, big.NewInt(10_000_000))
 
-		require.NoError(t, solanaChain.UpdateFeeConfig(ctx, cardanofw.UpdateFeeConfigDto{
+		require.NoError(t, solanaChain.UpdateFeeConfigWithAdmin(ctx, newAdmin, cardanofw.UpdateFeeConfigDto{
 			MinOperationFee: adminOpFee,
 			BridgeFee:       newBridgeFee,
 		}))
@@ -812,12 +821,13 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 		require.Equal(t, oldAdmin.PublicKey, solanaChain.GetUpgradeAuthorityWallet().PublicKey)
 	})
 
-	t.Run("Set upgrade authority - rotate upgrade authority", func(t *testing.T) {
+	// the subtests below assume newUpgradeAuthority holds the role
+	require.True(t, t.Run("Set upgrade authority - rotate upgrade authority", func(t *testing.T) {
 		require.NoError(t, solanaChain.SetUpgradeAuthority(ctx, oldAdmin, newUpgradeAuthority))
 		requireUpgradeAuthority(t, newUpgradeAuthority.PublicKey)
 		// the bridge admin does not follow the upgrade authority
 		requireAdmin(t, newAdmin.PublicKey)
-	})
+	}), "Set upgrade authority - rotate upgrade authority failed")
 
 	t.Run("Set upgrade authority - previous upgrade authority is rejected", func(t *testing.T) {
 		err := solanaChain.UpgradeProgramWithKeys(ctx, newAdmin, oldAdmin)
