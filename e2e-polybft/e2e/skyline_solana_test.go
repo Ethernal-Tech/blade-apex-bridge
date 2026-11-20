@@ -916,7 +916,7 @@ func Test_SkylineSolana_RenameMintBurnToken(t *testing.T) {
 	user := apex.Users[0]
 	amount := cardanofw.ApexToWei(big.NewInt(1))
 
-	t.Run("Vector AP3X -> Solana sAP3X", func(t *testing.T) {
+	t.Run("Before renaming: Vector AP3X -> Solana sAP3X", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(t, ctx, apex, user, user,
 			cardanofw.ChainIDVector, cardanofw.ChainIDSolana, amount, cardanofw.AP3XTokenID, true)
 	})
@@ -941,6 +941,7 @@ func Test_SkylineSolana_RenameMintBurnToken(t *testing.T) {
 		tokenNameFlag:   newName,
 		tokenSymbolFlag: newSymbol,
 	}
+
 	rename := func(flags map[string]string) error {
 		args := make([]string, 0, 2+2*len(flags))
 		args = append(args, "deploy-solana", "rename-mint-burn-token")
@@ -985,7 +986,7 @@ func Test_SkylineSolana_RenameMintBurnToken(t *testing.T) {
 	require.NoError(t, rename(validFlags))
 	checkMetadata(t, newName, newSymbol)
 
-	t.Run("Solana solAP3X -> Vector AP3X", func(t *testing.T) {
+	t.Run("After renaming: Solana solAP3X -> Vector AP3X", func(t *testing.T) {
 		e2ehelper.ExecuteSingleBridging(t, ctx, apex, user, user,
 			cardanofw.ChainIDSolana, cardanofw.ChainIDVector, amount, tokenID, true)
 	})
