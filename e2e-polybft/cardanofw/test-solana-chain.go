@@ -42,6 +42,10 @@ const (
 	solanaProgramKeypairPath = "program_build/skyline_program-keypair.json"
 	solanaProgramUpgradePath = "program_build/skyline_program_prev.so"
 
+	// SolanaProgramUpgradeVersion is written to the program config when UpgradeProgram deploys
+	// solanaProgramBuildPath; keep it equal to the version of that build.
+	SolanaProgramUpgradeVersion = "0.5.0"
+
 	// Security-test fixture: an attacker-owned program that emits its instruction data as a
 	// "Program data:" log line (see e2e-polybft/solanafw/malicious-logger-src).
 	maliciousLoggerSOPath      = "malicious_logger.so"
@@ -150,10 +154,13 @@ type TestSolanaChain struct {
 	relayerAddr string
 	cluster     *solanafw.TestSolanaCluster
 	admin       *solanawallet.Wallet
-	jsonRPCAddr string
-	gatewayAddr string
-	indexer     e2eindexer.TxsExecutedComponent
-	programID   string
+	// upgradeAuthority is the BPF loader upgrade authority of the program; it starts as admin
+	// and moves independently of the bridge admin (set-upgrade-authority vs set-authority).
+	upgradeAuthority *solanawallet.Wallet
+	jsonRPCAddr      string
+	gatewayAddr      string
+	indexer          e2eindexer.TxsExecutedComponent
+	programID        string
 
 	bridgeURL      string
 	chainIDsConfig string
@@ -179,9 +186,10 @@ func NewTestSolanaChain(config *TestSolanaChainConfig) (ITestApexChain, error) {
 	}
 
 	return &TestSolanaChain{
-		config:  config,
-		admin:   admin,
-		indexer: e2eindexer.NewTxsExecutedComponentDummy(),
+		config:           config,
+		admin:            admin,
+		upgradeAuthority: admin,
+		indexer:          e2eindexer.NewTxsExecutedComponentDummy(),
 	}, nil
 }
 
@@ -1897,43 +1905,320 @@ func (sc *TestSolanaChain) GetProgramVersion(ctx context.Context) (string, error
 	return programConfig.VersionString, nil
 }
 
-func (sc *TestSolanaChain) UpgradeProgram(ctx context.Context) error {
-	adminPkFile, err := os.CreateTemp(os.TempDir(), "admin-pk-*.json")
+// tempSolanaKeypairFile writes key with writeSolanaKeypairFile and returns a cleanup that
+// removes the file.
+func tempSolanaKeypairFile(key solana.PrivateKey) (string, func(), error) {
+	path, err := writeSolanaKeypairFile(key)
 	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
+		return "", nil, fmt.Errorf("write keypair file: %w", err)
 	}
 
-	defer adminPkFile.Close()
+	return path, func() { _ = os.Remove(path) }, nil
+}
 
-	pkString := fmt.Sprintf("%v", []byte(sc.admin.PrivateKey))
-	pkString = strings.ReplaceAll(pkString, " ", ",")
+// GetAdminWallet returns the key the chain's admin commands currently sign with.
+func (sc *TestSolanaChain) GetAdminWallet() *solanawallet.Wallet {
+	return sc.admin
+}
 
-	if _, err := adminPkFile.Write([]byte(pkString)); err != nil {
-		return fmt.Errorf("write admin private key: %w", err)
+// GetUpgradeAuthorityWallet returns the key the chain's program upgrades currently sign with.
+func (sc *TestSolanaChain) GetUpgradeAuthorityWallet() *solanawallet.Wallet {
+	return sc.upgradeAuthority
+}
+
+// FundAddress airdrops lamports to addr and waits for finalization.
+func (sc *TestSolanaChain) FundAddress(ctx context.Context, addr string, lamports *big.Int) error {
+	provider, err := sc.GetTxProvider()
+	if err != nil {
+		return err
 	}
+
+	return sc.airdropSOL(ctx, provider, addr, lamports)
+}
+
+// GetAuthorities returns the bridge admin stored on ProgramConfig and on FeeConfig.
+func (sc *TestSolanaChain) GetAuthorities(
+	ctx context.Context,
+) (programConfigAuthority solana.PublicKey, feeConfigAuthority solana.PublicKey, err error) {
+	provider, err := sc.GetTxProvider()
+	if err != nil {
+		return solana.PublicKey{}, solana.PublicKey{}, err
+	}
+
+	programID := solana.MustPublicKeyFromBase58(sc.programID)
+
+	programConfig, err := solsendtx.NewTxSender(provider, nil).GetProgramConfig(ctx, programID)
+	if err != nil {
+		return solana.PublicKey{}, solana.PublicKey{}, fmt.Errorf("get program config: %w", err)
+	}
+
+	feeConfigPDA, _, err := solana.FindProgramAddress([][]byte{skyline_program.FEE_CONFIG_SEED}, programID)
+	if err != nil {
+		return solana.PublicKey{}, solana.PublicKey{}, fmt.Errorf("derive fee config PDA: %w", err)
+	}
+
+	info, err := provider.GetAccountInfo(ctx, feeConfigPDA)
+	if err != nil {
+		return solana.PublicKey{}, solana.PublicKey{}, fmt.Errorf("get fee config account: %w", err)
+	}
+
+	if info == nil || info.Value == nil || info.Value.Data == nil {
+		return solana.PublicKey{}, solana.PublicKey{}, fmt.Errorf("fee config account not found at %s", feeConfigPDA)
+	}
+
+	feeConfig, err := skyline_program.ParseAccount_FeeConfig(info.Value.Data.GetBinary())
+	if err != nil {
+		return solana.PublicKey{}, solana.PublicKey{}, fmt.Errorf("decode fee config: %w", err)
+	}
+
+	return programConfig.Authority, feeConfig.Authority, nil
+}
+
+// GetUpgradeAuthority reads the BPF loader upgrade authority from the program's ProgramData
+// account (tag u32, slot u64, Option<Pubkey>).
+func (sc *TestSolanaChain) GetUpgradeAuthority(ctx context.Context) (solana.PublicKey, error) {
+	const (
+		programDataTag        = 3
+		upgradeAuthorityStart = 4 + 8 + 1
+	)
+
+	provider, err := sc.GetTxProvider()
+	if err != nil {
+		return solana.PublicKey{}, err
+	}
+
+	programDataAddr, _, err := solana.FindProgramAddress(
+		[][]byte{solana.MustPublicKeyFromBase58(sc.programID).Bytes()}, solana.BPFLoaderUpgradeableProgramID)
+	if err != nil {
+		return solana.PublicKey{}, fmt.Errorf("derive program data address: %w", err)
+	}
+
+	info, err := provider.GetAccountInfo(ctx, programDataAddr)
+	if err != nil {
+		return solana.PublicKey{}, fmt.Errorf("get program data account: %w", err)
+	}
+
+	if info == nil || info.Value == nil || info.Value.Data == nil {
+		return solana.PublicKey{}, fmt.Errorf("program data account not found at %s", programDataAddr)
+	}
+
+	data := info.Value.Data.GetBinary()
+	if len(data) < upgradeAuthorityStart+solana.PublicKeyLength {
+		return solana.PublicKey{}, fmt.Errorf("program data account too short: %d bytes", len(data))
+	}
+
+	if data[0] != programDataTag || data[upgradeAuthorityStart-1] != 1 {
+		return solana.PublicKey{}, fmt.Errorf("program %s has no upgrade authority", sc.programID)
+	}
+
+	return solana.PublicKeyFromBytes(data[upgradeAuthorityStart : upgradeAuthorityStart+solana.PublicKeyLength]), nil
+}
+
+// UpgradeProgram deploys the latest program build with the chain's current admin and upgrade
+// authority keys.
+func (sc *TestSolanaChain) UpgradeProgram(ctx context.Context) error {
+	return sc.UpgradeProgramWithKeys(ctx, sc.admin, sc.upgradeAuthority)
+}
+
+// UpgradeProgramWithKeys deploys the latest program build. admin pays the fees and signs
+// update_program_version; upgradeAuthority signs the BPF loader upgrade.
+func (sc *TestSolanaChain) UpgradeProgramWithKeys(
+	ctx context.Context, admin, upgradeAuthority *solanawallet.Wallet,
+) error {
+	adminKeyPath, cleanupAdminKey, err := tempSolanaKeypairFile(admin.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("admin key: %w", err)
+	}
+
+	defer cleanupAdminKey()
+
+	upgradeAuthorityKeyPath, cleanupUpgradeAuthorityKey, err := tempSolanaKeypairFile(upgradeAuthority.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("upgrade authority key: %w", err)
+	}
+
+	defer cleanupUpgradeAuthorityKey()
 
 	params := []string{
 		deploySolanaCommand,
 		"upgrade-program",
 		urlFlag, sc.jsonRPCAddr,
-		feePayerFlag, adminPkFile.Name(),
-		keyFlag, filepath.Join("..", "..", solanaProgramDir, solanaProgramKeypairPath),
+		feePayerFlag, adminKeyPath,
+		upgradeAuthorityKeyFlag, upgradeAuthorityKeyPath,
 		"--build-path", filepath.Join("..", "..", solanaProgramDir, solanaProgramBuildPath),
 		programIDFlag, sc.programID,
-		"--upgrade-program-version", "0.4.0",
-		adminKeyFlag, adminPkFile.Name(),
+		"--upgrade-program-version", SolanaProgramUpgradeVersion,
+		adminKeyFlag, adminKeyPath,
 		confirmationTimeoutSecondsFlag, strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
 		commitmentFlag, ConfirmationStrategyFinalized,
 	}
 
-	var b bytes.Buffer
+	return RunCommand(ResolveApexBridgeBinary(), params, os.Stdout)
+}
 
-	err = RunCommand(ResolveApexBridgeBinary(), params, io.MultiWriter(os.Stdout, &b))
+// SetAuthority rotates the bridge admin (FeeConfig and ProgramConfig authority) from admin to
+// newAdmin with the apex-bridge set-authority command; both keys sign. On success newAdmin
+// becomes the key the chain's admin commands sign with.
+func (sc *TestSolanaChain) SetAuthority(ctx context.Context, admin, newAdmin *solanawallet.Wallet) error {
+	adminKeyPath, cleanupAdminKey, err := tempSolanaKeypairFile(admin.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("admin key: %w", err)
+	}
+
+	defer cleanupAdminKey()
+
+	newAdminKeyPath, cleanupNewAdminKey, err := tempSolanaKeypairFile(newAdmin.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("new admin key: %w", err)
+	}
+
+	defer cleanupNewAdminKey()
+
+	params := []string{
+		deploySolanaCommand,
+		"set-authority",
+		urlFlag, sc.jsonRPCAddr,
+		programIDFlag, sc.programID,
+		adminKeyFlag, adminKeyPath,
+		"--new-authority", newAdmin.PublicKey.String(),
+		"--new-authority-key", newAdminKeyPath,
+		confirmationTimeoutSecondsFlag, strconv.Itoa(int(MaxConfirmationWaitTime.Seconds())),
+	}
+
+	if err := RunCommand(ResolveApexBridgeBinary(), params, os.Stdout); err != nil {
+		return err
+	}
+
+	sc.admin = newAdmin
+
+	return nil
+}
+
+// SetUpgradeAuthority moves the program's BPF loader upgrade authority from current to
+// newAuthority with the apex-bridge set-upgrade-authority command; both keys sign and current
+// pays the fee. On success newAuthority becomes the key the chain's upgrades sign with.
+func (sc *TestSolanaChain) SetUpgradeAuthority(
+	ctx context.Context, current, newAuthority *solanawallet.Wallet,
+) error {
+	currentKeyPath, cleanupCurrentKey, err := tempSolanaKeypairFile(current.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("current upgrade authority key: %w", err)
+	}
+
+	defer cleanupCurrentKey()
+
+	newKeyPath, cleanupNewKey, err := tempSolanaKeypairFile(newAuthority.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("new upgrade authority key: %w", err)
+	}
+
+	defer cleanupNewKey()
+
+	params := []string{
+		deploySolanaCommand,
+		"set-upgrade-authority",
+		urlFlag, sc.jsonRPCAddr,
+		programIDFlag, sc.programID,
+		upgradeAuthorityKeyFlag, currentKeyPath,
+		"--new-upgrade-authority-key", newKeyPath,
+		commitmentFlag, ConfirmationStrategyFinalized,
+	}
+
+	if err := RunCommand(ResolveApexBridgeBinary(), params, os.Stdout); err != nil {
+		return err
+	}
+
+	sc.upgradeAuthority = newAuthority
+
+	return nil
+}
+
+// SetAuthorityTxParams describes a set_authority transaction built without the SDK and CLI
+// client-side checks, so the program's own validation is what accepts or rejects it.
+type SetAuthorityTxParams struct {
+	// Authority signs as the current authority and pays the fee.
+	Authority *solanawallet.Wallet
+	// NewAuthority is the instruction argument.
+	NewAuthority solana.PublicKey
+	// NewAuthoritySigner is passed as the new_authority_signer account.
+	NewAuthoritySigner *solanawallet.Wallet
+	// SkipNewAuthoritySignature passes new_authority_signer as a non-signer account.
+	SkipNewAuthoritySignature bool
+}
+
+// SendSetAuthorityTx submits a raw set_authority instruction with preflight on and waits for
+// finalization; a program error comes back in the returned error with its logs.
+func (sc *TestSolanaChain) SendSetAuthorityTx(ctx context.Context, params SetAuthorityTxParams) error {
+	provider, err := sc.GetTxProvider()
 	if err != nil {
 		return err
 	}
 
-	return nil
+	programID := solana.MustPublicKeyFromBase58(sc.programID)
+
+	feeConfigPDA, _, err := solana.FindProgramAddress([][]byte{skyline_program.FEE_CONFIG_SEED}, programID)
+	if err != nil {
+		return fmt.Errorf("derive fee config PDA: %w", err)
+	}
+
+	programConfigPDA, _, err := solana.FindProgramAddress([][]byte{skyline_program.PROGRAM_CONFIG_SEED}, programID)
+	if err != nil {
+		return fmt.Errorf("derive program config PDA: %w", err)
+	}
+
+	ix, err := skyline_program.NewSetAuthorityInstruction(
+		params.NewAuthority,
+		params.Authority.PublicKey,
+		feeConfigPDA,
+		programConfigPDA,
+		params.NewAuthoritySigner.PublicKey,
+	)
+	if err != nil {
+		return fmt.Errorf("build set authority instruction: %w", err)
+	}
+
+	data, err := ix.Data()
+	if err != nil {
+		return fmt.Errorf("set authority instruction data: %w", err)
+	}
+
+	accounts := ix.Accounts()
+	accounts[3].IsSigner = !params.SkipNewAuthoritySignature
+
+	blockhash, err := provider.GetLatestBlockhash(ctx)
+	if err != nil {
+		return fmt.Errorf("get latest blockhash: %w", err)
+	}
+
+	tx, err := solana.NewTransaction(
+		[]solana.Instruction{solana.NewInstruction(programID, accounts, data)},
+		blockhash,
+		solana.TransactionPayer(params.Authority.PublicKey),
+	)
+	if err != nil {
+		return fmt.Errorf("build transaction: %w", err)
+	}
+
+	signers := map[solana.PublicKey]*solana.PrivateKey{
+		params.Authority.PublicKey: &params.Authority.PrivateKey,
+	}
+
+	if !params.SkipNewAuthoritySignature {
+		signers[params.NewAuthoritySigner.PublicKey] = &params.NewAuthoritySigner.PrivateKey
+	}
+
+	if _, err := tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+		return signers[key]
+	}); err != nil {
+		return fmt.Errorf("sign transaction: %w", err)
+	}
+
+	sig, err := provider.SendTransaction(ctx, tx)
+	if err != nil {
+		return fmt.Errorf("send set authority tx: %w", err)
+	}
+
+	return provider.WaitForSignature(ctx, sig, rpc.CommitmentFinalized, MaxConfirmationWaitTime)
 }
 
 type UpdateFeeConfigDto struct {
@@ -1944,25 +2229,25 @@ type UpdateFeeConfigDto struct {
 }
 
 func (sc *TestSolanaChain) UpdateFeeConfig(ctx context.Context, feeConfig UpdateFeeConfigDto) error {
-	adminPkFile, err := os.CreateTemp(os.TempDir(), "admin-pk-*.json")
+	return sc.UpdateFeeConfigWithAdmin(ctx, sc.admin, feeConfig)
+}
+
+// UpdateFeeConfigWithAdmin runs update-fee-config signed by admin.
+func (sc *TestSolanaChain) UpdateFeeConfigWithAdmin(
+	ctx context.Context, admin *solanawallet.Wallet, feeConfig UpdateFeeConfigDto,
+) error {
+	adminKeyPath, cleanupAdminKey, err := tempSolanaKeypairFile(admin.PrivateKey)
 	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
+		return fmt.Errorf("admin key: %w", err)
 	}
 
-	defer adminPkFile.Close()
-
-	pkString := fmt.Sprintf("%v", []byte(sc.admin.PrivateKey))
-	pkString = strings.ReplaceAll(pkString, " ", ",")
-
-	if _, err := adminPkFile.Write([]byte(pkString)); err != nil {
-		return fmt.Errorf("write admin private key: %w", err)
-	}
+	defer cleanupAdminKey()
 
 	params := []string{
 		deploySolanaCommand,
 		"update-fee-config",
 		urlFlag, sc.jsonRPCAddr,
-		adminKeyFlag, adminPkFile.Name(),
+		adminKeyFlag, adminKeyPath,
 		programIDFlag, sc.programID,
 		minOperationFeeFlag, strconv.Itoa(int(feeConfig.MinOperationFee.Uint64())),
 		minFeeForBridgingFlag, strconv.Itoa(int(feeConfig.BridgeFee.Uint64())),
@@ -1996,25 +2281,28 @@ func (sc *TestSolanaChain) UpdateMinBridgingAmount(
 	tokenID uint16,
 	minBridgingAmount *big.Int,
 ) error {
-	adminPkFile, err := os.CreateTemp(os.TempDir(), "admin-pk-*.json")
+	return sc.UpdateMinBridgingAmountWithAdmin(ctx, sc.admin, tokenID, minBridgingAmount)
+}
+
+// UpdateMinBridgingAmountWithAdmin runs update-min-bridging-amount signed by admin.
+func (sc *TestSolanaChain) UpdateMinBridgingAmountWithAdmin(
+	ctx context.Context,
+	admin *solanawallet.Wallet,
+	tokenID uint16,
+	minBridgingAmount *big.Int,
+) error {
+	adminKeyPath, cleanupAdminKey, err := tempSolanaKeypairFile(admin.PrivateKey)
 	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
+		return fmt.Errorf("admin key: %w", err)
 	}
 
-	defer adminPkFile.Close()
-
-	pkString := fmt.Sprintf("%v", []byte(sc.admin.PrivateKey))
-	pkString = strings.ReplaceAll(pkString, " ", ",")
-
-	if _, err := adminPkFile.Write([]byte(pkString)); err != nil {
-		return fmt.Errorf("write admin private key: %w", err)
-	}
+	defer cleanupAdminKey()
 
 	params := []string{
 		deploySolanaCommand,
 		"update-min-bridging-amount",
 		urlFlag, sc.jsonRPCAddr,
-		adminKeyFlag, adminPkFile.Name(),
+		adminKeyFlag, adminKeyPath,
 		programIDFlag, sc.programID,
 		tokenIDFlag, strconv.Itoa(int(tokenID)),
 		minBridgingAmountFlag, strconv.Itoa(int(minBridgingAmount.Uint64())),

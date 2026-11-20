@@ -79,6 +79,7 @@ const (
 	adminKeyFlag                          = "--admin-key"
 	confirmationTimeoutSecondsFlag        = "--confirmation-timeout-seconds"
 	commitmentFlag                        = "--commitment"
+	upgradeAuthorityKeyFlag               = "--upgrade-authority-key"
 
 	genesisCommand         = "genesis"
 	generateConfigsCommand = "generate-configs"
