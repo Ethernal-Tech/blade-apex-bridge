@@ -3503,6 +3503,73 @@ func TestProposed(t *testing.T) {
 	}
 }
 
+// A tx bigger than txSlotSize is popped into a proposal, reinserted on a round change
+// and then mined by another proposer. Pop and ReinsertProposed must move the gauge by
+// the same number of slots; otherwise pruning the mined tx underflows the gauge and the
+// pool reports itself as full forever.
+func TestReinsertProposed_MultiSlotTxKeepsGaugeConsistent(t *testing.T) {
+	t.Parallel()
+
+	const txSlots = 3
+
+	pool, err := newTestPool()
+	require.NoError(t, err)
+	pool.SetSigner(&mockSigner{})
+
+	pool.Start()
+	defer pool.Close()
+
+	promoteSubscription := pool.eventManager.subscribe(
+		[]proto.EventType{proto.EventType_PROMOTED},
+	)
+
+	tx := newTx(addr1, 0, txSlots, types.LegacyTxType)
+	require.Equal(t, uint64(txSlots), slotsRequired(tx))
+	require.NoError(t, pool.addTx(local, tx))
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancelFn()
+
+	require.Len(t, waitForEvents(ctx, promoteSubscription, 1), 1)
+	require.Equal(t, uint64(txSlots), pool.gauge.read())
+
+	// round 0: the tx goes into our proposal
+	pool.Prepare()
+	popped := pool.Peek()
+	require.NotNil(t, popped)
+	pool.Pop(popped)
+	require.Equal(t, uint64(0), pool.gauge.read())
+
+	// round 1 starts: the proposed tx goes back to promoted
+	pool.ReinsertProposed()
+	require.Equal(t, uint64(txSlots), pool.gauge.read())
+
+	// the tx is mined in a block built by another validator
+	pool.resetAccounts(map[types.Address]uint64{addr1: 1})
+	require.Equal(t, uint64(0), pool.gauge.read())
+	require.False(t, pool.gauge.highPressure())
+
+	// the pool accepts new txs again
+	require.NoError(t, pool.addTx(local, newTx(addr1, 1, 1, types.LegacyTxType)))
+}
+
+func TestSlotGauge_DecreaseDoesNotUnderflow(t *testing.T) {
+	t.Parallel()
+
+	gauge := slotGauge{height: 2, max: 10}
+
+	gauge.decrease(1)
+	require.Equal(t, uint64(1), gauge.read())
+
+	gauge.decrease(5)
+	require.Equal(t, uint64(0), gauge.read())
+	require.False(t, gauge.highPressure())
+	require.True(t, gauge.increaseWithinLimit(10))
+
+	gauge.decrease(0)
+	require.Equal(t, uint64(10), gauge.read())
+}
+
 func TestGetTxs(t *testing.T) {
 	t.Parallel()
 

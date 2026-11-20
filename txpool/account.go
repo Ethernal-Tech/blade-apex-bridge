@@ -132,8 +132,11 @@ func (m *accountsMap) allTxs(includeEnqueued bool) (
 	return
 }
 
+// reinsertProposed moves all proposed txs back to their promoted queues and
+// returns the number of slots they occupy (not the number of txs), so the
+// caller restores the gauge by exactly what Pop subtracted.
 func (m *accountsMap) reinsertProposed() uint64 {
-	var count uint64
+	var slots uint64
 
 	m.Range(func(key, value interface{}) bool {
 		accountKey, ok := key.(types.Address)
@@ -165,7 +168,7 @@ func (m *accountsMap) reinsertProposed() uint64 {
 				account.promoted.push(tx)
 				account.proposed.pop()
 
-				count++
+				slots += slotsRequired(tx)
 			}
 
 			maps.Copy(account.nonceToTx.mapping, account.nonceProposed.mapping)
@@ -175,7 +178,7 @@ func (m *accountsMap) reinsertProposed() uint64 {
 		return true
 	})
 
-	return count
+	return slots
 }
 
 func (m *accountsMap) clearProposed() {

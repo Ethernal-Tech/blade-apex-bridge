@@ -43,6 +43,9 @@ const (
 
 	// slotsUsedMetric is the name of the gauge of occupied slots in the pool
 	slotsUsedMetric = "slots_used"
+
+	// slotsUnderflowMetric is the name of the counter of slot gauge decreases clamped at zero
+	slotsUnderflowMetric = "slots_underflow"
 )
 
 // errors
@@ -631,8 +634,8 @@ func (p *TxPool) ResetWithBlock(block *types.Block) {
 // ReinsertProposed returns all txs from the accounts proposed queue to the promoted queue
 // it is called from consensus_runtime when new round > 0 starts or when current sequence is cancelled
 func (p *TxPool) ReinsertProposed() {
-	count := p.accounts.reinsertProposed()
-	p.gauge.increase(count)
+	slots := p.accounts.reinsertProposed()
+	p.gauge.increase(slots)
 	p.Prepare()
 }
 
