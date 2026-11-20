@@ -1905,9 +1905,9 @@ func (sc *TestSolanaChain) GetProgramVersion(ctx context.Context) (string, error
 	return programConfig.VersionString, nil
 }
 
-// tempSolanaKeypairFile writes key with writeSolanaKeypairFile and returns a cleanup that
+// TempSolanaKeypairFile writes key with writeSolanaKeypairFile and returns a cleanup that
 // removes the file.
-func tempSolanaKeypairFile(key solana.PrivateKey) (string, func(), error) {
+func TempSolanaKeypairFile(key solana.PrivateKey) (string, func(), error) {
 	path, err := writeSolanaKeypairFile(key)
 	if err != nil {
 		return "", nil, fmt.Errorf("write keypair file: %w", err)
@@ -2025,14 +2025,14 @@ func (sc *TestSolanaChain) UpgradeProgram(ctx context.Context) error {
 func (sc *TestSolanaChain) UpgradeProgramWithKeys(
 	ctx context.Context, admin, upgradeAuthority *solanawallet.Wallet,
 ) error {
-	adminKeyPath, cleanupAdminKey, err := tempSolanaKeypairFile(admin.PrivateKey)
+	adminKeyPath, cleanupAdminKey, err := TempSolanaKeypairFile(admin.PrivateKey)
 	if err != nil {
 		return fmt.Errorf("admin key: %w", err)
 	}
 
 	defer cleanupAdminKey()
 
-	upgradeAuthorityKeyPath, cleanupUpgradeAuthorityKey, err := tempSolanaKeypairFile(upgradeAuthority.PrivateKey)
+	upgradeAuthorityKeyPath, cleanupUpgradeAuthorityKey, err := TempSolanaKeypairFile(upgradeAuthority.PrivateKey)
 	if err != nil {
 		return fmt.Errorf("upgrade authority key: %w", err)
 	}
@@ -2060,14 +2060,14 @@ func (sc *TestSolanaChain) UpgradeProgramWithKeys(
 // newAdmin with the apex-bridge set-authority command; both keys sign. On success newAdmin
 // becomes the key the chain's admin commands sign with.
 func (sc *TestSolanaChain) SetAuthority(ctx context.Context, admin, newAdmin *solanawallet.Wallet) error {
-	adminKeyPath, cleanupAdminKey, err := tempSolanaKeypairFile(admin.PrivateKey)
+	adminKeyPath, cleanupAdminKey, err := TempSolanaKeypairFile(admin.PrivateKey)
 	if err != nil {
 		return fmt.Errorf("admin key: %w", err)
 	}
 
 	defer cleanupAdminKey()
 
-	newAdminKeyPath, cleanupNewAdminKey, err := tempSolanaKeypairFile(newAdmin.PrivateKey)
+	newAdminKeyPath, cleanupNewAdminKey, err := TempSolanaKeypairFile(newAdmin.PrivateKey)
 	if err != nil {
 		return fmt.Errorf("new admin key: %w", err)
 	}
@@ -2100,14 +2100,14 @@ func (sc *TestSolanaChain) SetAuthority(ctx context.Context, admin, newAdmin *so
 func (sc *TestSolanaChain) SetUpgradeAuthority(
 	ctx context.Context, current, newAuthority *solanawallet.Wallet,
 ) error {
-	currentKeyPath, cleanupCurrentKey, err := tempSolanaKeypairFile(current.PrivateKey)
+	currentKeyPath, cleanupCurrentKey, err := TempSolanaKeypairFile(current.PrivateKey)
 	if err != nil {
 		return fmt.Errorf("current upgrade authority key: %w", err)
 	}
 
 	defer cleanupCurrentKey()
 
-	newKeyPath, cleanupNewKey, err := tempSolanaKeypairFile(newAuthority.PrivateKey)
+	newKeyPath, cleanupNewKey, err := TempSolanaKeypairFile(newAuthority.PrivateKey)
 	if err != nil {
 		return fmt.Errorf("new upgrade authority key: %w", err)
 	}
@@ -2236,7 +2236,7 @@ func (sc *TestSolanaChain) UpdateFeeConfig(ctx context.Context, feeConfig Update
 func (sc *TestSolanaChain) UpdateFeeConfigWithAdmin(
 	ctx context.Context, admin *solanawallet.Wallet, feeConfig UpdateFeeConfigDto,
 ) error {
-	adminKeyPath, cleanupAdminKey, err := tempSolanaKeypairFile(admin.PrivateKey)
+	adminKeyPath, cleanupAdminKey, err := TempSolanaKeypairFile(admin.PrivateKey)
 	if err != nil {
 		return fmt.Errorf("admin key: %w", err)
 	}
@@ -2291,7 +2291,7 @@ func (sc *TestSolanaChain) UpdateMinBridgingAmountWithAdmin(
 	tokenID uint16,
 	minBridgingAmount *big.Int,
 ) error {
-	adminKeyPath, cleanupAdminKey, err := tempSolanaKeypairFile(admin.PrivateKey)
+	adminKeyPath, cleanupAdminKey, err := TempSolanaKeypairFile(admin.PrivateKey)
 	if err != nil {
 		return fmt.Errorf("admin key: %w", err)
 	}

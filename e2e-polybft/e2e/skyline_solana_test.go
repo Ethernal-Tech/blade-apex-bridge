@@ -3,8 +3,14 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"io"
+	"maps"
 	"math/big"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +20,7 @@ import (
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/Ethernal-Tech/solana-infrastructure/sendtx/skyline_program"
 	solanawallet "github.com/Ethernal-Tech/solana-infrastructure/wallet"
+	bin "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
 	"github.com/stretchr/testify/require"
 )
@@ -849,6 +856,139 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 	})
 
 	testFunc()
+}
+
+func Test_SkylineSolana_RenameMintBurnToken(t *testing.T) {
+	if cardanofw.ShouldSkipE2RRedundantTests() {
+		t.Skip()
+	}
+
+	const (
+		tokenID   = cardanofw.SAP3XTokenID
+		newName   = "Solana AP3X Token"
+		newSymbol = "solAP3X"
+
+		programIDFlag   = "--program-id"
+		adminKeyFlag    = "--admin-key"
+		tokenIDFlag     = "--token-id"
+		tokenNameFlag   = "--token-name"
+		tokenSymbolFlag = "--token-symbol"
+	)
+
+	ctx := t.Context()
+	solanaConfig := cardanofw.NewSolanaChainConfig(true)
+	vectorConfig := cardanofw.NewVectorChainConfig(map[uint16]string{
+		cardanofw.ASOLTokenID: cardanofw.ASOLTokenName,
+	})
+	apex := cardanofw.SetupAndRunSkylineBridge(t, ctx,
+		cardanofw.WithSolanaConfig(solanaConfig), cardanofw.WithVectorConfig(vectorConfig), cardanofw.WithUserCnt(1))
+	chain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
+	provider, err := chain.GetTxProvider()
+	require.NoError(t, err)
+	mint, err := solana.PublicKeyFromBase58(solanaConfig.TokensMint[tokenID])
+	require.NoError(t, err)
+	metadata, _, err := solana.FindTokenMetadataAddress(mint)
+	require.NoError(t, err)
+
+	checkMetadata := func(t *testing.T, name, symbol string) {
+		t.Helper()
+
+		account, err := provider.GetAccountInfo(ctx, metadata)
+		require.NoError(t, err)
+		require.Equal(t, solana.TokenMetadataProgramID, account.Value.Owner)
+
+		// Decode the Metaplex Metadata account through its two NUL-padded display fields.
+		var fields struct {
+			Key             uint8
+			UpdateAuthority solana.PublicKey
+			Mint            solana.PublicKey
+			Name            string
+			Symbol          string
+		}
+
+		require.NoError(t, bin.NewBorshDecoder(account.GetBinary()).Decode(&fields))
+		require.Equal(t, mint, fields.Mint)
+		require.Equal(t, name, strings.TrimRight(fields.Name, "\x00"))
+		require.Equal(t, symbol, strings.TrimRight(fields.Symbol, "\x00"))
+	}
+	checkMetadata(t, cardanofw.SAP3XTokenName, cardanofw.SAP3XTokenName)
+
+	user := apex.Users[0]
+	amount := cardanofw.ApexToWei(big.NewInt(1))
+
+	t.Run("Vector AP3X -> Solana sAP3X", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(t, ctx, apex, user, user,
+			cardanofw.ChainIDVector, cardanofw.ChainIDSolana, amount, cardanofw.AP3XTokenID, true)
+	})
+
+	adminKey, cleanupAdmin, err := cardanofw.TempSolanaKeypairFile(chain.GetAdminWallet().PrivateKey)
+	require.NoError(t, err)
+	t.Cleanup(cleanupAdmin)
+
+	userKey, cleanupUser, err := cardanofw.TempSolanaKeypairFile(apex.Users[0].SolanaWallet.PrivateKey)
+	require.NoError(t, err)
+	t.Cleanup(cleanupUser)
+
+	keyDir := t.TempDir()
+	malformedKey := filepath.Join(keyDir, "malformed.json")
+	require.NoError(t, os.WriteFile(malformedKey, []byte("[]"), 0600))
+
+	validFlags := map[string]string{
+		"--url":         apex.SolanaInfo.JSONRPCAddr,
+		programIDFlag:   skyline_program.ProgramID.String(),
+		adminKeyFlag:    adminKey,
+		tokenIDFlag:     strconv.Itoa(int(tokenID)),
+		tokenNameFlag:   newName,
+		tokenSymbolFlag: newSymbol,
+	}
+	rename := func(flags map[string]string) error {
+		args := make([]string, 0, 2+2*len(flags))
+		args = append(args, "deploy-solana", "rename-mint-burn-token")
+
+		for flag, value := range flags {
+			args = append(args, flag, value)
+		}
+
+		return cardanofw.RunCommandContext(ctx, cardanofw.ResolveApexBridgeBinary(), args, io.Discard)
+	}
+
+	for _, tc := range []struct {
+		scenario, flag, value, wantError string
+	}{
+		{"empty name", tokenNameFlag, "", "token name not specified"},
+		{"name over 32 bytes", tokenNameFlag, strings.Repeat("界", 11), "token name is 33 bytes"},
+		{"empty symbol", tokenSymbolFlag, "", "token symbol not specified"},
+		{"symbol over 10 bytes", tokenSymbolFlag, strings.Repeat("é", 5) + "A", "token symbol is 11 bytes"},
+		{"zero token ID", tokenIDFlag, "0", "token ID must be greater than 0"},
+		{"out of range token ID", tokenIDFlag, "65536", "value out of range"},
+		{"unregistered token", tokenIDFlag, "65535", "token registry for ID 65535: not found"},
+		{"lock/unlock token", tokenIDFlag, strconv.Itoa(int(cardanofw.WSOLTokenID)), "does not identify a registered mint/burn token"},
+		{"missing admin key", adminKeyFlag, "", "specify at least one"},
+		{"nonexistent admin key", adminKeyFlag, filepath.Join(keyDir, "missing.json"), "admin key file does not exist"},
+		{"malformed admin key", adminKeyFlag, malformedKey, "failed to load admin key"},
+		{"conflicting admin flags", "--key-config", malformedKey, "none of the others can be"},
+		{"unauthorized funded signer", adminKeyFlag, userKey, "Unauthorized"},
+		{"missing program ID", programIDFlag, "", "program ID not specified"},
+		{"invalid program ID", programIDFlag, "invalid!", "invalid program ID"},
+		{"wrong program", programIDFlag, solana.SystemProgramID.String(), "token registry for ID " + validFlags[tokenIDFlag] + ": not found"},
+		{"invalid RPC URL", "--url", "missing-scheme", "invalid --url"},
+		{"zero confirmation timeout", "--confirmation-timeout-seconds", "0", "confirmation timeout must be greater than 0"},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			flags := maps.Clone(validFlags)
+			flags[tc.flag] = tc.value
+			require.ErrorContains(t, rename(flags), tc.wantError)
+			checkMetadata(t, cardanofw.SAP3XTokenName, cardanofw.SAP3XTokenName)
+		})
+	}
+
+	require.NoError(t, rename(validFlags))
+	checkMetadata(t, newName, newSymbol)
+
+	t.Run("Solana solAP3X -> Vector AP3X", func(t *testing.T) {
+		e2ehelper.ExecuteSingleBridging(t, ctx, apex, user, user,
+			cardanofw.ChainIDSolana, cardanofw.ChainIDVector, amount, tokenID, true)
+	})
 }
 
 func Test_SkylineSolana_LockUnlockTokenFlow(t *testing.T) {
