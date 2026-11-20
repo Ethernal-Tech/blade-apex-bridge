@@ -171,13 +171,13 @@ jobs:
               if [[ "${{ github.base_ref }}" == "feat/skyline" ]]; then
                 echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
               else
-                echo "apex_bridge_ref=fix/system-hardening-reactor" >> $GITHUB_OUTPUT
+                echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
               fi
             else
               if [[ "${{ github.ref }}" == "refs/heads/feat/skyline" ]]; then
                 echo "apex_bridge_ref=feat/skyline" >> $GITHUB_OUTPUT
               else
-                echo "apex_bridge_ref=fix/system-hardening-reactor" >> $GITHUB_OUTPUT
+                echo "apex_bridge_ref=main" >> $GITHUB_OUTPUT
               fi
             fi
           else
