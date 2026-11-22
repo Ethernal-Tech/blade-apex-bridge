@@ -437,7 +437,7 @@ func Test_SkylineSolana_UpgradeAndUpdates(t *testing.T) {
 	solanaChain := apex.GetChainMust(t, cardanofw.ChainIDSolana).(*cardanofw.TestSolanaChain)
 	version, err := solanaChain.GetProgramVersion(ctx)
 	require.NoError(t, err)
-	require.Equal(t, "0.4.0", version)
+	require.Equal(t, "0.5.0", version)
 
 	testFunc := func() {
 		t.Run("Bridging after changes", func(t *testing.T) {
