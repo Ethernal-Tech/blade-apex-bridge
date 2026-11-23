@@ -1162,6 +1162,24 @@ func (ec *TestCardanoChain) GetAddressToBridgeTo(
 func (ec *TestCardanoChain) SendTx(
 	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver, operationFee uint64,
 ) (string, error) {
+	return ec.sendTx(ctx, privateKey, metadata, receivers, operationFee, nil)
+}
+
+// SendTxWithRawTxMutator builds the transaction the way SendTx does, but hands the raw
+// transaction to mutate before witnesses are created. It exists so a test can produce
+// transactions cardano-cli cannot build on its own - chiefly auxiliary_data envelopes
+// other than the alonzo one - while everything else stays on the normal path.
+func (ec *TestCardanoChain) SendTxWithRawTxMutator(
+	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver, operationFee uint64,
+	mutate func(txRaw []byte) ([]byte, error),
+) (string, error) {
+	return ec.sendTx(ctx, privateKey, metadata, receivers, operationFee, mutate)
+}
+
+func (ec *TestCardanoChain) sendTx(
+	ctx context.Context, privateKey string, metadata []byte, receivers []GenericTxReceiver, operationFee uint64,
+	mutate func(txRaw []byte) ([]byte, error),
+) (string, error) {
 	if len(receivers) == 0 {
 		return "", fmt.Errorf("cardano SendTx supports one or multiple receivers but got zero")
 	}
@@ -1205,12 +1223,25 @@ func (ec *TestCardanoChain) SendTx(
 		return "", err
 	}
 
+	txRaw, txHash := txInfo.TxRaw, txInfo.TxHash
+
+	if mutate != nil {
+		if txRaw, err = mutate(txRaw); err != nil {
+			return "", fmt.Errorf("failed to mutate raw tx %s: %w", txInfo.TxHash, err)
+		}
+
+		// the body changed, so the hash the builder reported no longer identifies it
+		if txHash, err = TxHashFromRawTx(txRaw); err != nil {
+			return "", err
+		}
+	}
+
 	if ec.indexer != nil {
-		ec.indexer.Add(txInfo.TxHash)
+		ec.indexer.Add(txHash)
 	}
 
 	// it sufficient enough to check first address utxo
-	_, err = ec.submitTx(ctx, txInfo.TxRaw, txInfo.TxHash, receivers[0].Addr, wallets)
+	_, err = ec.submitTx(ctx, txRaw, txHash, receivers[0].Addr, wallets)
 	if err != nil {
 		var sb strings.Builder
 
@@ -1222,10 +1253,10 @@ func (ec *TestCardanoChain) SendTx(
 			sb.WriteString(r.Addr)
 		}
 
-		return "", fmt.Errorf("failed to send tx %s to receiver(s) %s: %w", txInfo.TxHash, sb.String(), err)
+		return "", fmt.Errorf("failed to send tx %s to receiver(s) %s: %w", txHash, sb.String(), err)
 	}
 
-	return txInfo.TxHash, nil
+	return txHash, nil
 }
 
 func (ec *TestCardanoChain) GetHotWalletAddresses() []string {
