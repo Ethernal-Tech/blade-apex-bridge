@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/e2ehelper"
 	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	infrawallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
+	"github.com/Ethernal-Tech/cardano-infrastructure/wallet/bech32"
 	"github.com/stretchr/testify/require"
 )
 
@@ -295,6 +296,55 @@ func TestE2E_SkylineRefund_ValidScenarios(t *testing.T) {
 
 	t.Run("12. vector -> cardano - currency on src", func(t *testing.T) {
 		executeInvalidTokenDirection(t, ctx, apex, vectorCardanoTestConfig, cardanofw.AP3XTokenID, user, maxWaitTimeSec, retryDelaySec, true, 0)
+	})
+
+	// the fee for refunding unknown tokens is charged per UTxO, so each such UTxO must be able to pay
+	// it on its own, regardless of how much lovelace the other outputs of the tx carry
+	feeForUnknownTokens := apex.GetMinBridgingFee(cardanofw.ChainIDCardano, true)
+
+	fundUnknownTokens := func(t *testing.T, user *cardanofw.TestApexUser) cardanofw.GenericTokenAmount {
+		t.Helper()
+
+		minterWallet, _ := user.GetCardanoWallet(cardanofw.ChainIDCardano)
+
+		tokensFunded, err := cardanofw.FundUserWithToken(
+			ctx, apex, cardanofw.ChainIDCardano,
+			minterWallet, user,
+			cardanofw.DefaultTokenName, cardanofw.DefaultTokenMintAmount,
+			cardanofw.ApexToWei(big.NewInt(10)), cardanofw.ApexToWei(big.NewInt(1)))
+		require.NoError(t, err)
+
+		return *tokensFunded
+	}
+
+	t.Run("13. Unknown tokens UTxO with less lovelace than the refund fee", func(t *testing.T) {
+		user := apex.Users[1]
+
+		// above the ledger min UTxO for an output with a single token, below the fee
+		unknownTokensUtxoAmount := new(big.Int).Sub(feeForUnknownTokens, cardanofw.ApexToWei(big.NewInt(1)))
+		require.True(t, unknownTokensUtxoAmount.Cmp(cardanofw.MinUTxODefaultValue) > 0,
+			"fee for unknown tokens too low for this scenario: %s", feeForUnknownTokens)
+
+		executeUnpayableUnknownTokensRefund(t, ctx, apex, user, cardanoPrimeTestConfig, primeCardanoTestConfig,
+			fundUnknownTokens(t, user), unknownTokensUtxoAmount, maxWaitTimeSec)
+	})
+
+	t.Run("14. Unknown tokens UTxO with less than min UTxO left after the refund fee", func(t *testing.T) {
+		user := apex.Users[2]
+
+		// covers the fee, but what is left for the refund output is below min UTxO
+		unknownTokensUtxoAmount := new(big.Int).Add(feeForUnknownTokens, cardanofw.DfmToWei(big.NewInt(500_000)))
+
+		executeUnpayableUnknownTokensRefund(t, ctx, apex, user, cardanoPrimeTestConfig, primeCardanoTestConfig,
+			fundUnknownTokens(t, user), unknownTokensUtxoAmount, maxWaitTimeSec)
+	})
+
+	t.Run("15.1 Prime -> Cardano - Non-canonical receiver address - currency on src", func(t *testing.T) {
+		executeNonCanonicalReceiverAddress(t, ctx, apex, primeCardanoTestConfig, user, maxWaitTimeSec, retryDelaySec)
+	})
+
+	t.Run("15.2 Cardano -> Prime - Non-canonical receiver address - token on src", func(t *testing.T) {
+		executeNonCanonicalReceiverAddress(t, ctx, apex, cardanoPrimeTestConfig, user, maxWaitTimeSec, retryDelaySec)
 	})
 }
 
@@ -1075,4 +1125,149 @@ func TestE2E_SkylineRefund_DisabledDirection(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+// executeUnpayableUnknownTokensRefund submits one invalid bridging request with two outputs to the
+// bridging addresses: the first carries unknown native tokens and unknownTokensUtxoAmount lovelace,
+// the second carries enough lovelace for the sum of both outputs to cover a refund. The batcher
+// refunds every unknown tokens UTxO on its own and charges MinFeeForBridgingTokens for each, so the
+// first UTxO cannot be refunded no matter what the sum is. The oracle must reject the refund: the
+// request ends up invalid and the source chain keeps producing batches. If the refund were accepted,
+// the batcher could not build any batch for the source chain, so the follow-up bridging, which uses
+// reverseConfig to bridge into the source chain, would stall.
+func executeUnpayableUnknownTokensRefund(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, user *cardanofw.TestApexUser,
+	config, reverseConfig *testConfig, unknownTokens cardanofw.GenericTokenAmount, unknownTokensUtxoAmount *big.Int,
+	maxWaitTimeSec uint,
+) {
+	t.Helper()
+
+	require.Equal(t, config.srcChainID, reverseConfig.dstChainID, "reverseConfig must bridge into the source chain")
+
+	receivers := []sendtx.BridgingTxReceiver{
+		{
+			Addr:    user.GetAddress(config.dstChainID),
+			Amount:  cardanofw.WeiToDfm(defaultSendAmount).Uint64(),
+			TokenID: config.tokensInfo.SrcTokenID,
+		},
+	}
+
+	multisigAddrs := apex.GetCardanoInfo(config.srcChainID).MultisigAddr
+	unknownTokensAddr := multisigAddrs[0]
+	lovelaceAddr := multisigAddrs[len(multisigAddrs)-1]
+
+	operationFee := apex.GetMinOperationFee(config.srcChainID)
+	minBridgingFee := apex.GetMinBridgingFee(config.srcChainID, true)
+
+	feeAmount, err := apex.GetChainMust(t, config.srcChainID).GetBridgingFee(
+		ctx, config.dstChainID, receivers, minBridgingFee, operationFee, lovelaceAddr)
+	require.NoError(t, err)
+
+	metadata, err := apex.GetChainMust(t, config.srcChainID).CreateMetadata(
+		user.GetAddress(config.srcChainID), config.dstChainID, receivers, feeAmount, operationFee)
+	require.NoError(t, err)
+
+	lovelaceAmount := new(big.Int).Add(defaultSendAmount, feeAmount)
+	lovelaceAmount.Add(lovelaceAmount, operationFee)
+
+	fmt.Printf("unknown tokens UTxO: %s lovelace on %s, lovelace UTxO: %s on %s\n",
+		cardanofw.WeiToDfm(unknownTokensUtxoAmount), unknownTokensAddr,
+		cardanofw.WeiToDfm(lovelaceAmount), lovelaceAddr)
+
+	txHash, err := apex.SubmitTxWithReceivers(ctx, config.srcChainID, user, []cardanofw.GenericTxReceiver{
+		{
+			Addr:         unknownTokensAddr,
+			Amount:       unknownTokensUtxoAmount,
+			NativeTokens: []cardanofw.GenericTokenAmount{unknownTokens},
+		},
+		{
+			Addr:   lovelaceAddr,
+			Amount: lovelaceAmount,
+		},
+	}, metadata, operationFee)
+	require.NoError(t, err)
+
+	fmt.Printf("txHash: %s\n", txHash)
+
+	cardanofw.WaitForInvalidState(t, ctx, apex, config.srcChainID, txHash, apex.Config.APIKey, maxWaitTimeSec)
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, user, user, reverseConfig.srcChainID, reverseConfig.dstChainID, defaultSendAmount,
+		reverseConfig.tokensInfo.SrcTokenID, true)
+}
+
+// nonCanonicalBaseAddress builds a base address from the payment key hash of addr and appends
+// a trailing byte. The cardano-infrastructure parser only checks a minimum length for base
+// addresses, so it still accepts the result, while the ledger's strict address decoding does not.
+func nonCanonicalBaseAddress(t *testing.T, addr string) string {
+	t.Helper()
+
+	cardanoAddr, err := infrawallet.NewCardanoAddressFromString(addr)
+	require.NoError(t, err)
+
+	info := cardanoAddr.GetInfo()
+
+	baseAddr, err := infrawallet.CardanoAddressInfo{
+		AddressType: infrawallet.BaseAddress,
+		Network:     info.Network,
+		Payment:     info.Payment,
+		Stake:       &infrawallet.CardanoAddressPayload{Payload: info.Payment.Payload},
+	}.ToCardanoAddress()
+	require.NoError(t, err)
+
+	raw := append(bytes.Clone(baseAddr.GetBytes()), 0)
+
+	nonCanonical, err := bech32.EncodeFromBase256(info.Network.GetPrefix(), raw)
+	require.NoError(t, err)
+
+	// the parser must accept it, otherwise the request is rejected before the canonical check
+	_, err = infrawallet.NewCardanoAddressFromString(nonCanonical)
+	require.NoError(t, err)
+
+	return nonCanonical
+}
+
+// executeNonCanonicalReceiverAddress submits a bridging request whose receiver is a non-canonical
+// address on the destination chain. The oracle must reject it and refund the sender: if it were
+// accepted, a batch paying to it would fail on every round and block the destination chain, so
+// the follow-up valid bridging in the same direction would never execute.
+func executeNonCanonicalReceiverAddress(
+	t *testing.T, ctx context.Context, apex *cardanofw.ApexSystem, config *testConfig,
+	user *cardanofw.TestApexUser, maxWaitTimeSec, retryIntervalSec uint,
+) {
+	t.Helper()
+
+	receiverAddr := nonCanonicalBaseAddress(t, user.GetAddress(config.dstChainID))
+	fmt.Printf("non-canonical receiver address: %s\n", receiverAddr)
+
+	receivers := []sendtx.BridgingTxReceiver{
+		{
+			Addr:    receiverAddr,
+			Amount:  cardanofw.WeiToDfm(defaultSendAmount).Uint64(),
+			TokenID: config.tokenID,
+		},
+	}
+
+	operationFee := apex.GetMinOperationFee(config.srcChainID)
+
+	metadata, feeAmount := createMetadata(t, ctx, apex, config.srcChainID, config.dstChainID,
+		apex.GetMinBridgingFee(config.srcChainID, !config.isCurrency),
+		operationFee, user, receivers, config.isCurrency)
+
+	beforeSendingAmount, err := apex.GetBalance(ctx, user, config.srcChainID)
+	require.NoError(t, err)
+
+	defaultAmount, sentTokenAmount, waitForAmount := getDefaultSendAmounts(t, config, feeAmount, operationFee)
+
+	txHash, err := apex.SubmitTx(
+		ctx, config.srcChainID, user, apex.GetCardanoInfo(config.srcChainID).MultisigAddr[0],
+		defaultAmount, sentTokenAmount, metadata, operationFee)
+	require.NoError(t, err)
+
+	WaitForInvalidTestResult(t, ctx, apex, config, user, txHash, beforeSendingAmount, waitForAmount,
+		true, maxWaitTimeSec, retryIntervalSec)
+
+	e2ehelper.ExecuteSingleBridging(
+		t, ctx, apex, user, user, config.srcChainID, config.dstChainID, defaultSendAmount,
+		config.tokenID, true)
 }
