@@ -10,7 +10,7 @@ require (
 	github.com/Ethernal-Tech/cardano-infrastructure v0.0.0-20261109150205-00abcca57098
 	github.com/Ethernal-Tech/ethgo v0.0.0-20240801172627-47215d9e504c
 	github.com/Ethernal-Tech/merkle-tree v0.0.0-20231213143318-4db9da419e04
-	github.com/Ethernal-Tech/solana-infrastructure v0.0.0-20261120122649-2a9d8166772e
+	github.com/Ethernal-Tech/solana-infrastructure v0.0.0-20261123101009-573ef1728f28
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.10
 	github.com/alibabacloud-go/oos-20190601/v4 v4.4.2
 	github.com/alibabacloud-go/tea v1.3.2
