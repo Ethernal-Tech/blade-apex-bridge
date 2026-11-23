@@ -44,7 +44,7 @@ const (
 
 	// SolanaProgramUpgradeVersion is written to the program config when UpgradeProgram deploys
 	// solanaProgramBuildPath; keep it equal to the version of that build.
-	SolanaProgramUpgradeVersion = "0.6.0"
+	SolanaProgramUpgradeVersion = "1.0.0"
 
 	// Security-test fixture: an attacker-owned program that emits its instruction data as a
 	// "Program data:" log line (see e2e-polybft/solanafw/malicious-logger-src).
