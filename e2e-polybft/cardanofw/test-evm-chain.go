@@ -1029,6 +1029,7 @@ func (ec *TestEVMChain) InitContracts(
 		"--currency-token-id", fmt.Sprint(ec.config.CurrencyID),
 		"--treasury-addr", ec.config.TreasuryAddress,
 		"--clone",
+		"--branch", "fix/AD-1196-evm-replay-destination",
 	}
 
 	if err := retry(ctx, workingDirectory, func() error {
