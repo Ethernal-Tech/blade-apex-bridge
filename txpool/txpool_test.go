@@ -3503,49 +3503,130 @@ func TestProposed(t *testing.T) {
 	}
 }
 
+// addPromoted adds txs to the pool and promotes each one; returns the slots they occupy.
+func addPromoted(t *testing.T, pool *TxPool, txs ...*types.Transaction) uint64 {
+	t.Helper()
+
+	for _, tx := range txs {
+		require.NoError(t, pool.addTx(local, tx))
+		pool.handlePromoteRequest(<-pool.promoteReqCh)
+	}
+
+	return slotsRequired(txs...)
+}
+
+// popAll pops every executable tx, as a proposer building a block does.
+func popAll(pool *TxPool) {
+	pool.Prepare()
+
+	for tx := pool.Peek(); tx != nil; tx = pool.Peek() {
+		pool.Pop(tx)
+	}
+}
+
 // Pop decreases the pending counter and the slot gauge; ReinsertProposed (round > 0
 // or a cancelled sequence) must restore both, otherwise every failed round leaves the
-// metrics too low and they go negative once the tx is popped again or pruned.
+// metrics too low and they go negative once the txs are popped again or pruned.
 func TestReinsertProposed_RestoresPendingAndSlots(t *testing.T) {
 	t.Parallel()
 
-	const (
-		rounds  = 3
-		txSlots = 3 // multi-slot tx, so slots and tx count differ
-	)
+	const rounds = 3
 
 	pool, err := newTestPool()
 	require.NoError(t, err)
 	pool.SetSigner(&mockSigner{})
 
-	tx := newTx(addr1, 0, txSlots, types.LegacyTxType)
-	require.NoError(t, pool.addTx(local, tx))
-	pool.handlePromoteRequest(<-pool.promoteReqCh)
+	// two accounts, txs of different sizes, so slots and tx count differ
+	// and the per-account sums are exercised
+	txs := []*types.Transaction{
+		newTx(addr1, 0, 3, types.LegacyTxType),
+		newTx(addr1, 1, 1, types.LegacyTxType),
+		newTx(addr2, 0, 2, types.LegacyTxType),
+	}
 
-	expectedSlots := slotsRequired(tx)
+	expectedPending := int64(len(txs))
+	expectedSlots := addPromoted(t, pool, txs...)
 
-	require.Equal(t, int64(1), atomic.LoadInt64(&pool.pending))
+	require.Greater(t, expectedSlots, uint64(len(txs)), "txs must be multi-slot")
+	require.Equal(t, expectedPending, atomic.LoadInt64(&pool.pending))
 	require.Equal(t, expectedSlots, pool.gauge.read())
 
 	for round := 1; round <= rounds; round++ {
-		pool.Prepare()
-		pool.Pop(pool.Peek())
+		popAll(pool)
 
 		require.Equal(t, int64(0), atomic.LoadInt64(&pool.pending), "round %d after Pop", round)
 		require.Equal(t, uint64(0), pool.gauge.read(), "round %d after Pop", round)
 
 		pool.ReinsertProposed()
 
-		require.Equal(t, int64(1), atomic.LoadInt64(&pool.pending), "round %d after ReinsertProposed", round)
+		require.Equal(t, expectedPending, atomic.LoadInt64(&pool.pending), "round %d after ReinsertProposed", round)
 		require.Equal(t, expectedSlots, pool.gauge.read(), "round %d after ReinsertProposed", round)
 	}
 
-	// the tx gets mined by another validator and is pruned from the promoted queue
-	pool.resetAccounts(map[types.Address]uint64{addr1: 1})
+	// the txs get mined by another validator and are pruned from the promoted queues
+	pool.resetAccounts(map[types.Address]uint64{addr1: 2, addr2: 1})
 
 	assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
+	assert.Equal(t, uint64(0), pool.accounts.get(addr2).promoted.length())
 	assert.Equal(t, int64(0), atomic.LoadInt64(&pool.pending))
 	assert.Equal(t, uint64(0), pool.gauge.read())
+}
+
+// A popped (proposed) tx is no longer counted in pending or in the slot gauge, so the
+// other ways it can leave the proposed queue must not subtract it a second time.
+func TestProposedTxLeavingPool_NoDoubleSubtract(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name  string
+		leave func(pool *TxPool, tx *types.Transaction)
+	}{
+		{
+			name: "mined and pruned by resetAccounts",
+			leave: func(pool *TxPool, tx *types.Transaction) {
+				pool.resetAccounts(map[types.Address]uint64{tx.From(): tx.Nonce() + 1})
+			},
+		},
+		{
+			name: "account dropped",
+			leave: func(pool *TxPool, tx *types.Transaction) {
+				pool.Drop(tx)
+			},
+		},
+		{
+			name: "proposed cleared at round 0",
+			leave: func(pool *TxPool, _ *types.Transaction) {
+				pool.ClearProposed()
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			pool, err := newTestPool()
+			require.NoError(t, err)
+			pool.SetSigner(&mockSigner{})
+
+			tx := newTx(addr1, 0, 3, types.LegacyTxType)
+			addPromoted(t, pool, tx)
+			popAll(pool)
+
+			tc.leave(pool, tx)
+
+			assert.Equal(t, int64(0), atomic.LoadInt64(&pool.pending), "after leaving")
+			assert.Equal(t, uint64(0), pool.gauge.read(), "after leaving")
+
+			// nothing is left in proposed, so a later reinsert must not change the metrics
+			pool.ReinsertProposed()
+
+			assert.Equal(t, int64(0), atomic.LoadInt64(&pool.pending), "after ReinsertProposed")
+			assert.Equal(t, uint64(0), pool.gauge.read(), "after ReinsertProposed")
+		})
+	}
 }
 
 func TestGetTxs(t *testing.T) {
