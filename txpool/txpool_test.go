@@ -3503,6 +3503,51 @@ func TestProposed(t *testing.T) {
 	}
 }
 
+// Pop decreases the pending counter and the slot gauge; ReinsertProposed (round > 0
+// or a cancelled sequence) must restore both, otherwise every failed round leaves the
+// metrics too low and they go negative once the tx is popped again or pruned.
+func TestReinsertProposed_RestoresPendingAndSlots(t *testing.T) {
+	t.Parallel()
+
+	const (
+		rounds  = 3
+		txSlots = 3 // multi-slot tx, so slots and tx count differ
+	)
+
+	pool, err := newTestPool()
+	require.NoError(t, err)
+	pool.SetSigner(&mockSigner{})
+
+	tx := newTx(addr1, 0, txSlots, types.LegacyTxType)
+	require.NoError(t, pool.addTx(local, tx))
+	pool.handlePromoteRequest(<-pool.promoteReqCh)
+
+	expectedSlots := slotsRequired(tx)
+
+	require.Equal(t, int64(1), atomic.LoadInt64(&pool.pending))
+	require.Equal(t, expectedSlots, pool.gauge.read())
+
+	for round := 1; round <= rounds; round++ {
+		pool.Prepare()
+		pool.Pop(pool.Peek())
+
+		require.Equal(t, int64(0), atomic.LoadInt64(&pool.pending), "round %d after Pop", round)
+		require.Equal(t, uint64(0), pool.gauge.read(), "round %d after Pop", round)
+
+		pool.ReinsertProposed()
+
+		require.Equal(t, int64(1), atomic.LoadInt64(&pool.pending), "round %d after ReinsertProposed", round)
+		require.Equal(t, expectedSlots, pool.gauge.read(), "round %d after ReinsertProposed", round)
+	}
+
+	// the tx gets mined by another validator and is pruned from the promoted queue
+	pool.resetAccounts(map[types.Address]uint64{addr1: 1})
+
+	assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
+	assert.Equal(t, int64(0), atomic.LoadInt64(&pool.pending))
+	assert.Equal(t, uint64(0), pool.gauge.read())
+}
+
 func TestGetTxs(t *testing.T) {
 	t.Parallel()
 
