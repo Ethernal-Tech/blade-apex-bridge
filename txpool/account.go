@@ -132,9 +132,12 @@ func (m *accountsMap) allTxs(includeEnqueued bool) (
 	return
 }
 
-func (m *accountsMap) reinsertProposed() uint64 {
-	var count uint64
-
+// reinsertProposed moves all proposed txs back to the promoted queues.
+// For every account with reinserted txs it calls onReinsert with the number of
+// those txs and the slots they occupy while the account locks are still held
+// (as Pop does), so the caller can restore what Pop subtracted from the pool
+// metrics before a concurrent prune of the same txs can subtract it again.
+func (m *accountsMap) reinsertProposed(onReinsert func(count, slots uint64)) {
 	m.Range(func(key, value interface{}) bool {
 		accountKey, ok := key.(types.Address)
 		if !ok {
@@ -156,6 +159,8 @@ func (m *accountsMap) reinsertProposed() uint64 {
 		}()
 
 		if account.proposed.length() > 0 {
+			var count, slots uint64
+
 			for {
 				tx := account.proposed.peek()
 				if tx == nil {
@@ -166,16 +171,17 @@ func (m *accountsMap) reinsertProposed() uint64 {
 				account.proposed.pop()
 
 				count++
+				slots += slotsRequired(tx)
 			}
 
 			maps.Copy(account.nonceToTx.mapping, account.nonceProposed.mapping)
 			account.nonceProposed.reset()
+
+			onReinsert(count, slots)
 		}
 
 		return true
 	})
-
-	return count
 }
 
 func (m *accountsMap) clearProposed() {

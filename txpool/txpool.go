@@ -631,8 +631,12 @@ func (p *TxPool) ResetWithBlock(block *types.Block) {
 // ReinsertProposed returns all txs from the accounts proposed queue to the promoted queue
 // it is called from consensus_runtime when new round > 0 starts or when current sequence is cancelled
 func (p *TxPool) ReinsertProposed() {
-	count := p.accounts.reinsertProposed()
-	p.gauge.increase(count)
+	// Pop decreased both the slot gauge and the pending counter,
+	// so restore both for every reinserted tx
+	p.accounts.reinsertProposed(func(count, slots uint64) {
+		p.gauge.increase(slots)
+		p.updatePending(int64(count))
+	})
 	p.Prepare()
 }
 
