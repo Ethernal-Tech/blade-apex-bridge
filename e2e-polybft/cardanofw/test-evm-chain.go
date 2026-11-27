@@ -1029,6 +1029,7 @@ func (ec *TestEVMChain) InitContracts(
 		"--currency-token-id", fmt.Sprint(ec.config.CurrencyID),
 		"--treasury-addr", ec.config.TreasuryAddress,
 		"--clone",
+		"--branch", "fix/AD-1196-evm-replay-destination",
 	}
 
 	if err := retry(ctx, workingDirectory, func() error {
@@ -1081,10 +1082,22 @@ func (ec *TestEVMChain) GenerateChainConfigs(
 	server := ec.cluster.Servers[indx%len(ec.cluster.Servers)]
 	dbsPath := filepath.Join(validator.dataDirPath, BridgingDBsDir)
 
+	// the batcher binds every batch to the numeric EVM chain id, read here from the running chain
+	rpc, err := JSONRPCClient(server.JSONRPCAddr())
+	if err != nil {
+		return err
+	}
+
+	evmChainID, err := rpc.ChainID()
+	if err != nil {
+		return fmt.Errorf("failed to get evm chain id for %s: %w", ec.ChainID(), err)
+	}
+
 	args := []string{
 		generateConfigsCommand, "evm-chain",
 		chainIDFlag, ec.ChainID(),
 		"--evm-node-url", server.JSONRPCAddr(),
+		"--evm-chain-id", evmChainID.String(),
 		outputDirFlag, validator.GetBridgingConfigsDir(),
 		outputValidatorComponentsFileNameFlag, ValidatorComponentsConfigFileName,
 		outputRelayerFileNameFlag, RelayerConfigFileName,
